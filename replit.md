@@ -153,6 +153,17 @@ Key database tables:
 - Storage methods: getFilteredTrips, getDriverTripHistory, getRiderTripHistoryFiltered, getTripById
 - Read-only functionality (no modifications to frozen phases)
 
+### Phase 7B – Trip Details & Cancellation Reasons (FROZEN - Stable)
+- New fields in trips table: cancelledAt, cancelledBy (enum: rider/driver/admin), cancellationReason
+- Enhanced trip detail response includes full cancellation info
+- Cancellation endpoints updated to accept reason parameter
+- TripDetailModal displays cancellation section for cancelled trips:
+  - Cancelled by (rider/driver/admin)
+  - Cancellation reason (if provided)
+  - Cancelled timestamp
+- Admin, Director, Driver, and Rider dashboards all show cancellation details
+- Directors remain read-only (view cancellation info but cannot cancel)
+
 ### FROZEN Components (DO NOT MODIFY)
 - Authentication flow (Replit Auth + OpenID Connect)
 - Role assignments and routing logic
