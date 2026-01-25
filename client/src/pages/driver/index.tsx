@@ -28,7 +28,11 @@ import {
   AlertCircle,
   LogOut,
   History,
-  Star
+  Star,
+  Wallet,
+  DollarSign,
+  ArrowUpRight,
+  ArrowDownLeft
 } from "lucide-react";
 import type { DriverProfile, Trip } from "@shared/schema";
 import { NotificationBell } from "@/components/notification-bell";
@@ -36,6 +40,29 @@ import { NotificationBell } from "@/components/notification-bell";
 type TripWithRider = Trip & { riderName?: string };
 
 type TripWithDetails = Trip & { riderName?: string; driverName?: string };
+
+type WalletWithTransactions = {
+  id: string;
+  userId: string;
+  balance: string;
+  lockedBalance: string;
+  currency: string;
+  transactions: Array<{
+    id: string;
+    type: "credit" | "debit" | "hold" | "release";
+    amount: string;
+    source: string;
+    description?: string;
+    createdAt: string;
+  }>;
+  payouts: Array<{
+    id: string;
+    amount: string;
+    status: string;
+    method: string;
+    createdAt: string;
+  }>;
+};
 
 export default function DriverDashboard() {
   const { user, isLoading: authLoading, logout } = useAuth();
@@ -85,6 +112,12 @@ export default function DriverDashboard() {
       if (!res.ok) throw new Error("Failed to fetch trip history");
       return res.json();
     },
+    enabled: !!user,
+  });
+
+  // Phase 11 - Wallet query
+  const { data: wallet, isLoading: walletLoading } = useQuery<WalletWithTransactions | null>({
+    queryKey: ["/api/wallets/me"],
     enabled: !!user,
   });
 
@@ -327,6 +360,103 @@ export default function DriverDashboard() {
                       data-testid="switch-availability"
                     />
                   </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Phase 11 - Wallet Section */}
+            {profile.status === "approved" && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Wallet className="h-5 w-5" />
+                    Earnings Wallet
+                  </CardTitle>
+                  <CardDescription>
+                    Your earnings from completed trips
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {walletLoading ? (
+                    <div className="py-4 text-center text-muted-foreground text-sm">
+                      Loading wallet...
+                    </div>
+                  ) : !wallet ? (
+                    <div className="py-4 text-center text-muted-foreground text-sm">
+                      No wallet yet. Complete trips to earn!
+                    </div>
+                  ) : (
+                    <>
+                      <div className="bg-primary/10 rounded-lg p-4">
+                        <div className="text-sm text-muted-foreground">Available Balance</div>
+                        <div className="text-2xl font-bold text-primary" data-testid="text-wallet-balance">
+                          ${(parseFloat(wallet.balance) - parseFloat(wallet.lockedBalance)).toFixed(2)}
+                        </div>
+                        {parseFloat(wallet.lockedBalance) > 0 && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            ${wallet.lockedBalance} pending payout
+                          </div>
+                        )}
+                      </div>
+                      
+                      {wallet.transactions.length > 0 && (
+                        <div className="space-y-2">
+                          <div className="text-sm font-medium">Recent Transactions</div>
+                          <div className="space-y-1 max-h-[200px] overflow-y-auto">
+                            {wallet.transactions.slice(0, 5).map((tx) => (
+                              <div 
+                                key={tx.id} 
+                                className="flex items-center justify-between py-2 border-b last:border-0"
+                                data-testid={`row-transaction-${tx.id}`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  {tx.type === "credit" ? (
+                                    <ArrowDownLeft className="h-4 w-4 text-green-500" />
+                                  ) : (
+                                    <ArrowUpRight className="h-4 w-4 text-red-500" />
+                                  )}
+                                  <div>
+                                    <div className="text-sm font-medium capitalize">{tx.source}</div>
+                                    <div className="text-xs text-muted-foreground truncate max-w-[120px]">
+                                      {tx.description || tx.type}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className={`text-sm font-medium ${
+                                  tx.type === "credit" ? "text-green-600" : "text-red-600"
+                                }`}>
+                                  {tx.type === "credit" ? "+" : "-"}${tx.amount}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {wallet.payouts.length > 0 && (
+                        <div className="space-y-2">
+                          <div className="text-sm font-medium">Recent Payouts</div>
+                          <div className="space-y-1">
+                            {wallet.payouts.slice(0, 3).map((payout) => (
+                              <div 
+                                key={payout.id} 
+                                className="flex items-center justify-between py-2 border-b last:border-0"
+                                data-testid={`row-payout-${payout.id}`}
+                              >
+                                <div>
+                                  <div className="text-sm font-medium">${payout.amount}</div>
+                                  <div className="text-xs text-muted-foreground capitalize">
+                                    {payout.method} - {new Date(payout.createdAt).toLocaleDateString()}
+                                  </div>
+                                </div>
+                                <StatusBadge status={payout.status as "pending" | "processing" | "paid" | "failed" | "reversed"} />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </CardContent>
               </Card>
             )}

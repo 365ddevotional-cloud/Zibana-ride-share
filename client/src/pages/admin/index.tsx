@@ -2458,7 +2458,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                                 {new Date(payout.periodStart).toLocaleDateString()} - {new Date(payout.periodEnd).toLocaleDateString()}
                               </TableCell>
                               <TableCell>
-                                <StatusBadge status={payout.status} />
+                                <StatusBadge status={payout.status as "pending" | "processing" | "paid" | "failed" | "reversed"} />
                               </TableCell>
                               <TableCell>{payout.initiatedByName || "-"}</TableCell>
                               <TableCell className="text-sm text-muted-foreground">
@@ -2617,7 +2617,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                     </div>
                     <div>
                       <label className="text-sm text-muted-foreground">Status</label>
-                      <StatusBadge status={selectedWalletPayout.status} />
+                      <StatusBadge status={selectedWalletPayout.status as "pending" | "processing" | "paid" | "failed" | "reversed"} />
                     </div>
                     <div className="col-span-2">
                       <label className="text-sm text-muted-foreground">Period</label>
