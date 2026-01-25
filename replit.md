@@ -189,6 +189,23 @@ Key database tables:
 - No auto refunds or penalties - manual moderation only
 - API endpoints: POST /api/disputes, GET /api/disputes/check/:tripId, GET /api/admin/disputes, PATCH /api/admin/disputes/:id
 
+### Phase 10A – Refunds & Adjustments (FROZEN - Stable)
+- Two new roles added: finance, trip_coordinator
+- refunds table: tripId, riderId, amount, type (full/partial/adjustment), status, reason, linkedDisputeId
+- Refund statuses: pending, approved, rejected, processed, reversed
+- wallet_adjustments table: driverId, amount, type (credit/debit), reason
+- audit_logs table: entityType, entityId, action, performedById, performedByRole, metadata
+- Role-based approval workflow:
+  - Trip Coordinator: Can approve refunds ≤$20
+  - Admin: Can approve any refund amount, can reject refunds
+  - Finance: Can process approved refunds, can reverse processed refunds
+- Directors: Read-only access to refunds tab (view only, no actions)
+- Admin dashboard Refunds tab with status filtering, detail modal, and audit trail visualization
+- All refund actions (create, approve, reject, process, reverse) logged to audit_logs
+- API endpoints: POST /api/refunds/create, /approve, /reject, /process, /reverse
+- GET /api/refunds (with optional status filter), GET /api/refunds/:refundId/audit
+- POST /api/wallet/adjust for admin-only driver wallet adjustments
+
 ### FROZEN Components (DO NOT MODIFY)
 - Authentication flow (Replit Auth + OpenID Connect)
 - Role assignments and routing logic
@@ -198,3 +215,4 @@ Key database tables:
 - Notifications system and all notification endpoints
 - Ratings system and all rating endpoints
 - Disputes system and all dispute endpoints
+- Refunds system and all refund endpoints
