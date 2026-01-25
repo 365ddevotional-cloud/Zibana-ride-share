@@ -2,7 +2,8 @@ import type { Express, RequestHandler } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { storage } from "./storage";
-import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema } from "@shared/schema";
+import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema } from "@shared/schema";
+import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, evaluateAllDrivers } from "./incentives";
 
 const requireRole = (allowedRoles: string[]): RequestHandler => {
   return async (req: any, res, next) => {
@@ -2029,6 +2030,226 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error fetching user fraud data:", error);
       return res.status(500).json({ message: "Failed to fetch user fraud data" });
+    }
+  });
+
+  // Phase 14 - Incentive Program Routes
+  app.get("/api/incentives/stats", isAuthenticated, requireRole(["admin", "finance"]), async (req: any, res) => {
+    try {
+      const stats = await storage.getIncentiveStats();
+      return res.json(stats);
+    } catch (error) {
+      console.error("Error fetching incentive stats:", error);
+      return res.status(500).json({ message: "Failed to fetch incentive stats" });
+    }
+  });
+
+  app.get("/api/incentives/active", isAuthenticated, async (req: any, res) => {
+    try {
+      const programs = await storage.getActiveIncentivePrograms();
+      return res.json(programs);
+    } catch (error) {
+      console.error("Error fetching active incentives:", error);
+      return res.status(500).json({ message: "Failed to fetch active incentives" });
+    }
+  });
+
+  app.get("/api/incentives/programs", isAuthenticated, requireRole(["admin", "finance", "trip_coordinator"]), async (req: any, res) => {
+    try {
+      const programs = await storage.getAllIncentivePrograms();
+      return res.json(programs);
+    } catch (error) {
+      console.error("Error fetching incentive programs:", error);
+      return res.status(500).json({ message: "Failed to fetch incentive programs" });
+    }
+  });
+
+  app.get("/api/incentives/earnings", isAuthenticated, requireRole(["admin", "finance"]), async (req: any, res) => {
+    try {
+      const earnings = await storage.getAllIncentiveEarnings();
+      return res.json(earnings);
+    } catch (error) {
+      console.error("Error fetching incentive earnings:", error);
+      return res.status(500).json({ message: "Failed to fetch incentive earnings" });
+    }
+  });
+
+  app.get("/api/incentives/driver/:driverId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { driverId } = req.params;
+      const userRole = await storage.getUserRole(userId);
+      
+      if (userId !== driverId && !["admin", "finance", "trip_coordinator"].includes(userRole?.role || "")) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const earnings = await storage.getDriverIncentiveEarnings(driverId);
+      return res.json(earnings);
+    } catch (error) {
+      console.error("Error fetching driver incentives:", error);
+      return res.status(500).json({ message: "Failed to fetch driver incentives" });
+    }
+  });
+
+  app.post("/api/incentives/create", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const parsed = insertIncentiveProgramSchema.safeParse({ ...req.body, createdByUserId: userId });
+      
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid incentive program data", errors: parsed.error.errors });
+      }
+
+      const program = await storage.createIncentiveProgram(parsed.data);
+
+      await storage.createAuditLog({
+        action: "incentive_program_created",
+        entityType: "incentive_program",
+        entityId: program.id,
+        performedByUserId: userId,
+        performedByRole: "admin",
+        metadata: JSON.stringify({ name: program.name, type: program.type, rewardAmount: program.rewardAmount })
+      });
+
+      return res.json(program);
+    } catch (error) {
+      console.error("Error creating incentive program:", error);
+      return res.status(500).json({ message: "Failed to create incentive program" });
+    }
+  });
+
+  app.post("/api/incentives/update/:programId", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { programId } = req.params;
+      
+      const program = await storage.updateIncentiveProgram(programId, req.body);
+      if (!program) {
+        return res.status(404).json({ message: "Program not found" });
+      }
+
+      await storage.createAuditLog({
+        action: "incentive_program_updated",
+        entityType: "incentive_program",
+        entityId: programId,
+        performedByUserId: userId,
+        performedByRole: "admin",
+        metadata: JSON.stringify(req.body)
+      });
+
+      return res.json(program);
+    } catch (error) {
+      console.error("Error updating incentive program:", error);
+      return res.status(500).json({ message: "Failed to update incentive program" });
+    }
+  });
+
+  app.post("/api/incentives/pause/:programId", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { programId } = req.params;
+      
+      const program = await storage.pauseIncentiveProgram(programId);
+      if (!program) {
+        return res.status(404).json({ message: "Program not found" });
+      }
+
+      await storage.createAuditLog({
+        action: "incentive_program_paused",
+        entityType: "incentive_program",
+        entityId: programId,
+        performedByUserId: userId,
+        performedByRole: "admin",
+        metadata: JSON.stringify({ previousStatus: "active" })
+      });
+
+      return res.json(program);
+    } catch (error) {
+      console.error("Error pausing incentive program:", error);
+      return res.status(500).json({ message: "Failed to pause incentive program" });
+    }
+  });
+
+  app.post("/api/incentives/end/:programId", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { programId } = req.params;
+      
+      const program = await storage.endIncentiveProgram(programId);
+      if (!program) {
+        return res.status(404).json({ message: "Program not found" });
+      }
+
+      await storage.createAuditLog({
+        action: "incentive_program_ended",
+        entityType: "incentive_program",
+        entityId: programId,
+        performedByUserId: userId,
+        performedByRole: "admin",
+        metadata: JSON.stringify({ previousStatus: program.status })
+      });
+
+      return res.json(program);
+    } catch (error) {
+      console.error("Error ending incentive program:", error);
+      return res.status(500).json({ message: "Failed to end incentive program" });
+    }
+  });
+
+  app.post("/api/incentives/evaluate", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const { driverId } = req.body;
+      
+      if (driverId) {
+        const result = await evaluateDriverForIncentives(driverId);
+        return res.json(result);
+      } else {
+        const result = await evaluateAllDrivers();
+        return res.json(result);
+      }
+    } catch (error) {
+      console.error("Error evaluating incentives:", error);
+      return res.status(500).json({ message: "Failed to evaluate incentives" });
+    }
+  });
+
+  app.post("/api/incentives/approve/:earningId", isAuthenticated, requireRole(["admin", "finance"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { earningId } = req.params;
+      
+      const result = await approveAndPayIncentive(earningId, userId);
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
+      }
+
+      return res.json({ success: true });
+    } catch (error) {
+      console.error("Error approving incentive:", error);
+      return res.status(500).json({ message: "Failed to approve incentive" });
+    }
+  });
+
+  app.post("/api/incentives/revoke/:earningId", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { earningId } = req.params;
+      const { reason } = req.body;
+
+      if (!reason) {
+        return res.status(400).json({ message: "Revocation reason is required" });
+      }
+      
+      const result = await revokeIncentive(earningId, userId, reason);
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
+      }
+
+      return res.json({ success: true });
+    } catch (error) {
+      console.error("Error revoking incentive:", error);
+      return res.status(500).json({ message: "Failed to revoke incentive" });
     }
   });
 
