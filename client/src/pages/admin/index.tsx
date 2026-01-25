@@ -5,6 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserAvatar } from "@/components/user-avatar";
@@ -34,7 +37,8 @@ import {
   Wallet,
   Briefcase,
   Eye,
-  Star
+  Star,
+  AlertTriangle
 } from "lucide-react";
 import type { DriverProfile, Trip, User } from "@shared/schema";
 import { NotificationBell } from "@/components/notification-bell";
@@ -88,6 +92,25 @@ type RatingWithDetails = {
   targetName?: string;
   tripPickup?: string;
   tripDropoff?: string;
+};
+
+type DisputeWithDetails = {
+  id: string;
+  tripId: string;
+  raisedByRole: "rider" | "driver";
+  raisedById: string;
+  againstUserId: string;
+  category: string;
+  description: string;
+  status: string;
+  adminNotes?: string;
+  createdAt: string;
+  resolvedAt?: string;
+  raisedByName?: string;
+  againstUserName?: string;
+  tripPickup?: string;
+  tripDropoff?: string;
+  tripStatus?: string;
 };
 
 interface AdminDashboardProps {
@@ -161,6 +184,24 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
     queryKey: ["/api/admin/ratings"],
     enabled: !!user,
   });
+
+  const [disputeStatusFilter, setDisputeStatusFilter] = useState<string>("");
+  const [disputeCategoryFilter, setDisputeCategoryFilter] = useState<string>("");
+  const [disputeRoleFilter, setDisputeRoleFilter] = useState<string>("");
+  const [selectedDispute, setSelectedDispute] = useState<DisputeWithDetails | null>(null);
+  const [disputeAdminNotes, setDisputeAdminNotes] = useState<string>("");
+
+  const disputeQueryParams = new URLSearchParams();
+  if (disputeStatusFilter) disputeQueryParams.set("status", disputeStatusFilter);
+  if (disputeCategoryFilter) disputeQueryParams.set("category", disputeCategoryFilter);
+  if (disputeRoleFilter) disputeQueryParams.set("raisedByRole", disputeRoleFilter);
+
+  const { data: allDisputes = [], isLoading: disputesLoading } = useQuery<DisputeWithDetails[]>({
+    queryKey: ["/api/admin/disputes", disputeStatusFilter, disputeCategoryFilter, disputeRoleFilter],
+    enabled: !!user,
+  });
+
+  const openDisputes = allDisputes.filter(d => d.status === "open");
 
   const { data: stats } = useQuery<{
     totalDrivers: number;
@@ -263,6 +304,34 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
       toast({
         title: "Error",
         description: error.message || "Failed to mark payout as paid",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateDisputeMutation = useMutation({
+    mutationFn: async ({ disputeId, status, adminNotes }: { disputeId: string; status?: string; adminNotes?: string }) => {
+      const response = await apiRequest("PATCH", `/api/admin/disputes/${disputeId}`, { status, adminNotes });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/disputes"] });
+      setSelectedDispute(null);
+      setDisputeAdminNotes("");
+      toast({
+        title: "Dispute updated",
+        description: "The dispute has been successfully updated",
+      });
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({ title: "Session expired", description: "Please log in again", variant: "destructive" });
+        setTimeout(() => { window.location.href = "/api/login"; }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update dispute",
         variant: "destructive",
       });
     },
@@ -464,6 +533,15 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
             <TabsTrigger value="ratings" data-testid="tab-ratings">
               <Star className="h-4 w-4 mr-2" />
               Ratings
+            </TabsTrigger>
+            <TabsTrigger value="disputes" data-testid="tab-disputes">
+              <AlertTriangle className="h-4 w-4 mr-2" />
+              Disputes
+              {openDisputes.length > 0 && (
+                <span className="ml-2 bg-orange-500 text-white text-xs rounded-full px-2 py-0.5">
+                  {openDisputes.length}
+                </span>
+              )}
             </TabsTrigger>
             {!isDirector && (
               <TabsTrigger value="directors" data-testid="tab-directors">
@@ -913,6 +991,275 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               </CardContent>
             </Card>
           </TabsContent>
+
+          <TabsContent value="disputes">
+            <Card>
+              <CardHeader>
+                <CardTitle>Disputes & Issues</CardTitle>
+                <CardDescription>
+                  Review and manage disputes reported by riders and drivers
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-3 mb-4">
+                  <Select value={disputeStatusFilter} onValueChange={setDisputeStatusFilter}>
+                    <SelectTrigger className="w-40" data-testid="select-dispute-status-filter">
+                      <SelectValue placeholder="All Statuses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      <SelectItem value="open">Open</SelectItem>
+                      <SelectItem value="under_review">Under Review</SelectItem>
+                      <SelectItem value="resolved">Resolved</SelectItem>
+                      <SelectItem value="rejected">Rejected</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={disputeCategoryFilter} onValueChange={setDisputeCategoryFilter}>
+                    <SelectTrigger className="w-40" data-testid="select-dispute-category-filter">
+                      <SelectValue placeholder="All Categories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      <SelectItem value="fare">Fare Issue</SelectItem>
+                      <SelectItem value="behavior">Behavior</SelectItem>
+                      <SelectItem value="cancellation">Cancellation</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={disputeRoleFilter} onValueChange={setDisputeRoleFilter}>
+                    <SelectTrigger className="w-40" data-testid="select-dispute-role-filter">
+                      <SelectValue placeholder="All Roles" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Roles</SelectItem>
+                      <SelectItem value="rider">Rider</SelectItem>
+                      <SelectItem value="driver">Driver</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {(disputeStatusFilter || disputeCategoryFilter || disputeRoleFilter) && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setDisputeStatusFilter("");
+                        setDisputeCategoryFilter("");
+                        setDisputeRoleFilter("");
+                      }}
+                      data-testid="button-clear-dispute-filters"
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Clear
+                    </Button>
+                  )}
+                </div>
+                {disputesLoading ? (
+                  <div className="py-8 text-center text-muted-foreground">
+                    Loading disputes...
+                  </div>
+                ) : allDisputes.length === 0 ? (
+                  <EmptyState
+                    icon={AlertTriangle}
+                    title="No disputes found"
+                    description="Disputes from riders and drivers will appear here"
+                  />
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Category</TableHead>
+                          <TableHead>From</TableHead>
+                          <TableHead>Against</TableHead>
+                          <TableHead>Trip</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {allDisputes.map((dispute) => (
+                          <TableRow key={dispute.id} data-testid={`row-dispute-${dispute.id}`}>
+                            <TableCell>
+                              <StatusBadge status={dispute.status as any} />
+                            </TableCell>
+                            <TableCell className="capitalize">{dispute.category}</TableCell>
+                            <TableCell>
+                              <span className="capitalize text-xs text-muted-foreground">{dispute.raisedByRole}: </span>
+                              {dispute.raisedByName}
+                            </TableCell>
+                            <TableCell>{dispute.againstUserName}</TableCell>
+                            <TableCell>
+                              <span className="text-sm truncate max-w-32 block">
+                                {dispute.tripPickup} → {dispute.tripDropoff}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              {new Date(dispute.createdAt).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedDispute(dispute);
+                                  setDisputeAdminNotes(dispute.adminNotes || "");
+                                }}
+                                data-testid={`button-view-dispute-${dispute.id}`}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <Dialog open={!!selectedDispute} onOpenChange={(open) => !open && setSelectedDispute(null)}>
+            <DialogContent className="max-w-lg" data-testid="modal-dispute-detail">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-orange-500" />
+                  Dispute Details
+                </DialogTitle>
+                <DialogDescription>
+                  Review and manage this dispute
+                </DialogDescription>
+              </DialogHeader>
+              {selectedDispute && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Status</p>
+                      <StatusBadge status={selectedDispute.status as any} />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Category</p>
+                      <p className="capitalize font-medium">{selectedDispute.category}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Raised By</p>
+                      <p className="font-medium">{selectedDispute.raisedByName}</p>
+                      <p className="text-xs text-muted-foreground capitalize">({selectedDispute.raisedByRole})</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Against</p>
+                      <p className="font-medium">{selectedDispute.againstUserName}</p>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Trip</p>
+                    <p className="font-medium text-sm">{selectedDispute.tripPickup} → {selectedDispute.tripDropoff}</p>
+                    <p className="text-xs text-muted-foreground">Trip Status: {selectedDispute.tripStatus}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Description</p>
+                    <p className="text-sm bg-muted p-3 rounded-md">{selectedDispute.description}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Filed</p>
+                    <p className="font-medium">{new Date(selectedDispute.createdAt).toLocaleString()}</p>
+                  </div>
+                  {selectedDispute.resolvedAt && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Resolved</p>
+                      <p className="font-medium">{new Date(selectedDispute.resolvedAt).toLocaleString()}</p>
+                    </div>
+                  )}
+                  {!isDirector && (
+                    <>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Admin Notes</label>
+                        <Textarea
+                          value={disputeAdminNotes}
+                          onChange={(e) => setDisputeAdminNotes(e.target.value)}
+                          placeholder="Add internal notes about this dispute..."
+                          rows={3}
+                          data-testid="textarea-admin-notes"
+                        />
+                      </div>
+                      <DialogFooter className="flex-wrap gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => setSelectedDispute(null)}
+                          data-testid="button-close-dispute"
+                        >
+                          Close
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          onClick={() => updateDisputeMutation.mutate({
+                            disputeId: selectedDispute.id,
+                            adminNotes: disputeAdminNotes,
+                          })}
+                          disabled={updateDisputeMutation.isPending}
+                          data-testid="button-save-notes"
+                        >
+                          Save Notes
+                        </Button>
+                        {selectedDispute.status === "open" && (
+                          <Button
+                            variant="default"
+                            onClick={() => updateDisputeMutation.mutate({
+                              disputeId: selectedDispute.id,
+                              status: "under_review",
+                              adminNotes: disputeAdminNotes,
+                            })}
+                            disabled={updateDisputeMutation.isPending}
+                            data-testid="button-mark-under-review"
+                          >
+                            Mark Under Review
+                          </Button>
+                        )}
+                        {(selectedDispute.status === "open" || selectedDispute.status === "under_review") && (
+                          <>
+                            <Button
+                              variant="default"
+                              className="bg-green-600 hover:bg-green-700"
+                              onClick={() => updateDisputeMutation.mutate({
+                                disputeId: selectedDispute.id,
+                                status: "resolved",
+                                adminNotes: disputeAdminNotes,
+                              })}
+                              disabled={updateDisputeMutation.isPending}
+                              data-testid="button-resolve-dispute"
+                            >
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                              Resolve
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              onClick={() => updateDisputeMutation.mutate({
+                                disputeId: selectedDispute.id,
+                                status: "rejected",
+                                adminNotes: disputeAdminNotes,
+                              })}
+                              disabled={updateDisputeMutation.isPending}
+                              data-testid="button-reject-dispute"
+                            >
+                              <XCircle className="h-4 w-4 mr-2" />
+                              Reject
+                            </Button>
+                          </>
+                        )}
+                      </DialogFooter>
+                    </>
+                  )}
+                  {isDirector && (
+                    <div className="text-sm text-muted-foreground italic">
+                      Directors have read-only access to disputes.
+                    </div>
+                  )}
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
 
           {!isDirector && (
             <TabsContent value="directors">
