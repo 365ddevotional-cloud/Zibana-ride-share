@@ -17,6 +17,7 @@ import RiderDashboard from "@/pages/rider/index";
 import AdminDashboard from "@/pages/admin/index";
 import AdminSetupPage from "@/pages/admin-setup";
 import CoordinatorDashboard from "@/pages/coordinator/index";
+import SupportDashboard from "@/pages/support/index";
 
 function AuthenticatedRoutes() {
   const { user, isLoading: authLoading } = useAuth();
@@ -57,6 +58,10 @@ function AuthenticatedRoutes() {
 
   if (userRole.role === "trip_coordinator") {
     return <CoordinatorDashboard />;
+  }
+
+  if (userRole.role === "support_agent") {
+    return <SupportDashboard />;
   }
 
   return <RiderDashboard />;
