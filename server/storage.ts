@@ -30,6 +30,7 @@ export interface IStorage {
   getAllDriversWithDetails(): Promise<any[]>;
 
   createRiderProfile(data: InsertRiderProfile): Promise<RiderProfile>;
+  getAllRidersWithDetails(): Promise<any[]>;
 
   createTrip(data: InsertTrip): Promise<Trip>;
   getAvailableTrips(): Promise<Trip[]>;
@@ -39,6 +40,7 @@ export interface IStorage {
   acceptTrip(tripId: string, driverId: string): Promise<Trip | null>;
   updateTripStatus(tripId: string, driverId: string, status: string): Promise<Trip | null>;
   cancelTrip(tripId: string, riderId: string): Promise<Trip | null>;
+  adminCancelTrip(tripId: string): Promise<Trip | null>;
   getAllTrips(): Promise<any[]>;
   getAllTripsWithDetails(): Promise<any[]>;
 
@@ -47,6 +49,7 @@ export interface IStorage {
     pendingDrivers: number;
     totalTrips: number;
     activeTrips: number;
+    totalRiders: number;
   }>;
 }
 
@@ -126,6 +129,32 @@ export class DatabaseStorage implements IStorage {
   async createRiderProfile(data: InsertRiderProfile): Promise<RiderProfile> {
     const [profile] = await db.insert(riderProfiles).values(data).returning();
     return profile;
+  }
+
+  async getAllRidersWithDetails(): Promise<any[]> {
+    const riderRoles = await db
+      .select()
+      .from(userRoles)
+      .where(eq(userRoles.role, "rider"))
+      .orderBy(desc(userRoles.createdAt));
+
+    const ridersWithDetails = await Promise.all(
+      riderRoles.map(async (role) => {
+        const [user] = await db.select().from(users).where(eq(users.id, role.userId));
+        const [profile] = await db.select().from(riderProfiles).where(eq(riderProfiles.userId, role.userId));
+        return {
+          id: role.userId,
+          email: user?.email,
+          firstName: user?.firstName,
+          lastName: user?.lastName,
+          fullName: profile?.fullName || (user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user?.email),
+          phone: profile?.phone,
+          createdAt: role.createdAt,
+        };
+      })
+    );
+
+    return ridersWithDetails;
   }
 
   async createTrip(data: InsertTrip): Promise<Trip> {
@@ -237,6 +266,24 @@ export class DatabaseStorage implements IStorage {
     return trip || null;
   }
 
+  async adminCancelTrip(tripId: string): Promise<Trip | null> {
+    const [trip] = await db
+      .update(trips)
+      .set({ status: "cancelled" })
+      .where(
+        and(
+          eq(trips.id, tripId),
+          or(
+            eq(trips.status, "requested"),
+            eq(trips.status, "accepted"),
+            eq(trips.status, "in_progress")
+          )
+        )
+      )
+      .returning();
+    return trip || null;
+  }
+
   async getAllTrips(): Promise<any[]> {
     return await this.getAllTripsWithDetails();
   }
@@ -290,6 +337,7 @@ export class DatabaseStorage implements IStorage {
     pendingDrivers: number;
     totalTrips: number;
     activeTrips: number;
+    totalRiders: number;
   }> {
     const [driverStats] = await db
       .select({ count: count() })
@@ -315,11 +363,17 @@ export class DatabaseStorage implements IStorage {
         )
       );
 
+    const [riderStats] = await db
+      .select({ count: count() })
+      .from(userRoles)
+      .where(eq(userRoles.role, "rider"));
+
     return {
       totalDrivers: driverStats?.count || 0,
       pendingDrivers: pendingStats?.count || 0,
       totalTrips: tripStats?.count || 0,
       activeTrips: activeStats?.count || 0,
+      totalRiders: riderStats?.count || 0,
     };
   }
 }

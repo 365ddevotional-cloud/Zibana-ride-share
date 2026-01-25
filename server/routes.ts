@@ -373,5 +373,31 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/admin/riders", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const riders = await storage.getAllRidersWithDetails();
+      return res.json(riders);
+    } catch (error) {
+      console.error("Error getting riders:", error);
+      return res.status(500).json({ message: "Failed to get riders" });
+    }
+  });
+
+  app.post("/api/admin/trip/:tripId/cancel", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const { tripId } = req.params;
+
+      const trip = await storage.adminCancelTrip(tripId);
+      if (!trip) {
+        return res.status(404).json({ message: "Trip not found or already completed/cancelled" });
+      }
+
+      return res.json(trip);
+    } catch (error) {
+      console.error("Error cancelling trip:", error);
+      return res.status(500).json({ message: "Failed to cancel trip" });
+    }
+  });
+
   return httpServer;
 }
