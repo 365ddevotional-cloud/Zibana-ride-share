@@ -3,6 +3,7 @@ import {
   driverProfiles, 
   riderProfiles, 
   directorProfiles,
+  tripCoordinatorProfiles,
   trips,
   users,
   payoutTransactions,
@@ -29,6 +30,8 @@ import {
   type InsertRiderProfile,
   type DirectorProfile,
   type InsertDirectorProfile,
+  type TripCoordinatorProfile,
+  type InsertTripCoordinatorProfile,
   type Trip,
   type InsertTrip,
   type PayoutTransaction,
@@ -137,6 +140,13 @@ export interface IStorage {
   createDirectorProfile(data: InsertDirectorProfile): Promise<DirectorProfile>;
   getAllDirectorsWithDetails(): Promise<any[]>;
   getDirectorCount(): Promise<number>;
+
+  // Phase 14.5 - Trip Coordinator
+  getTripCoordinatorProfile(userId: string): Promise<TripCoordinatorProfile | undefined>;
+  createTripCoordinatorProfile(data: InsertTripCoordinatorProfile): Promise<TripCoordinatorProfile>;
+  getAllTripCoordinatorsWithDetails(): Promise<any[]>;
+  getCoordinatorTrips(coordinatorId: string, filter?: TripFilter): Promise<any[]>;
+  getCoordinatorTripStats(coordinatorId: string): Promise<{ totalTrips: number; completedTrips: number; activeTrips: number; totalFares: string }>;
 
   createNotification(data: InsertNotification): Promise<Notification>;
   getUserNotifications(userId: string): Promise<Notification[]>;
@@ -954,6 +964,92 @@ export class DatabaseStorage implements IStorage {
       .from(userRoles)
       .where(eq(userRoles.role, "director"));
     return result?.count || 0;
+  }
+
+  // Phase 14.5 - Trip Coordinator methods
+  async getTripCoordinatorProfile(userId: string): Promise<TripCoordinatorProfile | undefined> {
+    const [profile] = await db.select().from(tripCoordinatorProfiles).where(eq(tripCoordinatorProfiles.userId, userId));
+    return profile;
+  }
+
+  async createTripCoordinatorProfile(data: InsertTripCoordinatorProfile): Promise<TripCoordinatorProfile> {
+    const [profile] = await db.insert(tripCoordinatorProfiles).values(data).returning();
+    return profile;
+  }
+
+  async getAllTripCoordinatorsWithDetails(): Promise<any[]> {
+    const coordinatorRoles = await db
+      .select()
+      .from(userRoles)
+      .where(eq(userRoles.role, "trip_coordinator"))
+      .orderBy(desc(userRoles.createdAt));
+
+    const coordinatorsWithDetails = await Promise.all(
+      coordinatorRoles.map(async (role) => {
+        const [user] = await db.select().from(users).where(eq(users.id, role.userId));
+        const [profile] = await db.select().from(tripCoordinatorProfiles).where(eq(tripCoordinatorProfiles.userId, role.userId));
+        return {
+          id: role.userId,
+          email: user?.email,
+          firstName: user?.firstName,
+          lastName: user?.lastName,
+          organizationName: profile?.organizationName,
+          organizationType: profile?.organizationType,
+          contactEmail: profile?.contactEmail,
+          contactPhone: profile?.contactPhone,
+          createdAt: role.createdAt,
+        };
+      })
+    );
+
+    return coordinatorsWithDetails;
+  }
+
+  async getCoordinatorTrips(coordinatorId: string, filter?: TripFilter): Promise<any[]> {
+    let query = db
+      .select()
+      .from(trips)
+      .where(eq(trips.riderId, coordinatorId))
+      .orderBy(desc(trips.createdAt));
+
+    const tripResults = await query;
+
+    const tripsWithDetails = await Promise.all(
+      tripResults
+        .filter(trip => {
+          if (filter?.status && trip.status !== filter.status) return false;
+          if (filter?.startDate && trip.createdAt && new Date(trip.createdAt) < new Date(filter.startDate)) return false;
+          if (filter?.endDate && trip.createdAt && new Date(trip.createdAt) > new Date(filter.endDate)) return false;
+          return true;
+        })
+        .map(async (trip) => {
+          const [driver] = trip.driverId 
+            ? await db.select().from(driverProfiles).where(eq(driverProfiles.userId, trip.driverId))
+            : [null];
+          const [profile] = await db.select().from(tripCoordinatorProfiles).where(eq(tripCoordinatorProfiles.userId, coordinatorId));
+          return {
+            ...trip,
+            driverName: driver?.fullName || null,
+            organizationName: profile?.organizationName || null,
+          };
+        })
+    );
+
+    return tripsWithDetails;
+  }
+
+  async getCoordinatorTripStats(coordinatorId: string): Promise<{ totalTrips: number; completedTrips: number; activeTrips: number; totalFares: string }> {
+    const allTrips = await db.select().from(trips).where(eq(trips.riderId, coordinatorId));
+    
+    const totalTrips = allTrips.length;
+    const completedTrips = allTrips.filter(t => t.status === "completed").length;
+    const activeTrips = allTrips.filter(t => t.status === "requested" || t.status === "accepted" || t.status === "in_progress").length;
+    const totalFares = allTrips
+      .filter(t => t.status === "completed" && t.fareAmount)
+      .reduce((sum, t) => sum + parseFloat(t.fareAmount || "0"), 0)
+      .toFixed(2);
+
+    return { totalTrips, completedTrips, activeTrips, totalFares };
   }
 
   async createNotification(data: InsertNotification): Promise<Notification> {
