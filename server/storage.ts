@@ -14,6 +14,9 @@ import {
   auditLogs,
   chargebacks,
   paymentReconciliations,
+  wallets,
+  walletTransactions,
+  walletPayouts,
   type UserRole, 
   type InsertUserRole,
   type DriverProfile,
@@ -44,7 +47,13 @@ import {
   type InsertChargeback,
   type UpdateChargeback,
   type PaymentReconciliation,
-  type InsertPaymentReconciliation
+  type InsertPaymentReconciliation,
+  type Wallet,
+  type InsertWallet,
+  type WalletTransaction,
+  type InsertWalletTransaction,
+  type WalletPayout,
+  type InsertWalletPayout
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte } from "drizzle-orm";
@@ -169,6 +178,28 @@ export interface IStorage {
   getFilteredReconciliations(filter: { status?: string }): Promise<any[]>;
   updateReconciliation(reconciliationId: string, status: string, reconciledByUserId: string, notes?: string): Promise<PaymentReconciliation | null>;
   runReconciliation(tripId: string, actualAmount: string, provider: string): Promise<PaymentReconciliation>;
+
+  // Phase 11 - Wallets
+  getOrCreateWallet(userId: string, role: "driver" | "ziba"): Promise<Wallet>;
+  getWalletById(walletId: string): Promise<Wallet | null>;
+  getWalletByUserId(userId: string): Promise<Wallet | null>;
+  getZibaWallet(): Promise<Wallet>;
+  getAllDriverWallets(): Promise<any[]>;
+  creditWallet(walletId: string, amount: string, source: string, referenceId?: string, createdByUserId?: string, description?: string): Promise<WalletTransaction>;
+  debitWallet(walletId: string, amount: string, source: string, referenceId?: string, createdByUserId?: string, description?: string): Promise<WalletTransaction | null>;
+  holdWalletBalance(walletId: string, amount: string): Promise<boolean>;
+  releaseWalletBalance(walletId: string, amount: string): Promise<boolean>;
+  getWalletTransactions(walletId: string): Promise<WalletTransaction[]>;
+
+  // Phase 11 - Payouts
+  createWalletPayout(data: InsertWalletPayout): Promise<WalletPayout>;
+  getWalletPayoutById(payoutId: string): Promise<WalletPayout | null>;
+  getWalletPayoutsByWalletId(walletId: string): Promise<WalletPayout[]>;
+  getDriverPayoutHistory(userId: string): Promise<any[]>;
+  getAllWalletPayouts(): Promise<any[]>;
+  getFilteredWalletPayouts(filter: { status?: string }): Promise<any[]>;
+  processWalletPayout(payoutId: string, processedByUserId: string): Promise<WalletPayout | null>;
+  reverseWalletPayout(payoutId: string, failureReason: string): Promise<WalletPayout | null>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1428,6 +1459,335 @@ export class DatabaseStorage implements IStorage {
       status: status as any,
     }).returning();
     return reconciliation;
+  }
+
+  // Phase 11 - Wallet methods
+  async getOrCreateWallet(userId: string, role: "driver" | "ziba"): Promise<Wallet> {
+    const [existingWallet] = await db.select().from(wallets)
+      .where(and(eq(wallets.userId, userId), eq(wallets.role, role)));
+    if (existingWallet) return existingWallet;
+
+    const [newWallet] = await db.insert(wallets).values({
+      userId,
+      role,
+    }).returning();
+    return newWallet;
+  }
+
+  async getWalletById(walletId: string): Promise<Wallet | null> {
+    const [wallet] = await db.select().from(wallets).where(eq(wallets.id, walletId));
+    return wallet || null;
+  }
+
+  async getWalletByUserId(userId: string): Promise<Wallet | null> {
+    const [wallet] = await db.select().from(wallets)
+      .where(and(eq(wallets.userId, userId), eq(wallets.role, "driver")));
+    return wallet || null;
+  }
+
+  async getZibaWallet(): Promise<Wallet> {
+    const ZIBA_SYSTEM_USER_ID = "ziba-system";
+    return this.getOrCreateWallet(ZIBA_SYSTEM_USER_ID, "ziba");
+  }
+
+  async getAllDriverWallets(): Promise<any[]> {
+    const allWallets = await db.select().from(wallets)
+      .where(eq(wallets.role, "driver"))
+      .orderBy(desc(wallets.updatedAt));
+
+    const walletsWithDetails = await Promise.all(
+      allWallets.map(async (wallet) => {
+        const [driverProfile] = await db.select().from(driverProfiles)
+          .where(eq(driverProfiles.userId, wallet.userId));
+        const [user] = await db.select().from(users).where(eq(users.id, wallet.userId));
+        
+        const pendingPayouts = await db.select({ total: sum(walletPayouts.amount) })
+          .from(walletPayouts)
+          .where(and(
+            eq(walletPayouts.walletId, wallet.id),
+            or(eq(walletPayouts.status, "pending"), eq(walletPayouts.status, "processing"))
+          ));
+        
+        return {
+          ...wallet,
+          ownerName: driverProfile?.fullName || `${user?.firstName || ""} ${user?.lastName || ""}`.trim(),
+          pendingPayoutAmount: pendingPayouts[0]?.total || "0.00",
+        };
+      })
+    );
+    return walletsWithDetails;
+  }
+
+  async creditWallet(walletId: string, amount: string, source: string, referenceId?: string, createdByUserId?: string, description?: string): Promise<WalletTransaction> {
+    const amountNum = parseFloat(amount);
+    if (amountNum <= 0) throw new Error("Credit amount must be positive");
+
+    const [wallet] = await db.select().from(wallets).where(eq(wallets.id, walletId));
+    if (!wallet) throw new Error("Wallet not found");
+
+    const newBalance = (parseFloat(wallet.balance) + amountNum).toFixed(2);
+    await db.update(wallets)
+      .set({ balance: newBalance, updatedAt: new Date() })
+      .where(eq(wallets.id, walletId));
+
+    const [transaction] = await db.insert(walletTransactions).values({
+      walletId,
+      type: "credit",
+      amount,
+      source: source as any,
+      referenceId,
+      createdByUserId,
+      description,
+    }).returning();
+    return transaction;
+  }
+
+  async debitWallet(walletId: string, amount: string, source: string, referenceId?: string, createdByUserId?: string, description?: string): Promise<WalletTransaction | null> {
+    const amountNum = parseFloat(amount);
+    if (amountNum <= 0) throw new Error("Debit amount must be positive");
+
+    const [wallet] = await db.select().from(wallets).where(eq(wallets.id, walletId));
+    if (!wallet) throw new Error("Wallet not found");
+
+    const availableBalance = parseFloat(wallet.balance) - parseFloat(wallet.lockedBalance);
+    if (amountNum > availableBalance) {
+      return null;
+    }
+
+    const newBalance = (parseFloat(wallet.balance) - amountNum).toFixed(2);
+    await db.update(wallets)
+      .set({ balance: newBalance, updatedAt: new Date() })
+      .where(eq(wallets.id, walletId));
+
+    const [transaction] = await db.insert(walletTransactions).values({
+      walletId,
+      type: "debit",
+      amount,
+      source: source as any,
+      referenceId,
+      createdByUserId,
+      description,
+    }).returning();
+    return transaction;
+  }
+
+  async holdWalletBalance(walletId: string, amount: string): Promise<boolean> {
+    const amountNum = parseFloat(amount);
+    const [wallet] = await db.select().from(wallets).where(eq(wallets.id, walletId));
+    if (!wallet) return false;
+
+    const availableBalance = parseFloat(wallet.balance) - parseFloat(wallet.lockedBalance);
+    if (amountNum > availableBalance) return false;
+
+    const newLockedBalance = (parseFloat(wallet.lockedBalance) + amountNum).toFixed(2);
+    await db.update(wallets)
+      .set({ lockedBalance: newLockedBalance, updatedAt: new Date() })
+      .where(eq(wallets.id, walletId));
+
+    await db.insert(walletTransactions).values({
+      walletId,
+      type: "hold",
+      amount,
+      source: "payout",
+      description: "Balance held for payout",
+    });
+
+    return true;
+  }
+
+  async releaseWalletBalance(walletId: string, amount: string): Promise<boolean> {
+    const amountNum = parseFloat(amount);
+    const [wallet] = await db.select().from(wallets).where(eq(wallets.id, walletId));
+    if (!wallet) return false;
+
+    const currentLocked = parseFloat(wallet.lockedBalance);
+    if (amountNum > currentLocked) return false;
+
+    const newLockedBalance = (currentLocked - amountNum).toFixed(2);
+    await db.update(wallets)
+      .set({ lockedBalance: newLockedBalance, updatedAt: new Date() })
+      .where(eq(wallets.id, walletId));
+
+    await db.insert(walletTransactions).values({
+      walletId,
+      type: "release",
+      amount,
+      source: "payout",
+      description: "Balance released from hold",
+    });
+
+    return true;
+  }
+
+  async getWalletTransactions(walletId: string): Promise<WalletTransaction[]> {
+    const transactions = await db.select().from(walletTransactions)
+      .where(eq(walletTransactions.walletId, walletId))
+      .orderBy(desc(walletTransactions.createdAt));
+    return transactions;
+  }
+
+  // Phase 11 - Payout methods
+  async createWalletPayout(data: InsertWalletPayout): Promise<WalletPayout> {
+    const [payout] = await db.insert(walletPayouts).values(data).returning();
+    return payout;
+  }
+
+  async getWalletPayoutById(payoutId: string): Promise<WalletPayout | null> {
+    const [payout] = await db.select().from(walletPayouts).where(eq(walletPayouts.id, payoutId));
+    return payout || null;
+  }
+
+  async getWalletPayoutsByWalletId(walletId: string): Promise<WalletPayout[]> {
+    const payouts = await db.select().from(walletPayouts)
+      .where(eq(walletPayouts.walletId, walletId))
+      .orderBy(desc(walletPayouts.createdAt));
+    return payouts;
+  }
+
+  async getDriverPayoutHistory(userId: string): Promise<any[]> {
+    const wallet = await this.getWalletByUserId(userId);
+    if (!wallet) return [];
+
+    const payouts = await db.select().from(walletPayouts)
+      .where(eq(walletPayouts.walletId, wallet.id))
+      .orderBy(desc(walletPayouts.createdAt));
+
+    const payoutsWithDetails = await Promise.all(
+      payouts.map(async (payout) => {
+        const [initiatedBy] = await db.select().from(users).where(eq(users.id, payout.initiatedByUserId));
+        const [processedBy] = payout.processedByUserId 
+          ? await db.select().from(users).where(eq(users.id, payout.processedByUserId))
+          : [null];
+        
+        return {
+          ...payout,
+          initiatedByName: initiatedBy ? `${initiatedBy.firstName || ""} ${initiatedBy.lastName || ""}`.trim() : null,
+          processedByName: processedBy ? `${processedBy.firstName || ""} ${processedBy.lastName || ""}`.trim() : null,
+        };
+      })
+    );
+    return payoutsWithDetails;
+  }
+
+  async getAllWalletPayouts(): Promise<any[]> {
+    const allPayouts = await db.select().from(walletPayouts).orderBy(desc(walletPayouts.createdAt));
+
+    const payoutsWithDetails = await Promise.all(
+      allPayouts.map(async (payout) => {
+        const [wallet] = await db.select().from(wallets).where(eq(wallets.id, payout.walletId));
+        const [driverProfile] = wallet 
+          ? await db.select().from(driverProfiles).where(eq(driverProfiles.userId, wallet.userId))
+          : [null];
+        const [initiatedBy] = await db.select().from(users).where(eq(users.id, payout.initiatedByUserId));
+        const [processedBy] = payout.processedByUserId 
+          ? await db.select().from(users).where(eq(users.id, payout.processedByUserId))
+          : [null];
+
+        return {
+          ...payout,
+          driverName: driverProfile?.fullName || null,
+          driverUserId: wallet?.userId,
+          initiatedByName: initiatedBy ? `${initiatedBy.firstName || ""} ${initiatedBy.lastName || ""}`.trim() : null,
+          processedByName: processedBy ? `${processedBy.firstName || ""} ${processedBy.lastName || ""}`.trim() : null,
+        };
+      })
+    );
+    return payoutsWithDetails;
+  }
+
+  async getFilteredWalletPayouts(filter: { status?: string }): Promise<any[]> {
+    const conditions = [];
+    if (filter.status && filter.status !== "all") {
+      conditions.push(eq(walletPayouts.status, filter.status as any));
+    }
+
+    const allPayouts = conditions.length > 0
+      ? await db.select().from(walletPayouts).where(and(...conditions)).orderBy(desc(walletPayouts.createdAt))
+      : await db.select().from(walletPayouts).orderBy(desc(walletPayouts.createdAt));
+
+    const payoutsWithDetails = await Promise.all(
+      allPayouts.map(async (payout) => {
+        const [wallet] = await db.select().from(wallets).where(eq(wallets.id, payout.walletId));
+        const [driverProfile] = wallet 
+          ? await db.select().from(driverProfiles).where(eq(driverProfiles.userId, wallet.userId))
+          : [null];
+        const [initiatedBy] = await db.select().from(users).where(eq(users.id, payout.initiatedByUserId));
+        const [processedBy] = payout.processedByUserId 
+          ? await db.select().from(users).where(eq(users.id, payout.processedByUserId))
+          : [null];
+
+        return {
+          ...payout,
+          driverName: driverProfile?.fullName || null,
+          driverUserId: wallet?.userId,
+          initiatedByName: initiatedBy ? `${initiatedBy.firstName || ""} ${initiatedBy.lastName || ""}`.trim() : null,
+          processedByName: processedBy ? `${processedBy.firstName || ""} ${processedBy.lastName || ""}`.trim() : null,
+        };
+      })
+    );
+    return payoutsWithDetails;
+  }
+
+  async processWalletPayout(payoutId: string, processedByUserId: string): Promise<WalletPayout | null> {
+    const [payout] = await db.select().from(walletPayouts).where(eq(walletPayouts.id, payoutId));
+    if (!payout || payout.status !== "processing") return null;
+
+    const wallet = await this.getWalletById(payout.walletId);
+    if (!wallet) return null;
+
+    const debitTx = await this.debitWallet(
+      payout.walletId,
+      payout.amount,
+      "payout",
+      payoutId,
+      processedByUserId,
+      `Payout processed`
+    );
+
+    if (!debitTx) return null;
+
+    await this.releaseWalletBalance(payout.walletId, payout.amount);
+
+    const [updatedPayout] = await db.update(walletPayouts)
+      .set({ 
+        status: "paid", 
+        processedByUserId, 
+        processedAt: new Date() 
+      })
+      .where(eq(walletPayouts.id, payoutId))
+      .returning();
+
+    return updatedPayout || null;
+  }
+
+  async reverseWalletPayout(payoutId: string, failureReason: string): Promise<WalletPayout | null> {
+    const [payout] = await db.select().from(walletPayouts).where(eq(walletPayouts.id, payoutId));
+    if (!payout) return null;
+
+    if (payout.status === "processing" || payout.status === "pending") {
+      await this.releaseWalletBalance(payout.walletId, payout.amount);
+    }
+
+    if (payout.status === "paid") {
+      await this.creditWallet(
+        payout.walletId,
+        payout.amount,
+        "payout",
+        payoutId,
+        undefined,
+        `Payout reversed: ${failureReason}`
+      );
+    }
+
+    const [updatedPayout] = await db.update(walletPayouts)
+      .set({ 
+        status: payout.status === "paid" ? "reversed" : "failed", 
+        failureReason 
+      })
+      .where(eq(walletPayouts.id, payoutId))
+      .returning();
+
+    return updatedPayout || null;
   }
 }
 
