@@ -1906,5 +1906,131 @@ export async function registerRoutes(
     }
   });
 
+  // Phase 13 - Fraud Detection Routes
+  app.get("/api/fraud/overview", isAuthenticated, requireRole(["admin", "finance", "trip_coordinator"]), async (req: any, res) => {
+    try {
+      const overview = await storage.getFraudOverview();
+      return res.json(overview);
+    } catch (error) {
+      console.error("Error fetching fraud overview:", error);
+      return res.status(500).json({ message: "Failed to fetch fraud overview" });
+    }
+  });
+
+  app.get("/api/fraud/users", isAuthenticated, requireRole(["admin", "finance", "trip_coordinator"]), async (req: any, res) => {
+    try {
+      const { level } = req.query;
+      let profiles;
+      if (level) {
+        profiles = await storage.getRiskProfilesByLevel(level as string);
+      } else {
+        profiles = await storage.getAllRiskProfiles();
+      }
+      return res.json(profiles);
+    } catch (error) {
+      console.error("Error fetching fraud users:", error);
+      return res.status(500).json({ message: "Failed to fetch fraud users" });
+    }
+  });
+
+  app.get("/api/fraud/events", isAuthenticated, requireRole(["admin", "finance", "trip_coordinator"]), async (req: any, res) => {
+    try {
+      const { severity, unresolved } = req.query;
+      let events;
+      if (unresolved === "true") {
+        events = await storage.getUnresolvedFraudEvents();
+      } else if (severity) {
+        events = await storage.getFraudEventsBySeverity(severity as string);
+      } else {
+        events = await storage.getAllFraudEvents();
+      }
+      return res.json(events);
+    } catch (error) {
+      console.error("Error fetching fraud events:", error);
+      return res.status(500).json({ message: "Failed to fetch fraud events" });
+    }
+  });
+
+  app.post("/api/fraud/evaluate", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const { userId, role } = req.body;
+      
+      if (userId && role) {
+        const { evaluateUserRisk, evaluateAndRecordFraudEvents } = await import("./fraud");
+        await evaluateAndRecordFraudEvents(userId, role, "Manual evaluation by admin");
+        const result = await evaluateUserRisk(userId, role);
+        
+        await storage.createAuditLog({
+          action: "fraud_evaluation",
+          entityType: "user",
+          entityId: userId,
+          performedByUserId: req.user.id,
+          performedByRole: "admin",
+          metadata: JSON.stringify({ role, result }),
+        });
+        
+        return res.json({ success: true, result });
+      } else {
+        const { runFullEvaluation } = await import("./fraud");
+        const result = await runFullEvaluation();
+        
+        await storage.createAuditLog({
+          action: "fraud_full_evaluation",
+          entityType: "system",
+          entityId: "fraud-evaluation",
+          performedByUserId: req.user.id,
+          performedByRole: "admin",
+          metadata: JSON.stringify(result),
+        });
+        
+        return res.json({ success: true, ...result });
+      }
+    } catch (error) {
+      console.error("Error running fraud evaluation:", error);
+      return res.status(500).json({ message: "Failed to run fraud evaluation" });
+    }
+  });
+
+  app.post("/api/fraud/resolve/:eventId", isAuthenticated, requireRole(["admin", "trip_coordinator"]), async (req: any, res) => {
+    try {
+      const { eventId } = req.params;
+      const event = await storage.getFraudEventById(eventId);
+      if (!event) {
+        return res.status(404).json({ message: "Fraud event not found" });
+      }
+      if (event.resolvedAt) {
+        return res.status(400).json({ message: "Fraud event already resolved" });
+      }
+      
+      const updated = await storage.resolveFraudEvent(eventId, req.user.id);
+      
+      await storage.createAuditLog({
+        action: "fraud_event_resolved",
+        entityType: "fraud_event",
+        entityId: eventId,
+        performedByUserId: req.user.id,
+        performedByRole: req.user.role,
+        metadata: JSON.stringify({ signalType: event.signalType, entityId: event.entityId }),
+      });
+      
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error resolving fraud event:", error);
+      return res.status(500).json({ message: "Failed to resolve fraud event" });
+    }
+  });
+
+  app.get("/api/fraud/user/:userId", isAuthenticated, requireRole(["admin", "finance", "trip_coordinator"]), async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const profile = await storage.getRiskProfile(userId);
+      const events = await storage.getFraudEventsByEntityId(userId);
+      return res.json({ profile, events });
+    } catch (error) {
+      console.error("Error fetching user fraud data:", error);
+      return res.status(500).json({ message: "Failed to fetch user fraud data" });
+    }
+  });
+
   return httpServer;
 }
