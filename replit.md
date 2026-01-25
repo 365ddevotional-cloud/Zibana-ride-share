@@ -31,7 +31,7 @@ Preferred communication style: Simple, everyday language.
 - **ORM**: Drizzle ORM with Zod schema validation
 - **Schema**: Defined in `shared/schema.ts`
 - **Migrations**: Managed via `drizzle-kit push`
-- **Key Tables**: `users`, `sessions`, `user_roles`, `driver_profiles`, `rider_profiles`, `trip_coordinator_profiles`, `trips`, `notifications`, `ratings`, `disputes`, `refunds`, `chargebacks`, `wallets`, `wallet_transactions`, `wallet_payouts`, `audit_logs`, `fraud_risk_profiles`, `fraud_events`, `incentive_programs`, `incentive_earnings`, `countries`, `tax_rules`, `exchange_rates`, `compliance_profiles`, `support_tickets`, `support_messages`, `organization_contracts`, `service_level_agreements`, `enterprise_invoices`.
+- **Key Tables**: `users`, `sessions`, `user_roles`, `driver_profiles`, `rider_profiles`, `trip_coordinator_profiles`, `trips`, `notifications`, `ratings`, `disputes`, `refunds`, `chargebacks`, `wallets`, `wallet_transactions`, `wallet_payouts`, `audit_logs`, `fraud_risk_profiles`, `fraud_events`, `incentive_programs`, `incentive_earnings`, `countries`, `tax_rules`, `exchange_rates`, `compliance_profiles`, `support_tickets`, `support_messages`, `organization_contracts`, `service_level_agreements`, `enterprise_invoices`, `referral_codes`, `referral_events`, `marketing_campaigns`, `partner_leads`, `feature_flags`.
 
 ### Core Features
 - **Authentication & Authorization**: Replit Auth integration with role selection, and comprehensive Role-Based Access Control (RBAC) across various user roles.
@@ -68,6 +68,34 @@ Preferred communication style: Simple, everyday language.
 - `VITE_APP_ENV`: App environment (development/staging/production).
 
 ## Recent Changes
+
+### Phase 20 – Post-Launch Monitoring & KPIs (January 2026)
+- Database schema additions:
+  - `feature_flags`: Gradual rollout control with name, description, enabled status, rollout percentage
+- Metrics aggregation system:
+  - Platform metrics: trip success rate, cancellation rate, support ticket volume
+  - Rider metrics: new signups, repeat usage rate, total riders
+  - Driver metrics: active drivers, acceptance rate, completion rate
+  - Organization metrics: active orgs, trips per org, SLA compliance
+  - Financial metrics: gross fares, platform commission, refund volume, chargebacks, net revenue
+- Feature flags: Hash-based user assignment for consistent rollout experiences
+- Threshold alerts: Automatic warnings for cancellation rates >30% and chargeback counts >10
+- Storage layer: 11 new methods (createFeatureFlag, isFeatureEnabled, getPlatformMetrics, getMetricsOverview, etc.)
+- API routes: 9 endpoints (metrics overview, platform/riders/drivers/orgs/financials, feature flags CRUD)
+- Admin dashboard: Monitoring tab with KPI cards, alert displays, feature flag management
+- Full audit logging for feature flag operations
+
+### Phase 19 – Growth, Marketing & Partnerships (January 2026)
+- Database schema additions:
+  - `referral_codes`: User-generated referral codes with rewards tracking
+  - `referral_events`: Tracks code usage (code_used, signup_completed, first_trip_completed)
+  - `marketing_campaigns`: Campaign management (REFERRAL, PROMO, PARTNERSHIP types)
+  - `partner_leads`: Partner pipeline tracking (NEW → CONTACTED → IN_DISCUSSION → SIGNED/LOST)
+- Storage layer: 20+ methods for referrals, campaigns, partner leads, growth stats
+- API routes: 11 endpoints with RBAC for growth tracking
+- ReferralSection component: Reusable referral code creation, sharing, and stats display
+- Admin dashboard: Growth tab with referral codes, campaigns, partner leads management
+- Full audit logging for all growth operations
 
 ### Phase 18 – Contracts, SLAs & Enterprise Billing (January 2026)
 - Database schema additions:
