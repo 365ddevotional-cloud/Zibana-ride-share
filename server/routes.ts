@@ -293,6 +293,23 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/driver/trip-history", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { status, startDate, endDate } = req.query;
+      const filter: any = {};
+      if (status) filter.status = status;
+      if (startDate) filter.startDate = startDate;
+      if (endDate) filter.endDate = endDate;
+      
+      const trips = await storage.getDriverTripHistory(userId, filter);
+      return res.json(trips);
+    } catch (error) {
+      console.error("Error getting driver trip history:", error);
+      return res.status(500).json({ message: "Failed to get trip history" });
+    }
+  });
+
   app.get("/api/rider/current-trip", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -307,7 +324,16 @@ export async function registerRoutes(
   app.get("/api/rider/trip-history", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const trips = await storage.getRiderTripHistory(userId);
+      const { status, startDate, endDate } = req.query;
+      const filter: any = {};
+      if (status) filter.status = status;
+      if (startDate) filter.startDate = startDate;
+      if (endDate) filter.endDate = endDate;
+      
+      const hasFilters = Object.keys(filter).length > 0;
+      const trips = hasFilters 
+        ? await storage.getRiderTripHistoryFiltered(userId, filter)
+        : await storage.getRiderTripHistory(userId);
       return res.json(trips);
     } catch (error) {
       console.error("Error getting trip history:", error);
@@ -373,11 +399,50 @@ export async function registerRoutes(
 
   app.get("/api/admin/trips", isAuthenticated, requireRole(["admin", "director"]), async (req: any, res) => {
     try {
-      const trips = await storage.getAllTripsWithDetails();
+      const { status, startDate, endDate, driverId, riderId } = req.query;
+      const filter: any = {};
+      if (status) filter.status = status;
+      if (startDate) filter.startDate = startDate;
+      if (endDate) filter.endDate = endDate;
+      if (driverId) filter.driverId = driverId;
+      if (riderId) filter.riderId = riderId;
+      
+      const hasFilters = Object.keys(filter).length > 0;
+      const trips = hasFilters 
+        ? await storage.getFilteredTrips(filter)
+        : await storage.getAllTripsWithDetails();
       return res.json(trips);
     } catch (error) {
       console.error("Error getting trips:", error);
       return res.status(500).json({ message: "Failed to get trips" });
+    }
+  });
+
+  app.get("/api/trips/:tripId", isAuthenticated, async (req: any, res) => {
+    try {
+      const { tripId } = req.params;
+      const userId = req.user.claims.sub;
+      const userRole = await storage.getUserRole(userId);
+      
+      const trip = await storage.getTripById(tripId);
+      if (!trip) {
+        return res.status(404).json({ message: "Trip not found" });
+      }
+
+      if (userRole?.role === "admin" || userRole?.role === "director") {
+        return res.json(trip);
+      }
+      if (userRole?.role === "driver" && trip.driverId === userId) {
+        return res.json(trip);
+      }
+      if (userRole?.role === "rider" && trip.riderId === userId) {
+        return res.json(trip);
+      }
+
+      return res.status(403).json({ message: "Access denied" });
+    } catch (error) {
+      console.error("Error getting trip:", error);
+      return res.status(500).json({ message: "Failed to get trip" });
     }
   });
 

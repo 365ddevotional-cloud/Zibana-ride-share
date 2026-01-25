@@ -1,0 +1,103 @@
+Proceed with Phase 7A – Trip History & Search.
+
+STRICT RULES:
+- DO NOT modify Rider flow
+- DO NOT modify Driver flow
+- DO NOT modify Authentication
+- DO NOT modify Pricing or Commission logic
+- DO NOT modify Payments Simulation
+- DO NOT modify Notifications
+- READ-ONLY views only (no mutations)
+
+SCOPE:
+Backend + UI (Admin, Director, Driver, Rider)
+This phase is visibility, history, and search only.
+
+IMPLEMENT THE FOLLOWING:
+
+1) Trip History Lists (Role-Based)
+
+ADMIN:
+- View ALL trips
+- Filters:
+  - Status (requested, accepted, completed, cancelled)
+  - Date range
+  - Driver
+  - Rider
+- Click a trip to view details (read-only)
+
+DIRECTOR (Read-only):
+- Same trip list as Admin
+- Same filters
+- NO action buttons
+- NO edits
+- NO mutations
+
+DRIVER:
+- View ONLY own trips
+- Filters:
+  - Status
+  - Date range
+
+RIDER:
+- View ONLY own trips
+- Filters:
+  - Status
+  - Date range
+
+2) Trip Detail View (Read-Only for all roles)
+
+Display:
+- Trip ID
+- Rider name
+- Driver name
+- Pickup location
+- Dropoff location
+- Status
+- Fare breakdown:
+  - Total fare
+  - ZIBA commission
+  - Driver earnings
+- Timestamps:
+  - Requested
+  - Accepted
+  - Completed or Cancelled
+
+NO edit buttons
+NO status changes
+NO payout actions
+
+3) Search & Filtering (Server-Side)
+- Implement server-side filtering (not frontend-only)
+- Query params:
+  - status
+  - startDate
+  - endDate
+  - driverId (Admin/Director only)
+  - riderId (Admin/Director only)
+
+4) UI Placement
+- Reuse existing "Trips" tab
+- Add filter bar at the top
+- Clickable rows open a detail view (drawer or page)
+- Directors see same UI but fully locked
+
+BACKEND NOTES:
+- Reuse existing Trip model
+- NO breaking schema changes
+- Add indexes if needed (status, createdAt)
+- Respect existing role guards
+
+ACCEPTANCE CONDITIONS:
+- Admin can search and filter all trips
+- Director can view but cannot act
+- Driver sees only own trips
+- Rider sees only own trips
+- Trip detail view is accurate and read-only
+- No pricing, payment, or lifecycle logic changed
+
+CHECKPOINT:
+Create checkpoint named:
+"Phase 7A – Trip History & Search Stable"
+
+DO NOT PUBLISH.

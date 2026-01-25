@@ -23,8 +23,16 @@ import {
   type InsertNotification
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, desc, count, sql, sum } from "drizzle-orm";
+import { eq, and, or, desc, count, sql, sum, gte, lte } from "drizzle-orm";
 import { calculateFare } from "./pricing";
+
+export interface TripFilter {
+  status?: string;
+  startDate?: string;
+  endDate?: string;
+  driverId?: string;
+  riderId?: string;
+}
 
 export interface IStorage {
   getUserRole(userId: string): Promise<UserRole | undefined>;
@@ -47,6 +55,10 @@ export interface IStorage {
   getDriverCurrentTrip(driverId: string): Promise<Trip | null>;
   getRiderCurrentTrip(riderId: string): Promise<Trip | null>;
   getRiderTripHistory(riderId: string): Promise<Trip[]>;
+  getFilteredTrips(filter: TripFilter): Promise<any[]>;
+  getDriverTripHistory(driverId: string, filter?: TripFilter): Promise<any[]>;
+  getRiderTripHistoryFiltered(riderId: string, filter?: TripFilter): Promise<any[]>;
+  getTripById(tripId: string): Promise<any | null>;
   acceptTrip(tripId: string, driverId: string): Promise<Trip | null>;
   updateTripStatus(tripId: string, driverId: string, status: string): Promise<Trip | null>;
   cancelTrip(tripId: string, riderId: string): Promise<Trip | null>;
@@ -407,6 +419,127 @@ export class DatabaseStorage implements IStorage {
     );
 
     return tripsWithDetails;
+  }
+
+  private async enrichTripWithDetails(trip: Trip): Promise<any> {
+    let driverName = undefined;
+    let riderName = undefined;
+
+    if (trip.driverId) {
+      const [driver] = await db
+        .select()
+        .from(driverProfiles)
+        .where(eq(driverProfiles.userId, trip.driverId));
+      driverName = driver?.fullName;
+    }
+
+    const [rider] = await db
+      .select()
+      .from(riderProfiles)
+      .where(eq(riderProfiles.userId, trip.riderId));
+    
+    if (rider?.fullName) {
+      riderName = rider.fullName;
+    } else {
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, trip.riderId));
+      riderName = user?.firstName 
+        ? `${user.firstName} ${user.lastName || ''}`.trim() 
+        : user?.email || 'Unknown';
+    }
+
+    return { ...trip, driverName, riderName };
+  }
+
+  async getFilteredTrips(filter: TripFilter): Promise<any[]> {
+    const conditions: any[] = [];
+
+    if (filter.status) {
+      conditions.push(eq(trips.status, filter.status as any));
+    }
+    if (filter.driverId) {
+      conditions.push(eq(trips.driverId, filter.driverId));
+    }
+    if (filter.riderId) {
+      conditions.push(eq(trips.riderId, filter.riderId));
+    }
+    if (filter.startDate) {
+      conditions.push(gte(trips.createdAt, new Date(filter.startDate)));
+    }
+    if (filter.endDate) {
+      const endDate = new Date(filter.endDate);
+      endDate.setHours(23, 59, 59, 999);
+      conditions.push(lte(trips.createdAt, endDate));
+    }
+
+    const query = conditions.length > 0
+      ? db.select().from(trips).where(and(...conditions)).orderBy(desc(trips.createdAt)).limit(100)
+      : db.select().from(trips).orderBy(desc(trips.createdAt)).limit(100);
+
+    const allTrips = await query;
+    return Promise.all(allTrips.map(trip => this.enrichTripWithDetails(trip)));
+  }
+
+  async getDriverTripHistory(driverId: string, filter?: TripFilter): Promise<any[]> {
+    const conditions: any[] = [eq(trips.driverId, driverId)];
+
+    if (filter?.status) {
+      conditions.push(eq(trips.status, filter.status as any));
+    }
+    if (filter?.startDate) {
+      conditions.push(gte(trips.createdAt, new Date(filter.startDate)));
+    }
+    if (filter?.endDate) {
+      const endDate = new Date(filter.endDate);
+      endDate.setHours(23, 59, 59, 999);
+      conditions.push(lte(trips.createdAt, endDate));
+    }
+
+    const allTrips = await db
+      .select()
+      .from(trips)
+      .where(and(...conditions))
+      .orderBy(desc(trips.createdAt))
+      .limit(50);
+
+    return Promise.all(allTrips.map(trip => this.enrichTripWithDetails(trip)));
+  }
+
+  async getRiderTripHistoryFiltered(riderId: string, filter?: TripFilter): Promise<any[]> {
+    const conditions: any[] = [eq(trips.riderId, riderId)];
+
+    if (filter?.status) {
+      conditions.push(eq(trips.status, filter.status as any));
+    }
+    if (filter?.startDate) {
+      conditions.push(gte(trips.createdAt, new Date(filter.startDate)));
+    }
+    if (filter?.endDate) {
+      const endDate = new Date(filter.endDate);
+      endDate.setHours(23, 59, 59, 999);
+      conditions.push(lte(trips.createdAt, endDate));
+    }
+
+    const allTrips = await db
+      .select()
+      .from(trips)
+      .where(and(...conditions))
+      .orderBy(desc(trips.createdAt))
+      .limit(50);
+
+    return Promise.all(allTrips.map(trip => this.enrichTripWithDetails(trip)));
+  }
+
+  async getTripById(tripId: string): Promise<any | null> {
+    const [trip] = await db
+      .select()
+      .from(trips)
+      .where(eq(trips.id, tripId));
+    
+    if (!trip) return null;
+    return this.enrichTripWithDetails(trip);
   }
 
   async getAdminStats(): Promise<{
