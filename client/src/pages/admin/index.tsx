@@ -332,6 +332,54 @@ type IncentiveEarningWithDetails = {
   revokedByName?: string;
 };
 
+type GrowthStats = {
+  totalReferralCodes: number;
+  activeReferralCodes: number;
+  totalReferrals: number;
+  referralConversionRate: string;
+  activeCampaigns: number;
+  totalPartnerLeads: number;
+  signedPartners: number;
+};
+
+type ReferralCodeWithDetails = {
+  id: string;
+  code: string;
+  ownerId: string;
+  ownerRole: string;
+  usageCount: number;
+  maxUses?: number;
+  status: "active" | "inactive" | "expired";
+  createdAt: string;
+  ownerName?: string;
+  ownerEmail?: string;
+};
+
+type CampaignWithDetails = {
+  id: string;
+  name: string;
+  type: string;
+  status: "draft" | "active" | "paused" | "ended";
+  startDate: string;
+  endDate: string;
+  description?: string;
+  createdAt: string;
+  createdByName?: string;
+};
+
+type PartnerLeadWithDetails = {
+  id: string;
+  organizationName: string;
+  contactName: string;
+  email: string;
+  phone?: string;
+  type: "corporate" | "fleet" | "enterprise" | "reseller";
+  status: "new" | "contacted" | "qualified" | "negotiating" | "signed" | "rejected";
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 interface AdminDashboardProps {
   userRole?: "admin" | "director" | "finance" | "trip_coordinator";
 }
@@ -1009,6 +1057,133 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
     },
   });
 
+  // Growth Tab - State, Queries, and Mutations
+  const [showCreateCampaignDialog, setShowCreateCampaignDialog] = useState(false);
+  const [showCreatePartnerLeadDialog, setShowCreatePartnerLeadDialog] = useState(false);
+  const [newCampaign, setNewCampaign] = useState({
+    name: "",
+    type: "referral" as string,
+    description: "",
+    startDate: "",
+    endDate: "",
+  });
+  const [newPartnerLead, setNewPartnerLead] = useState({
+    organizationName: "",
+    contactName: "",
+    email: "",
+    phone: "",
+    type: "corporate" as "corporate" | "fleet" | "enterprise" | "reseller",
+    notes: "",
+  });
+
+  const { data: growthStats } = useQuery<GrowthStats>({
+    queryKey: ["/api/growth/stats"],
+    queryFn: async () => {
+      const res = await fetch("/api/growth/stats", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch growth stats");
+      return res.json();
+    },
+    enabled: !!user && !isDirector && !isTripCoordinator,
+  });
+
+  const { data: referralCodes = [], isLoading: referralCodesLoading } = useQuery<ReferralCodeWithDetails[]>({
+    queryKey: ["/api/referrals"],
+    queryFn: async () => {
+      const res = await fetch("/api/referrals", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch referral codes");
+      return res.json();
+    },
+    enabled: !!user && !isDirector && !isTripCoordinator && activeTab === "growth",
+  });
+
+  const { data: campaigns = [], isLoading: campaignsLoading } = useQuery<CampaignWithDetails[]>({
+    queryKey: ["/api/campaigns"],
+    queryFn: async () => {
+      const res = await fetch("/api/campaigns", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch campaigns");
+      return res.json();
+    },
+    enabled: !!user && !isDirector && !isTripCoordinator && activeTab === "growth",
+  });
+
+  const { data: partnerLeads = [], isLoading: partnerLeadsLoading } = useQuery<PartnerLeadWithDetails[]>({
+    queryKey: ["/api/partners/leads"],
+    queryFn: async () => {
+      const res = await fetch("/api/partners/leads", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch partner leads");
+      return res.json();
+    },
+    enabled: !!user && !isDirector && !isTripCoordinator && activeTab === "growth",
+  });
+
+  const createCampaignMutation = useMutation({
+    mutationFn: async (data: typeof newCampaign) => {
+      const res = await apiRequest("POST", "/api/campaigns", {
+        ...data,
+        startDate: new Date(data.startDate).toISOString(),
+        endDate: new Date(data.endDate).toISOString(),
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/campaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/growth/stats"] });
+      setShowCreateCampaignDialog(false);
+      setNewCampaign({ name: "", type: "referral", description: "", startDate: "", endDate: "" });
+      toast({ title: "Campaign created", description: "Campaign created successfully" });
+    },
+    onError: () => {
+      toast({ title: "Creation failed", description: "Could not create campaign", variant: "destructive" });
+    },
+  });
+
+  const updateCampaignStatusMutation = useMutation({
+    mutationFn: async ({ campaignId, status }: { campaignId: string; status: string }) => {
+      const res = await apiRequest("PATCH", `/api/campaigns/${campaignId}/status`, { status });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/campaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/growth/stats"] });
+      toast({ title: "Campaign updated", description: "Campaign status updated" });
+    },
+    onError: () => {
+      toast({ title: "Update failed", description: "Could not update campaign status", variant: "destructive" });
+    },
+  });
+
+  const createPartnerLeadMutation = useMutation({
+    mutationFn: async (data: typeof newPartnerLead) => {
+      const res = await apiRequest("POST", "/api/partners/lead", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/partners/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/growth/stats"] });
+      setShowCreatePartnerLeadDialog(false);
+      setNewPartnerLead({ organizationName: "", contactName: "", email: "", phone: "", type: "corporate", notes: "" });
+      toast({ title: "Partner lead created", description: "Partner lead added successfully" });
+    },
+    onError: () => {
+      toast({ title: "Creation failed", description: "Could not create partner lead", variant: "destructive" });
+    },
+  });
+
+  const updatePartnerLeadStatusMutation = useMutation({
+    mutationFn: async ({ leadId, status }: { leadId: string; status: string }) => {
+      const res = await apiRequest("PATCH", `/api/partners/leads/${leadId}/status`, { status });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/partners/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/growth/stats"] });
+      toast({ title: "Lead updated", description: "Partner lead status updated" });
+    },
+    onError: () => {
+      toast({ title: "Update failed", description: "Could not update lead status", variant: "destructive" });
+    },
+  });
+
   const updateDriverStatusMutation = useMutation({
     mutationFn: async ({ driverId, status }: { driverId: string; status: string }) => {
       const response = await apiRequest("POST", `/api/admin/driver/${driverId}/status`, { status });
@@ -1651,6 +1826,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <TabsTrigger value="contracts" data-testid="tab-contracts">
                 <FileText className="h-4 w-4 mr-2" />
                 Contracts
+              </TabsTrigger>
+            )}
+            {!isDirector && !isTripCoordinator && (
+              <TabsTrigger value="growth" data-testid="tab-growth">
+                <TrendingUp className="h-4 w-4 mr-2" />
+                Growth
               </TabsTrigger>
             )}
           </TabsList>
@@ -5109,6 +5290,500 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                       data-testid="button-submit-invoice"
                     >
                       Generate Invoice
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </TabsContent>
+          )}
+
+          {/* Growth Tab */}
+          {!isDirector && !isTripCoordinator && (
+            <TabsContent value="growth">
+              {/* Stats Cards */}
+              <div className="grid gap-4 md:grid-cols-4 lg:grid-cols-7 mb-6">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Referral Codes</CardTitle>
+                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold" data-testid="stat-total-referral-codes">
+                      {growthStats?.totalReferralCodes || 0}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Active Codes</CardTitle>
+                    <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-green-600" data-testid="stat-active-referral-codes">
+                      {growthStats?.activeReferralCodes || 0}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Referrals</CardTitle>
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold" data-testid="stat-total-referrals">
+                      {growthStats?.totalReferrals || 0}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
+                    <Percent className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold" data-testid="stat-conversion-rate">
+                      {growthStats?.referralConversionRate || "0%"}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Active Campaigns</CardTitle>
+                    <Target className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-blue-600" data-testid="stat-active-campaigns">
+                      {growthStats?.activeCampaigns || 0}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Partner Leads</CardTitle>
+                    <Building className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold" data-testid="stat-total-partner-leads">
+                      {growthStats?.totalPartnerLeads || 0}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Signed Partners</CardTitle>
+                    <Award className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-green-600" data-testid="stat-signed-partners">
+                      {growthStats?.signedPartners || 0}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Referral Codes Section */}
+              <Card className="mb-6">
+                <CardHeader>
+                  <CardTitle>Referral Codes</CardTitle>
+                  <CardDescription>All referral codes across the platform</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {referralCodesLoading ? (
+                    <div className="py-8 text-center text-muted-foreground">Loading referral codes...</div>
+                  ) : referralCodes.length === 0 ? (
+                    <EmptyState
+                      icon={TrendingUp}
+                      title="No referral codes"
+                      description="Referral codes will appear here once created"
+                    />
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Code</TableHead>
+                            <TableHead>Owner</TableHead>
+                            <TableHead>Role</TableHead>
+                            <TableHead>Usage</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Created</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {referralCodes.map((code) => (
+                            <TableRow key={code.id} data-testid={`row-referral-${code.id}`}>
+                              <TableCell className="font-mono font-medium">{code.code}</TableCell>
+                              <TableCell>
+                                <div>{code.ownerName || "Unknown"}</div>
+                                <div className="text-xs text-muted-foreground">{code.ownerEmail}</div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className="capitalize">{code.ownerRole}</Badge>
+                              </TableCell>
+                              <TableCell>
+                                {code.usageCount}{code.maxUses ? ` / ${code.maxUses}` : ""}
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant={code.status === "active" ? "default" : code.status === "inactive" ? "secondary" : "outline"}
+                                  className="capitalize"
+                                >
+                                  {code.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-muted-foreground">
+                                {new Date(code.createdAt).toLocaleDateString()}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Campaigns and Partner Leads Grid */}
+              <div className="grid gap-6 lg:grid-cols-2">
+                {/* Campaigns Section */}
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <CardTitle>Campaigns</CardTitle>
+                        <CardDescription>Marketing and promotional campaigns</CardDescription>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => setShowCreateCampaignDialog(true)}
+                        data-testid="button-create-campaign"
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        New Campaign
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {campaignsLoading ? (
+                      <div className="py-8 text-center text-muted-foreground">Loading campaigns...</div>
+                    ) : campaigns.length === 0 ? (
+                      <EmptyState
+                        icon={Target}
+                        title="No campaigns"
+                        description="Create your first campaign to drive growth"
+                      />
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Name</TableHead>
+                              <TableHead>Type</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead>Start Date</TableHead>
+                              <TableHead>End Date</TableHead>
+                              <TableHead>Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {campaigns.map((campaign) => (
+                              <TableRow key={campaign.id} data-testid={`row-campaign-${campaign.id}`}>
+                                <TableCell className="font-medium">{campaign.name}</TableCell>
+                                <TableCell>
+                                  <Badge variant="outline" className="capitalize">{campaign.type}</Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge
+                                    variant={
+                                      campaign.status === "active" ? "default" :
+                                      campaign.status === "paused" ? "secondary" :
+                                      campaign.status === "ended" ? "outline" : "secondary"
+                                    }
+                                    className="capitalize"
+                                  >
+                                    {campaign.status}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-muted-foreground">
+                                  {new Date(campaign.startDate).toLocaleDateString()}
+                                </TableCell>
+                                <TableCell className="text-muted-foreground">
+                                  {new Date(campaign.endDate).toLocaleDateString()}
+                                </TableCell>
+                                <TableCell>
+                                  <Select
+                                    value={campaign.status}
+                                    onValueChange={(value) => updateCampaignStatusMutation.mutate({ campaignId: campaign.id, status: value })}
+                                  >
+                                    <SelectTrigger className="w-[100px]" data-testid={`select-campaign-status-${campaign.id}`}>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="draft">Draft</SelectItem>
+                                      <SelectItem value="active">Active</SelectItem>
+                                      <SelectItem value="paused">Paused</SelectItem>
+                                      <SelectItem value="ended">Ended</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Partner Leads Section */}
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <CardTitle>Partner Leads</CardTitle>
+                        <CardDescription>Potential business partnerships</CardDescription>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => setShowCreatePartnerLeadDialog(true)}
+                        data-testid="button-create-partner-lead"
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        New Lead
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {partnerLeadsLoading ? (
+                      <div className="py-8 text-center text-muted-foreground">Loading partner leads...</div>
+                    ) : partnerLeads.length === 0 ? (
+                      <EmptyState
+                        icon={Building}
+                        title="No partner leads"
+                        description="Add partner leads to track business development"
+                      />
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Organization</TableHead>
+                              <TableHead>Contact</TableHead>
+                              <TableHead>Email</TableHead>
+                              <TableHead>Type</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead>Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {partnerLeads.map((lead) => (
+                              <TableRow key={lead.id} data-testid={`row-partner-lead-${lead.id}`}>
+                                <TableCell className="font-medium">{lead.organizationName}</TableCell>
+                                <TableCell>{lead.contactName}</TableCell>
+                                <TableCell className="text-muted-foreground">{lead.email}</TableCell>
+                                <TableCell>
+                                  <Badge variant="outline" className="capitalize">{lead.type}</Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge
+                                    variant={
+                                      lead.status === "signed" ? "default" :
+                                      lead.status === "rejected" ? "destructive" :
+                                      lead.status === "negotiating" ? "secondary" : "outline"
+                                    }
+                                    className="capitalize"
+                                  >
+                                    {lead.status}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <Select
+                                    value={lead.status}
+                                    onValueChange={(value) => updatePartnerLeadStatusMutation.mutate({ leadId: lead.id, status: value })}
+                                  >
+                                    <SelectTrigger className="w-[110px]" data-testid={`select-lead-status-${lead.id}`}>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="new">New</SelectItem>
+                                      <SelectItem value="contacted">Contacted</SelectItem>
+                                      <SelectItem value="qualified">Qualified</SelectItem>
+                                      <SelectItem value="negotiating">Negotiating</SelectItem>
+                                      <SelectItem value="signed">Signed</SelectItem>
+                                      <SelectItem value="rejected">Rejected</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Create Campaign Dialog */}
+              <Dialog open={showCreateCampaignDialog} onOpenChange={setShowCreateCampaignDialog}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Create New Campaign</DialogTitle>
+                    <DialogDescription>Set up a new marketing or promotional campaign</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium">Campaign Name</label>
+                      <Input
+                        value={newCampaign.name}
+                        onChange={(e) => setNewCampaign({ ...newCampaign, name: e.target.value })}
+                        placeholder="e.g., Summer Referral Boost"
+                        data-testid="input-campaign-name"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Type</label>
+                      <Select
+                        value={newCampaign.type}
+                        onValueChange={(value) => setNewCampaign({ ...newCampaign, type: value })}
+                      >
+                        <SelectTrigger data-testid="select-campaign-type">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="referral">Referral</SelectItem>
+                          <SelectItem value="promotional">Promotional</SelectItem>
+                          <SelectItem value="partnership">Partnership</SelectItem>
+                          <SelectItem value="seasonal">Seasonal</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Description</label>
+                      <Textarea
+                        value={newCampaign.description}
+                        onChange={(e) => setNewCampaign({ ...newCampaign, description: e.target.value })}
+                        placeholder="Campaign description..."
+                        data-testid="input-campaign-description"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium">Start Date</label>
+                        <Input
+                          type="datetime-local"
+                          value={newCampaign.startDate}
+                          onChange={(e) => setNewCampaign({ ...newCampaign, startDate: e.target.value })}
+                          data-testid="input-campaign-start-date"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">End Date</label>
+                        <Input
+                          type="datetime-local"
+                          value={newCampaign.endDate}
+                          onChange={(e) => setNewCampaign({ ...newCampaign, endDate: e.target.value })}
+                          data-testid="input-campaign-end-date"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setShowCreateCampaignDialog(false)}>Cancel</Button>
+                    <Button
+                      onClick={() => createCampaignMutation.mutate(newCampaign)}
+                      disabled={createCampaignMutation.isPending || !newCampaign.name || !newCampaign.startDate || !newCampaign.endDate}
+                      data-testid="button-submit-campaign"
+                    >
+                      Create Campaign
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              {/* Create Partner Lead Dialog */}
+              <Dialog open={showCreatePartnerLeadDialog} onOpenChange={setShowCreatePartnerLeadDialog}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add Partner Lead</DialogTitle>
+                    <DialogDescription>Add a new potential business partner</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium">Organization Name</label>
+                      <Input
+                        value={newPartnerLead.organizationName}
+                        onChange={(e) => setNewPartnerLead({ ...newPartnerLead, organizationName: e.target.value })}
+                        placeholder="e.g., Acme Corporation"
+                        data-testid="input-partner-org-name"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Contact Name</label>
+                      <Input
+                        value={newPartnerLead.contactName}
+                        onChange={(e) => setNewPartnerLead({ ...newPartnerLead, contactName: e.target.value })}
+                        placeholder="e.g., John Smith"
+                        data-testid="input-partner-contact-name"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium">Email</label>
+                        <Input
+                          type="email"
+                          value={newPartnerLead.email}
+                          onChange={(e) => setNewPartnerLead({ ...newPartnerLead, email: e.target.value })}
+                          placeholder="partner@company.com"
+                          data-testid="input-partner-email"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Phone (Optional)</label>
+                        <Input
+                          type="tel"
+                          value={newPartnerLead.phone}
+                          onChange={(e) => setNewPartnerLead({ ...newPartnerLead, phone: e.target.value })}
+                          placeholder="+1 234 567 8900"
+                          data-testid="input-partner-phone"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Partner Type</label>
+                      <Select
+                        value={newPartnerLead.type}
+                        onValueChange={(value: typeof newPartnerLead.type) => setNewPartnerLead({ ...newPartnerLead, type: value })}
+                      >
+                        <SelectTrigger data-testid="select-partner-type">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="corporate">Corporate</SelectItem>
+                          <SelectItem value="fleet">Fleet</SelectItem>
+                          <SelectItem value="enterprise">Enterprise</SelectItem>
+                          <SelectItem value="reseller">Reseller</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Notes (Optional)</label>
+                      <Textarea
+                        value={newPartnerLead.notes}
+                        onChange={(e) => setNewPartnerLead({ ...newPartnerLead, notes: e.target.value })}
+                        placeholder="Additional notes about this lead..."
+                        data-testid="input-partner-notes"
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setShowCreatePartnerLeadDialog(false)}>Cancel</Button>
+                    <Button
+                      onClick={() => createPartnerLeadMutation.mutate(newPartnerLead)}
+                      disabled={createPartnerLeadMutation.isPending || !newPartnerLead.organizationName || !newPartnerLead.contactName || !newPartnerLead.email}
+                      data-testid="button-submit-partner-lead"
+                    >
+                      Add Partner Lead
                     </Button>
                   </DialogFooter>
                 </DialogContent>
