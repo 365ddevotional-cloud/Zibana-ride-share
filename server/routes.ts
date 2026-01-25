@@ -3614,5 +3614,289 @@ export async function registerRoutes(
     }
   });
 
+  // Phase 19 - Growth, Marketing & Partnerships
+
+  // Generate unique referral code
+  function generateReferralCode(): string {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let code = "";
+    for (let i = 0; i < 8; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+  }
+
+  // Create referral code (any authenticated user)
+  app.post("/api/referrals/create", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const userRole = req.userRole;
+
+      if (!["rider", "driver", "trip_coordinator"].includes(userRole)) {
+        return res.status(403).json({ message: "Only riders, drivers, and trip coordinators can create referral codes" });
+      }
+
+      const existingCodes = await storage.getReferralCodesByOwner(userId);
+      const activeCode = existingCodes.find(c => c.active);
+      if (activeCode) {
+        return res.json(activeCode);
+      }
+
+      let code = generateReferralCode();
+      let attempts = 0;
+      while (await storage.getReferralCodeByCode(code) && attempts < 10) {
+        code = generateReferralCode();
+        attempts++;
+      }
+
+      const referralCode = await storage.createReferralCode({
+        code,
+        ownerUserId: userId,
+        ownerRole: userRole as any,
+        active: true,
+        maxUsage: null
+      });
+
+      await storage.createAuditLog({
+        action: "referral_code_created",
+        entityType: "referral_code",
+        entityId: referralCode.id,
+        performedByUserId: userId,
+        performedByRole: userRole,
+        metadata: JSON.stringify({ code })
+      });
+
+      return res.json(referralCode);
+    } catch (error) {
+      console.error("Error creating referral code:", error);
+      return res.status(500).json({ message: "Failed to create referral code" });
+    }
+  });
+
+  // Get my referral codes (any authenticated user)
+  app.get("/api/referrals/my", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const codes = await storage.getReferralCodesByOwner(userId);
+      return res.json(codes);
+    } catch (error) {
+      console.error("Error getting referral codes:", error);
+      return res.status(500).json({ message: "Failed to get referral codes" });
+    }
+  });
+
+  // Get referral stats for current user
+  app.get("/api/referrals/stats", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const stats = await storage.getReferralStats(userId);
+      return res.json(stats);
+    } catch (error) {
+      console.error("Error getting referral stats:", error);
+      return res.status(500).json({ message: "Failed to get referral stats" });
+    }
+  });
+
+  // Get all referral codes (Admin only)
+  app.get("/api/referrals", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const codes = await storage.getAllReferralCodes();
+      return res.json(codes);
+    } catch (error) {
+      console.error("Error getting all referral codes:", error);
+      return res.status(500).json({ message: "Failed to get referral codes" });
+    }
+  });
+
+  // Create marketing campaign (Admin only)
+  app.post("/api/campaigns", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { name, type, startAt, endAt, notes } = req.body;
+
+      if (!name || !type || !startAt || !endAt) {
+        return res.status(400).json({ message: "Name, type, start date, and end date are required" });
+      }
+
+      if (!["REFERRAL", "PROMO", "PARTNERSHIP"].includes(type)) {
+        return res.status(400).json({ message: "Invalid campaign type" });
+      }
+
+      const campaign = await storage.createMarketingCampaign({
+        name,
+        type,
+        startAt: new Date(startAt),
+        endAt: new Date(endAt),
+        notes: notes || null,
+        status: "ACTIVE"
+      });
+
+      await storage.createAuditLog({
+        action: "campaign_created",
+        entityType: "marketing_campaign",
+        entityId: campaign.id,
+        performedByUserId: userId,
+        performedByRole: "admin",
+        metadata: JSON.stringify({ name, type })
+      });
+
+      return res.json(campaign);
+    } catch (error) {
+      console.error("Error creating campaign:", error);
+      return res.status(500).json({ message: "Failed to create campaign" });
+    }
+  });
+
+  // Get active campaigns
+  app.get("/api/campaigns/active", isAuthenticated, async (req: any, res) => {
+    try {
+      const campaigns = await storage.getActiveCampaigns();
+      return res.json(campaigns);
+    } catch (error) {
+      console.error("Error getting active campaigns:", error);
+      return res.status(500).json({ message: "Failed to get active campaigns" });
+    }
+  });
+
+  // Get all campaigns (Admin only)
+  app.get("/api/campaigns", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const campaigns = await storage.getAllMarketingCampaigns();
+      return res.json(campaigns);
+    } catch (error) {
+      console.error("Error getting campaigns:", error);
+      return res.status(500).json({ message: "Failed to get campaigns" });
+    }
+  });
+
+  // Update campaign status (Admin only)
+  app.patch("/api/campaigns/:campaignId/status", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { campaignId } = req.params;
+      const { status } = req.body;
+
+      if (!["ACTIVE", "PAUSED", "ENDED"].includes(status)) {
+        return res.status(400).json({ message: "Invalid status" });
+      }
+
+      const campaign = await storage.getMarketingCampaign(campaignId);
+      if (!campaign) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+
+      const updated = await storage.updateMarketingCampaignStatus(campaignId, status);
+
+      await storage.createAuditLog({
+        action: "campaign_status_updated",
+        entityType: "marketing_campaign",
+        entityId: campaignId,
+        performedByUserId: userId,
+        performedByRole: "admin",
+        metadata: JSON.stringify({ previousStatus: campaign.status, newStatus: status })
+      });
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error updating campaign status:", error);
+      return res.status(500).json({ message: "Failed to update campaign status" });
+    }
+  });
+
+  // Create partner lead (Admin only)
+  app.post("/api/partners/lead", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { organizationName, contactName, contactEmail, partnerType, notes } = req.body;
+
+      if (!organizationName || !contactName || !contactEmail || !partnerType) {
+        return res.status(400).json({ message: "Organization name, contact name, email, and partner type are required" });
+      }
+
+      if (!["NGO", "HOSPITAL", "CHURCH", "SCHOOL", "GOV", "CORPORATE"].includes(partnerType)) {
+        return res.status(400).json({ message: "Invalid partner type" });
+      }
+
+      const lead = await storage.createPartnerLead({
+        organizationName,
+        contactName,
+        contactEmail,
+        partnerType,
+        notes: notes || null,
+        status: "NEW"
+      });
+
+      await storage.createAuditLog({
+        action: "partner_lead_created",
+        entityType: "partner_lead",
+        entityId: lead.id,
+        performedByUserId: userId,
+        performedByRole: "admin",
+        metadata: JSON.stringify({ organizationName, partnerType })
+      });
+
+      return res.json(lead);
+    } catch (error) {
+      console.error("Error creating partner lead:", error);
+      return res.status(500).json({ message: "Failed to create partner lead" });
+    }
+  });
+
+  // Get all partner leads (Admin only)
+  app.get("/api/partners/leads", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const leads = await storage.getAllPartnerLeads();
+      return res.json(leads);
+    } catch (error) {
+      console.error("Error getting partner leads:", error);
+      return res.status(500).json({ message: "Failed to get partner leads" });
+    }
+  });
+
+  // Update partner lead status (Admin only)
+  app.patch("/api/partners/leads/:leadId/status", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { leadId } = req.params;
+      const { status } = req.body;
+
+      if (!["NEW", "CONTACTED", "IN_DISCUSSION", "SIGNED", "LOST"].includes(status)) {
+        return res.status(400).json({ message: "Invalid status" });
+      }
+
+      const lead = await storage.getPartnerLead(leadId);
+      if (!lead) {
+        return res.status(404).json({ message: "Partner lead not found" });
+      }
+
+      const updated = await storage.updatePartnerLeadStatus(leadId, status);
+
+      await storage.createAuditLog({
+        action: "partner_lead_status_updated",
+        entityType: "partner_lead",
+        entityId: leadId,
+        performedByUserId: userId,
+        performedByRole: "admin",
+        metadata: JSON.stringify({ previousStatus: lead.status, newStatus: status })
+      });
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error updating partner lead status:", error);
+      return res.status(500).json({ message: "Failed to update partner lead status" });
+    }
+  });
+
+  // Get growth stats (Admin only)
+  app.get("/api/growth/stats", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const stats = await storage.getGrowthStats();
+      return res.json(stats);
+    } catch (error) {
+      console.error("Error getting growth stats:", error);
+      return res.status(500).json({ message: "Failed to get growth stats" });
+    }
+  });
+
   return httpServer;
 }
