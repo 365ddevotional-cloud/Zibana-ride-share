@@ -1,0 +1,154 @@
+You are continuing development of the ZIBA ride-hailing app.
+Phases 10A (Refunds), 10B (Chargebacks), 11 (Wallets & Payouts),
+12 (Analytics), and 13 (Fraud Detection) are COMPLETE and MUST NOT be modified.
+
+IMPLEMENT PHASE 14 — DRIVER INCENTIVES, BONUSES & PROMOTIONS.
+
+DO NOT BREAK EXISTING FEATURES.
+EXTEND ONLY.
+
+────────────────────────
+OBJECTIVES
+────────────────────────
+
+1) Incentivize driver activity and retention
+2) Support bonuses, streak rewards, and promotions
+3) Credit incentives safely into driver wallets
+4) Prevent abuse using fraud & risk signals
+5) Provide admin controls for incentive programs
+
+────────────────────────
+ROLES & ACCESS
+────────────────────────
+
+ADMIN
+FINANCE
+DRIVER
+TRIP_COORDINATOR
+
+• ADMIN: Create, manage, pause incentives
+• FINANCE: Approve payout-impacting incentives
+• DRIVER: View earned incentives
+• TRIP_COORDINATOR: View-only
+
+────────────────────────
+INCENTIVE TYPES
+────────────────────────
+
+Support the following incentive programs:
+
+1) TRIP BONUS
+   - Complete X trips → earn $Y
+
+2) STREAK BONUS
+   - Complete trips for N consecutive days
+
+3) PEAK TIME BONUS
+   - Trips during defined time windows
+
+4) QUALITY BONUS
+   - Maintain rating ≥ threshold
+
+5) PROMO CAMPAIGN
+   - Limited-time incentives (city / region based)
+
+────────────────────────
+DATABASE (Prisma)
+────────────────────────
+
+Add the following models:
+
+IncentiveProgram
+- id
+- name
+- type (TRIP | STREAK | PEAK | QUALITY | PROMO)
+- criteria (JSON)
+- rewardAmount
+- currency
+- startAt
+- endAt
+- status (ACTIVE | PAUSED | ENDED)
+- createdAt
+
+IncentiveEarning
+- id
+- programId
+- driverId
+- amount
+- status (PENDING | APPROVED | PAID | REVOKED)
+- evaluatedAt
+- paidAt (nullable)
+
+Ensure indexes on programId, driverId, status.
+
+────────────────────────
+BUSINESS RULES
+────────────────────────
+
+1) Incentives are evaluated on:
+- Trip completion
+- Daily summary job
+- Manual admin trigger
+
+2) Fraud Protection:
+- HIGH or CRITICAL risk drivers cannot earn incentives
+- Incentives auto-hold if fraud events are unresolved
+
+3) Wallet Integration:
+- Approved incentives → CREDIT to driver wallet
+- Must use WalletTransaction ledger
+- Never mutate wallet balance directly
+
+4) Revocation:
+- Admin may revoke incentives for abuse
+- Reversal logged and wallet adjusted
+
+────────────────────────
+API ROUTES
+────────────────────────
+
+POST /api/incentives/create
+POST /api/incentives/update
+POST /api/incentives/pause
+GET  /api/incentives/active
+GET  /api/incentives/driver/:id
+POST /api/incentives/evaluate
+POST /api/incentives/revoke
+
+Strict RBAC enforcement.
+
+────────────────────────
+UI (ADMIN + DRIVER)
+────────────────────────
+
+ADMIN TAB: 🎁 Incentives
+- Active programs
+- Performance metrics
+- Pause / End actions
+
+DRIVER VIEW:
+- Active incentives
+- Progress indicators
+- Earned bonuses history
+
+NO rider-facing incentives yet.
+
+────────────────────────
+AUDIT & SAFETY
+────────────────────────
+
+• All incentive actions log to AuditLog
+• No incentives bypass fraud system
+• No direct wallet balance edits
+• All reversals are traceable
+
+────────────────────────
+FINAL CHECKS
+────────────────────────
+
+• Wallets & payouts unaffected
+• Fraud system respected
+• Incentives credited correctly
+• App compiles cleanly
+
+IMPLEMENT PHASE 14 ONLY.

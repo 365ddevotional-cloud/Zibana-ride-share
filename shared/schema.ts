@@ -29,7 +29,7 @@ export const reconciliationStatusEnum = pgEnum("reconciliation_status", ["matche
 // Phase 11 - Wallet & Payout Cycle enums
 export const walletRoleEnum = pgEnum("wallet_role", ["driver", "ziba"]);
 export const walletTransactionTypeEnum = pgEnum("wallet_transaction_type", ["credit", "debit", "hold", "release"]);
-export const walletTransactionSourceEnum = pgEnum("wallet_transaction_source", ["trip", "refund", "chargeback", "adjustment", "payout"]);
+export const walletTransactionSourceEnum = pgEnum("wallet_transaction_source", ["trip", "refund", "chargeback", "adjustment", "payout", "incentive"]);
 export const walletPayoutStatusEnum = pgEnum("wallet_payout_status", ["pending", "processing", "paid", "failed", "reversed"]);
 export const payoutMethodEnum = pgEnum("payout_method", ["bank", "mobile_money", "manual"]);
 
@@ -38,6 +38,11 @@ export const riskProfileRoleEnum = pgEnum("risk_profile_role", ["rider", "driver
 export const riskLevelEnum = pgEnum("risk_level", ["low", "medium", "high", "critical"]);
 export const fraudEntityTypeEnum = pgEnum("fraud_entity_type", ["user", "trip"]);
 export const fraudSeverityEnum = pgEnum("fraud_severity", ["low", "medium", "high"]);
+
+// Phase 14 - Driver Incentives enums
+export const incentiveTypeEnum = pgEnum("incentive_type", ["trip", "streak", "peak", "quality", "promo"]);
+export const incentiveProgramStatusEnum = pgEnum("incentive_program_status", ["active", "paused", "ended"]);
+export const incentiveEarningStatusEnum = pgEnum("incentive_earning_status", ["pending", "approved", "paid", "revoked"]);
 
 // User roles table - maps users to their roles
 export const userRoles = pgTable("user_roles", {
@@ -296,6 +301,37 @@ export const fraudEvents = pgTable("fraud_events", {
   detectedAt: timestamp("detected_at").defaultNow(),
   resolvedAt: timestamp("resolved_at"),
   resolvedByUserId: varchar("resolved_by_user_id"),
+});
+
+// Phase 14 - Incentive Programs table
+export const incentivePrograms = pgTable("incentive_programs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name", { length: 200 }).notNull(),
+  type: incentiveTypeEnum("type").notNull(),
+  criteria: text("criteria").notNull(),
+  rewardAmount: decimal("reward_amount", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 3 }).notNull().default("USD"),
+  startAt: timestamp("start_at").notNull(),
+  endAt: timestamp("end_at").notNull(),
+  status: incentiveProgramStatusEnum("status").notNull().default("active"),
+  createdByUserId: varchar("created_by_user_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Phase 14 - Incentive Earnings table
+export const incentiveEarnings = pgTable("incentive_earnings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  programId: varchar("program_id").notNull(),
+  driverId: varchar("driver_id").notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  status: incentiveEarningStatusEnum("status").notNull().default("pending"),
+  evaluatedAt: timestamp("evaluated_at").defaultNow(),
+  paidAt: timestamp("paid_at"),
+  revokedAt: timestamp("revoked_at"),
+  revokedByUserId: varchar("revoked_by_user_id"),
+  revocationReason: text("revocation_reason"),
+  walletTransactionId: varchar("wallet_transaction_id"),
 });
 
 // Relations
@@ -648,4 +684,48 @@ export type RiskProfileWithDetails = RiskProfile & {
 export type FraudEventWithDetails = FraudEvent & {
   entityName?: string;
   resolvedByName?: string;
+};
+
+// Phase 14 - Incentive Program schemas and types
+export const insertIncentiveProgramSchema = createInsertSchema(incentivePrograms).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  status: true,
+});
+
+export const updateIncentiveProgramSchema = createInsertSchema(incentivePrograms).omit({
+  id: true,
+  createdAt: true,
+  createdByUserId: true,
+}).partial();
+
+export const insertIncentiveEarningSchema = createInsertSchema(incentiveEarnings).omit({
+  id: true,
+  evaluatedAt: true,
+  paidAt: true,
+  revokedAt: true,
+  revokedByUserId: true,
+  revocationReason: true,
+  walletTransactionId: true,
+});
+
+export type InsertIncentiveProgram = z.infer<typeof insertIncentiveProgramSchema>;
+export type UpdateIncentiveProgram = z.infer<typeof updateIncentiveProgramSchema>;
+export type IncentiveProgram = typeof incentivePrograms.$inferSelect;
+
+export type InsertIncentiveEarning = z.infer<typeof insertIncentiveEarningSchema>;
+export type IncentiveEarning = typeof incentiveEarnings.$inferSelect;
+
+export type IncentiveProgramWithDetails = IncentiveProgram & {
+  createdByName?: string;
+  earnersCount?: number;
+  totalPaid?: string;
+};
+
+export type IncentiveEarningWithDetails = IncentiveEarning & {
+  driverName?: string;
+  programName?: string;
+  programType?: string;
+  revokedByName?: string;
 };

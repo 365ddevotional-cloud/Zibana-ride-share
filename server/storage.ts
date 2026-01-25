@@ -19,6 +19,8 @@ import {
   walletPayouts,
   riskProfiles,
   fraudEvents,
+  incentivePrograms,
+  incentiveEarnings,
   type UserRole, 
   type InsertUserRole,
   type DriverProfile,
@@ -59,7 +61,12 @@ import {
   type RiskProfile,
   type InsertRiskProfile,
   type FraudEvent,
-  type InsertFraudEvent
+  type InsertFraudEvent,
+  type IncentiveProgram,
+  type InsertIncentiveProgram,
+  type UpdateIncentiveProgram,
+  type IncentiveEarning,
+  type InsertIncentiveEarning
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte } from "drizzle-orm";
@@ -248,6 +255,33 @@ export interface IStorage {
     tripCount: number;
     cancelledCount: number;
     reversedPayoutCount: number;
+  }>;
+
+  // Phase 14 - Incentive Programs
+  createIncentiveProgram(data: InsertIncentiveProgram): Promise<IncentiveProgram>;
+  getIncentiveProgramById(programId: string): Promise<IncentiveProgram | null>;
+  getAllIncentivePrograms(): Promise<any[]>;
+  getActiveIncentivePrograms(): Promise<IncentiveProgram[]>;
+  updateIncentiveProgram(programId: string, data: Partial<UpdateIncentiveProgram>): Promise<IncentiveProgram | null>;
+  pauseIncentiveProgram(programId: string): Promise<IncentiveProgram | null>;
+  endIncentiveProgram(programId: string): Promise<IncentiveProgram | null>;
+
+  // Phase 14 - Incentive Earnings
+  createIncentiveEarning(data: InsertIncentiveEarning): Promise<IncentiveEarning>;
+  getIncentiveEarningById(earningId: string): Promise<IncentiveEarning | null>;
+  getDriverIncentiveEarnings(driverId: string): Promise<any[]>;
+  getAllIncentiveEarnings(): Promise<any[]>;
+  getPendingIncentiveEarnings(): Promise<any[]>;
+  approveIncentiveEarning(earningId: string): Promise<IncentiveEarning | null>;
+  payIncentiveEarning(earningId: string, walletTransactionId: string): Promise<IncentiveEarning | null>;
+  revokeIncentiveEarning(earningId: string, revokedByUserId: string, reason: string): Promise<IncentiveEarning | null>;
+  getDriverEarningsByProgram(driverId: string, programId: string): Promise<IncentiveEarning[]>;
+  getIncentiveStats(): Promise<{
+    activePrograms: number;
+    totalEarnings: string;
+    pendingEarnings: string;
+    paidEarnings: string;
+    revokedEarnings: string;
   }>;
 }
 
@@ -2241,6 +2275,193 @@ export class DatabaseStorage implements IStorage {
     }
 
     return { refundCount, chargebackCount, disputeCount, tripCount, cancelledCount, reversedPayoutCount };
+  }
+
+  // Phase 14 - Incentive Programs
+  async createIncentiveProgram(data: InsertIncentiveProgram): Promise<IncentiveProgram> {
+    const [program] = await db.insert(incentivePrograms).values(data).returning();
+    return program;
+  }
+
+  async getIncentiveProgramById(programId: string): Promise<IncentiveProgram | null> {
+    const [program] = await db.select().from(incentivePrograms).where(eq(incentivePrograms.id, programId));
+    return program || null;
+  }
+
+  async getAllIncentivePrograms(): Promise<any[]> {
+    const allPrograms = await db.select().from(incentivePrograms).orderBy(desc(incentivePrograms.createdAt));
+    const programsWithDetails = await Promise.all(
+      allPrograms.map(async (program) => {
+        const [creator] = await db.select().from(users).where(eq(users.id, program.createdByUserId));
+        const [earnings] = await db.select({
+          count: count(),
+          totalPaid: sum(incentiveEarnings.amount)
+        }).from(incentiveEarnings)
+          .where(and(eq(incentiveEarnings.programId, program.id), eq(incentiveEarnings.status, "paid")));
+        return {
+          ...program,
+          createdByName: creator?.email || "Unknown",
+          earnersCount: earnings?.count || 0,
+          totalPaid: earnings?.totalPaid || "0.00"
+        };
+      })
+    );
+    return programsWithDetails;
+  }
+
+  async getActiveIncentivePrograms(): Promise<IncentiveProgram[]> {
+    const now = new Date();
+    return await db.select().from(incentivePrograms)
+      .where(and(
+        eq(incentivePrograms.status, "active"),
+        lte(incentivePrograms.startAt, now),
+        gte(incentivePrograms.endAt, now)
+      ))
+      .orderBy(desc(incentivePrograms.createdAt));
+  }
+
+  async updateIncentiveProgram(programId: string, data: Partial<UpdateIncentiveProgram>): Promise<IncentiveProgram | null> {
+    const [updated] = await db
+      .update(incentivePrograms)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(incentivePrograms.id, programId))
+      .returning();
+    return updated || null;
+  }
+
+  async pauseIncentiveProgram(programId: string): Promise<IncentiveProgram | null> {
+    const [updated] = await db
+      .update(incentivePrograms)
+      .set({ status: "paused", updatedAt: new Date() })
+      .where(eq(incentivePrograms.id, programId))
+      .returning();
+    return updated || null;
+  }
+
+  async endIncentiveProgram(programId: string): Promise<IncentiveProgram | null> {
+    const [updated] = await db
+      .update(incentivePrograms)
+      .set({ status: "ended", updatedAt: new Date() })
+      .where(eq(incentivePrograms.id, programId))
+      .returning();
+    return updated || null;
+  }
+
+  // Phase 14 - Incentive Earnings
+  async createIncentiveEarning(data: InsertIncentiveEarning): Promise<IncentiveEarning> {
+    const [earning] = await db.insert(incentiveEarnings).values(data).returning();
+    return earning;
+  }
+
+  async getIncentiveEarningById(earningId: string): Promise<IncentiveEarning | null> {
+    const [earning] = await db.select().from(incentiveEarnings).where(eq(incentiveEarnings.id, earningId));
+    return earning || null;
+  }
+
+  async getDriverIncentiveEarnings(driverId: string): Promise<any[]> {
+    const earnings = await db.select().from(incentiveEarnings)
+      .where(eq(incentiveEarnings.driverId, driverId))
+      .orderBy(desc(incentiveEarnings.evaluatedAt));
+    const earningsWithDetails = await Promise.all(
+      earnings.map(async (earning) => {
+        const [program] = await db.select().from(incentivePrograms).where(eq(incentivePrograms.id, earning.programId));
+        const [driver] = await db.select().from(driverProfiles).where(eq(driverProfiles.userId, earning.driverId));
+        let revokedByName;
+        if (earning.revokedByUserId) {
+          const [revoker] = await db.select().from(users).where(eq(users.id, earning.revokedByUserId));
+          revokedByName = revoker?.email;
+        }
+        return {
+          ...earning,
+          driverName: driver?.fullName || "Unknown Driver",
+          programName: program?.name || "Unknown Program",
+          programType: program?.type || "unknown",
+          revokedByName
+        };
+      })
+    );
+    return earningsWithDetails;
+  }
+
+  async getAllIncentiveEarnings(): Promise<any[]> {
+    const allEarnings = await db.select().from(incentiveEarnings).orderBy(desc(incentiveEarnings.evaluatedAt));
+    const earningsWithDetails = await Promise.all(
+      allEarnings.map(async (earning) => {
+        const [program] = await db.select().from(incentivePrograms).where(eq(incentivePrograms.id, earning.programId));
+        const [driver] = await db.select().from(driverProfiles).where(eq(driverProfiles.userId, earning.driverId));
+        let revokedByName;
+        if (earning.revokedByUserId) {
+          const [revoker] = await db.select().from(users).where(eq(users.id, earning.revokedByUserId));
+          revokedByName = revoker?.email;
+        }
+        return {
+          ...earning,
+          driverName: driver?.fullName || "Unknown Driver",
+          programName: program?.name || "Unknown Program",
+          programType: program?.type || "unknown",
+          revokedByName
+        };
+      })
+    );
+    return earningsWithDetails;
+  }
+
+  async getPendingIncentiveEarnings(): Promise<any[]> {
+    const earnings = await this.getAllIncentiveEarnings();
+    return earnings.filter(e => e.status === "pending");
+  }
+
+  async approveIncentiveEarning(earningId: string): Promise<IncentiveEarning | null> {
+    const [updated] = await db
+      .update(incentiveEarnings)
+      .set({ status: "approved" })
+      .where(eq(incentiveEarnings.id, earningId))
+      .returning();
+    return updated || null;
+  }
+
+  async payIncentiveEarning(earningId: string, walletTransactionId: string): Promise<IncentiveEarning | null> {
+    const [updated] = await db
+      .update(incentiveEarnings)
+      .set({ status: "paid", paidAt: new Date(), walletTransactionId })
+      .where(eq(incentiveEarnings.id, earningId))
+      .returning();
+    return updated || null;
+  }
+
+  async revokeIncentiveEarning(earningId: string, revokedByUserId: string, reason: string): Promise<IncentiveEarning | null> {
+    const [updated] = await db
+      .update(incentiveEarnings)
+      .set({ status: "revoked", revokedAt: new Date(), revokedByUserId, revocationReason: reason })
+      .where(eq(incentiveEarnings.id, earningId))
+      .returning();
+    return updated || null;
+  }
+
+  async getDriverEarningsByProgram(driverId: string, programId: string): Promise<IncentiveEarning[]> {
+    return await db.select().from(incentiveEarnings)
+      .where(and(eq(incentiveEarnings.driverId, driverId), eq(incentiveEarnings.programId, programId)));
+  }
+
+  async getIncentiveStats() {
+    const [programStats] = await db.select({
+      activePrograms: sql<number>`count(*) filter (where ${incentivePrograms.status} = 'active')`
+    }).from(incentivePrograms);
+
+    const [earningStats] = await db.select({
+      totalEarnings: sum(incentiveEarnings.amount),
+      pendingEarnings: sql<string>`coalesce(sum(${incentiveEarnings.amount}) filter (where ${incentiveEarnings.status} = 'pending'), 0)`,
+      paidEarnings: sql<string>`coalesce(sum(${incentiveEarnings.amount}) filter (where ${incentiveEarnings.status} = 'paid'), 0)`,
+      revokedEarnings: sql<string>`coalesce(sum(${incentiveEarnings.amount}) filter (where ${incentiveEarnings.status} = 'revoked'), 0)`
+    }).from(incentiveEarnings);
+
+    return {
+      activePrograms: Number(programStats?.activePrograms || 0),
+      totalEarnings: earningStats?.totalEarnings || "0.00",
+      pendingEarnings: String(earningStats?.pendingEarnings || "0.00"),
+      paidEarnings: String(earningStats?.paidEarnings || "0.00"),
+      revokedEarnings: String(earningStats?.revokedEarnings || "0.00")
+    };
   }
 }
 
