@@ -10,6 +10,7 @@ export * from "./models/auth";
 export const userRoleEnum = pgEnum("user_role", ["admin", "driver", "rider"]);
 export const driverStatusEnum = pgEnum("driver_status", ["pending", "approved", "suspended"]);
 export const tripStatusEnum = pgEnum("trip_status", ["requested", "accepted", "in_progress", "completed", "cancelled"]);
+export const payoutStatusEnum = pgEnum("payout_status", ["pending", "paid"]);
 
 // User roles table - maps users to their roles
 export const userRoles = pgTable("user_roles", {
@@ -30,6 +31,7 @@ export const driverProfiles = pgTable("driver_profiles", {
   licensePlate: varchar("license_plate").notNull(),
   status: driverStatusEnum("status").notNull().default("pending"),
   isOnline: boolean("is_online").notNull().default(false),
+  walletBalance: decimal("wallet_balance", { precision: 10, scale: 2 }).notNull().default("0.00"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -61,6 +63,20 @@ export const trips = pgTable("trips", {
   completedAt: timestamp("completed_at"),
 });
 
+// Payout transactions table - tracks driver earnings and payouts
+export const payoutTransactions = pgTable("payout_transactions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  driverId: varchar("driver_id").notNull(),
+  tripId: varchar("trip_id"),
+  type: varchar("type", { length: 20 }).notNull(), // 'earning' or 'payout'
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  status: payoutStatusEnum("status").notNull().default("pending"),
+  description: text("description"),
+  paidAt: timestamp("paid_at"),
+  paidByAdminId: varchar("paid_by_admin_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const userRolesRelations = relations(userRoles, ({ one }) => ({
   // Relations defined for clarity
@@ -82,6 +98,17 @@ export const tripsRelations = relations(trips, ({ one }) => ({
   rider: one(riderProfiles, {
     fields: [trips.riderId],
     references: [riderProfiles.userId],
+  }),
+}));
+
+export const payoutTransactionsRelations = relations(payoutTransactions, ({ one }) => ({
+  driver: one(driverProfiles, {
+    fields: [payoutTransactions.driverId],
+    references: [driverProfiles.userId],
+  }),
+  trip: one(trips, {
+    fields: [payoutTransactions.tripId],
+    references: [trips.id],
   }),
 }));
 
@@ -113,6 +140,13 @@ export const insertTripSchema = createInsertSchema(trips).omit({
   status: true,
 });
 
+export const insertPayoutTransactionSchema = createInsertSchema(payoutTransactions).omit({
+  id: true,
+  createdAt: true,
+  paidAt: true,
+  paidByAdminId: true,
+});
+
 // Update schemas
 export const updateDriverProfileSchema = createInsertSchema(driverProfiles).omit({
   id: true,
@@ -136,6 +170,9 @@ export type RiderProfile = typeof riderProfiles.$inferSelect;
 export type InsertTrip = z.infer<typeof insertTripSchema>;
 export type Trip = typeof trips.$inferSelect;
 
+export type InsertPayoutTransaction = z.infer<typeof insertPayoutTransactionSchema>;
+export type PayoutTransaction = typeof payoutTransactions.$inferSelect;
+
 // Extended types for frontend
 export type TripWithDetails = Trip & {
   driverName?: string;
@@ -144,4 +181,8 @@ export type TripWithDetails = Trip & {
 
 export type DriverWithUser = DriverProfile & {
   email?: string;
+};
+
+export type PayoutTransactionWithDetails = PayoutTransaction & {
+  driverName?: string;
 };
