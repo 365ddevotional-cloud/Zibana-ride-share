@@ -162,12 +162,38 @@ export class DatabaseStorage implements IStorage {
     return trip;
   }
 
-  async getAvailableTrips(): Promise<Trip[]> {
-    return await db
+  async getAvailableTrips(): Promise<any[]> {
+    const availableTrips = await db
       .select()
       .from(trips)
       .where(eq(trips.status, "requested"))
       .orderBy(desc(trips.createdAt));
+
+    const tripsWithRiderNames = await Promise.all(
+      availableTrips.map(async (trip) => {
+        const [rider] = await db
+          .select()
+          .from(riderProfiles)
+          .where(eq(riderProfiles.userId, trip.riderId));
+        
+        let riderName = undefined;
+        if (rider?.fullName) {
+          riderName = rider.fullName;
+        } else {
+          const [user] = await db
+            .select()
+            .from(users)
+            .where(eq(users.id, trip.riderId));
+          riderName = user?.firstName 
+            ? `${user.firstName} ${user.lastName || ''}`.trim() 
+            : 'Rider';
+        }
+        
+        return { ...trip, riderName };
+      })
+    );
+
+    return tripsWithRiderNames;
   }
 
   async getDriverCurrentTrip(driverId: string): Promise<Trip | null> {

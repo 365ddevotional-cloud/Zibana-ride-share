@@ -28,6 +28,8 @@ import {
 import type { DriverProfile, Trip } from "@shared/schema";
 import { useEffect } from "react";
 
+type TripWithRider = Trip & { riderName?: string };
+
 export default function DriverDashboard() {
   const { user, isLoading: authLoading, logout } = useAuth();
   const [, setLocation] = useLocation();
@@ -38,7 +40,7 @@ export default function DriverDashboard() {
     enabled: !!user,
   });
 
-  const { data: availableRides = [], isLoading: ridesLoading } = useQuery<Trip[]>({
+  const { data: availableRides = [], isLoading: ridesLoading } = useQuery<TripWithRider[]>({
     queryKey: ["/api/driver/available-rides"],
     enabled: !!user && profile?.status === "approved" && profile?.isOnline,
     refetchInterval: 5000,
@@ -205,6 +207,10 @@ export default function DriverDashboard() {
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Name</span>
                     <span className="font-medium">{profile.fullName}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Email</span>
+                    <span className="font-medium text-right truncate max-w-[150px]">{user?.email || "-"}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Phone</span>
@@ -376,6 +382,9 @@ export default function DriverDashboard() {
                                 <span className="text-sm">{ride.dropoffLocation}</span>
                               </div>
                               <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <User className="h-3 w-3" />
+                                <span>{ride.riderName || "Rider"}</span>
+                                <span className="mx-1">•</span>
                                 <Users className="h-3 w-3" />
                                 <span>{ride.passengerCount} passenger(s)</span>
                               </div>
