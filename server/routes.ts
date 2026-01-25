@@ -399,5 +399,42 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/admin/payouts", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const payouts = await storage.getAllPayoutTransactions();
+      return res.json(payouts);
+    } catch (error) {
+      console.error("Error getting payouts:", error);
+      return res.status(500).json({ message: "Failed to get payouts" });
+    }
+  });
+
+  app.get("/api/admin/payouts/pending", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const payouts = await storage.getPendingPayouts();
+      return res.json(payouts);
+    } catch (error) {
+      console.error("Error getting pending payouts:", error);
+      return res.status(500).json({ message: "Failed to get pending payouts" });
+    }
+  });
+
+  app.post("/api/admin/payout/:transactionId/mark-paid", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const { transactionId } = req.params;
+      const adminId = req.user?.id;
+
+      const payout = await storage.markPayoutAsPaid(transactionId, adminId);
+      if (!payout) {
+        return res.status(404).json({ message: "Payout not found or already paid" });
+      }
+
+      return res.json(payout);
+    } catch (error) {
+      console.error("Error marking payout as paid:", error);
+      return res.status(500).json({ message: "Failed to mark payout as paid" });
+    }
+  });
+
   return httpServer;
 }
