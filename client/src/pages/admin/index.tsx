@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,8 @@ import { UserAvatar } from "@/components/user-avatar";
 import { StatusBadge } from "@/components/status-badge";
 import { EmptyState } from "@/components/empty-state";
 import { FullPageLoading } from "@/components/loading-spinner";
+import { TripFilterBar } from "@/components/trip-filter-bar";
+import { TripDetailModal } from "@/components/trip-detail-modal";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -34,7 +36,6 @@ import {
   Eye
 } from "lucide-react";
 import type { DriverProfile, Trip, User } from "@shared/schema";
-import { useEffect } from "react";
 import { NotificationBell } from "@/components/notification-bell";
 
 type DriverWithUser = DriverProfile & { email?: string };
@@ -83,6 +84,14 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("drivers");
+  
+  const [tripStatusFilter, setTripStatusFilter] = useState("");
+  const [tripStartDate, setTripStartDate] = useState("");
+  const [tripEndDate, setTripEndDate] = useState("");
+  const [tripDriverFilter, setTripDriverFilter] = useState("");
+  const [tripRiderFilter, setTripRiderFilter] = useState("");
+  const [selectedTrip, setSelectedTrip] = useState<TripWithDetails | null>(null);
+  const [tripDetailOpen, setTripDetailOpen] = useState(false);
 
   const { data: drivers = [], isLoading: driversLoading } = useQuery<DriverWithUser[]>({
     queryKey: ["/api/admin/drivers"],
@@ -94,10 +103,43 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
     enabled: !!user,
   });
 
+  const buildTripQueryParams = () => {
+    const params = new URLSearchParams();
+    if (tripStatusFilter && tripStatusFilter !== "all") params.append("status", tripStatusFilter);
+    if (tripStartDate) params.append("startDate", tripStartDate);
+    if (tripEndDate) params.append("endDate", tripEndDate);
+    if (tripDriverFilter) params.append("driverId", tripDriverFilter);
+    if (tripRiderFilter) params.append("riderId", tripRiderFilter);
+    return params.toString();
+  };
+
+  const tripQueryParams = buildTripQueryParams();
+  const tripQueryKey = tripQueryParams 
+    ? `/api/admin/trips?${tripQueryParams}` 
+    : "/api/admin/trips";
+
   const { data: trips = [], isLoading: tripsLoading } = useQuery<TripWithDetails[]>({
-    queryKey: ["/api/admin/trips"],
+    queryKey: ["/api/admin/trips", tripStatusFilter, tripStartDate, tripEndDate, tripDriverFilter, tripRiderFilter],
+    queryFn: async () => {
+      const res = await fetch(tripQueryKey, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch trips");
+      return res.json();
+    },
     enabled: !!user,
   });
+
+  const clearTripFilters = () => {
+    setTripStatusFilter("");
+    setTripStartDate("");
+    setTripEndDate("");
+    setTripDriverFilter("");
+    setTripRiderFilter("");
+  };
+
+  const handleTripClick = (trip: TripWithDetails) => {
+    setSelectedTrip(trip);
+    setTripDetailOpen(true);
+  };
 
   const { data: stats } = useQuery<{
     totalDrivers: number;
@@ -584,7 +626,24 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                   View and manage all trips across the platform
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
+                <TripFilterBar
+                  status={tripStatusFilter}
+                  onStatusChange={setTripStatusFilter}
+                  startDate={tripStartDate}
+                  onStartDateChange={setTripStartDate}
+                  endDate={tripEndDate}
+                  onEndDateChange={setTripEndDate}
+                  driverId={tripDriverFilter}
+                  onDriverIdChange={setTripDriverFilter}
+                  riderId={tripRiderFilter}
+                  onRiderIdChange={setTripRiderFilter}
+                  drivers={drivers}
+                  riders={riders}
+                  showDriverFilter
+                  showRiderFilter
+                  onClear={clearTripFilters}
+                />
                 {tripsLoading ? (
                   <div className="py-8 text-center text-muted-foreground">
                     Loading trips...
@@ -592,8 +651,8 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                 ) : trips.length === 0 ? (
                   <EmptyState
                     icon={MapPin}
-                    title="No trips yet"
-                    description="Trip records will appear here"
+                    title="No trips found"
+                    description="Try adjusting your filters or check back later"
                   />
                 ) : (
                   <div className="overflow-x-auto">
@@ -605,13 +664,19 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                           <TableHead>Dropoff</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead>Driver</TableHead>
+                          <TableHead>Fare</TableHead>
                           <TableHead>Created</TableHead>
                           <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {trips.map((trip) => (
-                          <TableRow key={trip.id} data-testid={`row-trip-${trip.id}`}>
+                          <TableRow 
+                            key={trip.id} 
+                            data-testid={`row-trip-${trip.id}`}
+                            className="cursor-pointer hover-elevate"
+                            onClick={() => handleTripClick(trip)}
+                          >
                             <TableCell className="font-medium">{trip.riderName || "-"}</TableCell>
                             <TableCell className="max-w-[150px] truncate">{trip.pickupLocation}</TableCell>
                             <TableCell className="max-w-[150px] truncate">{trip.dropoffLocation}</TableCell>
@@ -619,6 +684,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                               <StatusBadge status={trip.status as any} />
                             </TableCell>
                             <TableCell>{trip.driverName || "-"}</TableCell>
+                            <TableCell>{trip.fareAmount ? `$${trip.fareAmount}` : "-"}</TableCell>
                             <TableCell>
                               {trip.createdAt 
                                 ? new Date(trip.createdAt).toLocaleDateString() 
@@ -629,7 +695,10 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                                 <Button
                                   size="sm"
                                   variant="destructive"
-                                  onClick={() => cancelTripMutation.mutate(trip.id)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    cancelTripMutation.mutate(trip.id);
+                                  }}
                                   disabled={cancelTripMutation.isPending}
                                   data-testid={`button-cancel-trip-${trip.id}`}
                                 >
@@ -646,6 +715,11 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                 )}
               </CardContent>
             </Card>
+            <TripDetailModal
+              trip={selectedTrip}
+              open={tripDetailOpen}
+              onOpenChange={setTripDetailOpen}
+            />
           </TabsContent>
 
           <TabsContent value="payouts">
