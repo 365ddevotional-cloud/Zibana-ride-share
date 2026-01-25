@@ -1834,6 +1834,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                 Growth
               </TabsTrigger>
             )}
+            {!isDirector && !isTripCoordinator && (
+              <TabsTrigger value="monitoring" data-testid="tab-monitoring">
+                <Activity className="h-4 w-4 mr-2" />
+                Monitoring
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="drivers">
@@ -5790,8 +5796,412 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               </Dialog>
             </TabsContent>
           )}
+
+          {!isDirector && !isTripCoordinator && (
+            <TabsContent value="monitoring">
+              <MonitoringTab />
+            </TabsContent>
+          )}
         </Tabs>
       </main>
+    </div>
+  );
+}
+
+function MonitoringTab() {
+  const { data: metrics, isLoading: metricsLoading } = useQuery<{
+    platform: {
+      dailyActiveUsers: number;
+      monthlyActiveUsers: number;
+      tripSuccessRate: number;
+      cancellationRate: number;
+      avgTripCompletionTime: number;
+      supportTicketVolume: number;
+    };
+    riders: {
+      newSignups: number;
+      repeatUsageRate: number;
+      failedBookingAttempts: number;
+      totalRiders: number;
+    };
+    drivers: {
+      activeDrivers: number;
+      acceptanceRate: number;
+      completionRate: number;
+      earningsVariance: number;
+      totalDrivers: number;
+    };
+    organizations: {
+      activeOrganizations: number;
+      tripsPerOrganization: number;
+      slaComplianceRate: number;
+      invoiceCount: number;
+    };
+    financials: {
+      grossFares: string;
+      platformCommission: string;
+      refundVolume: string;
+      chargebackCount: number;
+      netRevenue: string;
+    };
+    alerts: Array<{
+      id: string;
+      type: string;
+      metric: string;
+      message: string;
+      value: number;
+      threshold: number;
+      createdAt: string;
+    }>;
+  }>({
+    queryKey: ["/api/metrics/overview"]
+  });
+
+  const { data: featureFlags, isLoading: flagsLoading } = useQuery<Array<{
+    id: string;
+    name: string;
+    description: string | null;
+    enabled: boolean;
+    rolloutPercentage: number;
+    createdAt: string;
+    updatedAt: string;
+  }>>({
+    queryKey: ["/api/feature-flags"]
+  });
+
+  const [showCreateFlagDialog, setShowCreateFlagDialog] = useState(false);
+  const [newFlag, setNewFlag] = useState({ name: "", description: "", enabled: false, rolloutPercentage: 0 });
+
+  const createFlagMutation = useMutation({
+    mutationFn: async (data: typeof newFlag) => {
+      return apiRequest("POST", "/api/feature-flags", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/feature-flags"] });
+      setShowCreateFlagDialog(false);
+      setNewFlag({ name: "", description: "", enabled: false, rolloutPercentage: 0 });
+    }
+  });
+
+  const toggleFlagMutation = useMutation({
+    mutationFn: async ({ name, enabled }: { name: string; enabled: boolean }) => {
+      return apiRequest("PATCH", `/api/feature-flags/${name}`, { enabled });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/feature-flags"] });
+    }
+  });
+
+  const updateRolloutMutation = useMutation({
+    mutationFn: async ({ name, rolloutPercentage }: { name: string; rolloutPercentage: number }) => {
+      return apiRequest("PATCH", `/api/feature-flags/${name}`, { rolloutPercentage });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/feature-flags"] });
+    }
+  });
+
+  if (metricsLoading || flagsLoading) {
+    return (
+      <div className="py-8 text-center text-muted-foreground">
+        Loading monitoring data...
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {metrics?.alerts && metrics.alerts.length > 0 && (
+        <Card className="border-destructive">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              Active Alerts
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {metrics.alerts.map((alert) => (
+                <div key={alert.id} className="flex items-center justify-between p-3 rounded-lg bg-destructive/10">
+                  <div>
+                    <p className="font-medium">{alert.message}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Current: {alert.value.toFixed(1)} | Threshold: {alert.threshold}
+                    </p>
+                  </div>
+                  <Badge variant={alert.type === "error" ? "destructive" : "secondary"}>
+                    {alert.type}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Trip Success Rate</CardTitle>
+            <CheckCircle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{(metrics?.platform.tripSuccessRate || 0).toFixed(1)}%</div>
+            <p className="text-xs text-muted-foreground">Completed trips vs total</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Cancellation Rate</CardTitle>
+            <XCircle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{(metrics?.platform.cancellationRate || 0).toFixed(1)}%</div>
+            <p className="text-xs text-muted-foreground">Cancelled trips vs total</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Support Tickets</CardTitle>
+            <Activity className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{metrics?.platform.supportTicketVolume || 0}</div>
+            <p className="text-xs text-muted-foreground">Last 24 hours</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Net Revenue</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">${metrics?.financials.netRevenue || "0.00"}</div>
+            <p className="text-xs text-muted-foreground">Commission minus refunds</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Rider Metrics</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Total Riders</span>
+                <span className="font-medium">{metrics?.riders.totalRiders || 0}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">New Signups (7d)</span>
+                <span className="font-medium">{metrics?.riders.newSignups || 0}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Repeat Usage Rate</span>
+                <span className="font-medium">{(metrics?.riders.repeatUsageRate || 0).toFixed(1)}%</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Driver Metrics</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Active Drivers</span>
+                <span className="font-medium">{metrics?.drivers.activeDrivers || 0} / {metrics?.drivers.totalDrivers || 0}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Acceptance Rate</span>
+                <span className="font-medium">{(metrics?.drivers.acceptanceRate || 0).toFixed(1)}%</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Completion Rate</span>
+                <span className="font-medium">{(metrics?.drivers.completionRate || 0).toFixed(1)}%</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Organization Metrics</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Active Organizations</span>
+                <span className="font-medium">{metrics?.organizations.activeOrganizations || 0}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Trips per Organization</span>
+                <span className="font-medium">{(metrics?.organizations.tripsPerOrganization || 0).toFixed(1)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">SLA Compliance</span>
+                <span className="font-medium">{(metrics?.organizations.slaComplianceRate || 0).toFixed(1)}%</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Financial Metrics</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Gross Fares</span>
+                <span className="font-medium">${metrics?.financials.grossFares || "0.00"}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Platform Commission</span>
+                <span className="font-medium">${metrics?.financials.platformCommission || "0.00"}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Refund Volume</span>
+                <span className="font-medium">${metrics?.financials.refundVolume || "0.00"}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Chargebacks</span>
+                <span className="font-medium">{metrics?.financials.chargebackCount || 0}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-2">
+          <div>
+            <CardTitle>Feature Flags</CardTitle>
+            <CardDescription>Control gradual feature rollouts</CardDescription>
+          </div>
+          <Button onClick={() => setShowCreateFlagDialog(true)} data-testid="button-create-feature-flag">
+            <Plus className="h-4 w-4 mr-2" />
+            New Flag
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {featureFlags && featureFlags.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Rollout %</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {featureFlags.map((flag) => (
+                  <TableRow key={flag.id}>
+                    <TableCell className="font-mono text-sm">{flag.name}</TableCell>
+                    <TableCell className="text-muted-foreground">{flag.description || "-"}</TableCell>
+                    <TableCell>
+                      <Badge variant={flag.enabled ? "default" : "secondary"}>
+                        {flag.enabled ? "Enabled" : "Disabled"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={flag.rolloutPercentage}
+                          onChange={(e) => updateRolloutMutation.mutate({ name: flag.name, rolloutPercentage: parseInt(e.target.value) || 0 })}
+                          className="w-20"
+                          data-testid={`input-rollout-${flag.name}`}
+                        />
+                        <span>%</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        size="sm"
+                        variant={flag.enabled ? "destructive" : "default"}
+                        onClick={() => toggleFlagMutation.mutate({ name: flag.name, enabled: !flag.enabled })}
+                        data-testid={`button-toggle-${flag.name}`}
+                      >
+                        {flag.enabled ? "Disable" : "Enable"}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <EmptyState
+              icon={Zap}
+              title="No Feature Flags"
+              description="Create feature flags to control gradual rollouts"
+            />
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={showCreateFlagDialog} onOpenChange={setShowCreateFlagDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Feature Flag</DialogTitle>
+            <DialogDescription>Add a new feature flag for gradual rollout control</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Flag Name</label>
+              <Input
+                value={newFlag.name}
+                onChange={(e) => setNewFlag({ ...newFlag, name: e.target.value })}
+                placeholder="e.g., new_checkout_flow"
+                data-testid="input-flag-name"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Description</label>
+              <Input
+                value={newFlag.description}
+                onChange={(e) => setNewFlag({ ...newFlag, description: e.target.value })}
+                placeholder="What does this flag control?"
+                data-testid="input-flag-description"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Rollout Percentage</label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={newFlag.rolloutPercentage}
+                  onChange={(e) => setNewFlag({ ...newFlag, rolloutPercentage: parseInt(e.target.value) || 0 })}
+                  className="w-24"
+                  data-testid="input-flag-rollout"
+                />
+                <span>%</span>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateFlagDialog(false)}>Cancel</Button>
+            <Button
+              onClick={() => createFlagMutation.mutate(newFlag)}
+              disabled={createFlagMutation.isPending || !newFlag.name}
+              data-testid="button-submit-feature-flag"
+            >
+              Create Flag
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
