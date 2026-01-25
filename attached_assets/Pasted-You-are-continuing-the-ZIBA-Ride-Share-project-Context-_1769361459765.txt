@@ -1,0 +1,158 @@
+You are continuing the ZIBA Ride Share project.
+
+Context (DO NOT CHANGE):
+
+Phases 1–6 are complete and stable
+
+Roles exist: ADMIN, DIRECTOR (read-only), DRIVER, RIDER
+
+Pricing, payments simulation, notifications are already implemented
+
+Authentication, rider flow, driver flow must remain unchanged
+
+Objective
+
+Implement Trip History & Search across Admin, Driver, and Rider dashboards with filtering and detail viewing.
+
+Scope
+
+Backend + UI (no redesign)
+
+Read-only for Directors
+
+Filtering & search only (no new business logic)
+
+DO NOT MODIFY
+
+Authentication system
+
+Pricing & commission logic
+
+Payments simulation
+
+Notifications system
+
+Existing trip lifecycle logic
+
+Implement Backend
+
+Extend existing trips query to support:
+
+Filter by role:
+
+Admin → all trips
+
+Driver → own trips
+
+Rider → own trips
+
+Director → all trips (read-only)
+
+Filter options:
+
+status (requested, accepted, completed, cancelled)
+
+date range
+
+riderId
+
+driverId
+
+Ensure trip detail endpoint exists:
+
+Returns full trip info (locations, fare, status, timestamps)
+
+Implement UI (Minimal, No Redesign)
+Admin Dashboard
+
+Enhance Trips tab with:
+
+Search bar (driver, rider, date)
+
+Status filter dropdown
+
+Clickable row → Trip Detail view
+
+Directors:
+
+Same view as Admin
+
+All action buttons hidden (read-only)
+
+Driver Dashboard
+
+Add Trip History section:
+
+List of driver’s past trips
+
+Filter by status + date
+
+Click to view trip details
+
+Rider Dashboard
+
+Add Recent Trips / Trip History section:
+
+List of rider’s past trips
+
+Filter by status + date
+
+Click to view trip details
+
+UX Rules
+
+Show proper empty states:
+
+“No trips yet”
+
+“No results found”
+
+Keep layout consistent with existing dashboards
+
+No new navigation patterns
+
+Verification Checklist
+
+Admin sees all trips and can filter/search
+
+Director sees trips but cannot act
+
+Driver sees only own trips
+
+Rider sees only own trips
+
+Trip details load correctly
+
+No console errors
+
+Checkpoint
+
+Create checkpoint named exactly:
+
+"Phase 7A – Trip History & Search Stable"
+
+❌ DO NOT PUBLISH
+
+Completion Message
+
+When done, confirm:
+
+Phase 7A complete
+
+App running without errors
+
+Checkpoint saved
+
+🧠 Where You Are Now (Clarity Check)
+
+From your screenshots:
+
+✅ Phase 7A IS NOW COMPLETE
+
+✅ Filtering + trip history exists
+
+✅ Directors tab is visible and read-only
+
+✅ Checkpoint created
+
+So you did NOT break anything — you just needed the clean single prompt version, which you now have.
