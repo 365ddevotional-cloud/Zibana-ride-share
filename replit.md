@@ -143,6 +143,17 @@ Preferred communication style: Simple, everyday language.
   - RBAC enforced on all protected endpoints
   - Input validation and XSS prevention
 
+### Phase 20.5 – Navigation & UX Polish (January 2026)
+- Admin KPI cards now clickable with ChevronRight indicators, navigating to relevant dashboard tabs
+- Logo component: Link wrapper with `linkToHome` prop (default true), clicking ZIBA logo navigates to public home "/"
+- ProfileDropdown component: Role-aware dropdown menus replacing separate avatar + logout button
+  - All 7 roles supported: admin, driver, rider, trip_coordinator, support_agent, director, finance
+  - Role-specific menu items (Profile, Settings, Earnings for drivers; Org Profile, Billing for coordinators, etc.)
+- All dashboards updated: Admin, Rider, Driver, Coordinator, Support now use unified ProfileDropdown
+- Support dashboard modernized: Sticky header with Logo, ThemeToggle, role badge, and ProfileDropdown
+- StatusBadge extended with dispute statuses: open, under_review, resolved, rejected
+- TripFilterBar prop consistency fix (status vs statusFilter)
+
 ### Key Files Added/Modified
 - `client/src/components/error-boundary.tsx`: Global and component error boundaries
 - `client/src/components/loading-skeleton.tsx`: Loading skeleton components
@@ -152,3 +163,6 @@ Preferred communication style: Simple, everyday language.
 - `client/src/App.tsx`: Lazy loading, error boundary integration
 - `client/src/lib/queryClient.ts`: Retry logic for queries/mutations
 - `app.config.json`: Complete app store configuration
+- `client/src/components/logo.tsx`: Logo with home navigation
+- `client/src/components/profile-dropdown.tsx`: Role-aware profile dropdown menus
+- `client/src/components/status-badge.tsx`: Extended status types for disputes
