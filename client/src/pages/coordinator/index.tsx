@@ -44,6 +44,7 @@ import {
   FileText
 } from "lucide-react";
 import type { Trip, TripCoordinatorProfile, Dispute } from "@shared/schema";
+import { SupportSection } from "@/components/support-section";
 
 const profileSchema = z.object({
   organizationName: z.string().min(2, "Organization name is required"),
@@ -756,6 +757,16 @@ export default function CoordinatorDashboard() {
             </Card>
           </TabsContent>
         </Tabs>
+
+        <div className="mt-6">
+          <SupportSection 
+            userTrips={trips.map((t: TripWithDetails) => ({ 
+              id: t.id, 
+              pickupLocation: t.pickupLocation || "",
+              dropoffLocation: t.dropoffLocation || ""
+            }))} 
+          />
+        </div>
       </main>
 
       <Dialog open={receiptDialogOpen} onOpenChange={setReceiptDialogOpen}>

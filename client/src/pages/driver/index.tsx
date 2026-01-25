@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 import type { DriverProfile, Trip } from "@shared/schema";
 import { NotificationBell } from "@/components/notification-bell";
+import { SupportSection } from "@/components/support-section";
 
 type TripWithRider = Trip & { riderName?: string };
 
@@ -793,6 +794,14 @@ export default function DriverDashboard() {
                 )}
               </CardContent>
             </Card>
+
+            <SupportSection 
+              userTrips={tripHistory.map((t: TripWithDetails) => ({ 
+                id: t.id, 
+                pickupLocation: t.pickupLocation || "",
+                dropoffLocation: t.dropoffLocation || ""
+              }))} 
+            />
           </div>
         </div>
       </main>

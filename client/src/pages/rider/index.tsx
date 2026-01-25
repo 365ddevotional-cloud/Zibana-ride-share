@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import type { Trip, RiderProfile } from "@shared/schema";
 import { NotificationBell } from "@/components/notification-bell";
+import { SupportSection } from "@/components/support-section";
 
 const rideRequestSchema = z.object({
   pickupLocation: z.string().min(3, "Please enter a pickup location"),
@@ -605,6 +606,14 @@ export default function RiderDashboard() {
                 </div>
               </CardContent>
             </Card>
+
+            <SupportSection 
+              userTrips={tripHistory.map((t: TripWithDetails) => ({ 
+                id: t.id, 
+                pickupLocation: t.pickupLocation || "",
+                dropoffLocation: t.dropoffLocation || ""
+              }))} 
+            />
           </div>
         </div>
       </main>
