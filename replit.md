@@ -164,6 +164,19 @@ Key database tables:
 - Admin, Director, Driver, and Rider dashboards all show cancellation details
 - Directors remain read-only (view cancellation info but cannot cancel)
 
+### Phase 8 – Ratings & Reviews (FROZEN - Stable)
+- ratings table with tripId, raterId, targetId, raterRole, targetRole, score (1-5), comment (300 char max)
+- averageRating and totalRatings fields added to driver_profiles and rider_profiles
+- One rating per user per completed trip (mutual: riders rate drivers, drivers rate riders)
+- RatingForm component with star selector in TripDetailModal for completed trips
+- Automatic average calculation when new ratings submitted
+- Admin/Director Ratings tab showing all ratings with full details
+- Driver dashboard shows average rating in profile section
+- Rider dashboard shows average rating in profile sidebar
+- API endpoints: POST /api/ratings, GET /api/ratings, GET /api/trips/:tripId/ratings
+- GET /api/rider/profile endpoint for rider profile with rating data
+- Directors have read-only access to ratings (no modifications)
+
 ### FROZEN Components (DO NOT MODIFY)
 - Authentication flow (Replit Auth + OpenID Connect)
 - Role assignments and routing logic
@@ -171,3 +184,4 @@ Key database tables:
 - Driver dashboard and all driver endpoints
 - Rider dashboard and all rider endpoints
 - Notifications system and all notification endpoints
+- Ratings system and all rating endpoints
