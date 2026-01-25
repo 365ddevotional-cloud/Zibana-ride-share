@@ -486,7 +486,7 @@ export default function CoordinatorDashboard() {
           <TabsContent value="trips" className="space-y-4">
             <div className="flex flex-col sm:flex-row gap-4 justify-between">
               <TripFilterBar
-                statusFilter={tripStatusFilter}
+                status={tripStatusFilter}
                 onStatusChange={setTripStatusFilter}
                 startDate={tripStartDate}
                 onStartDateChange={setTripStartDate}
