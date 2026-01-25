@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
@@ -15,6 +15,8 @@ import { UserAvatar } from "@/components/user-avatar";
 import { StatusBadge } from "@/components/status-badge";
 import { EmptyState } from "@/components/empty-state";
 import { FullPageLoading } from "@/components/loading-spinner";
+import { TripFilterBar } from "@/components/trip-filter-bar";
+import { TripDetailModal } from "@/components/trip-detail-modal";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -32,7 +34,6 @@ import {
   XCircle
 } from "lucide-react";
 import type { Trip } from "@shared/schema";
-import { useEffect } from "react";
 import { NotificationBell } from "@/components/notification-bell";
 
 const rideRequestSchema = z.object({
@@ -43,11 +44,19 @@ const rideRequestSchema = z.object({
 
 type RideRequestForm = z.infer<typeof rideRequestSchema>;
 
+type TripWithDetails = Trip & { riderName?: string; driverName?: string };
+
 export default function RiderDashboard() {
   const { user, isLoading: authLoading, logout } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [showRequestForm, setShowRequestForm] = useState(false);
+  
+  const [tripStatusFilter, setTripStatusFilter] = useState("");
+  const [tripStartDate, setTripStartDate] = useState("");
+  const [tripEndDate, setTripEndDate] = useState("");
+  const [selectedTrip, setSelectedTrip] = useState<TripWithDetails | null>(null);
+  const [tripDetailOpen, setTripDetailOpen] = useState(false);
 
   const { data: currentTrip, isLoading: tripLoading } = useQuery<Trip | null>({
     queryKey: ["/api/rider/current-trip"],
@@ -55,10 +64,39 @@ export default function RiderDashboard() {
     refetchInterval: 3000,
   });
 
-  const { data: tripHistory = [], isLoading: historyLoading } = useQuery<Trip[]>({
-    queryKey: ["/api/rider/trip-history"],
+  const buildTripQueryParams = () => {
+    const params = new URLSearchParams();
+    if (tripStatusFilter && tripStatusFilter !== "all") params.append("status", tripStatusFilter);
+    if (tripStartDate) params.append("startDate", tripStartDate);
+    if (tripEndDate) params.append("endDate", tripEndDate);
+    return params.toString();
+  };
+
+  const tripQueryParams = buildTripQueryParams();
+  const tripQueryKey = tripQueryParams 
+    ? `/api/rider/trip-history?${tripQueryParams}` 
+    : "/api/rider/trip-history";
+
+  const { data: tripHistory = [], isLoading: historyLoading } = useQuery<TripWithDetails[]>({
+    queryKey: ["/api/rider/trip-history", tripStatusFilter, tripStartDate, tripEndDate],
+    queryFn: async () => {
+      const res = await fetch(tripQueryKey, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch trip history");
+      return res.json();
+    },
     enabled: !!user,
   });
+
+  const clearTripFilters = () => {
+    setTripStatusFilter("");
+    setTripStartDate("");
+    setTripEndDate("");
+  };
+
+  const handleTripClick = (trip: TripWithDetails) => {
+    setSelectedTrip(trip);
+    setTripDetailOpen(true);
+  };
 
   const form = useForm<RideRequestForm>({
     resolver: zodResolver(rideRequestSchema),
@@ -439,39 +477,80 @@ export default function RiderDashboard() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <History className="h-5 w-5" />
-                  Recent Trips
+                  Trip History
                 </CardTitle>
+                <CardDescription>
+                  View your past rides and details
+                </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
+                <TripFilterBar
+                  status={tripStatusFilter}
+                  onStatusChange={setTripStatusFilter}
+                  startDate={tripStartDate}
+                  onStartDateChange={setTripStartDate}
+                  endDate={tripEndDate}
+                  onEndDateChange={setTripEndDate}
+                  onClear={clearTripFilters}
+                />
                 {historyLoading ? (
                   <div className="py-4 text-center text-muted-foreground text-sm">
-                    Loading...
+                    Loading trip history...
                   </div>
                 ) : tripHistory.length === 0 ? (
                   <EmptyState
                     icon={Car}
-                    title="No trips yet"
-                    description="Your completed trips will appear here"
+                    title="No trips found"
+                    description="Try adjusting your filters or take some rides"
                     className="py-8"
                   />
                 ) : (
                   <div className="space-y-3">
-                    {tripHistory.slice(0, 5).map((trip) => (
-                      <div 
+                    {tripHistory.map((trip) => (
+                      <Card 
                         key={trip.id} 
-                        className="flex items-start gap-3 p-3 rounded-lg bg-muted/50"
+                        className="hover-elevate cursor-pointer"
+                        onClick={() => handleTripClick(trip)}
                         data-testid={`trip-history-${trip.id}`}
                       >
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <StatusBadge status={trip.status as any} />
+                        <CardContent className="pt-4">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1 min-w-0 space-y-2">
+                              <div className="flex items-center gap-2">
+                                <StatusBadge status={trip.status as any} />
+                                {trip.fareAmount && (
+                                  <span className="text-sm font-medium">
+                                    ${trip.fareAmount}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <MapPin className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
+                                <span className="text-sm truncate">{trip.pickupLocation}</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <MapPin className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" />
+                                <span className="text-sm truncate">{trip.dropoffLocation}</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Clock className="h-3 w-3" />
+                                <span>
+                                  {trip.createdAt 
+                                    ? new Date(trip.createdAt).toLocaleDateString() 
+                                    : "-"}
+                                </span>
+                                {trip.driverName && (
+                                  <>
+                                    <span className="mx-1">-</span>
+                                    <Car className="h-3 w-3" />
+                                    <span>{trip.driverName}</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                          <p className="text-sm truncate">{trip.pickupLocation}</p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            to {trip.dropoffLocation}
-                          </p>
-                        </div>
-                      </div>
+                        </CardContent>
+                      </Card>
                     ))}
                   </div>
                 )}
@@ -480,6 +559,11 @@ export default function RiderDashboard() {
           </div>
         </div>
       </main>
+      <TripDetailModal
+        trip={selectedTrip}
+        open={tripDetailOpen}
+        onOpenChange={setTripDetailOpen}
+      />
     </div>
   );
 }
