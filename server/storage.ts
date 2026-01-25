@@ -298,6 +298,11 @@ export class DatabaseStorage implements IStorage {
         )
       )
       .returning();
+
+    if (trip && status === "completed" && trip.driverPayout) {
+      await this.creditDriverWallet(driverId, trip.driverPayout, tripId);
+    }
+
     return trip || null;
   }
 
