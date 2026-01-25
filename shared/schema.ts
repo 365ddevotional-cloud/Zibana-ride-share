@@ -12,6 +12,8 @@ export const directorStatusEnum = pgEnum("director_status", ["active", "inactive
 export const driverStatusEnum = pgEnum("driver_status", ["pending", "approved", "suspended"]);
 export const tripStatusEnum = pgEnum("trip_status", ["requested", "accepted", "in_progress", "completed", "cancelled"]);
 export const payoutStatusEnum = pgEnum("payout_status", ["pending", "paid"]);
+export const notificationTypeEnum = pgEnum("notification_type", ["info", "success", "warning"]);
+export const notificationRoleEnum = pgEnum("notification_role", ["admin", "director", "driver", "rider"]);
 
 // User roles table - maps users to their roles
 export const userRoles = pgTable("user_roles", {
@@ -85,6 +87,18 @@ export const payoutTransactions = pgTable("payout_transactions", {
   description: text("description"),
   paidAt: timestamp("paid_at"),
   paidByAdminId: varchar("paid_by_admin_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Notifications table
+export const notifications = pgTable("notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  role: notificationRoleEnum("role").notNull(),
+  title: varchar("title", { length: 200 }).notNull(),
+  message: text("message").notNull(),
+  type: notificationTypeEnum("type").notNull().default("info"),
+  read: boolean("read").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -168,6 +182,12 @@ export const insertPayoutTransactionSchema = createInsertSchema(payoutTransactio
   paidByAdminId: true,
 });
 
+export const insertNotificationSchema = createInsertSchema(notifications).omit({
+  id: true,
+  createdAt: true,
+  read: true,
+});
+
 // Update schemas
 export const updateDriverProfileSchema = createInsertSchema(driverProfiles).omit({
   id: true,
@@ -196,6 +216,9 @@ export type Trip = typeof trips.$inferSelect;
 
 export type InsertPayoutTransaction = z.infer<typeof insertPayoutTransactionSchema>;
 export type PayoutTransaction = typeof payoutTransactions.$inferSelect;
+
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type Notification = typeof notifications.$inferSelect;
 
 // Extended types for frontend
 export type TripWithDetails = Trip & {
