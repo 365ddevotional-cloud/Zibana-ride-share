@@ -1049,3 +1049,105 @@ export type EnterpriseInvoiceWithDetails = EnterpriseInvoice & {
   contractName?: string;
   organizationName?: string;
 };
+
+// Phase 19 - Growth, Marketing & Partnerships enums
+export const referralOwnerRoleEnum = pgEnum("referral_owner_role", ["rider", "driver", "trip_coordinator"]);
+export const referralSourceEnum = pgEnum("referral_source", ["APP", "WEB", "PARTNER"]);
+export const campaignTypeEnum = pgEnum("campaign_type", ["REFERRAL", "PROMO", "PARTNERSHIP"]);
+export const campaignStatusEnum = pgEnum("campaign_status", ["ACTIVE", "PAUSED", "ENDED"]);
+export const partnerTypeEnum = pgEnum("partner_type", ["NGO", "HOSPITAL", "CHURCH", "SCHOOL", "GOV", "CORPORATE"]);
+export const partnerLeadStatusEnum = pgEnum("partner_lead_status", ["NEW", "CONTACTED", "IN_DISCUSSION", "SIGNED", "LOST"]);
+
+// Phase 19 - Referral Codes
+export const referralCodes = pgTable("referral_codes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  code: varchar("code", { length: 20 }).notNull().unique(),
+  ownerUserId: varchar("owner_user_id").notNull(),
+  ownerRole: referralOwnerRoleEnum("owner_role").notNull(),
+  usageCount: integer("usage_count").notNull().default(0),
+  maxUsage: integer("max_usage"),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Phase 19 - Referral Events
+export const referralEvents = pgTable("referral_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  referralCodeId: varchar("referral_code_id").notNull(),
+  newUserId: varchar("new_user_id").notNull(),
+  newUserRole: userRoleEnum("new_user_role").notNull(),
+  source: referralSourceEnum("source").notNull().default("APP"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Phase 19 - Marketing Campaigns
+export const marketingCampaigns = pgTable("marketing_campaigns", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name", { length: 255 }).notNull(),
+  type: campaignTypeEnum("type").notNull(),
+  startAt: timestamp("start_at").notNull(),
+  endAt: timestamp("end_at").notNull(),
+  status: campaignStatusEnum("status").notNull().default("ACTIVE"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Phase 19 - Partner Leads
+export const partnerLeads = pgTable("partner_leads", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationName: varchar("organization_name", { length: 255 }).notNull(),
+  contactName: varchar("contact_name", { length: 255 }).notNull(),
+  contactEmail: varchar("contact_email", { length: 255 }).notNull(),
+  partnerType: partnerTypeEnum("partner_type").notNull(),
+  status: partnerLeadStatusEnum("status").notNull().default("NEW"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertReferralCodeSchema = createInsertSchema(referralCodes).omit({
+  id: true,
+  usageCount: true,
+  createdAt: true,
+});
+
+export const insertReferralEventSchema = createInsertSchema(referralEvents).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertMarketingCampaignSchema = createInsertSchema(marketingCampaigns).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertPartnerLeadSchema = createInsertSchema(partnerLeads).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertReferralCode = z.infer<typeof insertReferralCodeSchema>;
+export type ReferralCode = typeof referralCodes.$inferSelect;
+
+export type InsertReferralEvent = z.infer<typeof insertReferralEventSchema>;
+export type ReferralEvent = typeof referralEvents.$inferSelect;
+
+export type InsertMarketingCampaign = z.infer<typeof insertMarketingCampaignSchema>;
+export type MarketingCampaign = typeof marketingCampaigns.$inferSelect;
+
+export type InsertPartnerLead = z.infer<typeof insertPartnerLeadSchema>;
+export type PartnerLead = typeof partnerLeads.$inferSelect;
+
+export type ReferralCodeWithStats = ReferralCode & {
+  ownerName?: string;
+  totalConversions?: number;
+};
+
+export type GrowthStats = {
+  totalReferralCodes: number;
+  activeReferralCodes: number;
+  totalReferrals: number;
+  referralConversionRate: number;
+  activeCampaigns: number;
+  totalPartnerLeads: number;
+  signedPartners: number;
+};

@@ -1,0 +1,162 @@
+You are continuing development of the ZIBA ride-hailing app.
+Phases 1–18 are COMPLETE and MUST NOT be modified.
+
+IMPLEMENT PHASE 19 — GROWTH, MARKETING & PARTNERSHIPS.
+
+This phase introduces growth tooling, referrals, and partnership readiness
+without altering pricing, payouts, or contracts.
+
+DO NOT BREAK EXISTING FEATURES.
+EXTEND ONLY.
+
+────────────────────────
+OBJECTIVES
+────────────────────────
+
+1) Enable user growth via referrals
+2) Track acquisition channels
+3) Support promo campaigns (non-monetary & simulated)
+4) Prepare partnership onboarding (read-only)
+5) Provide growth analytics for Admin
+
+────────────────────────
+CORE PRINCIPLES
+────────────────────────
+
+• NO automatic discounts affecting wallets
+• NO changes to pricing or commission
+• Rewards are simulated or ledger-based (no cash impact)
+• Analytics-first approach
+
+────────────────────────
+DATABASE (Prisma)
+────────────────────────
+
+Add the following models:
+
+ReferralCode
+- id
+- code
+- ownerUserId
+- ownerRole (RIDER | DRIVER | TRIP_COORDINATOR)
+- usageCount
+- maxUsage (nullable)
+- active
+- createdAt
+
+ReferralEvent
+- id
+- referralCodeId
+- newUserId
+- newUserRole
+- source (APP | WEB | PARTNER)
+- createdAt
+
+MarketingCampaign
+- id
+- name
+- type (REFERRAL | PROMO | PARTNERSHIP)
+- startAt
+- endAt
+- status (ACTIVE | PAUSED | ENDED)
+- notes
+- createdAt
+
+PartnerLead
+- id
+- organizationName
+- contactName
+- contactEmail
+- partnerType (NGO | HOSPITAL | CHURCH | SCHOOL | GOV | CORPORATE)
+- status (NEW | CONTACTED | IN_DISCUSSION | SIGNED | LOST)
+- createdAt
+
+Ensure indexes on ownerUserId, code, status.
+
+────────────────────────
+SYSTEM BEHAVIOR
+────────────────────────
+
+1) Referrals
+- Users can generate referral codes
+- Codes can be shared externally
+- Track signups via referral
+- Display referral stats (no cash rewards yet)
+
+2) Campaign Tracking
+- Link referrals to campaigns
+- Measure performance by time range
+- No automatic discounts or payouts
+
+3) Partnership Intake
+- Admin can log partner leads
+- Track lifecycle from lead to signed
+- No contract creation here (Phase 18 already handles that)
+
+────────────────────────
+API ROUTES
+────────────────────────
+
+POST /api/referrals/create
+GET  /api/referrals/my
+GET  /api/referrals/stats
+
+POST /api/campaigns/create
+GET  /api/campaigns/active
+
+POST /api/partners/lead
+GET  /api/partners/leads
+
+Strict RBAC:
+- Users manage own referrals
+- Admin manages campaigns & partners
+
+────────────────────────
+UI
+────────────────────────
+
+USER DASHBOARD:
+🎯 Referrals
+- Referral code
+- Share button
+- Usage stats
+
+ADMIN DASHBOARD:
+📈 Growth
+- Campaign performance
+- Referral conversion metrics
+- Partner leads pipeline
+
+NO changes to rider/driver booking flow.
+
+────────────────────────
+ANALYTICS
+────────────────────────
+
+Extend reports to include:
+- User acquisition sources
+- Referral conversion rates
+- Growth over time
+- Partner pipeline status
+
+READ-ONLY metrics.
+
+────────────────────────
+AUDIT & SAFETY
+────────────────────────
+
+• No wallet or payout changes
+• No pricing changes
+• All growth actions logged
+• Clear separation from financial logic
+
+────────────────────────
+FINAL CHECKS
+────────────────────────
+
+• Existing features unaffected
+• Analytics accurate
+• No performance regression
+• App compiles cleanly
+
+IMPLEMENT PHASE 19 ONLY.

@@ -103,7 +103,21 @@ import {
   type InsertEnterpriseInvoice,
   type OrganizationContractWithDetails,
   type ServiceLevelAgreementWithDetails,
-  type EnterpriseInvoiceWithDetails
+  type EnterpriseInvoiceWithDetails,
+  referralCodes,
+  referralEvents,
+  marketingCampaigns,
+  partnerLeads,
+  type ReferralCode,
+  type InsertReferralCode,
+  type ReferralEvent,
+  type InsertReferralEvent,
+  type MarketingCampaign,
+  type InsertMarketingCampaign,
+  type PartnerLead,
+  type InsertPartnerLead,
+  type ReferralCodeWithStats,
+  type GrowthStats
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte } from "drizzle-orm";
@@ -392,6 +406,31 @@ export interface IStorage {
     totalBilled: string;
     pendingInvoices: number;
   }>;
+
+  // Phase 19 - Growth, Marketing & Partnerships
+  createReferralCode(data: InsertReferralCode): Promise<ReferralCode>;
+  getReferralCodeByCode(code: string): Promise<ReferralCode | null>;
+  getReferralCodesByOwner(ownerUserId: string): Promise<ReferralCode[]>;
+  updateReferralCodeUsage(codeId: string): Promise<ReferralCode | null>;
+  deactivateReferralCode(codeId: string): Promise<ReferralCode | null>;
+  getAllReferralCodes(): Promise<ReferralCodeWithStats[]>;
+  
+  createReferralEvent(data: InsertReferralEvent): Promise<ReferralEvent>;
+  getReferralEventsByCode(referralCodeId: string): Promise<ReferralEvent[]>;
+  getReferralStats(ownerUserId: string): Promise<{ totalReferrals: number; conversions: number }>;
+  
+  createMarketingCampaign(data: InsertMarketingCampaign): Promise<MarketingCampaign>;
+  getMarketingCampaign(campaignId: string): Promise<MarketingCampaign | null>;
+  getAllMarketingCampaigns(): Promise<MarketingCampaign[]>;
+  getActiveCampaigns(): Promise<MarketingCampaign[]>;
+  updateMarketingCampaignStatus(campaignId: string, status: string): Promise<MarketingCampaign | null>;
+  
+  createPartnerLead(data: InsertPartnerLead): Promise<PartnerLead>;
+  getPartnerLead(leadId: string): Promise<PartnerLead | null>;
+  getAllPartnerLeads(): Promise<PartnerLead[]>;
+  updatePartnerLeadStatus(leadId: string, status: string): Promise<PartnerLead | null>;
+  
+  getGrowthStats(): Promise<GrowthStats>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3347,6 +3386,171 @@ export class DatabaseStorage implements IStorage {
       activeContracts: Number(contractStats?.active || 0),
       totalBilled: invoiceStats?.totalBilled || "0.00",
       pendingInvoices: Number(invoiceStats?.pending || 0)
+    };
+  }
+
+  // Phase 19 - Growth, Marketing & Partnerships
+  async createReferralCode(data: InsertReferralCode): Promise<ReferralCode> {
+    const [code] = await db.insert(referralCodes).values(data).returning();
+    return code;
+  }
+
+  async getReferralCodeByCode(code: string): Promise<ReferralCode | null> {
+    const [result] = await db.select().from(referralCodes).where(eq(referralCodes.code, code));
+    return result || null;
+  }
+
+  async getReferralCodesByOwner(ownerUserId: string): Promise<ReferralCode[]> {
+    return db.select().from(referralCodes).where(eq(referralCodes.ownerUserId, ownerUserId)).orderBy(desc(referralCodes.createdAt));
+  }
+
+  async updateReferralCodeUsage(codeId: string): Promise<ReferralCode | null> {
+    const [updated] = await db.update(referralCodes)
+      .set({ usageCount: sql`${referralCodes.usageCount} + 1` })
+      .where(eq(referralCodes.id, codeId))
+      .returning();
+    return updated || null;
+  }
+
+  async deactivateReferralCode(codeId: string): Promise<ReferralCode | null> {
+    const [updated] = await db.update(referralCodes)
+      .set({ active: false })
+      .where(eq(referralCodes.id, codeId))
+      .returning();
+    return updated || null;
+  }
+
+  async getAllReferralCodes(): Promise<ReferralCodeWithStats[]> {
+    const codes = await db.select().from(referralCodes).orderBy(desc(referralCodes.createdAt));
+    const result: ReferralCodeWithStats[] = [];
+    
+    for (const code of codes) {
+      const [eventCount] = await db.select({ count: count() })
+        .from(referralEvents)
+        .where(eq(referralEvents.referralCodeId, code.id));
+      
+      const user = await db.select().from(users).where(eq(users.id, code.ownerUserId)).then(r => r[0]);
+      
+      result.push({
+        ...code,
+        ownerName: user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() : "Unknown",
+        totalConversions: Number(eventCount?.count || 0)
+      });
+    }
+    
+    return result;
+  }
+
+  async createReferralEvent(data: InsertReferralEvent): Promise<ReferralEvent> {
+    const [event] = await db.insert(referralEvents).values(data).returning();
+    await this.updateReferralCodeUsage(data.referralCodeId);
+    return event;
+  }
+
+  async getReferralEventsByCode(referralCodeId: string): Promise<ReferralEvent[]> {
+    return db.select().from(referralEvents)
+      .where(eq(referralEvents.referralCodeId, referralCodeId))
+      .orderBy(desc(referralEvents.createdAt));
+  }
+
+  async getReferralStats(ownerUserId: string): Promise<{ totalReferrals: number; conversions: number }> {
+    const ownerCodes = await this.getReferralCodesByOwner(ownerUserId);
+    let totalReferrals = 0;
+    let conversions = 0;
+    
+    for (const code of ownerCodes) {
+      totalReferrals++;
+      const events = await this.getReferralEventsByCode(code.id);
+      conversions += events.length;
+    }
+    
+    return { totalReferrals, conversions };
+  }
+
+  async createMarketingCampaign(data: InsertMarketingCampaign): Promise<MarketingCampaign> {
+    const [campaign] = await db.insert(marketingCampaigns).values(data).returning();
+    return campaign;
+  }
+
+  async getMarketingCampaign(campaignId: string): Promise<MarketingCampaign | null> {
+    const [campaign] = await db.select().from(marketingCampaigns).where(eq(marketingCampaigns.id, campaignId));
+    return campaign || null;
+  }
+
+  async getAllMarketingCampaigns(): Promise<MarketingCampaign[]> {
+    return db.select().from(marketingCampaigns).orderBy(desc(marketingCampaigns.createdAt));
+  }
+
+  async getActiveCampaigns(): Promise<MarketingCampaign[]> {
+    const now = new Date();
+    return db.select().from(marketingCampaigns)
+      .where(and(
+        eq(marketingCampaigns.status, "ACTIVE"),
+        lte(marketingCampaigns.startAt, now),
+        gte(marketingCampaigns.endAt, now)
+      ))
+      .orderBy(desc(marketingCampaigns.createdAt));
+  }
+
+  async updateMarketingCampaignStatus(campaignId: string, status: string): Promise<MarketingCampaign | null> {
+    const [updated] = await db.update(marketingCampaigns)
+      .set({ status: status as any })
+      .where(eq(marketingCampaigns.id, campaignId))
+      .returning();
+    return updated || null;
+  }
+
+  async createPartnerLead(data: InsertPartnerLead): Promise<PartnerLead> {
+    const [lead] = await db.insert(partnerLeads).values(data).returning();
+    return lead;
+  }
+
+  async getPartnerLead(leadId: string): Promise<PartnerLead | null> {
+    const [lead] = await db.select().from(partnerLeads).where(eq(partnerLeads.id, leadId));
+    return lead || null;
+  }
+
+  async getAllPartnerLeads(): Promise<PartnerLead[]> {
+    return db.select().from(partnerLeads).orderBy(desc(partnerLeads.createdAt));
+  }
+
+  async updatePartnerLeadStatus(leadId: string, status: string): Promise<PartnerLead | null> {
+    const [updated] = await db.update(partnerLeads)
+      .set({ status: status as any })
+      .where(eq(partnerLeads.id, leadId))
+      .returning();
+    return updated || null;
+  }
+
+  async getGrowthStats(): Promise<GrowthStats> {
+    const [referralStats] = await db.select({
+      total: count(),
+      active: sql<number>`count(*) filter (where ${referralCodes.active} = true)`
+    }).from(referralCodes);
+
+    const [eventStats] = await db.select({ count: count() }).from(referralEvents);
+
+    const [campaignStats] = await db.select({
+      active: sql<number>`count(*) filter (where ${marketingCampaigns.status} = 'ACTIVE')`
+    }).from(marketingCampaigns);
+
+    const [partnerStats] = await db.select({
+      total: count(),
+      signed: sql<number>`count(*) filter (where ${partnerLeads.status} = 'SIGNED')`
+    }).from(partnerLeads);
+
+    const totalReferralCodes = Number(referralStats?.total || 0);
+    const activeReferralCodes = Number(referralStats?.active || 0);
+    const totalReferrals = Number(eventStats?.count || 0);
+    
+    return {
+      totalReferralCodes,
+      activeReferralCodes,
+      totalReferrals,
+      referralConversionRate: totalReferralCodes > 0 ? (totalReferrals / totalReferralCodes) * 100 : 0,
+      activeCampaigns: Number(campaignStats?.active || 0),
+      totalPartnerLeads: Number(partnerStats?.total || 0),
+      signedPartners: Number(partnerStats?.signed || 0)
     };
   }
 }
