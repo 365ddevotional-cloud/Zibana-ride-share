@@ -26,7 +26,10 @@ import {
   CheckCircle,
   XCircle,
   LogOut,
-  Activity
+  Activity,
+  DollarSign,
+  TrendingUp,
+  Wallet
 } from "lucide-react";
 import type { DriverProfile, Trip, User } from "@shared/schema";
 import { useEffect } from "react";
@@ -70,6 +73,10 @@ export default function AdminDashboard() {
     totalTrips: number;
     activeTrips: number;
     totalRiders: number;
+    completedTrips: number;
+    totalFares: string;
+    totalCommission: string;
+    totalDriverPayouts: string;
   }>({
     queryKey: ["/api/admin/stats"],
     enabled: !!user,
@@ -229,6 +236,59 @@ export default function AdminDashboard() {
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        <div className="mb-6">
+          <h2 className="text-lg font-semibold mb-4">Revenue Overview</h2>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardContent className="flex items-center gap-4 pt-6">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
+                  <CheckCircle className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{stats?.completedTrips || 0}</p>
+                  <p className="text-sm text-muted-foreground">Completed Trips</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card data-testid="card-total-fares">
+              <CardContent className="flex items-center gap-4 pt-6">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
+                  <DollarSign className="h-6 w-6 text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">${stats?.totalFares || "0.00"}</p>
+                  <p className="text-sm text-muted-foreground">Total Fares</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card data-testid="card-total-commission">
+              <CardContent className="flex items-center gap-4 pt-6">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                  <TrendingUp className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">${stats?.totalCommission || "0.00"}</p>
+                  <p className="text-sm text-muted-foreground">ZIBA Commission (20%)</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card data-testid="card-driver-payouts">
+              <CardContent className="flex items-center gap-4 pt-6">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/30">
+                  <Wallet className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">${stats?.totalDriverPayouts || "0.00"}</p>
+                  <p className="text-sm text-muted-foreground">Driver Payouts</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
