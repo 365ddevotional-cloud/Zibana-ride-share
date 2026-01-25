@@ -737,5 +737,145 @@ export async function registerRoutes(
     }
   });
 
+  // Dispute endpoints
+  app.post("/api/disputes", isAuthenticated, requireRole(["driver", "rider"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { tripId, category, description } = req.body;
+      
+      if (!tripId || !category || !description) {
+        return res.status(400).json({ message: "Trip ID, category, and description are required" });
+      }
+      
+      if (description.length > 500) {
+        return res.status(400).json({ message: "Description must be 500 characters or less" });
+      }
+      
+      // Get trip to validate
+      const trip = await storage.getTripById(tripId);
+      if (!trip) {
+        return res.status(404).json({ message: "Trip not found" });
+      }
+      
+      // Check trip status - only completed or cancelled trips
+      if (trip.status !== "completed" && trip.status !== "cancelled") {
+        return res.status(400).json({ message: "Disputes can only be filed for completed or cancelled trips" });
+      }
+      
+      // Check if user participated in this trip
+      const isRider = trip.riderId === userId;
+      const isDriver = trip.driverId === userId;
+      
+      if (!isRider && !isDriver) {
+        return res.status(403).json({ message: "You can only file disputes for trips you participated in" });
+      }
+      
+      // Check for existing dispute by this user for this trip
+      const existingDispute = await storage.getDisputeByTripAndUser(tripId, userId);
+      if (existingDispute) {
+        return res.status(400).json({ message: "You have already filed a dispute for this trip" });
+      }
+      
+      // Determine roles and target
+      const raisedByRole = isRider ? "rider" : "driver";
+      const againstUserId = isRider ? trip.driverId : trip.riderId;
+      
+      if (!againstUserId) {
+        return res.status(400).json({ message: "Cannot file dispute - other party not identified" });
+      }
+      
+      const dispute = await storage.createDispute({
+        tripId,
+        raisedByRole,
+        raisedById: userId,
+        againstUserId,
+        category,
+        description,
+      });
+      
+      return res.status(201).json(dispute);
+    } catch (error) {
+      console.error("Error creating dispute:", error);
+      return res.status(500).json({ message: "Failed to create dispute" });
+    }
+  });
+
+  app.get("/api/disputes/check/:tripId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { tripId } = req.params;
+      const existingDispute = await storage.getDisputeByTripAndUser(tripId, userId);
+      return res.json({ hasDispute: !!existingDispute, dispute: existingDispute });
+    } catch (error) {
+      console.error("Error checking dispute:", error);
+      return res.status(500).json({ message: "Failed to check dispute" });
+    }
+  });
+
+  app.get("/api/disputes/trip/:tripId", isAuthenticated, async (req: any, res) => {
+    try {
+      const { tripId } = req.params;
+      const disputes = await storage.getTripDisputes(tripId);
+      return res.json(disputes);
+    } catch (error) {
+      console.error("Error getting trip disputes:", error);
+      return res.status(500).json({ message: "Failed to get disputes" });
+    }
+  });
+
+  app.get("/api/admin/disputes", isAuthenticated, requireRole(["admin", "director"]), async (req: any, res) => {
+    try {
+      const { status, category, raisedByRole } = req.query;
+      const filter: any = {};
+      if (status) filter.status = status;
+      if (category) filter.category = category;
+      if (raisedByRole) filter.raisedByRole = raisedByRole;
+      
+      const disputes = Object.keys(filter).length > 0 
+        ? await storage.getFilteredDisputes(filter)
+        : await storage.getAllDisputes();
+      return res.json(disputes);
+    } catch (error) {
+      console.error("Error getting disputes:", error);
+      return res.status(500).json({ message: "Failed to get disputes" });
+    }
+  });
+
+  app.get("/api/admin/disputes/:id", isAuthenticated, requireRole(["admin", "director"]), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const dispute = await storage.getDisputeById(id);
+      if (!dispute) {
+        return res.status(404).json({ message: "Dispute not found" });
+      }
+      return res.json(dispute);
+    } catch (error) {
+      console.error("Error getting dispute:", error);
+      return res.status(500).json({ message: "Failed to get dispute" });
+    }
+  });
+
+  app.patch("/api/admin/disputes/:id", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { status, adminNotes } = req.body;
+      
+      const existingDispute = await storage.getDisputeById(id);
+      if (!existingDispute) {
+        return res.status(404).json({ message: "Dispute not found" });
+      }
+      
+      const updateData: any = {};
+      if (status) updateData.status = status;
+      if (adminNotes !== undefined) updateData.adminNotes = adminNotes;
+      
+      const dispute = await storage.updateDispute(id, updateData);
+      return res.json(dispute);
+    } catch (error) {
+      console.error("Error updating dispute:", error);
+      return res.status(500).json({ message: "Failed to update dispute" });
+    }
+  });
+
   return httpServer;
 }
