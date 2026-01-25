@@ -1,5 +1,5 @@
 import { sql, relations } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer, boolean, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer, boolean, pgEnum, decimal } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -52,6 +52,10 @@ export const trips = pgTable("trips", {
   dropoffLocation: text("dropoff_location").notNull(),
   passengerCount: integer("passenger_count").notNull().default(1),
   status: tripStatusEnum("status").notNull().default("requested"),
+  fareAmount: decimal("fare_amount", { precision: 10, scale: 2 }),
+  driverPayout: decimal("driver_payout", { precision: 10, scale: 2 }),
+  commissionAmount: decimal("commission_amount", { precision: 10, scale: 2 }),
+  commissionPercentage: decimal("commission_percentage", { precision: 5, scale: 2 }).default("20.00"),
   createdAt: timestamp("created_at").defaultNow(),
   acceptedAt: timestamp("accepted_at"),
   completedAt: timestamp("completed_at"),

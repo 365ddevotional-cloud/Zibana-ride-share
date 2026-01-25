@@ -14,7 +14,8 @@ import {
   type InsertTrip
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, desc, count } from "drizzle-orm";
+import { eq, and, or, desc, count, sql, sum } from "drizzle-orm";
+import { calculateFare } from "./pricing";
 
 export interface IStorage {
   getUserRole(userId: string): Promise<UserRole | undefined>;
@@ -50,6 +51,10 @@ export interface IStorage {
     totalTrips: number;
     activeTrips: number;
     totalRiders: number;
+    completedTrips: number;
+    totalFares: string;
+    totalCommission: string;
+    totalDriverPayouts: string;
   }>;
 }
 
@@ -158,7 +163,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createTrip(data: InsertTrip): Promise<Trip> {
-    const [trip] = await db.insert(trips).values(data).returning();
+    const passengerCount = data.passengerCount ?? 1;
+    const pricing = calculateFare(passengerCount);
+    const [trip] = await db.insert(trips).values({
+      ...data,
+      fareAmount: pricing.fareAmount,
+      driverPayout: pricing.driverPayout,
+      commissionAmount: pricing.commissionAmount,
+      commissionPercentage: pricing.commissionPercentage,
+    }).returning();
     return trip;
   }
 
@@ -367,6 +380,10 @@ export class DatabaseStorage implements IStorage {
     totalTrips: number;
     activeTrips: number;
     totalRiders: number;
+    completedTrips: number;
+    totalFares: string;
+    totalCommission: string;
+    totalDriverPayouts: string;
   }> {
     const [driverStats] = await db
       .select({ count: count() })
@@ -397,12 +414,30 @@ export class DatabaseStorage implements IStorage {
       .from(userRoles)
       .where(eq(userRoles.role, "rider"));
 
+    const [completedStats] = await db
+      .select({ count: count() })
+      .from(trips)
+      .where(eq(trips.status, "completed"));
+
+    const [pricingStats] = await db
+      .select({
+        totalFares: sql<string>`COALESCE(SUM(CAST(${trips.fareAmount} AS NUMERIC)), 0)`,
+        totalCommission: sql<string>`COALESCE(SUM(CAST(${trips.commissionAmount} AS NUMERIC)), 0)`,
+        totalDriverPayouts: sql<string>`COALESCE(SUM(CAST(${trips.driverPayout} AS NUMERIC)), 0)`,
+      })
+      .from(trips)
+      .where(eq(trips.status, "completed"));
+
     return {
       totalDrivers: driverStats?.count || 0,
       pendingDrivers: pendingStats?.count || 0,
       totalTrips: tripStats?.count || 0,
       activeTrips: activeStats?.count || 0,
       totalRiders: riderStats?.count || 0,
+      completedTrips: completedStats?.count || 0,
+      totalFares: parseFloat(pricingStats?.totalFares || "0").toFixed(2),
+      totalCommission: parseFloat(pricingStats?.totalCommission || "0").toFixed(2),
+      totalDriverPayouts: parseFloat(pricingStats?.totalDriverPayouts || "0").toFixed(2),
     };
   }
 }
