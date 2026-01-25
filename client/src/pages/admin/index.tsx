@@ -29,7 +29,9 @@ import {
   Activity,
   DollarSign,
   TrendingUp,
-  Wallet
+  Wallet,
+  Briefcase,
+  Eye
 } from "lucide-react";
 import type { DriverProfile, Trip, User } from "@shared/schema";
 import { useEffect } from "react";
@@ -60,7 +62,22 @@ type PayoutWithDetails = {
   driverName?: string;
 };
 
-export default function AdminDashboard() {
+type DirectorWithDetails = {
+  id: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  fullName?: string;
+  status: string;
+  createdAt?: string;
+};
+
+interface AdminDashboardProps {
+  userRole?: "admin" | "director";
+}
+
+export default function AdminDashboard({ userRole = "admin" }: AdminDashboardProps) {
+  const isDirector = userRole === "director";
   const { user, isLoading: authLoading, logout } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -99,6 +116,11 @@ export default function AdminDashboard() {
   const { data: payouts = [], isLoading: payoutsLoading } = useQuery<PayoutWithDetails[]>({
     queryKey: ["/api/admin/payouts"],
     enabled: !!user,
+  });
+
+  const { data: directors = [], isLoading: directorsLoading } = useQuery<DirectorWithDetails[]>({
+    queryKey: ["/api/admin/directors"],
+    enabled: !!user && !isDirector,
   });
 
   const updateDriverStatusMutation = useMutation({
@@ -202,9 +224,13 @@ export default function AdminDashboard() {
         <div className="container mx-auto flex h-16 items-center justify-between gap-4 px-4">
           <div className="flex items-center gap-3">
             <Logo />
-            <div className="hidden sm:flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-              <Shield className="h-3 w-3" />
-              Admin
+            <div className={`hidden sm:flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${
+              isDirector 
+                ? "bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400"
+                : "bg-primary/10 text-primary"
+            }`}>
+              {isDirector ? <Eye className="h-3 w-3" /> : <Shield className="h-3 w-3" />}
+              {isDirector ? "Director" : "Admin"}
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -219,8 +245,12 @@ export default function AdminDashboard() {
 
       <main className="container mx-auto px-4 py-6">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-          <p className="text-muted-foreground">Manage drivers, riders, and trips</p>
+          <h1 className="text-2xl font-bold">{isDirector ? "Director Dashboard" : "Admin Dashboard"}</h1>
+          <p className="text-muted-foreground">
+            {isDirector 
+              ? "Read-only view of drivers, riders, trips, and payouts" 
+              : "Manage drivers, riders, and trips"}
+          </p>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 mb-6">
@@ -366,6 +396,12 @@ export default function AdminDashboard() {
                 </span>
               )}
             </TabsTrigger>
+            {!isDirector && (
+              <TabsTrigger value="directors" data-testid="tab-directors">
+                <Briefcase className="h-4 w-4 mr-2" />
+                Directors
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="drivers">
@@ -416,7 +452,7 @@ export default function AdminDashboard() {
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-2">
-                                {driver.status === "pending" && (
+                                {!isDirector && driver.status === "pending" && (
                                   <>
                                     <Button
                                       size="sm"
@@ -445,7 +481,7 @@ export default function AdminDashboard() {
                                     </Button>
                                   </>
                                 )}
-                                {driver.status === "approved" && (
+                                {!isDirector && driver.status === "approved" && (
                                   <Button
                                     size="sm"
                                     variant="destructive"
@@ -460,7 +496,7 @@ export default function AdminDashboard() {
                                     Suspend
                                   </Button>
                                 )}
-                                {driver.status === "suspended" && (
+                                {!isDirector && driver.status === "suspended" && (
                                   <Button
                                     size="sm"
                                     variant="outline"
@@ -587,7 +623,7 @@ export default function AdminDashboard() {
                                 : "-"}
                             </TableCell>
                             <TableCell className="text-right">
-                              {canCancelTrip(trip.status) && (
+                              {!isDirector && canCancelTrip(trip.status) && (
                                 <Button
                                   size="sm"
                                   variant="destructive"
@@ -667,7 +703,7 @@ export default function AdminDashboard() {
                                 : "-"}
                             </TableCell>
                             <TableCell className="text-right">
-                              {payout.status === "pending" && (
+                              {!isDirector && payout.status === "pending" && (
                                 <Button
                                   size="sm"
                                   variant="default"
@@ -689,6 +725,68 @@ export default function AdminDashboard() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {!isDirector && (
+            <TabsContent value="directors">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Directors</CardTitle>
+                  <CardDescription>
+                    Board members with read-only access to the platform
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {directorsLoading ? (
+                    <div className="py-8 text-center text-muted-foreground">
+                      Loading directors...
+                    </div>
+                  ) : directors.length === 0 ? (
+                    <EmptyState
+                      icon={Briefcase}
+                      title="No directors yet"
+                      description="Directors with governance access will appear here"
+                    />
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Email</TableHead>
+                            <TableHead>Role</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Joined</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {directors.map((director) => (
+                            <TableRow key={director.id} data-testid={`row-director-${director.id}`}>
+                              <TableCell className="font-medium">{director.fullName || "-"}</TableCell>
+                              <TableCell>{director.email || "-"}</TableCell>
+                              <TableCell>
+                                <span className="flex items-center gap-1.5 text-purple-600 dark:text-purple-400">
+                                  <Briefcase className="h-3 w-3" />
+                                  Director
+                                </span>
+                              </TableCell>
+                              <TableCell>
+                                <StatusBadge status={director.status as any} />
+                              </TableCell>
+                              <TableCell>
+                                {director.createdAt 
+                                  ? new Date(director.createdAt).toLocaleDateString() 
+                                  : "-"}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
         </Tabs>
       </main>
     </div>

@@ -43,7 +43,11 @@ function AuthenticatedRoutes() {
   }
 
   if (userRole.role === "admin") {
-    return <AdminDashboard />;
+    return <AdminDashboard userRole="admin" />;
+  }
+
+  if (userRole.role === "director") {
+    return <AdminDashboard userRole="director" />;
   }
 
   if (userRole.role === "driver") {
@@ -86,7 +90,9 @@ function Router() {
       </Route>
       
       <Route path="/admin">
-        {user && userRole?.role === "admin" ? <AdminDashboard /> : <Redirect to="/" />}
+        {user && (userRole?.role === "admin" || userRole?.role === "director") 
+          ? <AdminDashboard userRole={userRole?.role || "admin"} /> 
+          : <Redirect to="/" />}
       </Route>
       
       <Route path="/admin/setup">
