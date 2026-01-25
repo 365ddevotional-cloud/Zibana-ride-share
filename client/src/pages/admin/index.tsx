@@ -46,6 +46,20 @@ type RiderWithDetails = {
   createdAt?: Date;
 };
 
+type PayoutWithDetails = {
+  id: string;
+  driverId: string;
+  tripId?: string;
+  type: string;
+  amount: string;
+  status: string;
+  description?: string;
+  paidAt?: string;
+  paidByAdminId?: string;
+  createdAt: string;
+  driverName?: string;
+};
+
 export default function AdminDashboard() {
   const { user, isLoading: authLoading, logout } = useAuth();
   const [, setLocation] = useLocation();
@@ -79,6 +93,11 @@ export default function AdminDashboard() {
     totalDriverPayouts: string;
   }>({
     queryKey: ["/api/admin/stats"],
+    enabled: !!user,
+  });
+
+  const { data: payouts = [], isLoading: payoutsLoading } = useQuery<PayoutWithDetails[]>({
+    queryKey: ["/api/admin/payouts"],
     enabled: !!user,
   });
 
@@ -136,6 +155,33 @@ export default function AdminDashboard() {
     },
   });
 
+  const markPayoutPaidMutation = useMutation({
+    mutationFn: async (transactionId: string) => {
+      const response = await apiRequest("POST", `/api/admin/payout/${transactionId}/mark-paid`, {});
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/payouts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+      toast({
+        title: "Payout marked as paid",
+        description: "The payout has been successfully marked as paid",
+      });
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({ title: "Session expired", description: "Please log in again", variant: "destructive" });
+        setTimeout(() => { window.location.href = "/api/login"; }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: error.message || "Failed to mark payout as paid",
+        variant: "destructive",
+      });
+    },
+  });
+
   useEffect(() => {
     if (!authLoading && !user) {
       setLocation("/");
@@ -147,6 +193,7 @@ export default function AdminDashboard() {
   }
 
   const pendingDrivers = drivers.filter(d => d.status === "pending");
+  const pendingPayouts = payouts.filter(p => p.status === "pending");
   const canCancelTrip = (status: string) => ["requested", "accepted", "in_progress"].includes(status);
 
   return (
@@ -309,6 +356,15 @@ export default function AdminDashboard() {
             <TabsTrigger value="trips" data-testid="tab-trips">
               <MapPin className="h-4 w-4 mr-2" />
               Trips
+            </TabsTrigger>
+            <TabsTrigger value="payouts" data-testid="tab-payouts">
+              <Wallet className="h-4 w-4 mr-2" />
+              Payouts
+              {pendingPayouts.length > 0 && (
+                <span className="ml-2 rounded-full bg-orange-500 px-2 py-0.5 text-xs text-white">
+                  {pendingPayouts.length}
+                </span>
+              )}
             </TabsTrigger>
           </TabsList>
 
@@ -541,6 +597,86 @@ export default function AdminDashboard() {
                                 >
                                   <XCircle className="h-4 w-4 mr-1" />
                                   Cancel
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="payouts">
+            <Card>
+              <CardHeader>
+                <CardTitle>Payout Ledger</CardTitle>
+                <CardDescription>
+                  Track driver earnings and manage payouts
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {payoutsLoading ? (
+                  <div className="py-8 text-center text-muted-foreground">
+                    Loading payouts...
+                  </div>
+                ) : payouts.length === 0 ? (
+                  <EmptyState
+                    icon={Wallet}
+                    title="No payouts yet"
+                    description="Driver earnings from completed trips will appear here"
+                  />
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Driver</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Amount</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Created</TableHead>
+                          <TableHead>Paid At</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {payouts.map((payout) => (
+                          <TableRow key={payout.id} data-testid={`row-payout-${payout.id}`}>
+                            <TableCell className="font-medium">{payout.driverName || "-"}</TableCell>
+                            <TableCell>
+                              <span className="capitalize">{payout.type}</span>
+                            </TableCell>
+                            <TableCell className="font-semibold text-green-600 dark:text-green-400">
+                              ${payout.amount}
+                            </TableCell>
+                            <TableCell>
+                              <StatusBadge status={payout.status as any} />
+                            </TableCell>
+                            <TableCell>
+                              {payout.createdAt 
+                                ? new Date(payout.createdAt).toLocaleDateString() 
+                                : "-"}
+                            </TableCell>
+                            <TableCell>
+                              {payout.paidAt 
+                                ? new Date(payout.paidAt).toLocaleDateString() 
+                                : "-"}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {payout.status === "pending" && (
+                                <Button
+                                  size="sm"
+                                  variant="default"
+                                  onClick={() => markPayoutPaidMutation.mutate(payout.id)}
+                                  disabled={markPayoutPaidMutation.isPending}
+                                  data-testid={`button-mark-paid-${payout.id}`}
+                                >
+                                  <CheckCircle className="h-4 w-4 mr-1" />
+                                  Mark Paid
                                 </Button>
                               )}
                             </TableCell>

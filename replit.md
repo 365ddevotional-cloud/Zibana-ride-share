@@ -108,6 +108,15 @@ Key database tables:
 - Admin dashboard shows revenue overview (completed trips, total fares, commission, driver payouts)
 - Pricing utility: server/pricing.ts
 
+### Phase 5 – Payments Simulation (FROZEN - Stable)
+- Virtual wallet for drivers (walletBalance field in driver_profiles)
+- Track driver earnings per trip (payout_transactions table)
+- Track ZIBA earnings per trip (commissionAmount in trips)
+- Admin payout ledger (Payouts tab in admin dashboard)
+- Manual "mark as paid" action (admin only)
+- Driver wallet credited automatically when trips complete
+- No real payment integration (simulation only)
+
 ### FROZEN Components (DO NOT MODIFY)
 - Authentication flow (Replit Auth + OpenID Connect)
 - Role assignments and routing logic
