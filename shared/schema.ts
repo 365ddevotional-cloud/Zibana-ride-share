@@ -7,7 +7,20 @@ import { z } from "zod";
 export * from "./models/auth";
 
 // Enums
-export const userRoleEnum = pgEnum("user_role", ["admin", "driver", "rider", "director", "finance", "trip_coordinator", "support_agent"]);
+export const userRoleEnum = pgEnum("user_role", ["super_admin", "admin", "driver", "rider", "director", "finance", "trip_coordinator", "support_agent"]);
+
+// Admin permission scopes - defines what areas an admin can access
+export const adminPermissionScopeEnum = pgEnum("admin_permission_scope", [
+  "DRIVER_MANAGEMENT",
+  "RIDER_MANAGEMENT", 
+  "TRIP_MONITORING",
+  "DISPUTES",
+  "REPORTS",
+  "PAYOUTS",
+  "SUPPORT_TICKETS",
+  "INCENTIVES",
+  "FRAUD_DETECTION"
+]);
 export const directorStatusEnum = pgEnum("director_status", ["active", "inactive"]);
 export const driverStatusEnum = pgEnum("driver_status", ["pending", "approved", "suspended"]);
 export const tripStatusEnum = pgEnum("trip_status", ["requested", "accepted", "in_progress", "completed", "cancelled"]);
@@ -66,12 +79,17 @@ export const slaMetricTypeEnum = pgEnum("sla_metric_type", ["RESPONSE_TIME", "CO
 export const slaMeasurementPeriodEnum = pgEnum("sla_measurement_period", ["DAILY", "WEEKLY", "MONTHLY"]);
 export const invoiceStatusEnum = pgEnum("invoice_status", ["DRAFT", "ISSUED", "PAID", "OVERDUE"]);
 
-// User roles table - maps users to their roles
+// User roles table - maps users to their roles with admin governance
 export const userRoles = pgTable("user_roles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
   role: userRoleEnum("role").notNull().default("rider"),
+  adminStartAt: timestamp("admin_start_at"),
+  adminEndAt: timestamp("admin_end_at"),
+  adminPermissions: text("admin_permissions").array(),
+  appointedBy: varchar("appointed_by"),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Driver profiles table
@@ -468,7 +486,28 @@ export const payoutTransactionsRelations = relations(payoutTransactions, ({ one 
 export const insertUserRoleSchema = createInsertSchema(userRoles).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
 });
+
+// Schema for appointing an admin (SUPER_ADMIN only)
+export const appointAdminSchema = z.object({
+  userId: z.string(),
+  adminStartAt: z.string().datetime(),
+  adminEndAt: z.string().datetime(),
+  adminPermissions: z.array(z.enum([
+    "DRIVER_MANAGEMENT",
+    "RIDER_MANAGEMENT",
+    "TRIP_MONITORING",
+    "DISPUTES",
+    "REPORTS",
+    "PAYOUTS",
+    "SUPPORT_TICKETS",
+    "INCENTIVES",
+    "FRAUD_DETECTION"
+  ])).min(1),
+});
+
+export type AppointAdminInput = z.infer<typeof appointAdminSchema>;
 
 export const insertDriverProfileSchema = createInsertSchema(driverProfiles).omit({
   id: true,

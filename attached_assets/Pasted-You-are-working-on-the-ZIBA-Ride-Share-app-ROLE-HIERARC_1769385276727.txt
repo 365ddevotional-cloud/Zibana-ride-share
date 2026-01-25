@@ -1,0 +1,109 @@
+You are working on the ZIBA Ride Share app.
+
+ROLE HIERARCHY (STRICT — DO NOT ALTER):
+1) SUPER_ADMIN — absolute authority
+2) ADMIN — limited operational authority
+3) DRIVER / RIDER / USER — standard roles
+
+ONLY SUPER_ADMIN has full access to every part of the ZIBA Ride Share system.
+
+CURRENT BEHAVIOR (MUST REMAIN ENFORCED):
+- /admin routes are protected
+- Only ADMIN or SUPER_ADMIN may access /admin/*
+- Public users are always redirected to /welcome
+- RBAC checks are server-side and enforced
+- Initial SUPER_ADMIN is the seeded 365ddevotional account
+
+GOAL:
+Implement a SECURE, TIME-BOUND, SCOPE-LIMITED ADMIN APPOINTMENT SYSTEM
+controlled ONLY by SUPER_ADMIN.
+
+────────────────────────
+REQUIRED FEATURES (DO ALL)
+────────────────────────
+
+1) USER MODEL
+Confirm the User model includes:
+- role: USER | DRIVER | ADMIN | SUPER_ADMIN
+
+Extend admin governance with:
+- adminStartAt (Date | null)
+- adminEndAt (Date | null)
+- adminPermissions (JSON / string array / enum-based scope)
+
+2) SUPER_ADMIN-ONLY ADMIN APPOINTMENT
+Create a SUPER_ADMIN-only mechanism to appoint admins.
+
+This MUST:
+- Require authenticated SUPER_ADMIN session
+- Never be exposed publicly
+- Never be client-controlled
+- Never auto-promote users
+- Never promote by email domain
+
+SUPER_ADMIN defines:
+- WHO becomes ADMIN
+- WHEN the admin role starts
+- WHEN it expires
+- WHAT the admin is allowed to do
+
+3) ADMIN PERMISSION SCOPES (LIMITED POWERS)
+Admins may ONLY operate within assigned scopes, such as:
+- DRIVER_MANAGEMENT
+- RIDER_MANAGEMENT
+- TRIP_MONITORING
+- DISPUTES
+- REPORTS (read-only if defined)
+
+Admins CANNOT:
+- Appoint other admins
+- Change roles
+- Access SUPER_ADMIN tools
+- Modify pricing, commissions, or system rules
+- Override RBAC
+- Access system secrets
+
+SUPER_ADMIN can access ALL scopes without restriction.
+
+4) TIME-BOUND ADMIN ENFORCEMENT
+Admin access MUST be automatically revoked when:
+- Current date > adminEndAt
+
+On expiration:
+- Role immediately downgraded to USER
+- Admin session invalidated
+- User must re-login
+- Redirect to /welcome
+
+NO manual cleanup required.
+
+5) LOGIN & REDIRECTION RULES
+On successful login:
+- SUPER_ADMIN → /admin/dashboard
+- ADMIN (valid & active) → /admin/dashboard
+- Expired / unauthorized → /welcome
+
+Users must log out and log back in for role changes to take effect.
+
+6) HARD SECURITY RULES (ABSOLUTE)
+DO NOT:
+- Allow ADMIN to appoint other admins
+- Allow unlimited admin duration
+- Allow role assignment from frontend
+- Remove role guards
+- Expose admin routes publicly
+- Allow bypass of admin expiration
+- Modify authentication logic
+
+7) FINAL SYSTEM GUARANTEE
+- SUPER_ADMIN has absolute authority over:
+  - Roles
+  - Admin duration
+  - Admin duties
+  - All system areas
+- ADMIN authority is temporary, scoped, and revocable
+- ZIBA remains secure, scalable, and enterprise-ready
+
+Implement the solution completely.
+Do not explain.
+Do not weaken security.
