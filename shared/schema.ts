@@ -26,6 +26,13 @@ export const chargebackProviderEnum = pgEnum("chargeback_provider", ["stripe", "
 export const chargebackStatusEnum = pgEnum("chargeback_status", ["reported", "under_review", "won", "lost", "reversed"]);
 export const reconciliationStatusEnum = pgEnum("reconciliation_status", ["matched", "mismatched", "manual_review"]);
 
+// Phase 11 - Wallet & Payout Cycle enums
+export const walletRoleEnum = pgEnum("wallet_role", ["driver", "ziba"]);
+export const walletTransactionTypeEnum = pgEnum("wallet_transaction_type", ["credit", "debit", "hold", "release"]);
+export const walletTransactionSourceEnum = pgEnum("wallet_transaction_source", ["trip", "refund", "chargeback", "adjustment", "payout"]);
+export const walletPayoutStatusEnum = pgEnum("wallet_payout_status", ["pending", "processing", "paid", "failed", "reversed"]);
+export const payoutMethodEnum = pgEnum("payout_method", ["bank", "mobile_money", "manual"]);
+
 // User roles table - maps users to their roles
 export const userRoles = pgTable("user_roles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -217,6 +224,47 @@ export const paymentReconciliations = pgTable("payment_reconciliations", {
   reconciledByUserId: varchar("reconciled_by_user_id"),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Phase 11 - Wallets table
+export const wallets = pgTable("wallets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  role: walletRoleEnum("role").notNull(),
+  balance: decimal("balance", { precision: 10, scale: 2 }).notNull().default("0.00"),
+  currency: varchar("currency", { length: 3 }).notNull().default("USD"),
+  lockedBalance: decimal("locked_balance", { precision: 10, scale: 2 }).notNull().default("0.00"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Phase 11 - Wallet transactions table
+export const walletTransactions = pgTable("wallet_transactions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  walletId: varchar("wallet_id").notNull(),
+  type: walletTransactionTypeEnum("type").notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  source: walletTransactionSourceEnum("source").notNull(),
+  referenceId: varchar("reference_id"),
+  description: text("description"),
+  createdByUserId: varchar("created_by_user_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Phase 11 - Payouts table (payout cycles)
+export const walletPayouts = pgTable("wallet_payouts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  walletId: varchar("wallet_id").notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  status: walletPayoutStatusEnum("status").notNull().default("pending"),
+  method: payoutMethodEnum("method").notNull().default("bank"),
+  initiatedByUserId: varchar("initiated_by_user_id").notNull(),
+  processedByUserId: varchar("processed_by_user_id"),
+  periodStart: timestamp("period_start").notNull(),
+  periodEnd: timestamp("period_end").notNull(),
+  failureReason: text("failure_reason"),
+  createdAt: timestamp("created_at").defaultNow(),
+  processedAt: timestamp("processed_at"),
 });
 
 // Relations
@@ -490,4 +538,46 @@ export type ReconciliationWithDetails = PaymentReconciliation & {
   tripPickup?: string;
   tripDropoff?: string;
   reconciledByName?: string;
+};
+
+// Phase 11 - Wallet schemas and types
+export const insertWalletSchema = createInsertSchema(wallets).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  balance: true,
+  lockedBalance: true,
+});
+
+export const insertWalletTransactionSchema = createInsertSchema(walletTransactions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertWalletPayoutSchema = createInsertSchema(walletPayouts).omit({
+  id: true,
+  createdAt: true,
+  processedAt: true,
+  processedByUserId: true,
+  failureReason: true,
+});
+
+export type InsertWallet = z.infer<typeof insertWalletSchema>;
+export type Wallet = typeof wallets.$inferSelect;
+
+export type InsertWalletTransaction = z.infer<typeof insertWalletTransactionSchema>;
+export type WalletTransaction = typeof walletTransactions.$inferSelect;
+
+export type InsertWalletPayout = z.infer<typeof insertWalletPayoutSchema>;
+export type WalletPayout = typeof walletPayouts.$inferSelect;
+
+export type WalletWithDetails = Wallet & {
+  ownerName?: string;
+  pendingPayoutAmount?: string;
+};
+
+export type WalletPayoutWithDetails = WalletPayout & {
+  driverName?: string;
+  initiatedByName?: string;
+  processedByName?: string;
 };

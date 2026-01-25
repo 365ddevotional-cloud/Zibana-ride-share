@@ -1,0 +1,154 @@
+You are continuing development of the ZIBA ride-hailing app.
+Phases 10A (Refunds) and 10B (Chargebacks & Reconciliation) are COMPLETE and MUST NOT be modified.
+
+IMPLEMENT PHASE 11 — EARNINGS WALLETS & PAYOUT CYCLES.
+
+DO NOT BREAK EXISTING FEATURES.
+EXTEND ONLY.
+
+────────────────────────
+OBJECTIVES
+────────────────────────
+
+1) Create internal wallets for DRIVERS and ZIBA
+2) Accumulate trip earnings safely
+3) Support payout cycles (weekly / manual)
+4) Protect balances from refunds & chargebacks
+5) Provide finance-grade auditability
+
+────────────────────────
+ROLES & PERMISSIONS
+────────────────────────
+
+ADMIN
+FINANCE
+DRIVER
+RIDER
+TRIP_COORDINATOR
+
+• DRIVER:
+   - View wallet balance
+   - View payout history
+• FINANCE:
+   - Initiate payouts
+   - Lock payout cycles
+• ADMIN:
+   - Full control (override, adjust, reverse)
+• TRIP_COORDINATOR:
+   - View-only (no money movement)
+
+────────────────────────
+DATABASE (Prisma)
+────────────────────────
+
+Add the following models:
+
+Wallet
+- id
+- userId
+- role (DRIVER | ZIBA)
+- balance
+- currency
+- lockedBalance
+- createdAt
+- updatedAt
+
+WalletTransaction
+- id
+- walletId
+- type (CREDIT | DEBIT | HOLD | RELEASE)
+- amount
+- source (TRIP | REFUND | CHARGEBACK | ADJUSTMENT | PAYOUT)
+- referenceId
+- createdByUserId
+- createdAt
+
+Payout
+- id
+- walletId
+- amount
+- status (PENDING | PROCESSING | PAID | FAILED | REVERSED)
+- method (BANK | MOBILE_MONEY | MANUAL)
+- initiatedByUserId
+- processedByUserId (nullable)
+- periodStart
+- periodEnd
+- createdAt
+
+Ensure:
+- Indexes on walletId, userId
+- Balance never goes negative
+
+────────────────────────
+BUSINESS RULES
+────────────────────────
+
+1) TRIP COMPLETION
+- Driver earnings → CREDIT to Driver Wallet
+- ZIBA commission → CREDIT to ZIBA Wallet
+
+2) REFUNDS / CHARGEBACKS
+- If payout NOT sent → DEBIT from wallet
+- If payout already sent → ZIBA absorbs loss
+- NEVER auto-deduct from driver after payout
+
+3) PAYOUT CYCLES
+- Weekly payout (default)
+- Manual payout (admin-triggered)
+- Locked balances cannot be paid twice
+
+4) WALLET SAFETY
+- Use transactions ledger only
+- Never directly mutate balances without logging
+
+────────────────────────
+API ROUTES
+────────────────────────
+
+GET    /api/wallets/me
+GET    /api/wallets/:userId
+GET    /api/wallets/:userId/transactions
+
+POST   /api/payouts/initiate
+POST   /api/payouts/process
+POST   /api/payouts/reverse
+GET    /api/payouts?status=
+
+Strict RBAC enforcement.
+
+────────────────────────
+UI (ADMIN + DRIVER)
+────────────────────────
+
+ADMIN TAB: 💵 Payouts
+- Wallet balances
+- Pending payouts
+- Locked vs available funds
+- Process / Reverse actions
+
+DRIVER VIEW:
+- Wallet balance
+- Earnings breakdown
+- Payout history
+
+NO rider payment UI yet.
+
+────────────────────────
+AUDIT & SAFETY
+────────────────────────
+
+• Every wallet movement logs WalletTransaction
+• Every payout logs AuditLog
+• No silent balance edits
+• No deletion of payout records
+
+────────────────────────
+FINAL CHECKS
+────────────────────────
+
+• Prisma migrate runs clean
+• Refunds & chargebacks still function
+• Driver payouts protected
+• App compiles without errors
+
+IMPLEMENT PHASE 11 ONLY.
