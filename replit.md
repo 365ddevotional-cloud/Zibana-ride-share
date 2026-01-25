@@ -142,6 +142,17 @@ Key database tables:
 - API endpoints: GET /api/notifications, GET /api/notifications/unread-count, POST /api/notifications/:id/read, POST /api/notifications/read-all
 - In-app only (no email/SMS/push notifications)
 
+### Phase 7A – Trip History & Search (FROZEN - Stable)
+- Server-side filtering with query parameters: status, startDate, endDate, driverId, riderId
+- Reusable TripFilterBar component for consistent filtering across all dashboards
+- TripDetailModal component showing full trip details: locations, participants, fare breakdown, timestamps
+- Admin/Director Trips tab: Filter bar, clickable rows, trip detail modal
+- Driver Trip History section: Filter by status/date, view past trips with earnings, click for details
+- Rider Trip History section: Filter by status/date, view past rides with fares, click for details
+- GET /api/trips/:tripId endpoint with role-based access control
+- Storage methods: getFilteredTrips, getDriverTripHistory, getRiderTripHistoryFiltered, getTripById
+- Read-only functionality (no modifications to frozen phases)
+
 ### FROZEN Components (DO NOT MODIFY)
 - Authentication flow (Replit Auth + OpenID Connect)
 - Role assignments and routing logic
