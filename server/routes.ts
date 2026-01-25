@@ -2271,5 +2271,353 @@ export async function registerRoutes(
     }
   });
 
+  // ========================================
+  // Phase 14.5 - Trip Coordinator Routes
+  // ========================================
+
+  // Get trip coordinator profile
+  app.get("/api/coordinator/profile", isAuthenticated, requireRole(["trip_coordinator"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const profile = await storage.getTripCoordinatorProfile(userId);
+      return res.json(profile || null);
+    } catch (error) {
+      console.error("Error fetching coordinator profile:", error);
+      return res.status(500).json({ message: "Failed to fetch profile" });
+    }
+  });
+
+  // Create/update trip coordinator profile
+  app.post("/api/coordinator/profile", isAuthenticated, requireRole(["trip_coordinator"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { organizationName, organizationType, contactEmail, contactPhone } = req.body;
+
+      if (!organizationName || !organizationType || !contactEmail) {
+        return res.status(400).json({ message: "Organization name, type, and contact email are required" });
+      }
+
+      const existing = await storage.getTripCoordinatorProfile(userId);
+      if (existing) {
+        return res.status(400).json({ message: "Profile already exists" });
+      }
+
+      const profile = await storage.createTripCoordinatorProfile({
+        userId,
+        organizationName,
+        organizationType,
+        contactEmail,
+        contactPhone: contactPhone || null
+      });
+
+      await storage.createAuditLog({
+        action: "coordinator_profile_created",
+        entityType: "trip_coordinator_profile",
+        entityId: profile.id,
+        performedByUserId: userId,
+        performedByRole: "trip_coordinator",
+        metadata: JSON.stringify({ organizationName, organizationType })
+      });
+
+      return res.json(profile);
+    } catch (error) {
+      console.error("Error creating coordinator profile:", error);
+      return res.status(500).json({ message: "Failed to create profile" });
+    }
+  });
+
+  // Get coordinator's trips
+  app.get("/api/coordinator/trips", isAuthenticated, requireRole(["trip_coordinator"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { status, startDate, endDate } = req.query;
+      
+      const filter: any = {};
+      if (status) filter.status = status as string;
+      if (startDate) filter.startDate = startDate as string;
+      if (endDate) filter.endDate = endDate as string;
+
+      const trips = await storage.getCoordinatorTrips(userId, filter);
+      return res.json(trips);
+    } catch (error) {
+      console.error("Error fetching coordinator trips:", error);
+      return res.status(500).json({ message: "Failed to fetch trips" });
+    }
+  });
+
+  // Get coordinator trip statistics
+  app.get("/api/coordinator/stats", isAuthenticated, requireRole(["trip_coordinator"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const stats = await storage.getCoordinatorTripStats(userId);
+      return res.json(stats);
+    } catch (error) {
+      console.error("Error fetching coordinator stats:", error);
+      return res.status(500).json({ message: "Failed to fetch stats" });
+    }
+  });
+
+  // Create trip as coordinator (booking for third party)
+  app.post("/api/coordinator/trips", isAuthenticated, requireRole(["trip_coordinator"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { pickupLocation, dropoffLocation, passengerCount, passengerName, passengerContact, notesForDriver } = req.body;
+
+      if (!pickupLocation || !dropoffLocation) {
+        return res.status(400).json({ message: "Pickup and dropoff locations are required" });
+      }
+
+      if (!passengerName) {
+        return res.status(400).json({ message: "Passenger name is required for third-party bookings" });
+      }
+
+      const profile = await storage.getTripCoordinatorProfile(userId);
+      if (!profile) {
+        return res.status(400).json({ message: "Please complete your organization profile first" });
+      }
+
+      const trip = await storage.createTrip({
+        riderId: userId,
+        pickupLocation,
+        dropoffLocation,
+        passengerCount: passengerCount || 1,
+        bookedForType: "third_party",
+        passengerName,
+        passengerContact: passengerContact || null,
+        notesForDriver: notesForDriver || null
+      });
+
+      await storage.createAuditLog({
+        action: "coordinator_trip_created",
+        entityType: "trip",
+        entityId: trip.id,
+        performedByUserId: userId,
+        performedByRole: "trip_coordinator",
+        metadata: JSON.stringify({ passengerName, organizationName: profile.organizationName })
+      });
+
+      // Notify available drivers
+      await storage.notifyAllDrivers(
+        "New Trip Available",
+        `Pickup: ${pickupLocation} → ${dropoffLocation}`,
+        "info"
+      );
+
+      return res.json(trip);
+    } catch (error) {
+      console.error("Error creating coordinator trip:", error);
+      return res.status(500).json({ message: "Failed to create trip" });
+    }
+  });
+
+  // Get receipt for a completed trip
+  app.get("/api/coordinator/receipts/:tripId", isAuthenticated, requireRole(["trip_coordinator"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { tripId } = req.params;
+
+      const trip = await storage.getTripById(tripId);
+      if (!trip) {
+        return res.status(404).json({ message: "Trip not found" });
+      }
+
+      // Ensure the coordinator owns this trip
+      if (trip.riderId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      if (trip.status !== "completed") {
+        return res.status(400).json({ message: "Receipt only available for completed trips" });
+      }
+
+      const profile = await storage.getTripCoordinatorProfile(userId);
+
+      return res.json({
+        tripId: trip.id,
+        organizationName: profile?.organizationName || "Unknown Organization",
+        passengerName: trip.passengerName || "N/A",
+        pickupLocation: trip.pickupLocation,
+        dropoffLocation: trip.dropoffLocation,
+        passengerCount: trip.passengerCount,
+        fareAmount: trip.fareAmount,
+        driverPayout: trip.driverPayout,
+        commissionAmount: trip.commissionAmount,
+        completedAt: trip.completedAt,
+        createdAt: trip.createdAt
+      });
+    } catch (error) {
+      console.error("Error fetching receipt:", error);
+      return res.status(500).json({ message: "Failed to fetch receipt" });
+    }
+  });
+
+  // Coordinator can submit disputes for their trips
+  app.post("/api/coordinator/disputes", isAuthenticated, requireRole(["trip_coordinator"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { tripId, category, description } = req.body;
+
+      if (!tripId || !category || !description) {
+        return res.status(400).json({ message: "Trip ID, category, and description are required" });
+      }
+
+      const trip = await storage.getTripById(tripId);
+      if (!trip) {
+        return res.status(404).json({ message: "Trip not found" });
+      }
+
+      // Ensure the coordinator owns this trip
+      if (trip.riderId !== userId) {
+        return res.status(403).json({ message: "You can only submit disputes for your own trips" });
+      }
+
+      // Check if dispute already exists
+      const existingDispute = await storage.getDisputeByTripAndUser(tripId, userId);
+      if (existingDispute) {
+        return res.status(400).json({ message: "A dispute already exists for this trip" });
+      }
+
+      const dispute = await storage.createDispute({
+        tripId,
+        raisedByRole: "rider", // Coordinators are treated as riders
+        raisedById: userId,
+        againstUserId: trip.driverId || "",
+        category,
+        description
+      });
+
+      await storage.createAuditLog({
+        action: "coordinator_dispute_created",
+        entityType: "dispute",
+        entityId: dispute.id,
+        performedByUserId: userId,
+        performedByRole: "trip_coordinator",
+        metadata: JSON.stringify({ tripId, category })
+      });
+
+      // Notify admins
+      await storage.notifyAdminsAndDirectors(
+        "New Dispute Submitted",
+        `A trip coordinator has raised a dispute for trip ${tripId}`,
+        "warning"
+      );
+
+      return res.json(dispute);
+    } catch (error) {
+      console.error("Error creating coordinator dispute:", error);
+      return res.status(500).json({ message: "Failed to create dispute" });
+    }
+  });
+
+  // Get coordinator's disputes
+  app.get("/api/coordinator/disputes", isAuthenticated, requireRole(["trip_coordinator"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Get all disputes raised by this coordinator
+      const allDisputes = await storage.getAllDisputes();
+      const coordinatorDisputes = allDisputes.filter(d => d.raisedById === userId);
+      
+      return res.json(coordinatorDisputes);
+    } catch (error) {
+      console.error("Error fetching coordinator disputes:", error);
+      return res.status(500).json({ message: "Failed to fetch disputes" });
+    }
+  });
+
+  // Coordinator can rate drivers
+  app.post("/api/coordinator/ratings", isAuthenticated, requireRole(["trip_coordinator"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { tripId, score, comment } = req.body;
+
+      if (!tripId || score === undefined) {
+        return res.status(400).json({ message: "Trip ID and score are required" });
+      }
+
+      if (score < 1 || score > 5) {
+        return res.status(400).json({ message: "Score must be between 1 and 5" });
+      }
+
+      const trip = await storage.getTripById(tripId);
+      if (!trip) {
+        return res.status(404).json({ message: "Trip not found" });
+      }
+
+      if (trip.riderId !== userId) {
+        return res.status(403).json({ message: "You can only rate trips you booked" });
+      }
+
+      if (trip.status !== "completed") {
+        return res.status(400).json({ message: "Can only rate completed trips" });
+      }
+
+      if (!trip.driverId) {
+        return res.status(400).json({ message: "No driver assigned to this trip" });
+      }
+
+      // Check if already rated
+      const existingRating = await storage.getRatingByTripAndRater(tripId, userId);
+      if (existingRating) {
+        return res.status(400).json({ message: "You have already rated this trip" });
+      }
+
+      const rating = await storage.createRating({
+        tripId,
+        raterRole: "rider",
+        raterId: userId,
+        targetUserId: trip.driverId,
+        score,
+        comment: comment || null
+      });
+
+      // Update driver's average rating
+      await storage.updateUserAverageRating(trip.driverId, "driver");
+
+      return res.json(rating);
+    } catch (error) {
+      console.error("Error creating rating:", error);
+      return res.status(500).json({ message: "Failed to create rating" });
+    }
+  });
+
+  // Cancel a coordinator trip
+  app.post("/api/coordinator/trips/:tripId/cancel", isAuthenticated, requireRole(["trip_coordinator"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { tripId } = req.params;
+      const { reason } = req.body;
+
+      const trip = await storage.getTripById(tripId);
+      if (!trip) {
+        return res.status(404).json({ message: "Trip not found" });
+      }
+
+      if (trip.riderId !== userId) {
+        return res.status(403).json({ message: "You can only cancel your own trips" });
+      }
+
+      if (trip.status === "completed" || trip.status === "cancelled") {
+        return res.status(400).json({ message: "Cannot cancel this trip" });
+      }
+
+      const cancelledTrip = await storage.cancelTrip(tripId, userId, reason || "Cancelled by coordinator");
+
+      await storage.createAuditLog({
+        action: "coordinator_trip_cancelled",
+        entityType: "trip",
+        entityId: tripId,
+        performedByUserId: userId,
+        performedByRole: "trip_coordinator",
+        metadata: JSON.stringify({ reason })
+      });
+
+      return res.json(cancelledTrip);
+    } catch (error) {
+      console.error("Error cancelling coordinator trip:", error);
+      return res.status(500).json({ message: "Failed to cancel trip" });
+    }
+  });
+
   return httpServer;
 }
