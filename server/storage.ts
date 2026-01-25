@@ -7,6 +7,7 @@ import {
   users,
   payoutTransactions,
   notifications,
+  ratings,
   type UserRole, 
   type InsertUserRole,
   type DriverProfile,
@@ -20,7 +21,9 @@ import {
   type PayoutTransaction,
   type InsertPayoutTransaction,
   type Notification,
-  type InsertNotification
+  type InsertNotification,
+  type Rating,
+  type InsertRating
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte } from "drizzle-orm";
@@ -98,6 +101,12 @@ export interface IStorage {
   markAllNotificationsAsRead(userId: string): Promise<void>;
   notifyAllDrivers(title: string, message: string, type?: "info" | "success" | "warning"): Promise<void>;
   notifyAdminsAndDirectors(title: string, message: string, type?: "info" | "success" | "warning"): Promise<void>;
+
+  createRating(data: InsertRating): Promise<Rating>;
+  getRatingByTripAndRater(tripId: string, raterId: string): Promise<Rating | null>;
+  getTripRatings(tripId: string): Promise<Rating[]>;
+  getAllRatings(): Promise<any[]>;
+  updateUserAverageRating(userId: string, role: "driver" | "rider"): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -846,6 +855,82 @@ export class DatabaseStorage implements IStorage {
         message,
         type,
       });
+    }
+  }
+
+  async createRating(data: InsertRating): Promise<Rating> {
+    const [rating] = await db.insert(ratings).values(data).returning();
+    return rating;
+  }
+
+  async getRatingByTripAndRater(tripId: string, raterId: string): Promise<Rating | null> {
+    const [rating] = await db
+      .select()
+      .from(ratings)
+      .where(
+        and(
+          eq(ratings.tripId, tripId),
+          eq(ratings.raterId, raterId)
+        )
+      );
+    return rating || null;
+  }
+
+  async getTripRatings(tripId: string): Promise<Rating[]> {
+    return await db
+      .select()
+      .from(ratings)
+      .where(eq(ratings.tripId, tripId))
+      .orderBy(desc(ratings.createdAt));
+  }
+
+  async getAllRatings(): Promise<any[]> {
+    const allRatings = await db
+      .select()
+      .from(ratings)
+      .orderBy(desc(ratings.createdAt));
+    
+    const ratingsWithDetails = await Promise.all(
+      allRatings.map(async (rating) => {
+        const [raterUser] = await db.select().from(users).where(eq(users.id, rating.raterId));
+        const [targetUser] = await db.select().from(users).where(eq(users.id, rating.targetUserId));
+        const [trip] = await db.select().from(trips).where(eq(trips.id, rating.tripId));
+        
+        return {
+          ...rating,
+          raterName: raterUser ? `${raterUser.firstName || ""} ${raterUser.lastName || ""}`.trim() || "Unknown" : "Unknown",
+          targetName: targetUser ? `${targetUser.firstName || ""} ${targetUser.lastName || ""}`.trim() || "Unknown" : "Unknown",
+          tripPickup: trip?.pickupLocation,
+          tripDropoff: trip?.dropoffLocation,
+        };
+      })
+    );
+    
+    return ratingsWithDetails;
+  }
+
+  async updateUserAverageRating(userId: string, role: "driver" | "rider"): Promise<void> {
+    const userRatings = await db
+      .select()
+      .from(ratings)
+      .where(eq(ratings.targetUserId, userId));
+    
+    if (userRatings.length === 0) return;
+    
+    const totalScore = userRatings.reduce((sum, r) => sum + r.score, 0);
+    const averageRating = (totalScore / userRatings.length).toFixed(2);
+    const totalRatings = userRatings.length;
+    
+    if (role === "driver") {
+      await db
+        .update(driverProfiles)
+        .set({ averageRating, totalRatings })
+        .where(eq(driverProfiles.userId, userId));
+    } else {
+      await db
+        .update(riderProfiles)
+        .set({ averageRating, totalRatings })
+        .where(eq(riderProfiles.userId, userId));
     }
   }
 }

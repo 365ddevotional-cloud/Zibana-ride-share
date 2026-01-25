@@ -626,5 +626,105 @@ export async function registerRoutes(
     }
   });
 
+  // Rating endpoints
+  app.post("/api/ratings", isAuthenticated, requireRole(["driver", "rider"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { tripId, score, comment } = req.body;
+
+      if (!tripId || !score || score < 1 || score > 5) {
+        return res.status(400).json({ message: "Valid tripId and score (1-5) are required" });
+      }
+
+      // Get trip details
+      const trip = await storage.getTripById(tripId);
+      if (!trip) {
+        return res.status(404).json({ message: "Trip not found" });
+      }
+
+      // Check trip is completed
+      if (trip.status !== "completed") {
+        return res.status(400).json({ message: "Can only rate completed trips" });
+      }
+
+      // Check user participated in the trip
+      const userRole = await storage.getUserRole(userId);
+      if (!userRole) {
+        return res.status(403).json({ message: "User role not found" });
+      }
+
+      let targetUserId: string;
+      let raterRole: "rider" | "driver";
+
+      if (userRole.role === "rider" && trip.riderId === userId) {
+        targetUserId = trip.driverId;
+        raterRole = "rider";
+      } else if (userRole.role === "driver" && trip.driverId === userId) {
+        targetUserId = trip.riderId;
+        raterRole = "driver";
+      } else {
+        return res.status(403).json({ message: "You did not participate in this trip" });
+      }
+
+      // Check if already rated
+      const existingRating = await storage.getRatingByTripAndRater(tripId, userId);
+      if (existingRating) {
+        return res.status(400).json({ message: "You have already rated this trip" });
+      }
+
+      // Create rating
+      const rating = await storage.createRating({
+        tripId,
+        raterRole,
+        raterId: userId,
+        targetUserId,
+        score,
+        comment: comment?.substring(0, 300) || null,
+      });
+
+      // Update target user's average rating
+      const targetRole = raterRole === "rider" ? "driver" : "rider";
+      await storage.updateUserAverageRating(targetUserId, targetRole);
+
+      return res.json(rating);
+    } catch (error) {
+      console.error("Error creating rating:", error);
+      return res.status(500).json({ message: "Failed to create rating" });
+    }
+  });
+
+  app.get("/api/ratings/trip/:tripId", isAuthenticated, async (req: any, res) => {
+    try {
+      const { tripId } = req.params;
+      const ratings = await storage.getTripRatings(tripId);
+      return res.json(ratings);
+    } catch (error) {
+      console.error("Error getting trip ratings:", error);
+      return res.status(500).json({ message: "Failed to get ratings" });
+    }
+  });
+
+  app.get("/api/ratings/check/:tripId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { tripId } = req.params;
+      const existingRating = await storage.getRatingByTripAndRater(tripId, userId);
+      return res.json({ hasRated: !!existingRating, rating: existingRating });
+    } catch (error) {
+      console.error("Error checking rating:", error);
+      return res.status(500).json({ message: "Failed to check rating" });
+    }
+  });
+
+  app.get("/api/admin/ratings", isAuthenticated, requireRole(["admin", "director"]), async (req: any, res) => {
+    try {
+      const ratings = await storage.getAllRatings();
+      return res.json(ratings);
+    } catch (error) {
+      console.error("Error getting all ratings:", error);
+      return res.status(500).json({ message: "Failed to get ratings" });
+    }
+  });
+
   return httpServer;
 }
