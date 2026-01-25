@@ -57,6 +57,14 @@ function AuthenticatedRoutes() {
     return <RoleSelectionPage />;
   }
 
+  if (userRole.role === "super_admin") {
+    return (
+      <LazyComponent>
+        <AdminDashboard userRole="super_admin" />
+      </LazyComponent>
+    );
+  }
+
   if (userRole.role === "admin") {
     return (
       <LazyComponent>

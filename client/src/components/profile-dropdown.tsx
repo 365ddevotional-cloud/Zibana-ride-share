@@ -24,7 +24,7 @@ import type { User as UserType } from "@shared/models/auth";
 
 interface ProfileDropdownProps {
   user: UserType | null | undefined;
-  role: "admin" | "driver" | "rider" | "trip_coordinator" | "support_agent" | "director" | "finance";
+  role: "super_admin" | "admin" | "driver" | "rider" | "trip_coordinator" | "support_agent" | "director" | "finance";
   onLogout: () => void;
 }
 
@@ -33,6 +33,19 @@ export function ProfileDropdown({ user, role, onLogout }: ProfileDropdownProps) 
 
   const getMenuItems = () => {
     switch (role) {
+      case "super_admin":
+        return (
+          <>
+            <DropdownMenuItem onClick={() => navigate("/admin")} data-testid="menu-profile">
+              <User className="mr-2 h-4 w-4" />
+              Profile
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate("/admin")} data-testid="menu-admin-management">
+              <Settings className="mr-2 h-4 w-4" />
+              Admin Management
+            </DropdownMenuItem>
+          </>
+        );
       case "admin":
         return (
           <>

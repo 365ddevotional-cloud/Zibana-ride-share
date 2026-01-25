@@ -384,10 +384,11 @@ type PartnerLeadWithDetails = {
 };
 
 interface AdminDashboardProps {
-  userRole?: "admin" | "director" | "finance" | "trip_coordinator";
+  userRole?: "super_admin" | "admin" | "director" | "finance" | "trip_coordinator";
 }
 
 export default function AdminDashboard({ userRole = "admin" }: AdminDashboardProps) {
+  const isSuperAdmin = userRole === "super_admin";
   const isDirector = userRole === "director";
   const isTripCoordinator = userRole === "trip_coordinator";
   const isFinance = userRole === "finance";
