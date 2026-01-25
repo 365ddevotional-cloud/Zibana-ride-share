@@ -15,7 +15,7 @@ interface TripFilterBarProps {
   riderId?: string;
   onRiderIdChange?: (id: string) => void;
   drivers?: Array<{ userId: string; fullName: string }>;
-  riders?: Array<{ id: string; fullName: string }>;
+  riders?: Array<{ id: string; fullName?: string }>;
   showDriverFilter?: boolean;
   showRiderFilter?: boolean;
   onClear: () => void;
