@@ -27,7 +27,8 @@ import {
   Car,
   AlertCircle,
   LogOut,
-  History
+  History,
+  Star
 } from "lucide-react";
 import type { DriverProfile, Trip } from "@shared/schema";
 import { NotificationBell } from "@/components/notification-bell";
@@ -270,6 +271,24 @@ export default function DriverDashboard() {
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">License Plate</span>
                     <span className="font-medium">{profile.licensePlate}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Rating</span>
+                    <div className="flex items-center gap-1">
+                      {profile.averageRating ? (
+                        <>
+                          <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                          <span className="font-medium" data-testid="text-average-rating">
+                            {parseFloat(profile.averageRating).toFixed(1)}
+                          </span>
+                          <span className="text-muted-foreground text-xs">
+                            ({profile.totalRatings} {profile.totalRatings === 1 ? "rating" : "ratings"})
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">No ratings yet</span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <Separator />

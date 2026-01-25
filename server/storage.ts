@@ -51,6 +51,7 @@ export interface IStorage {
   getAllDriversWithDetails(): Promise<any[]>;
 
   createRiderProfile(data: InsertRiderProfile): Promise<RiderProfile>;
+  getRiderProfile(userId: string): Promise<RiderProfile | undefined>;
   getAllRidersWithDetails(): Promise<any[]>;
 
   createTrip(data: InsertTrip): Promise<Trip>;
@@ -184,6 +185,11 @@ export class DatabaseStorage implements IStorage {
 
   async createRiderProfile(data: InsertRiderProfile): Promise<RiderProfile> {
     const [profile] = await db.insert(riderProfiles).values(data).returning();
+    return profile;
+  }
+
+  async getRiderProfile(userId: string): Promise<RiderProfile | undefined> {
+    const [profile] = await db.select().from(riderProfiles).where(eq(riderProfiles.userId, userId));
     return profile;
   }
 

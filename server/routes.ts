@@ -310,6 +310,17 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/rider/profile", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const profile = await storage.getRiderProfile(userId);
+      return res.json(profile || null);
+    } catch (error) {
+      console.error("Error getting rider profile:", error);
+      return res.status(500).json({ message: "Failed to get rider profile" });
+    }
+  });
+
   app.get("/api/rider/current-trip", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;

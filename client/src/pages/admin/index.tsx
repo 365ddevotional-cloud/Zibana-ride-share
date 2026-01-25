@@ -33,7 +33,8 @@ import {
   TrendingUp,
   Wallet,
   Briefcase,
-  Eye
+  Eye,
+  Star
 } from "lucide-react";
 import type { DriverProfile, Trip, User } from "@shared/schema";
 import { NotificationBell } from "@/components/notification-bell";
@@ -72,6 +73,21 @@ type DirectorWithDetails = {
   fullName?: string;
   status: string;
   createdAt?: string;
+};
+
+type RatingWithDetails = {
+  id: string;
+  tripId: string;
+  raterRole: "rider" | "driver";
+  raterId: string;
+  targetUserId: string;
+  score: number;
+  comment?: string;
+  createdAt: string;
+  raterName?: string;
+  targetName?: string;
+  tripPickup?: string;
+  tripDropoff?: string;
 };
 
 interface AdminDashboardProps {
@@ -140,6 +156,11 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
     setSelectedTrip(trip);
     setTripDetailOpen(true);
   };
+
+  const { data: allRatings = [], isLoading: ratingsLoading } = useQuery<RatingWithDetails[]>({
+    queryKey: ["/api/admin/ratings"],
+    enabled: !!user,
+  });
 
   const { data: stats } = useQuery<{
     totalDrivers: number;
@@ -439,6 +460,10 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                   {pendingPayouts.length}
                 </span>
               )}
+            </TabsTrigger>
+            <TabsTrigger value="ratings" data-testid="tab-ratings">
+              <Star className="h-4 w-4 mr-2" />
+              Ratings
             </TabsTrigger>
             {!isDirector && (
               <TabsTrigger value="directors" data-testid="tab-directors">
@@ -792,6 +817,92 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                                   Mark Paid
                                 </Button>
                               )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="ratings">
+            <Card>
+              <CardHeader>
+                <CardTitle>Ratings & Reviews</CardTitle>
+                <CardDescription>
+                  View all ratings submitted by drivers and riders
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {ratingsLoading ? (
+                  <div className="py-8 text-center text-muted-foreground">
+                    Loading ratings...
+                  </div>
+                ) : allRatings.length === 0 ? (
+                  <EmptyState
+                    icon={Star}
+                    title="No ratings yet"
+                    description="Ratings will appear here after trips are completed and rated"
+                  />
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>From</TableHead>
+                          <TableHead>To</TableHead>
+                          <TableHead>Rating</TableHead>
+                          <TableHead>Comment</TableHead>
+                          <TableHead>Trip</TableHead>
+                          <TableHead>Date</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {allRatings.map((rating) => (
+                          <TableRow key={rating.id} data-testid={`rating-row-${rating.id}`}>
+                            <TableCell>
+                              <div className="flex flex-col">
+                                <span className="font-medium">{rating.raterName}</span>
+                                <span className="text-xs text-muted-foreground capitalize">
+                                  ({rating.raterRole})
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-col">
+                                <span className="font-medium">{rating.targetName}</span>
+                                <span className="text-xs text-muted-foreground capitalize">
+                                  ({rating.raterRole === "rider" ? "driver" : "rider"})
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-1">
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                  <Star
+                                    key={star}
+                                    className={`h-4 w-4 ${
+                                      star <= rating.score
+                                        ? "fill-yellow-400 text-yellow-400"
+                                        : "text-muted-foreground"
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                            </TableCell>
+                            <TableCell className="max-w-xs truncate">
+                              {rating.comment || "-"}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              <div className="max-w-32 truncate">
+                                {rating.tripPickup} → {rating.tripDropoff}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {new Date(rating.createdAt).toLocaleDateString()}
                             </TableCell>
                           </TableRow>
                         ))}

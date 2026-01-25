@@ -31,9 +31,11 @@ import {
   History,
   Navigation,
   CheckCircle,
-  XCircle
+  XCircle,
+  Star,
+  User
 } from "lucide-react";
-import type { Trip } from "@shared/schema";
+import type { Trip, RiderProfile } from "@shared/schema";
 import { NotificationBell } from "@/components/notification-bell";
 
 const rideRequestSchema = z.object({
@@ -57,6 +59,11 @@ export default function RiderDashboard() {
   const [tripEndDate, setTripEndDate] = useState("");
   const [selectedTrip, setSelectedTrip] = useState<TripWithDetails | null>(null);
   const [tripDetailOpen, setTripDetailOpen] = useState(false);
+
+  const { data: riderProfile } = useQuery<RiderProfile | null>({
+    queryKey: ["/api/rider/profile"],
+    enabled: !!user,
+  });
 
   const { data: currentTrip, isLoading: tripLoading } = useQuery<Trip | null>({
     queryKey: ["/api/rider/current-trip"],
@@ -554,6 +561,48 @@ export default function RiderDashboard() {
                     ))}
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  Your Profile
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <UserAvatar 
+                    user={user} 
+                    size="lg"
+                  />
+                  <div>
+                    <p className="font-medium">{user?.firstName} {user?.lastName}</p>
+                    <p className="text-sm text-muted-foreground">{user?.email}</p>
+                  </div>
+                </div>
+                <Separator />
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Your Rating</span>
+                  <div className="flex items-center gap-1">
+                    {riderProfile?.averageRating ? (
+                      <>
+                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                        <span className="font-medium" data-testid="text-rider-rating">
+                          {parseFloat(riderProfile.averageRating).toFixed(1)}
+                        </span>
+                        <span className="text-muted-foreground text-xs">
+                          ({riderProfile.totalRatings} {riderProfile.totalRatings === 1 ? "rating" : "ratings"})
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">No ratings yet</span>
+                    )}
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </div>
