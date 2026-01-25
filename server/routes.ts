@@ -18,13 +18,44 @@ const requireRole = (allowedRoles: string[]): RequestHandler => {
         return res.status(403).json({ message: "Access denied" });
       }
       
+      // For admin role, check if still valid (time-bound)
+      if (userRole.role === "admin") {
+        const { valid, reason } = await storage.isAdminValid(userId);
+        if (!valid) {
+          return res.status(403).json({ message: reason || "Admin access expired" });
+        }
+      }
+      
       req.userRole = userRole.role;
+      req.userRoleData = userRole;
       next();
     } catch (error) {
       console.error("Error checking role:", error);
       return res.status(500).json({ message: "Failed to verify access" });
     }
   };
+};
+
+// SUPER_ADMIN only middleware - strictest access control
+const requireSuperAdmin: RequestHandler = async (req: any, res, next) => {
+  try {
+    const userId = req.user?.claims?.sub;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    const userRole = await storage.getUserRole(userId);
+    if (!userRole || userRole.role !== "super_admin") {
+      return res.status(403).json({ message: "Super Admin access required" });
+    }
+    
+    req.userRole = userRole.role;
+    req.userRoleData = userRole;
+    next();
+  } catch (error) {
+    console.error("Error checking super admin role:", error);
+    return res.status(500).json({ message: "Failed to verify access" });
+  }
 };
 
 export async function registerRoutes(
@@ -491,7 +522,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/admin/stats", isAuthenticated, requireRole(["admin", "director"]), async (req: any, res) => {
+  app.get("/api/admin/stats", isAuthenticated, requireRole(["admin", "director", "super_admin"]), async (req: any, res) => {
     try {
       const stats = await storage.getAdminStats();
       return res.json(stats);
@@ -501,7 +532,168 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/admin/driver/:driverId/status", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+  // ==========================================
+  // SUPER_ADMIN ONLY: Admin Appointment System
+  // ==========================================
+
+  // Get all admins (SUPER_ADMIN only)
+  app.get("/api/super-admin/admins", isAuthenticated, requireSuperAdmin, async (req: any, res) => {
+    try {
+      const admins = await storage.getAllAdmins();
+      return res.json(admins);
+    } catch (error) {
+      console.error("Error getting admins:", error);
+      return res.status(500).json({ message: "Failed to get admins" });
+    }
+  });
+
+  // Appoint a new admin (SUPER_ADMIN only)
+  app.post("/api/super-admin/appoint-admin", isAuthenticated, requireSuperAdmin, async (req: any, res) => {
+    try {
+      const { userId, adminStartAt, adminEndAt, adminPermissions } = req.body;
+      const appointedBy = req.user.claims.sub;
+
+      if (!userId || !adminStartAt || !adminEndAt || !adminPermissions) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      if (!Array.isArray(adminPermissions) || adminPermissions.length === 0) {
+        return res.status(400).json({ message: "At least one permission scope is required" });
+      }
+
+      const startDate = new Date(adminStartAt);
+      const endDate = new Date(adminEndAt);
+
+      if (endDate <= startDate) {
+        return res.status(400).json({ message: "End date must be after start date" });
+      }
+
+      const maxDuration = 365 * 24 * 60 * 60 * 1000; // 1 year max
+      if (endDate.getTime() - startDate.getTime() > maxDuration) {
+        return res.status(400).json({ message: "Admin appointment cannot exceed 1 year" });
+      }
+
+      const admin = await storage.appointAdmin(userId, startDate, endDate, adminPermissions, appointedBy);
+      
+      await storage.createAuditLog({
+        action: "ADMIN_APPOINTED",
+        entityType: "user_role",
+        entityId: userId,
+        userId: appointedBy,
+        oldValue: null,
+        newValue: JSON.stringify({ adminStartAt, adminEndAt, adminPermissions }),
+        ipAddress: req.ip || "unknown"
+      });
+
+      return res.json(admin);
+    } catch (error) {
+      console.error("Error appointing admin:", error);
+      return res.status(500).json({ message: "Failed to appoint admin" });
+    }
+  });
+
+  // Revoke admin access (SUPER_ADMIN only)
+  app.post("/api/super-admin/revoke-admin/:userId", isAuthenticated, requireSuperAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const revokedBy = req.user.claims.sub;
+
+      const admin = await storage.revokeAdmin(userId);
+      if (!admin) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      await storage.createAuditLog({
+        action: "ADMIN_REVOKED",
+        entityType: "user_role",
+        entityId: userId,
+        userId: revokedBy,
+        oldValue: JSON.stringify({ role: "admin" }),
+        newValue: JSON.stringify({ role: "rider" }),
+        ipAddress: req.ip || "unknown"
+      });
+
+      return res.json(admin);
+    } catch (error) {
+      console.error("Error revoking admin:", error);
+      return res.status(500).json({ message: "Failed to revoke admin" });
+    }
+  });
+
+  // Update admin permissions (SUPER_ADMIN only)
+  app.patch("/api/super-admin/admin/:userId/permissions", isAuthenticated, requireSuperAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const { adminPermissions, adminEndAt } = req.body;
+      const updatedBy = req.user.claims.sub;
+
+      if (!adminPermissions || !Array.isArray(adminPermissions) || adminPermissions.length === 0) {
+        return res.status(400).json({ message: "At least one permission scope is required" });
+      }
+
+      const endDate = adminEndAt ? new Date(adminEndAt) : undefined;
+      const admin = await storage.updateAdminPermissions(userId, adminPermissions, endDate);
+      
+      if (!admin) {
+        return res.status(404).json({ message: "Admin not found" });
+      }
+
+      await storage.createAuditLog({
+        action: "ADMIN_PERMISSIONS_UPDATED",
+        entityType: "user_role",
+        entityId: userId,
+        userId: updatedBy,
+        oldValue: null,
+        newValue: JSON.stringify({ adminPermissions, adminEndAt }),
+        ipAddress: req.ip || "unknown"
+      });
+
+      return res.json(admin);
+    } catch (error) {
+      console.error("Error updating admin permissions:", error);
+      return res.status(500).json({ message: "Failed to update admin permissions" });
+    }
+  });
+
+  // Check admin validity (SUPER_ADMIN only)
+  app.get("/api/super-admin/admin/:userId/validity", isAuthenticated, requireSuperAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const result = await storage.isAdminValid(userId);
+      return res.json(result);
+    } catch (error) {
+      console.error("Error checking admin validity:", error);
+      return res.status(500).json({ message: "Failed to check admin validity" });
+    }
+  });
+
+  // Trigger expired admin cleanup (SUPER_ADMIN only - can also be scheduled)
+  app.post("/api/super-admin/expire-admins", isAuthenticated, requireSuperAdmin, async (req: any, res) => {
+    try {
+      const count = await storage.checkAndExpireAdmins();
+      
+      await storage.createAuditLog({
+        action: "ADMINS_EXPIRED",
+        entityType: "system",
+        entityId: "batch",
+        userId: req.user.claims.sub,
+        oldValue: null,
+        newValue: JSON.stringify({ expiredCount: count }),
+        ipAddress: req.ip || "unknown"
+      });
+
+      return res.json({ expiredCount: count });
+    } catch (error) {
+      console.error("Error expiring admins:", error);
+      return res.status(500).json({ message: "Failed to expire admins" });
+    }
+  });
+
+  // ==========================================
+  // END SUPER_ADMIN ONLY ROUTES
+  // ==========================================
+
+  app.post("/api/admin/driver/:driverId/status", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {
       const { driverId } = req.params;
       const { status } = req.body;
