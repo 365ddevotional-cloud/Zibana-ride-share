@@ -31,7 +31,7 @@ Preferred communication style: Simple, everyday language.
 - **ORM**: Drizzle ORM with Zod schema validation
 - **Schema**: Defined in `shared/schema.ts`
 - **Migrations**: Managed via `drizzle-kit push`
-- **Key Tables**: `users`, `sessions`, `user_roles`, `driver_profiles`, `rider_profiles`, `trip_coordinator_profiles`, `trips`, `notifications`, `ratings`, `disputes`, `refunds`, `chargebacks`, `wallets`, `wallet_transactions`, `wallet_payouts`, `audit_logs`, `fraud_risk_profiles`, `fraud_events`, `incentive_programs`, `incentive_earnings`, `countries`, `tax_rules`, `exchange_rates`, `compliance_profiles`, `support_tickets`, `support_messages`.
+- **Key Tables**: `users`, `sessions`, `user_roles`, `driver_profiles`, `rider_profiles`, `trip_coordinator_profiles`, `trips`, `notifications`, `ratings`, `disputes`, `refunds`, `chargebacks`, `wallets`, `wallet_transactions`, `wallet_payouts`, `audit_logs`, `fraud_risk_profiles`, `fraud_events`, `incentive_programs`, `incentive_earnings`, `countries`, `tax_rules`, `exchange_rates`, `compliance_profiles`, `support_tickets`, `support_messages`, `organization_contracts`, `service_level_agreements`, `enterprise_invoices`.
 
 ### Core Features
 - **Authentication & Authorization**: Replit Auth integration with role selection, and comprehensive Role-Based Access Control (RBAC) across various user roles.
@@ -44,6 +44,7 @@ Preferred communication style: Simple, everyday language.
 - **Trip Coordinator Module**: Functionality for institutional users to book trips for beneficiaries, manage organization profiles, view trip history, and handle support.
 - **Multi-Country Support**: Management of countries, tax rules (VAT, sales, service), exchange rates, and compliance profiles to support international operations.
 - **Customer Support System**: Dedicated `support_agent` role, ticket lifecycle management (open, in_progress, escalated, resolved, closed), priority levels, categories, and a messaging interface for users and agents.
+- **Enterprise Contracts & Billing**: Organization contract management with SLAs, multiple billing models, invoice generation, and payment tracking for institutional clients.
 
 ## External Dependencies
 
@@ -67,6 +68,18 @@ Preferred communication style: Simple, everyday language.
 - `VITE_APP_ENV`: App environment (development/staging/production).
 
 ## Recent Changes
+
+### Phase 18 – Contracts, SLAs & Enterprise Billing (January 2026)
+- Database schema additions:
+  - `organization_contracts`: Enterprise contracts with organization types (NGO, HOSPITAL, CHURCH, SCHOOL, GOV, CORPORATE), billing models (PREPAID, POSTPAID, MONTHLY_INVOICE), terms and dates
+  - `service_level_agreements`: SLA definitions with types (RESPONSE_TIME, COMPLETION_RATE, AVAILABILITY), targets, and measurement periods
+  - `enterprise_invoices`: Invoice tracking with period dates, trip counts, amounts, and status (DRAFT, ISSUED, PAID, OVERDUE)
+- Storage layer: 15+ methods for contract lifecycle management (createOrganizationContract, updateContractStatus, generateInvoiceForContract, getSLAsByContract, getContractStats, etc.)
+- API routes: 11 endpoints with RBAC (Admin/Finance: full access, Director: view, Trip Coordinator: own contract only)
+- Admin dashboard: Contracts tab with statistics cards, contract list with create/edit dialogs, invoice management with status updates
+- Coordinator dashboard: Contract tab showing contract details and invoice history
+- Contract workflow: Admin creates contract → Links to Trip Coordinator → Trips tracked → Invoices auto-generated → Finance updates status
+- Full audit logging for all contract and invoice operations
 
 ### Phase 17 – Mobile App Optimization & Store Readiness (January 2026)
 - Performance optimizations:
