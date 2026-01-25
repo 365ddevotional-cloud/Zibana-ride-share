@@ -1,0 +1,179 @@
+Proceed with PHASE 10A — Refunds & Adjustments (MVP).
+
+GOAL:
+Introduce controlled refund and adjustment handling for disputed trips,
+with Admin authority, Trip Coordinator intervention, and Director oversight.
+
+SCOPE:
+- Backend + Admin UI + Trip Coordinator UI
+- Manual refunds and adjustments only
+- NO real payment integrations
+
+DO NOT MODIFY:
+- Authentication system
+- Role assignments
+- Pricing & commission logic
+- Payments simulation core
+- Notifications system
+- Trip history & search
+- Ratings & reviews
+- Disputes core logic
+
+ROLES INVOLVED:
+- ADMIN (full authority)
+- TRIP_COORDINATOR (limited authority)
+- DIRECTOR (read-only)
+
+------------------------------------------------
+
+1️⃣ DATABASE / MODEL
+Create a RefundAdjustment model:
+
+- id
+- tripId
+- disputeId (nullable)
+- initiatedByRole (ADMIN | TRIP_COORDINATOR)
+- initiatedById
+- type (REFUND | DRIVER_ADJUSTMENT | PLATFORM_ADJUSTMENT)
+- amount
+- target (RIDER | DRIVER)
+- reason (required, max 300 chars)
+- status (PENDING | APPROVED | REJECTED | EXECUTED)
+- approvedByAdminId (nullable)
+- createdAt
+- executedAt (nullable)
+
+Rules:
+- Refunds ONLY allowed for trips with disputes
+- Adjustments allowed with or without disputes
+- No automatic execution
+
+------------------------------------------------
+
+2️⃣ BACKEND LOGIC
+
+A. Create endpoints to:
+- Submit refund/adjustment request
+- Approve / reject request (ADMIN only)
+- Execute request (ADMIN only)
+
+B. Permission rules:
+- ADMIN:
+  - Create, approve, reject, execute
+- TRIP_COORDINATOR:
+  - Create requests ONLY
+  - Cannot approve or execute
+- DIRECTOR:
+  - View-only
+
+C. Validation:
+- Trip must exist
+- Amount > 0
+- Refunds require linked dispute
+- Prevent duplicate pending requests per trip
+
+------------------------------------------------
+
+3️⃣ WALLET & ACCOUNTING EFFECTS (SIMULATION ONLY)
+
+When EXECUTED:
+- Rider refunds:
+  - Reduce ZIBA commission first
+  - Then adjust driver wallet if needed
+- Driver adjustments:
+  - Credit or debit virtual wallet
+- Platform adjustments:
+  - Affect ZIBA ledger only
+
+NO real money movement.
+
+------------------------------------------------
+
+4️⃣ ADMIN DASHBOARD
+
+Add a new tab: **Refunds & Adjustments**
+
+Features:
+- List all requests
+- Filter by:
+  - Status
+  - Type
+  - Role (Admin / Coordinator)
+- Detail view:
+  - Trip summary
+  - Dispute context (if any)
+  - Wallet impact preview
+  - Approve / Reject / Execute buttons
+
+------------------------------------------------
+
+5️⃣ TRIP COORDINATOR SECTION (IMPORTANT)
+
+Add a new **Trip Coordinators** tab (similar to Directors):
+
+Trip Coordinator capabilities:
+- View trips
+- View disputes
+- Create refund/adjustment requests
+- View request status
+
+Trip Coordinator CANNOT:
+- Approve refunds
+- Execute refunds
+- Modify wallets directly
+- Change disputes or ratings
+
+UI rules:
+- Action buttons hidden where not allowed
+- Clear role-based messaging
+
+------------------------------------------------
+
+6️⃣ DIRECTOR VIEW
+
+Directors can:
+- View refunds & adjustments
+- View execution history
+- View financial summaries
+
+Directors CANNOT:
+- Create requests
+- Approve
+- Execute
+- Modify anything
+
+------------------------------------------------
+
+7️⃣ NOTIFICATIONS (USE EXISTING SYSTEM)
+
+Trigger notifications for:
+- Admin when coordinator submits request
+- Coordinator when admin approves/rejects
+- Rider/Driver when refund is executed
+
+NO new notification types.
+
+------------------------------------------------
+
+8️⃣ SYSTEM RULES
+- No automatic refunds
+- No auto penalties
+- Everything remains manual & auditable
+- No UI redesign outside new tabs
+
+------------------------------------------------
+
+9️⃣ VERIFICATION CHECKLIST
+- Coordinator can submit request
+- Admin can approve & execute
+- Wallets update correctly
+- Disputes remain intact
+- Directors see read-only data
+- Existing systems unaffected
+
+------------------------------------------------
+
+CREATE CHECKPOINT:
+"Phase 10A — Refunds & Adjustments Stable"
+
+DO NOT PUBLISH.

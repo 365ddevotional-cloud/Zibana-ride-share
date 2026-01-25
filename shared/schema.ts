@@ -7,18 +7,21 @@ import { z } from "zod";
 export * from "./models/auth";
 
 // Enums
-export const userRoleEnum = pgEnum("user_role", ["admin", "driver", "rider", "director"]);
+export const userRoleEnum = pgEnum("user_role", ["admin", "driver", "rider", "director", "finance", "trip_coordinator"]);
 export const directorStatusEnum = pgEnum("director_status", ["active", "inactive"]);
 export const driverStatusEnum = pgEnum("driver_status", ["pending", "approved", "suspended"]);
 export const tripStatusEnum = pgEnum("trip_status", ["requested", "accepted", "in_progress", "completed", "cancelled"]);
 export const cancelledByEnum = pgEnum("cancelled_by", ["rider", "driver", "admin"]);
 export const payoutStatusEnum = pgEnum("payout_status", ["pending", "paid"]);
 export const notificationTypeEnum = pgEnum("notification_type", ["info", "success", "warning"]);
-export const notificationRoleEnum = pgEnum("notification_role", ["admin", "director", "driver", "rider"]);
+export const notificationRoleEnum = pgEnum("notification_role", ["admin", "director", "driver", "rider", "finance", "trip_coordinator"]);
 export const raterRoleEnum = pgEnum("rater_role", ["rider", "driver"]);
 export const disputeCategoryEnum = pgEnum("dispute_category", ["fare", "behavior", "cancellation", "other"]);
 export const disputeStatusEnum = pgEnum("dispute_status", ["open", "under_review", "resolved", "rejected"]);
 export const disputeRaisedByEnum = pgEnum("dispute_raised_by", ["rider", "driver"]);
+export const refundTypeEnum = pgEnum("refund_type", ["full", "partial", "adjustment"]);
+export const refundStatusEnum = pgEnum("refund_status", ["pending", "approved", "rejected", "processed", "reversed"]);
+export const refundCreatedByRoleEnum = pgEnum("refund_created_by_role", ["admin", "trip_coordinator", "finance"]);
 
 // User roles table - maps users to their roles
 export const userRoles = pgTable("user_roles", {
@@ -141,6 +144,48 @@ export const disputes = pgTable("disputes", {
   resolvedAt: timestamp("resolved_at"),
 });
 
+// Refunds table
+export const refunds = pgTable("refunds", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tripId: varchar("trip_id").notNull(),
+  riderId: varchar("rider_id").notNull(),
+  driverId: varchar("driver_id"),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  type: refundTypeEnum("type").notNull(),
+  status: refundStatusEnum("status").notNull().default("pending"),
+  reason: text("reason").notNull(),
+  createdByRole: refundCreatedByRoleEnum("created_by_role").notNull(),
+  createdByUserId: varchar("created_by_user_id").notNull(),
+  approvedByUserId: varchar("approved_by_user_id"),
+  processedByUserId: varchar("processed_by_user_id"),
+  linkedDisputeId: varchar("linked_dispute_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Wallet adjustments table
+export const walletAdjustments = pgTable("wallet_adjustments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  reason: text("reason").notNull(),
+  linkedRefundId: varchar("linked_refund_id"),
+  createdByUserId: varchar("created_by_user_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Audit logs table
+export const auditLogs = pgTable("audit_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  action: varchar("action", { length: 100 }).notNull(),
+  entityType: varchar("entity_type", { length: 50 }).notNull(),
+  entityId: varchar("entity_id").notNull(),
+  performedByUserId: varchar("performed_by_user_id").notNull(),
+  performedByRole: varchar("performed_by_role", { length: 50 }).notNull(),
+  metadata: text("metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const userRolesRelations = relations(userRoles, ({ one }) => ({
   // Relations defined for clarity
@@ -251,6 +296,35 @@ export const updateDisputeSchema = createInsertSchema(disputes).omit({
   description: true,
 }).partial();
 
+export const insertRefundSchema = createInsertSchema(refunds).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  status: true,
+  approvedByUserId: true,
+  processedByUserId: true,
+});
+
+export const updateRefundSchema = createInsertSchema(refunds).omit({
+  id: true,
+  createdAt: true,
+  tripId: true,
+  riderId: true,
+  driverId: true,
+  createdByRole: true,
+  createdByUserId: true,
+}).partial();
+
+export const insertWalletAdjustmentSchema = createInsertSchema(walletAdjustments).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Update schemas
 export const updateDriverProfileSchema = createInsertSchema(driverProfiles).omit({
   id: true,
@@ -314,4 +388,25 @@ export type DisputeWithDetails = Dispute & {
   tripPickup?: string;
   tripDropoff?: string;
   tripStatus?: string;
+};
+
+export type InsertRefund = z.infer<typeof insertRefundSchema>;
+export type UpdateRefund = z.infer<typeof updateRefundSchema>;
+export type Refund = typeof refunds.$inferSelect;
+
+export type InsertWalletAdjustment = z.infer<typeof insertWalletAdjustmentSchema>;
+export type WalletAdjustment = typeof walletAdjustments.$inferSelect;
+
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+export type AuditLog = typeof auditLogs.$inferSelect;
+
+export type RefundWithDetails = Refund & {
+  riderName?: string;
+  driverName?: string;
+  tripPickup?: string;
+  tripDropoff?: string;
+  tripStatus?: string;
+  createdByName?: string;
+  approvedByName?: string;
+  processedByName?: string;
 };

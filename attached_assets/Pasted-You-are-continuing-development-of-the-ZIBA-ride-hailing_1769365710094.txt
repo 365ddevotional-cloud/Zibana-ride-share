@@ -1,0 +1,147 @@
+You are continuing development of the ZIBA ride-hailing app using the existing codebase, Prisma, PostgreSQL, and role-based access control.
+
+IMPLEMENT PHASE 10A — REFUNDS & ADJUSTMENTS.
+
+DO NOT BREAK OR REWRITE EXISTING FEATURES.
+EXTEND ONLY.
+
+GOALS:
+Build a secure refund and wallet-adjustment system with strict permissions and full audit logging.
+Respect the Trip Coordinator role exactly as specified.
+
+ROLES:
+ADMIN
+FINANCE
+TRIP_COORDINATOR
+RIDER
+DRIVER
+
+────────────────────────
+BACKEND REQUIREMENTS
+────────────────────────
+
+1) DATABASE (Prisma)
+Create the following models:
+
+Refund
+- id
+- tripId
+- riderId
+- driverId
+- amount
+- type (FULL | PARTIAL | ADJUSTMENT)
+- status (PENDING | APPROVED | REJECTED | PROCESSED | REVERSED)
+- reason
+- createdByRole
+- createdByUserId
+- approvedByUserId (nullable)
+- processedByUserId (nullable)
+- createdAt
+- updatedAt
+
+WalletAdjustment
+- id
+- userId
+- amount (positive or negative)
+- reason
+- linkedRefundId (nullable)
+- createdByUserId
+- createdAt
+
+AuditLog
+- id
+- action
+- entityType
+- entityId
+- performedByUserId
+- performedByRole
+- metadata (JSON)
+- createdAt
+
+Ensure all relations are indexed properly.
+
+────────────────────────
+BUSINESS LOGIC
+────────────────────────
+
+2) REFUND RULES
+- Refunds MUST be linked to a Trip.
+- Refunds may originate from:
+  a) Approved dispute
+  b) Admin override
+
+3) ROLE PERMISSIONS
+- RIDER: View refund status only
+- DRIVER: View refund impact only
+- TRIP_COORDINATOR:
+   • Can CREATE refund requests
+   • Can APPROVE refunds ≤ $20
+   • Can NOT PROCESS payouts
+- FINANCE:
+   • Can PROCESS approved refunds
+- ADMIN:
+   • Full control (create, approve, reject, reverse)
+
+4) ESCALATION RULE
+If refund amount > $20:
+- Trip Coordinator can only RECOMMEND
+- Admin approval required
+
+5) WALLET ADJUSTMENTS
+- Wallet adjustments do NOT touch payment gateway
+- Used for goodwill credits or corrections
+- Must be logged and linked when applicable
+
+────────────────────────
+API ROUTES
+────────────────────────
+
+Create secure API endpoints:
+
+POST   /api/refunds/create
+POST   /api/refunds/approve
+POST   /api/refunds/reject
+POST   /api/refunds/process
+POST   /api/refunds/reverse
+GET    /api/refunds?tripId=&status=
+POST   /api/wallet/adjust
+
+Enforce RBAC strictly at API level.
+
+────────────────────────
+UI (MINIMAL BUT CLEAN)
+────────────────────────
+
+Create admin-facing UI only:
+
+Refund Queue
+- Filter by status
+- Shows trip, rider, driver, amount, status
+
+Refund Detail Drawer
+- Refund info
+- Approval / Reject buttons (role-based)
+- Audit timeline
+
+DO NOT BUILD RIDER UI YET.
+
+────────────────────────
+AUDIT & SAFETY
+────────────────────────
+
+- Every refund action must write to AuditLog
+- No silent state changes
+- No hardcoded IDs
+- No bypass of role checks
+
+────────────────────────
+FINAL STEP
+────────────────────────
+
+After implementation:
+- Ensure Prisma migrate runs cleanly
+- Ensure existing trips and payments are untouched
+- App must compile without errors
+
+DO NOT ADD NEW FEATURES.
+ONLY IMPLEMENT PHASE 10A.
