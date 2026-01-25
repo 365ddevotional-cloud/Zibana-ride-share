@@ -1,0 +1,139 @@
+You are continuing development of the ZIBA ride-hailing app.
+Phases 1–15 are COMPLETE and MUST NOT be modified.
+
+IMPLEMENT PHASE 16 — PUBLIC LAUNCH HARDENING & SUPPORT SYSTEM.
+
+This phase introduces a Support role and prepares ZIBA for real users.
+
+DO NOT BREAK EXISTING FEATURES.
+EXTEND ONLY.
+
+────────────────────────
+ROLES
+────────────────────────
+
+Add role:
+SUPPORT_AGENT
+
+SUPPORT_AGENT is NOT admin and has NO financial powers.
+
+────────────────────────
+DATABASE (Prisma)
+────────────────────────
+
+Add the following models:
+
+SupportTicket
+- id
+- createdByUserId
+- createdByRole (RIDER | DRIVER | TRIP_COORDINATOR)
+- tripId (nullable)
+- subject
+- description
+- status (OPEN | IN_PROGRESS | ESCALATED | RESOLVED | CLOSED)
+- priority (LOW | MEDIUM | HIGH)
+- assignedToUserId (nullable)
+- createdAt
+- updatedAt
+
+SupportMessage
+- id
+- ticketId
+- senderUserId
+- senderRole
+- message
+- internal (boolean)
+- createdAt
+
+Ensure indexes on ticketId, createdByUserId, status.
+
+────────────────────────
+SUPPORT RULES
+────────────────────────
+
+1) Ticket Creation
+- Riders, Drivers, Trip Coordinators can create tickets
+- Tickets may be linked to a trip
+- Tickets are immutable after closure
+
+2) Support Agent Permissions
+SUPPORT_AGENT CAN:
+- View assigned tickets
+- View related trip details
+- Respond to users
+- Add internal notes
+- Escalate tickets
+
+SUPPORT_AGENT CANNOT:
+- Issue refunds
+- Modify wallets
+- Approve payouts
+- Change pricing
+- Assign drivers
+- Access Admin dashboard
+
+3) Escalation
+- Escalated tickets are visible to Admin
+- Support cannot resolve financial issues
+
+────────────────────────
+API ROUTES
+────────────────────────
+
+POST /api/support/tickets/create
+GET  /api/support/tickets/my
+GET  /api/support/tickets/assigned
+POST /api/support/tickets/respond
+POST /api/support/tickets/escalate
+POST /api/support/tickets/close
+
+Strict RBAC enforcement.
+
+────────────────────────
+UI
+────────────────────────
+
+USER VIEW (Rider / Driver / Trip Coordinator):
+- "Support" section
+- Create ticket
+- View ticket status
+- Message thread
+
+SUPPORT DASHBOARD:
+- Ticket queue
+- Filters (status, priority)
+- Assigned tickets
+- Escalation button
+- Internal notes toggle
+
+NO financial UI.
+
+────────────────────────
+PUBLIC LAUNCH HARDENING
+────────────────────────
+
+Add:
+- Rate limiting on support endpoints
+- Input validation & sanitization
+- Error boundaries on support views
+- Read-only safeguards
+
+────────────────────────
+AUDIT & SAFETY
+────────────────────────
+
+• All support actions logged
+• No silent edits
+• No cross-role data leakage
+• Tickets fully traceable
+
+────────────────────────
+FINAL CHECKS
+────────────────────────
+
+• Support cannot move money
+• Admin logic unaffected
+• Trip Coordinator permissions unchanged
+• App compiles cleanly
+
+IMPLEMENT PHASE 16 ONLY.

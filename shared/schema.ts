@@ -7,7 +7,7 @@ import { z } from "zod";
 export * from "./models/auth";
 
 // Enums
-export const userRoleEnum = pgEnum("user_role", ["admin", "driver", "rider", "director", "finance", "trip_coordinator"]);
+export const userRoleEnum = pgEnum("user_role", ["admin", "driver", "rider", "director", "finance", "trip_coordinator", "support_agent"]);
 export const directorStatusEnum = pgEnum("director_status", ["active", "inactive"]);
 export const driverStatusEnum = pgEnum("driver_status", ["pending", "approved", "suspended"]);
 export const tripStatusEnum = pgEnum("trip_status", ["requested", "accepted", "in_progress", "completed", "cancelled"]);
@@ -52,6 +52,11 @@ export const bookedForTypeEnum = pgEnum("booked_for_type", ["self", "third_party
 export const taxTypeEnum = pgEnum("tax_type", ["VAT", "SALES", "SERVICE", "OTHER"]);
 export const taxAppliesToEnum = pgEnum("tax_applies_to", ["FARE", "COMMISSION", "BOTH"]);
 export const exchangeRateSourceEnum = pgEnum("exchange_rate_source", ["MANUAL"]);
+
+// Phase 16 - Support System enums
+export const ticketStatusEnum = pgEnum("ticket_status", ["open", "in_progress", "escalated", "resolved", "closed"]);
+export const ticketPriorityEnum = pgEnum("ticket_priority", ["low", "medium", "high"]);
+export const ticketCreatorRoleEnum = pgEnum("ticket_creator_role", ["rider", "driver", "trip_coordinator"]);
 
 // User roles table - maps users to their roles
 export const userRoles = pgTable("user_roles", {
@@ -901,4 +906,59 @@ export type ComplianceProfileWithDetails = ComplianceProfile & {
   totalTrips?: number;
   totalRevenue?: string;
   estimatedTax?: string;
+};
+
+// Phase 16 - Support System tables
+
+export const supportTickets = pgTable("support_tickets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  createdByUserId: varchar("created_by_user_id").notNull(),
+  createdByRole: ticketCreatorRoleEnum("created_by_role").notNull(),
+  tripId: varchar("trip_id"),
+  subject: varchar("subject", { length: 255 }).notNull(),
+  description: text("description").notNull(),
+  status: ticketStatusEnum("status").notNull().default("open"),
+  priority: ticketPriorityEnum("priority").notNull().default("medium"),
+  assignedToUserId: varchar("assigned_to_user_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const supportMessages = pgTable("support_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  ticketId: varchar("ticket_id").notNull(),
+  senderUserId: varchar("sender_user_id").notNull(),
+  senderRole: varchar("sender_role", { length: 50 }).notNull(),
+  message: text("message").notNull(),
+  internal: boolean("internal").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSupportTicketSchema = createInsertSchema(supportTickets).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  assignedToUserId: true,
+});
+
+export const insertSupportMessageSchema = createInsertSchema(supportMessages).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertSupportTicket = z.infer<typeof insertSupportTicketSchema>;
+export type SupportTicket = typeof supportTickets.$inferSelect;
+
+export type InsertSupportMessage = z.infer<typeof insertSupportMessageSchema>;
+export type SupportMessage = typeof supportMessages.$inferSelect;
+
+export type SupportTicketWithDetails = SupportTicket & {
+  creatorName?: string;
+  assignedAgentName?: string;
+  messagesCount?: number;
+  tripDetails?: {
+    pickup: string;
+    dropoff: string;
+    fare: string;
+  } | null;
 };
