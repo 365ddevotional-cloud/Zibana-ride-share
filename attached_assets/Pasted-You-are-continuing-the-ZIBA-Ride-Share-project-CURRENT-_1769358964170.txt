@@ -1,0 +1,107 @@
+You are continuing the ZIBA Ride Share project.
+
+CURRENT STATE:
+- Phases 1–6 are completed and stable
+- Roles exist: ADMIN, DIRECTOR (read-only), DRIVER, RIDER
+- Pricing, payments simulation, and notifications are already implemented
+- Authentication, rider flow, and driver flow must remain unchanged
+
+GOAL:
+Implement Phase 7A — Trip History & Search.
+
+SCOPE:
+- Backend + UI enhancements
+- No UI redesign (use existing layout/components)
+- Directors must have read-only access
+- Filtering, search, and trip detail viewing only
+
+DO NOT MODIFY:
+- Authentication system
+- Pricing & commission logic
+- Payments simulation
+- Notifications system
+- Trip lifecycle logic (request → accept → complete)
+
+--------------------------------
+BACKEND REQUIREMENTS
+--------------------------------
+1. Extend the trips query logic to support:
+   - Role-based access:
+     - ADMIN: all trips
+     - DIRECTOR: all trips (read-only)
+     - DRIVER: only trips where driverId = logged-in user
+     - RIDER: only trips where riderId = logged-in user
+
+2. Add filtering support:
+   - Trip status (requested, accepted, completed, cancelled)
+   - Date range (startDate, endDate)
+   - driverId
+   - riderId
+
+3. Ensure a trip detail endpoint exists that returns:
+   - Pickup & dropoff locations
+   - Fare breakdown
+   - Status
+   - Driver & rider info
+   - Timestamps
+
+--------------------------------
+UI REQUIREMENTS (NO REDESIGN)
+--------------------------------
+
+ADMIN DASHBOARD:
+- Enhance the existing Trips tab:
+  - Search input (by driver, rider, or date)
+  - Status filter dropdown
+  - Clickable trip rows to open trip detail view
+- DIRECTORS:
+  - Same view as Admin
+  - All action buttons hidden (read-only)
+
+DRIVER DASHBOARD:
+- Add a Trip History section:
+  - List of past trips for the driver
+  - Filter by status and date
+  - Click to view trip details
+
+RIDER DASHBOARD:
+- Add a Recent Trips / Trip History section:
+  - List of past trips for the rider
+  - Filter by status and date
+  - Click to view trip details
+
+--------------------------------
+UX RULES
+--------------------------------
+- Show proper empty states:
+  - “No trips yet”
+  - “No results found”
+- Keep styling consistent with current dashboards
+- No new navigation patterns
+
+--------------------------------
+VERIFICATION
+--------------------------------
+- Admin can see and filter all trips
+- Director can view trips but cannot perform actions
+- Driver sees only their trips
+- Rider sees only their trips
+- Trip detail view loads correctly
+- No console or runtime errors
+
+--------------------------------
+CHECKPOINT
+--------------------------------
+Create a checkpoint named EXACTLY:
+
+"Phase 7A – Trip History & Search Stable"
+
+DO NOT PUBLISH.
+
+--------------------------------
+FINAL CONFIRMATION
+--------------------------------
+When finished:
+- Confirm Phase 7A is complete
+- Confirm app runs without errors
+- Confirm checkpoint is saved
