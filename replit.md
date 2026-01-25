@@ -35,7 +35,7 @@ Preferred communication style: Simple, everyday language.
 - **ORM**: Drizzle ORM with Zod schema validation
 - **Schema**: Defined in `shared/schema.ts`
 - **Migrations**: Managed via `drizzle-kit push`
-- **Key Tables**: `users`, `sessions`, `user_roles`, `driver_profiles`, `rider_profiles`, `trips`, `notifications`, `ratings`, `disputes`, `refunds`, `chargebacks`, `wallets`, `wallet_transactions`, `wallet_payouts`, `audit_logs`.
+- **Key Tables**: `users`, `sessions`, `user_roles`, `driver_profiles`, `rider_profiles`, `trips`, `notifications`, `ratings`, `disputes`, `refunds`, `chargebacks`, `wallets`, `wallet_transactions`, `wallet_payouts`, `audit_logs`, `fraud_risk_profiles`, `fraud_events`, `incentive_programs`, `incentive_earnings`.
 
 ### Core Features
 
@@ -104,3 +104,51 @@ Preferred communication style: Simple, everyday language.
   - GET /api/reports/export - CSV export endpoint
 - Role-based access: Admin/Finance only (Directors excluded)
 - Read-only analytics - no data mutation
+
+### Phase 13 – Fraud Detection & Risk Scoring (January 2026)
+- Created `fraud_risk_profiles` and `fraud_events` tables for comprehensive fraud tracking
+- Real-time fraud detection engine with configurable signal weights
+- Signal types: rapid_cancellations, suspicious_locations, unusual_fare_patterns, multiple_accounts, payment_anomalies
+- Risk levels: low (0-20), medium (21-50), high (51-80), critical (81-100)
+- Automatic fraud event detection with severity scoring
+- Admin dashboard Fraud tab with:
+  - Risk overview metrics (total profiles, distribution by risk level)
+  - Active fraud events with resolution workflow
+  - Driver risk profiles table with scores and levels
+  - Manual fraud evaluation trigger
+- API endpoints:
+  - GET /api/fraud/overview - Fraud overview statistics
+  - GET /api/fraud/events - Active fraud events list
+  - GET /api/fraud/profiles - Risk profiles for all entities
+  - POST /api/fraud/evaluate - Trigger system-wide fraud evaluation
+  - POST /api/fraud/resolve/:eventId - Resolve fraud events
+- Role-based access: Admin/Finance only
+
+### Phase 14 – Driver Incentives System (January 2026)
+- Created `incentive_programs` and `incentive_earnings` tables
+- Five incentive types: trip (complete X trips), streak (X consecutive days), peak (during peak hours), quality (rating bonuses), promo (promotional campaigns)
+- Incentive evaluation engine with criteria-based JSON configuration
+- Fraud integration: Drivers with high/critical risk or unresolved fraud events cannot earn incentives
+- Earning workflow: pending → approved → paid (with revocation capability)
+- Wallet integration: Incentive payments automatically credited to driver wallets with "incentive" source
+- Admin dashboard Incentives tab with:
+  - Program statistics (active programs, pending/paid/revoked earnings)
+  - Program management (create, pause, end programs)
+  - Driver earnings table with approval and revocation workflow
+  - System-wide incentive evaluation trigger
+- Driver dashboard Incentive Bonuses section showing:
+  - Total earnings from incentives
+  - Pending bonus count
+  - Recent bonus history with status
+- API endpoints:
+  - GET /api/incentives/stats - Incentive program statistics
+  - GET /api/incentives/programs - All programs list
+  - GET /api/incentives/earnings - All earnings (Admin/Finance)
+  - GET /api/incentives/earnings/mine - Driver's own earnings
+  - POST /api/incentives/create - Create new program (Admin only)
+  - POST /api/incentives/pause/:id - Pause program
+  - POST /api/incentives/end/:id - End program
+  - POST /api/incentives/evaluate - System-wide evaluation
+  - POST /api/incentives/approve/:id - Approve and pay earning
+  - POST /api/incentives/revoke/:id - Revoke earning with reason
+- Role-based access: Admin/Finance only (Directors/Trip Coordinators excluded from management)
