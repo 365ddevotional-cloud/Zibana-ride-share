@@ -75,3 +75,26 @@ Key database tables:
 - `SESSION_SECRET`: Secret for signing session cookies
 - `ISSUER_URL`: OpenID Connect issuer (defaults to Replit's OIDC)
 - `REPL_ID`: Replit environment identifier
+
+## Development Phases
+
+### Phase 1 – Admin Features (FROZEN - Stable)
+- Driver management: approve/reject/suspend drivers
+- Read-only rider list with contact info
+- Trip management with manual cancellation
+- Admin provisioning: first user becomes admin via role selection
+
+### Phase 2 – Driver App (FROZEN - Stable)
+- Driver dashboard with profile display (including email)
+- Profile setup and edit functionality
+- Online/offline toggle (approved drivers only)
+- Available rides display with rider names
+- Ride acceptance flow
+- Active trip management (start trip, complete trip)
+- Pending/suspended status warnings
+
+### FROZEN Components (DO NOT MODIFY)
+- Authentication flow (Replit Auth + OpenID Connect)
+- Role assignments and routing logic
+- Admin dashboard and all admin endpoints
+- Driver dashboard and all driver endpoints
