@@ -1,0 +1,108 @@
+Proceed with PHASE 9 — Disputes & Moderation (MVP).
+
+GOAL:
+Introduce a controlled dispute system for completed or cancelled trips,
+allowing Riders and Drivers to report issues, with Admin moderation and
+Director read-only oversight.
+
+SCOPE:
+- Backend + minimal UI
+- Rider and Driver can submit disputes
+- Admin can review and resolve
+- Directors have read-only visibility
+
+DO NOT MODIFY:
+- Authentication
+- Role assignments
+- Pricing & commission logic
+- Payments simulation
+- Notifications system
+- Trip history & search
+- Ratings & reviews logic
+
+IMPLEMENT IN THIS ORDER:
+
+1️⃣ DATABASE / MODEL
+Create a Dispute model with:
+- id
+- tripId
+- raisedByRole (RIDER | DRIVER)
+- raisedById
+- againstUserId
+- category (FARE | BEHAVIOR | CANCELLATION | OTHER)
+- description (required, max 500 chars)
+- status (OPEN | UNDER_REVIEW | RESOLVED | REJECTED)
+- adminNotes (optional)
+- createdAt
+- resolvedAt (nullable)
+
+Rules:
+- Only one dispute per user per trip
+- Only completed or cancelled trips allowed
+
+2️⃣ BACKEND LOGIC
+- Endpoint to submit dispute
+- Validate:
+  - Trip exists
+  - User participated in trip
+  - Trip status is COMPLETED or CANCELLED
+  - No duplicate dispute by same user
+- Default status = OPEN
+
+- Endpoint for Admin to:
+  - Update dispute status
+  - Add admin notes
+  - Mark resolved or rejected
+
+3️⃣ RIDER & DRIVER UI
+- In Trip Detail view:
+  - Show “Report an Issue” button (if eligible)
+- Simple form:
+  - Category dropdown
+  - Description textarea
+  - Submit button
+- After submission:
+  - Show dispute status
+  - Prevent re-submission
+
+4️⃣ ADMIN DASHBOARD
+Add a new “Disputes” tab:
+- List all disputes
+- Filters:
+  - Status
+  - Category
+  - Role
+- Dispute detail view:
+  - Trip summary
+  - Involved users
+  - Rating (if exists)
+  - Admin notes field
+  - Status update actions
+
+5️⃣ DIRECTOR VIEW
+- Directors can:
+  - View disputes list
+  - View dispute details
+- Directors CANNOT:
+  - Change status
+  - Add notes
+  - Perform any actions
+
+6️⃣ SYSTEM RULES
+- No auto refunds
+- No auto penalties
+- Disputes do NOT modify payments or ratings (manual only for now)
+- No external messaging
+
+7️⃣ VERIFICATION CHECKLIST
+- Rider can submit dispute
+- Driver can submit dispute
+- Duplicate disputes are blocked
+- Admin can review and resolve
+- Directors see read-only data
+- Existing flows remain unaffected
+
+CREATE CHECKPOINT:
+"Phase 9 — Disputes & Moderation Stable"
+
+DO NOT PUBLISH.

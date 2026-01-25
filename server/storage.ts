@@ -8,6 +8,7 @@ import {
   payoutTransactions,
   notifications,
   ratings,
+  disputes,
   type UserRole, 
   type InsertUserRole,
   type DriverProfile,
@@ -23,7 +24,10 @@ import {
   type Notification,
   type InsertNotification,
   type Rating,
-  type InsertRating
+  type InsertRating,
+  type Dispute,
+  type InsertDispute,
+  type UpdateDispute
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte } from "drizzle-orm";
@@ -108,6 +112,14 @@ export interface IStorage {
   getTripRatings(tripId: string): Promise<Rating[]>;
   getAllRatings(): Promise<any[]>;
   updateUserAverageRating(userId: string, role: "driver" | "rider"): Promise<void>;
+
+  createDispute(data: InsertDispute): Promise<Dispute>;
+  getDisputeByTripAndUser(tripId: string, userId: string): Promise<Dispute | null>;
+  getDisputeById(disputeId: string): Promise<any | null>;
+  getAllDisputes(): Promise<any[]>;
+  getFilteredDisputes(filter: { status?: string; category?: string; raisedByRole?: string }): Promise<any[]>;
+  updateDispute(disputeId: string, data: UpdateDispute): Promise<Dispute | null>;
+  getTripDisputes(tripId: string): Promise<Dispute[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -938,6 +950,116 @@ export class DatabaseStorage implements IStorage {
         .set({ averageRating, totalRatings })
         .where(eq(riderProfiles.userId, userId));
     }
+  }
+
+  async createDispute(data: InsertDispute): Promise<Dispute> {
+    const [dispute] = await db.insert(disputes).values(data).returning();
+    return dispute;
+  }
+
+  async getDisputeByTripAndUser(tripId: string, userId: string): Promise<Dispute | null> {
+    const [dispute] = await db
+      .select()
+      .from(disputes)
+      .where(and(eq(disputes.tripId, tripId), eq(disputes.raisedById, userId)));
+    return dispute || null;
+  }
+
+  async getDisputeById(disputeId: string): Promise<any | null> {
+    const [dispute] = await db.select().from(disputes).where(eq(disputes.id, disputeId));
+    if (!dispute) return null;
+    
+    const [raisedByUser] = await db.select().from(users).where(eq(users.id, dispute.raisedById));
+    const [againstUser] = await db.select().from(users).where(eq(users.id, dispute.againstUserId));
+    const [trip] = await db.select().from(trips).where(eq(trips.id, dispute.tripId));
+    
+    return {
+      ...dispute,
+      raisedByName: raisedByUser ? `${raisedByUser.firstName || ""} ${raisedByUser.lastName || ""}`.trim() || "Unknown" : "Unknown",
+      againstUserName: againstUser ? `${againstUser.firstName || ""} ${againstUser.lastName || ""}`.trim() || "Unknown" : "Unknown",
+      tripPickup: trip?.pickupLocation,
+      tripDropoff: trip?.dropoffLocation,
+      tripStatus: trip?.status,
+    };
+  }
+
+  async getAllDisputes(): Promise<any[]> {
+    const allDisputes = await db.select().from(disputes).orderBy(desc(disputes.createdAt));
+    
+    const disputesWithDetails = await Promise.all(
+      allDisputes.map(async (dispute) => {
+        const [raisedByUser] = await db.select().from(users).where(eq(users.id, dispute.raisedById));
+        const [againstUser] = await db.select().from(users).where(eq(users.id, dispute.againstUserId));
+        const [trip] = await db.select().from(trips).where(eq(trips.id, dispute.tripId));
+        
+        return {
+          ...dispute,
+          raisedByName: raisedByUser ? `${raisedByUser.firstName || ""} ${raisedByUser.lastName || ""}`.trim() || "Unknown" : "Unknown",
+          againstUserName: againstUser ? `${againstUser.firstName || ""} ${againstUser.lastName || ""}`.trim() || "Unknown" : "Unknown",
+          tripPickup: trip?.pickupLocation,
+          tripDropoff: trip?.dropoffLocation,
+          tripStatus: trip?.status,
+        };
+      })
+    );
+    
+    return disputesWithDetails;
+  }
+
+  async getFilteredDisputes(filter: { status?: string; category?: string; raisedByRole?: string }): Promise<any[]> {
+    let query = db.select().from(disputes);
+    const conditions = [];
+    
+    if (filter.status) {
+      conditions.push(eq(disputes.status, filter.status as any));
+    }
+    if (filter.category) {
+      conditions.push(eq(disputes.category, filter.category as any));
+    }
+    if (filter.raisedByRole) {
+      conditions.push(eq(disputes.raisedByRole, filter.raisedByRole as any));
+    }
+    
+    const filteredDisputes = conditions.length > 0
+      ? await db.select().from(disputes).where(and(...conditions)).orderBy(desc(disputes.createdAt))
+      : await db.select().from(disputes).orderBy(desc(disputes.createdAt));
+    
+    const disputesWithDetails = await Promise.all(
+      filteredDisputes.map(async (dispute) => {
+        const [raisedByUser] = await db.select().from(users).where(eq(users.id, dispute.raisedById));
+        const [againstUser] = await db.select().from(users).where(eq(users.id, dispute.againstUserId));
+        const [trip] = await db.select().from(trips).where(eq(trips.id, dispute.tripId));
+        
+        return {
+          ...dispute,
+          raisedByName: raisedByUser ? `${raisedByUser.firstName || ""} ${raisedByUser.lastName || ""}`.trim() || "Unknown" : "Unknown",
+          againstUserName: againstUser ? `${againstUser.firstName || ""} ${againstUser.lastName || ""}`.trim() || "Unknown" : "Unknown",
+          tripPickup: trip?.pickupLocation,
+          tripDropoff: trip?.dropoffLocation,
+          tripStatus: trip?.status,
+        };
+      })
+    );
+    
+    return disputesWithDetails;
+  }
+
+  async updateDispute(disputeId: string, data: UpdateDispute): Promise<Dispute | null> {
+    const updateData: any = { ...data };
+    if (data.status === "resolved" || data.status === "rejected") {
+      updateData.resolvedAt = new Date();
+    }
+    
+    const [dispute] = await db
+      .update(disputes)
+      .set(updateData)
+      .where(eq(disputes.id, disputeId))
+      .returning();
+    return dispute || null;
+  }
+
+  async getTripDisputes(tripId: string): Promise<Dispute[]> {
+    return await db.select().from(disputes).where(eq(disputes.tripId, tripId));
   }
 }
 

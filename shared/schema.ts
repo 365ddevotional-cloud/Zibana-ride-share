@@ -16,6 +16,9 @@ export const payoutStatusEnum = pgEnum("payout_status", ["pending", "paid"]);
 export const notificationTypeEnum = pgEnum("notification_type", ["info", "success", "warning"]);
 export const notificationRoleEnum = pgEnum("notification_role", ["admin", "director", "driver", "rider"]);
 export const raterRoleEnum = pgEnum("rater_role", ["rider", "driver"]);
+export const disputeCategoryEnum = pgEnum("dispute_category", ["fare", "behavior", "cancellation", "other"]);
+export const disputeStatusEnum = pgEnum("dispute_status", ["open", "under_review", "resolved", "rejected"]);
+export const disputeRaisedByEnum = pgEnum("dispute_raised_by", ["rider", "driver"]);
 
 // User roles table - maps users to their roles
 export const userRoles = pgTable("user_roles", {
@@ -123,6 +126,21 @@ export const notifications = pgTable("notifications", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Disputes table
+export const disputes = pgTable("disputes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tripId: varchar("trip_id").notNull(),
+  raisedByRole: disputeRaisedByEnum("raised_by_role").notNull(),
+  raisedById: varchar("raised_by_id").notNull(),
+  againstUserId: varchar("against_user_id").notNull(),
+  category: disputeCategoryEnum("category").notNull(),
+  description: varchar("description", { length: 500 }).notNull(),
+  status: disputeStatusEnum("status").notNull().default("open"),
+  adminNotes: text("admin_notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  resolvedAt: timestamp("resolved_at"),
+});
+
 // Relations
 export const userRolesRelations = relations(userRoles, ({ one }) => ({
   // Relations defined for clarity
@@ -214,6 +232,25 @@ export const insertRatingSchema = createInsertSchema(ratings).omit({
   createdAt: true,
 });
 
+export const insertDisputeSchema = createInsertSchema(disputes).omit({
+  id: true,
+  createdAt: true,
+  resolvedAt: true,
+  status: true,
+  adminNotes: true,
+});
+
+export const updateDisputeSchema = createInsertSchema(disputes).omit({
+  id: true,
+  createdAt: true,
+  tripId: true,
+  raisedByRole: true,
+  raisedById: true,
+  againstUserId: true,
+  category: true,
+  description: true,
+}).partial();
+
 // Update schemas
 export const updateDriverProfileSchema = createInsertSchema(driverProfiles).omit({
   id: true,
@@ -249,6 +286,10 @@ export type Notification = typeof notifications.$inferSelect;
 export type InsertRating = z.infer<typeof insertRatingSchema>;
 export type Rating = typeof ratings.$inferSelect;
 
+export type InsertDispute = z.infer<typeof insertDisputeSchema>;
+export type UpdateDispute = z.infer<typeof updateDisputeSchema>;
+export type Dispute = typeof disputes.$inferSelect;
+
 // Extended types for frontend
 export type TripWithDetails = Trip & {
   driverName?: string;
@@ -265,4 +306,12 @@ export type PayoutTransactionWithDetails = PayoutTransaction & {
 
 export type DirectorWithUser = DirectorProfile & {
   email?: string;
+};
+
+export type DisputeWithDetails = Dispute & {
+  raisedByName?: string;
+  againstUserName?: string;
+  tripPickup?: string;
+  tripDropoff?: string;
+  tripStatus?: string;
 };
