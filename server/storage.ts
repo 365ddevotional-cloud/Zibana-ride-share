@@ -6,6 +6,7 @@ import {
   trips,
   users,
   payoutTransactions,
+  notifications,
   type UserRole, 
   type InsertUserRole,
   type DriverProfile,
@@ -17,7 +18,9 @@ import {
   type Trip,
   type InsertTrip,
   type PayoutTransaction,
-  type InsertPayoutTransaction
+  type InsertPayoutTransaction,
+  type Notification,
+  type InsertNotification
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum } from "drizzle-orm";
@@ -75,6 +78,14 @@ export interface IStorage {
   createDirectorProfile(data: InsertDirectorProfile): Promise<DirectorProfile>;
   getAllDirectorsWithDetails(): Promise<any[]>;
   getDirectorCount(): Promise<number>;
+
+  createNotification(data: InsertNotification): Promise<Notification>;
+  getUserNotifications(userId: string): Promise<Notification[]>;
+  getUnreadNotificationCount(userId: string): Promise<number>;
+  markNotificationAsRead(notificationId: string, userId: string): Promise<Notification | null>;
+  markAllNotificationsAsRead(userId: string): Promise<void>;
+  notifyAllDrivers(title: string, message: string, type?: "info" | "success" | "warning"): Promise<void>;
+  notifyAdminsAndDirectors(title: string, message: string, type?: "info" | "success" | "warning"): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -610,6 +621,89 @@ export class DatabaseStorage implements IStorage {
       .from(userRoles)
       .where(eq(userRoles.role, "director"));
     return result?.count || 0;
+  }
+
+  async createNotification(data: InsertNotification): Promise<Notification> {
+    const [notification] = await db.insert(notifications).values(data).returning();
+    return notification;
+  }
+
+  async getUserNotifications(userId: string): Promise<Notification[]> {
+    return await db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.userId, userId))
+      .orderBy(desc(notifications.createdAt))
+      .limit(50);
+  }
+
+  async getUnreadNotificationCount(userId: string): Promise<number> {
+    const [result] = await db
+      .select({ count: count() })
+      .from(notifications)
+      .where(
+        and(
+          eq(notifications.userId, userId),
+          eq(notifications.read, false)
+        )
+      );
+    return result?.count || 0;
+  }
+
+  async markNotificationAsRead(notificationId: string, userId: string): Promise<Notification | null> {
+    const [notification] = await db
+      .update(notifications)
+      .set({ read: true })
+      .where(
+        and(
+          eq(notifications.id, notificationId),
+          eq(notifications.userId, userId)
+        )
+      )
+      .returning();
+    return notification || null;
+  }
+
+  async markAllNotificationsAsRead(userId: string): Promise<void> {
+    await db
+      .update(notifications)
+      .set({ read: true })
+      .where(
+        and(
+          eq(notifications.userId, userId),
+          eq(notifications.read, false)
+        )
+      );
+  }
+
+  async notifyAllDrivers(title: string, message: string, type: "info" | "success" | "warning" = "info"): Promise<void> {
+    const allDrivers = await db.select().from(driverProfiles);
+    for (const driver of allDrivers) {
+      await this.createNotification({
+        userId: driver.userId,
+        role: "driver",
+        title,
+        message,
+        type,
+      });
+    }
+  }
+
+  async notifyAdminsAndDirectors(title: string, message: string, type: "info" | "success" | "warning" = "info"): Promise<void> {
+    const adminRoles = await db
+      .select()
+      .from(userRoles)
+      .where(or(eq(userRoles.role, "admin"), eq(userRoles.role, "director")));
+    
+    for (const role of adminRoles) {
+      await this.createNotification({
+        userId: role.userId,
+        role: role.role as "admin" | "director",
+        title,
+        message,
+        type,
+      });
+    }
   }
 }
 
