@@ -40,7 +40,10 @@ import {
   Star,
   AlertTriangle,
   CreditCard,
-  ArrowLeftRight
+  ArrowLeftRight,
+  BarChart3,
+  Download,
+  Calendar
 } from "lucide-react";
 import type { DriverProfile, Trip, User } from "@shared/schema";
 import { NotificationBell } from "@/components/notification-bell";
@@ -221,6 +224,22 @@ type ReconciliationWithDetails = {
   reconciledByName?: string;
 };
 
+type AnalyticsOverview = {
+  trips: { total: number; completed: number; cancelled: number };
+  revenue: { grossFares: string; commission: string; driverEarnings: string; netRevenue: string };
+  refunds: { total: number; totalAmount: string };
+  chargebacks: { total: number; won: number; lost: number; pending: number };
+  wallets: { totalBalance: string; lockedBalance: string; availableBalance: string };
+  payouts: { processed: number; pending: number; failed: number; totalProcessed: string };
+};
+
+type RevenueDataPoint = {
+  date: string;
+  grossFares: string;
+  commission: string;
+  driverEarnings: string;
+};
+
 interface AdminDashboardProps {
   userRole?: "admin" | "director";
 }
@@ -231,6 +250,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("drivers");
+  const [analyticsRange, setAnalyticsRange] = useState("30d");
   
   const [tripStatusFilter, setTripStatusFilter] = useState("");
   const [tripStartDate, setTripStartDate] = useState("");
@@ -367,6 +387,48 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
   });
 
   const pendingWalletPayouts = walletPayouts.filter(p => p.status === "pending" || p.status === "processing");
+
+  // Phase 12 - Analytics queries
+  const { data: analyticsOverview, isLoading: analyticsLoading } = useQuery<AnalyticsOverview>({
+    queryKey: ["/api/analytics/overview", analyticsRange],
+    queryFn: async () => {
+      const res = await fetch(`/api/analytics/overview?range=${analyticsRange}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch analytics");
+      return res.json();
+    },
+    enabled: !!user && !isDirector,
+  });
+
+  const { data: revenueData = [] } = useQuery<RevenueDataPoint[]>({
+    queryKey: ["/api/analytics/revenue", analyticsRange],
+    queryFn: async () => {
+      const res = await fetch(`/api/analytics/revenue?range=${analyticsRange}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch revenue analytics");
+      return res.json();
+    },
+    enabled: !!user && !isDirector && activeTab === "reports",
+  });
+
+  const handleExportCSV = async (type: string) => {
+    try {
+      const res = await fetch(`/api/reports/export?type=${type}&range=${analyticsRange}&format=csv`, { 
+        credentials: "include" 
+      });
+      if (!res.ok) throw new Error("Export failed");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${type}_report_${new Date().toISOString().split("T")[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      toast({ title: "Export successful", description: `${type} report downloaded` });
+    } catch (error) {
+      toast({ title: "Export failed", description: "Could not generate report", variant: "destructive" });
+    }
+  };
 
   const updateDriverStatusMutation = useMutation({
     mutationFn: async ({ driverId, status }: { driverId: string; status: string }) => {
@@ -975,6 +1037,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <TabsTrigger value="directors" data-testid="tab-directors">
                 <Briefcase className="h-4 w-4 mr-2" />
                 Directors
+              </TabsTrigger>
+            )}
+            {!isDirector && (
+              <TabsTrigger value="reports" data-testid="tab-reports">
+                <BarChart3 className="h-4 w-4 mr-2" />
+                Reports
               </TabsTrigger>
             )}
           </TabsList>
@@ -2749,6 +2817,273 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                   )}
                 </CardContent>
               </Card>
+            </TabsContent>
+          )}
+
+          {!isDirector && (
+            <TabsContent value="reports">
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                      <div>
+                        <CardTitle className="flex items-center gap-2">
+                          <BarChart3 className="h-5 w-5" />
+                          Financial Analytics & Reports
+                        </CardTitle>
+                        <CardDescription>
+                          Financial visibility for admin and finance teams
+                        </CardDescription>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Select value={analyticsRange} onValueChange={setAnalyticsRange}>
+                          <SelectTrigger className="w-[140px]" data-testid="select-analytics-range">
+                            <Calendar className="h-4 w-4 mr-2" />
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="today">Today</SelectItem>
+                            <SelectItem value="7d">Last 7 Days</SelectItem>
+                            <SelectItem value="30d">Last 30 Days</SelectItem>
+                            <SelectItem value="90d">Last 90 Days</SelectItem>
+                            <SelectItem value="all">All Time</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {analyticsLoading ? (
+                      <div className="py-8 text-center text-muted-foreground">
+                        Loading analytics...
+                      </div>
+                    ) : !analyticsOverview ? (
+                      <EmptyState
+                        icon={BarChart3}
+                        title="No data available"
+                        description="Analytics will appear as trips are completed"
+                      />
+                    ) : (
+                      <div className="space-y-6">
+                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                          <Card>
+                            <CardHeader className="pb-2">
+                              <CardDescription>Total Trips</CardDescription>
+                              <CardTitle className="text-2xl" data-testid="text-analytics-total-trips">
+                                {analyticsOverview.trips.total}
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="text-xs text-muted-foreground">
+                                <span className="text-green-600">{analyticsOverview.trips.completed} completed</span>
+                                {" / "}
+                                <span className="text-red-600">{analyticsOverview.trips.cancelled} cancelled</span>
+                              </div>
+                            </CardContent>
+                          </Card>
+                          
+                          <Card>
+                            <CardHeader className="pb-2">
+                              <CardDescription>Gross Revenue</CardDescription>
+                              <CardTitle className="text-2xl text-green-600" data-testid="text-analytics-gross-revenue">
+                                ${analyticsOverview.revenue.grossFares}
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="text-xs text-muted-foreground">
+                                From completed trips
+                              </div>
+                            </CardContent>
+                          </Card>
+                          
+                          <Card>
+                            <CardHeader className="pb-2">
+                              <CardDescription>ZIBA Commission</CardDescription>
+                              <CardTitle className="text-2xl text-primary" data-testid="text-analytics-commission">
+                                ${analyticsOverview.revenue.commission}
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="text-xs text-muted-foreground">
+                                Platform earnings (20%)
+                              </div>
+                            </CardContent>
+                          </Card>
+                          
+                          <Card>
+                            <CardHeader className="pb-2">
+                              <CardDescription>Driver Earnings</CardDescription>
+                              <CardTitle className="text-2xl text-blue-600" data-testid="text-analytics-driver-earnings">
+                                ${analyticsOverview.revenue.driverEarnings}
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="text-xs text-muted-foreground">
+                                Total driver payouts (80%)
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </div>
+
+                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                          <Card>
+                            <CardHeader className="pb-2">
+                              <CardDescription>Refunds</CardDescription>
+                              <CardTitle className="text-xl">
+                                {analyticsOverview.refunds.total} refunds
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="text-sm text-muted-foreground">
+                                Total: <span className="font-medium text-red-600">${analyticsOverview.refunds.totalAmount}</span>
+                              </div>
+                            </CardContent>
+                          </Card>
+                          
+                          <Card>
+                            <CardHeader className="pb-2">
+                              <CardDescription>Chargebacks</CardDescription>
+                              <CardTitle className="text-xl">
+                                {analyticsOverview.chargebacks.total} total
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="text-xs space-x-2">
+                                <span className="text-green-600">{analyticsOverview.chargebacks.won} won</span>
+                                <span className="text-red-600">{analyticsOverview.chargebacks.lost} lost</span>
+                                <span className="text-yellow-600">{analyticsOverview.chargebacks.pending} pending</span>
+                              </div>
+                            </CardContent>
+                          </Card>
+                          
+                          <Card>
+                            <CardHeader className="pb-2">
+                              <CardDescription>Wallet Payouts</CardDescription>
+                              <CardTitle className="text-xl">
+                                ${analyticsOverview.payouts.totalProcessed}
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="text-xs space-x-2">
+                                <span className="text-green-600">{analyticsOverview.payouts.processed} paid</span>
+                                <span className="text-yellow-600">{analyticsOverview.payouts.pending} pending</span>
+                                <span className="text-red-600">{analyticsOverview.payouts.failed} failed</span>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </div>
+
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="text-lg">Driver Wallet Balances</CardTitle>
+                            <CardDescription>Overview of driver earnings held in wallets</CardDescription>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="grid gap-4 md:grid-cols-3">
+                              <div className="text-center p-4 bg-muted rounded-lg">
+                                <div className="text-sm text-muted-foreground">Total Balance</div>
+                                <div className="text-2xl font-bold">${analyticsOverview.wallets.totalBalance}</div>
+                              </div>
+                              <div className="text-center p-4 bg-muted rounded-lg">
+                                <div className="text-sm text-muted-foreground">Available</div>
+                                <div className="text-2xl font-bold text-green-600">${analyticsOverview.wallets.availableBalance}</div>
+                              </div>
+                              <div className="text-center p-4 bg-muted rounded-lg">
+                                <div className="text-sm text-muted-foreground">Locked (Pending)</div>
+                                <div className="text-2xl font-bold text-yellow-600">${analyticsOverview.wallets.lockedBalance}</div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        {revenueData.length > 0 && (
+                          <Card>
+                            <CardHeader>
+                              <CardTitle className="text-lg">Revenue Over Time</CardTitle>
+                              <CardDescription>Daily revenue breakdown</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="overflow-x-auto">
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow>
+                                      <TableHead>Date</TableHead>
+                                      <TableHead className="text-right">Gross Fares</TableHead>
+                                      <TableHead className="text-right">Commission</TableHead>
+                                      <TableHead className="text-right">Driver Earnings</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {revenueData.map((row, idx) => (
+                                      <TableRow key={idx}>
+                                        <TableCell>{row.date}</TableCell>
+                                        <TableCell className="text-right">${parseFloat(row.grossFares).toFixed(2)}</TableCell>
+                                        <TableCell className="text-right">${parseFloat(row.commission).toFixed(2)}</TableCell>
+                                        <TableCell className="text-right">${parseFloat(row.driverEarnings).toFixed(2)}</TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )}
+
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="text-lg">Export Reports</CardTitle>
+                            <CardDescription>Download financial data as CSV for accounting</CardDescription>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                variant="outline"
+                                onClick={() => handleExportCSV("overview")}
+                                data-testid="button-export-overview"
+                              >
+                                <Download className="h-4 w-4 mr-2" />
+                                Overview
+                              </Button>
+                              <Button
+                                variant="outline"
+                                onClick={() => handleExportCSV("trips")}
+                                data-testid="button-export-trips"
+                              >
+                                <Download className="h-4 w-4 mr-2" />
+                                Trips
+                              </Button>
+                              <Button
+                                variant="outline"
+                                onClick={() => handleExportCSV("revenue")}
+                                data-testid="button-export-revenue"
+                              >
+                                <Download className="h-4 w-4 mr-2" />
+                                Revenue
+                              </Button>
+                              <Button
+                                variant="outline"
+                                onClick={() => handleExportCSV("payouts")}
+                                data-testid="button-export-payouts"
+                              >
+                                <Download className="h-4 w-4 mr-2" />
+                                Payouts
+                              </Button>
+                              <Button
+                                variant="outline"
+                                onClick={() => handleExportCSV("refunds")}
+                                data-testid="button-export-refunds"
+                              >
+                                <Download className="h-4 w-4 mr-2" />
+                                Refunds
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
             </TabsContent>
           )}
         </Tabs>
