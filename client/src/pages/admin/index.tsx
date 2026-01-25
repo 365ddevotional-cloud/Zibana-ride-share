@@ -113,6 +113,43 @@ type DisputeWithDetails = {
   tripStatus?: string;
 };
 
+type RefundWithDetails = {
+  id: string;
+  tripId: string;
+  riderId: string;
+  driverId?: string;
+  amount: string;
+  type: "full" | "partial" | "adjustment";
+  status: string;
+  reason: string;
+  createdByRole: string;
+  createdByUserId: string;
+  approvedByUserId?: string;
+  processedByUserId?: string;
+  linkedDisputeId?: string;
+  createdAt: string;
+  updatedAt: string;
+  riderName?: string;
+  driverName?: string;
+  tripPickup?: string;
+  tripDropoff?: string;
+  tripStatus?: string;
+  createdByName?: string;
+  approvedByName?: string;
+  processedByName?: string;
+};
+
+type AuditLogEntry = {
+  id: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  performedByUserId: string;
+  performedByRole: string;
+  metadata?: string;
+  createdAt: string;
+};
+
 interface AdminDashboardProps {
   userRole?: "admin" | "director";
 }
@@ -337,6 +374,116 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
     },
   });
 
+  // Refund state and queries
+  const [refundStatusFilter, setRefundStatusFilter] = useState<string>("");
+  const [selectedRefund, setSelectedRefund] = useState<RefundWithDetails | null>(null);
+  const [refundAuditLogs, setRefundAuditLogs] = useState<AuditLogEntry[]>([]);
+
+  const { data: allRefunds = [], isLoading: refundsLoading } = useQuery<RefundWithDetails[]>({
+    queryKey: ["/api/refunds", refundStatusFilter],
+    queryFn: async () => {
+      const params = refundStatusFilter ? `?status=${refundStatusFilter}` : "";
+      const res = await fetch(`/api/refunds${params}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch refunds");
+      return res.json();
+    },
+    enabled: !!user,
+  });
+
+  const pendingRefunds = allRefunds.filter(r => r.status === "pending");
+
+  const fetchRefundAudit = async (refundId: string) => {
+    try {
+      const res = await fetch(`/api/refunds/${refundId}/audit`, { credentials: "include" });
+      if (res.ok) {
+        const logs = await res.json();
+        setRefundAuditLogs(logs);
+      }
+    } catch (error) {
+      console.error("Failed to fetch audit logs:", error);
+    }
+  };
+
+  const approveRefundMutation = useMutation({
+    mutationFn: async (refundId: string) => {
+      const response = await apiRequest("POST", "/api/refunds/approve", { refundId });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/refunds"] });
+      setSelectedRefund(null);
+      toast({ title: "Refund approved", description: "The refund has been approved" });
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({ title: "Session expired", description: "Please log in again", variant: "destructive" });
+        setTimeout(() => { window.location.href = "/api/login"; }, 500);
+        return;
+      }
+      toast({ title: "Error", description: error.message || "Failed to approve refund", variant: "destructive" });
+    },
+  });
+
+  const rejectRefundMutation = useMutation({
+    mutationFn: async ({ refundId, reason }: { refundId: string; reason?: string }) => {
+      const response = await apiRequest("POST", "/api/refunds/reject", { refundId, reason });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/refunds"] });
+      setSelectedRefund(null);
+      toast({ title: "Refund rejected", description: "The refund has been rejected" });
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({ title: "Session expired", description: "Please log in again", variant: "destructive" });
+        setTimeout(() => { window.location.href = "/api/login"; }, 500);
+        return;
+      }
+      toast({ title: "Error", description: error.message || "Failed to reject refund", variant: "destructive" });
+    },
+  });
+
+  const processRefundMutation = useMutation({
+    mutationFn: async (refundId: string) => {
+      const response = await apiRequest("POST", "/api/refunds/process", { refundId });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/refunds"] });
+      setSelectedRefund(null);
+      toast({ title: "Refund processed", description: "The refund has been processed" });
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({ title: "Session expired", description: "Please log in again", variant: "destructive" });
+        setTimeout(() => { window.location.href = "/api/login"; }, 500);
+        return;
+      }
+      toast({ title: "Error", description: error.message || "Failed to process refund", variant: "destructive" });
+    },
+  });
+
+  const reverseRefundMutation = useMutation({
+    mutationFn: async ({ refundId, reason }: { refundId: string; reason?: string }) => {
+      const response = await apiRequest("POST", "/api/refunds/reverse", { refundId, reason });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/refunds"] });
+      setSelectedRefund(null);
+      toast({ title: "Refund reversed", description: "The refund has been reversed" });
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({ title: "Session expired", description: "Please log in again", variant: "destructive" });
+        setTimeout(() => { window.location.href = "/api/login"; }, 500);
+        return;
+      }
+      toast({ title: "Error", description: error.message || "Failed to reverse refund", variant: "destructive" });
+    },
+  });
+
   useEffect(() => {
     if (!authLoading && !user) {
       setLocation("/");
@@ -540,6 +687,15 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               {openDisputes.length > 0 && (
                 <span className="ml-2 bg-orange-500 text-white text-xs rounded-full px-2 py-0.5">
                   {openDisputes.length}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="refunds" data-testid="tab-refunds">
+              <DollarSign className="h-4 w-4 mr-2" />
+              Refunds
+              {pendingRefunds.length > 0 && (
+                <span className="ml-2 bg-yellow-500 text-white text-xs rounded-full px-2 py-0.5">
+                  {pendingRefunds.length}
                 </span>
               )}
             </TabsTrigger>
@@ -1254,6 +1410,263 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                   {isDirector && (
                     <div className="text-sm text-muted-foreground italic">
                       Directors have read-only access to disputes.
+                    </div>
+                  )}
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
+
+          <TabsContent value="refunds">
+            <Card>
+              <CardHeader>
+                <CardTitle>Refund Queue</CardTitle>
+                <CardDescription>
+                  Review and process refund requests
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-3 mb-4">
+                  <Select value={refundStatusFilter} onValueChange={setRefundStatusFilter}>
+                    <SelectTrigger className="w-40" data-testid="select-refund-status-filter">
+                      <SelectValue placeholder="All Statuses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="approved">Approved</SelectItem>
+                      <SelectItem value="rejected">Rejected</SelectItem>
+                      <SelectItem value="processed">Processed</SelectItem>
+                      <SelectItem value="reversed">Reversed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {refundStatusFilter && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setRefundStatusFilter("")}
+                      data-testid="button-clear-refund-filters"
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Clear
+                    </Button>
+                  )}
+                </div>
+                {refundsLoading ? (
+                  <div className="py-8 text-center text-muted-foreground">
+                    Loading refunds...
+                  </div>
+                ) : allRefunds.length === 0 ? (
+                  <EmptyState
+                    icon={DollarSign}
+                    title="No refunds found"
+                    description="Refund requests will appear here"
+                  />
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Amount</TableHead>
+                          <TableHead>Rider</TableHead>
+                          <TableHead>Trip</TableHead>
+                          <TableHead>Created By</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {allRefunds.map((refund) => (
+                          <TableRow key={refund.id} data-testid={`row-refund-${refund.id}`}>
+                            <TableCell>
+                              <StatusBadge status={refund.status as any} />
+                            </TableCell>
+                            <TableCell className="capitalize">{refund.type}</TableCell>
+                            <TableCell className="font-medium">${refund.amount}</TableCell>
+                            <TableCell>{refund.riderName}</TableCell>
+                            <TableCell>
+                              <span className="text-sm truncate max-w-32 block">
+                                {refund.tripPickup} → {refund.tripDropoff}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-xs text-muted-foreground capitalize">{refund.createdByRole}: </span>
+                              {refund.createdByName}
+                            </TableCell>
+                            <TableCell>
+                              {new Date(refund.createdAt).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedRefund(refund);
+                                  fetchRefundAudit(refund.id);
+                                }}
+                                data-testid={`button-view-refund-${refund.id}`}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <Dialog open={!!selectedRefund} onOpenChange={(open) => { if (!open) { setSelectedRefund(null); setRefundAuditLogs([]); } }}>
+            <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto" data-testid="modal-refund-detail">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <DollarSign className="h-5 w-5 text-green-500" />
+                  Refund Details
+                </DialogTitle>
+                <DialogDescription>
+                  Review and manage this refund request
+                </DialogDescription>
+              </DialogHeader>
+              {selectedRefund && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Status</p>
+                      <StatusBadge status={selectedRefund.status as any} />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Type</p>
+                      <p className="capitalize font-medium">{selectedRefund.type}</p>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Amount</p>
+                    <p className="text-xl font-bold text-green-600">${selectedRefund.amount}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Rider</p>
+                      <p className="font-medium">{selectedRefund.riderName}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Driver</p>
+                      <p className="font-medium">{selectedRefund.driverName || "N/A"}</p>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Trip</p>
+                    <p className="font-medium text-sm">{selectedRefund.tripPickup} → {selectedRefund.tripDropoff}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Reason</p>
+                    <p className="text-sm bg-muted p-3 rounded-md">{selectedRefund.reason}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Created By</p>
+                      <p className="font-medium">{selectedRefund.createdByName}</p>
+                      <p className="text-xs text-muted-foreground capitalize">({selectedRefund.createdByRole})</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Created</p>
+                      <p className="font-medium">{new Date(selectedRefund.createdAt).toLocaleString()}</p>
+                    </div>
+                  </div>
+                  {selectedRefund.approvedByName && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Approved By</p>
+                      <p className="font-medium">{selectedRefund.approvedByName}</p>
+                    </div>
+                  )}
+                  {selectedRefund.processedByName && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Processed By</p>
+                      <p className="font-medium">{selectedRefund.processedByName}</p>
+                    </div>
+                  )}
+
+                  {refundAuditLogs.length > 0 && (
+                    <div>
+                      <p className="text-sm font-medium mb-2">Audit Timeline</p>
+                      <div className="space-y-2 max-h-32 overflow-y-auto">
+                        {refundAuditLogs.map((log) => (
+                          <div key={log.id} className="flex items-start gap-2 text-sm border-l-2 border-muted pl-3 py-1">
+                            <div>
+                              <span className="capitalize font-medium">{log.action.replace(/_/g, " ")}</span>
+                              <span className="text-muted-foreground"> by {log.performedByRole}</span>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(log.createdAt).toLocaleString()}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {!isDirector && (
+                    <DialogFooter className="flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => { setSelectedRefund(null); setRefundAuditLogs([]); }}
+                        data-testid="button-close-refund"
+                      >
+                        Close
+                      </Button>
+                      {selectedRefund.status === "pending" && (
+                        <>
+                          <Button
+                            variant="default"
+                            className="bg-green-600 hover:bg-green-700"
+                            onClick={() => approveRefundMutation.mutate(selectedRefund.id)}
+                            disabled={approveRefundMutation.isPending}
+                            data-testid="button-approve-refund"
+                          >
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            Approve
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            onClick={() => rejectRefundMutation.mutate({ refundId: selectedRefund.id })}
+                            disabled={rejectRefundMutation.isPending}
+                            data-testid="button-reject-refund"
+                          >
+                            <XCircle className="h-4 w-4 mr-2" />
+                            Reject
+                          </Button>
+                        </>
+                      )}
+                      {selectedRefund.status === "approved" && (
+                        <Button
+                          variant="default"
+                          onClick={() => processRefundMutation.mutate(selectedRefund.id)}
+                          disabled={processRefundMutation.isPending}
+                          data-testid="button-process-refund"
+                        >
+                          <DollarSign className="h-4 w-4 mr-2" />
+                          Process Refund
+                        </Button>
+                      )}
+                      {selectedRefund.status === "processed" && (
+                        <Button
+                          variant="destructive"
+                          onClick={() => reverseRefundMutation.mutate({ refundId: selectedRefund.id })}
+                          disabled={reverseRefundMutation.isPending}
+                          data-testid="button-reverse-refund"
+                        >
+                          Reverse
+                        </Button>
+                      )}
+                    </DialogFooter>
+                  )}
+                  {isDirector && (
+                    <div className="text-sm text-muted-foreground italic">
+                      Directors have read-only access to refunds.
                     </div>
                   )}
                 </div>
