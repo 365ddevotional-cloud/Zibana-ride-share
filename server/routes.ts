@@ -2,7 +2,7 @@ import type { Express, RequestHandler } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { storage } from "./storage";
-import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema } from "@shared/schema";
+import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema } from "@shared/schema";
 import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, evaluateAllDrivers } from "./incentives";
 
 const requireRole = (allowedRoles: string[]): RequestHandler => {
@@ -2616,6 +2616,332 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error cancelling coordinator trip:", error);
       return res.status(500).json({ message: "Failed to cancel trip" });
+    }
+  });
+
+  // ========================================
+  // Phase 15 - Multi-Country Tax, Currency & Compliance
+  // ========================================
+
+  // Get all countries
+  app.get("/api/countries", isAuthenticated, requireRole(["admin", "finance"]), async (req: any, res) => {
+    try {
+      const countries = await storage.getAllCountries();
+      return res.json(countries);
+    } catch (error) {
+      console.error("Error fetching countries:", error);
+      return res.status(500).json({ message: "Failed to fetch countries" });
+    }
+  });
+
+  // Get active countries (for trip creation dropdown)
+  app.get("/api/countries/active", isAuthenticated, async (req: any, res) => {
+    try {
+      const countries = await storage.getActiveCountries();
+      return res.json(countries);
+    } catch (error) {
+      console.error("Error fetching active countries:", error);
+      return res.status(500).json({ message: "Failed to fetch active countries" });
+    }
+  });
+
+  // Create country
+  app.post("/api/countries", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const parsed = insertCountrySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid country data", errors: parsed.error.errors });
+      }
+
+      const existing = await storage.getCountryByCode(parsed.data.isoCode);
+      if (existing) {
+        return res.status(400).json({ message: "Country with this ISO code already exists" });
+      }
+
+      const country = await storage.createCountry(parsed.data);
+
+      await storage.createAuditLog({
+        action: "country_created",
+        entityType: "country",
+        entityId: country.id,
+        performedByUserId: userId,
+        performedByRole: "admin",
+        metadata: JSON.stringify({ name: country.name, isoCode: country.isoCode })
+      });
+
+      return res.status(201).json(country);
+    } catch (error) {
+      console.error("Error creating country:", error);
+      return res.status(500).json({ message: "Failed to create country" });
+    }
+  });
+
+  // Update country
+  app.patch("/api/countries/:countryId", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { countryId } = req.params;
+      const { name, currency, active } = req.body;
+
+      const country = await storage.getCountryById(countryId);
+      if (!country) {
+        return res.status(404).json({ message: "Country not found" });
+      }
+
+      const updated = await storage.updateCountry(countryId, { name, currency, active });
+
+      await storage.createAuditLog({
+        action: "country_updated",
+        entityType: "country",
+        entityId: countryId,
+        performedByUserId: userId,
+        performedByRole: "admin",
+        metadata: JSON.stringify({ name, currency, active })
+      });
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error updating country:", error);
+      return res.status(500).json({ message: "Failed to update country" });
+    }
+  });
+
+  // Get all tax rules
+  app.get("/api/tax-rules", isAuthenticated, requireRole(["admin", "finance"]), async (req: any, res) => {
+    try {
+      const { countryId } = req.query;
+      const rules = countryId 
+        ? await storage.getTaxRulesByCountry(countryId as string)
+        : await storage.getAllTaxRules();
+      return res.json(rules);
+    } catch (error) {
+      console.error("Error fetching tax rules:", error);
+      return res.status(500).json({ message: "Failed to fetch tax rules" });
+    }
+  });
+
+  // Create tax rule
+  app.post("/api/tax-rules", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const parsed = insertTaxRuleSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid tax rule data", errors: parsed.error.errors });
+      }
+
+      const country = await storage.getCountryById(parsed.data.countryId);
+      if (!country) {
+        return res.status(400).json({ message: "Country not found" });
+      }
+
+      const rule = await storage.createTaxRule(parsed.data);
+
+      await storage.createAuditLog({
+        action: "tax_rule_created",
+        entityType: "tax_rule",
+        entityId: rule.id,
+        performedByUserId: userId,
+        performedByRole: "admin",
+        metadata: JSON.stringify({ countryId: rule.countryId, taxType: rule.taxType, rate: rule.rate })
+      });
+
+      return res.status(201).json(rule);
+    } catch (error) {
+      console.error("Error creating tax rule:", error);
+      return res.status(500).json({ message: "Failed to create tax rule" });
+    }
+  });
+
+  // Update tax rule
+  app.patch("/api/tax-rules/:ruleId", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { ruleId } = req.params;
+      const { rate, effectiveTo, name } = req.body;
+
+      const rule = await storage.getTaxRuleById(ruleId);
+      if (!rule) {
+        return res.status(404).json({ message: "Tax rule not found" });
+      }
+
+      const updated = await storage.updateTaxRule(ruleId, { rate, effectiveTo, name });
+
+      await storage.createAuditLog({
+        action: "tax_rule_updated",
+        entityType: "tax_rule",
+        entityId: ruleId,
+        performedByUserId: userId,
+        performedByRole: "admin",
+        metadata: JSON.stringify({ rate, effectiveTo })
+      });
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error updating tax rule:", error);
+      return res.status(500).json({ message: "Failed to update tax rule" });
+    }
+  });
+
+  // Get all exchange rates
+  app.get("/api/exchange-rates", isAuthenticated, requireRole(["admin", "finance"]), async (req: any, res) => {
+    try {
+      const { base, target } = req.query;
+      if (base && target) {
+        const history = await storage.getExchangeRateHistory(base as string, target as string);
+        return res.json(history);
+      }
+      const rates = await storage.getAllExchangeRates();
+      return res.json(rates);
+    } catch (error) {
+      console.error("Error fetching exchange rates:", error);
+      return res.status(500).json({ message: "Failed to fetch exchange rates" });
+    }
+  });
+
+  // Create exchange rate
+  app.post("/api/exchange-rates", isAuthenticated, requireRole(["admin", "finance"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const parsed = insertExchangeRateSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid exchange rate data", errors: parsed.error.errors });
+      }
+
+      const rate = await storage.createExchangeRate(parsed.data);
+
+      await storage.createAuditLog({
+        action: "exchange_rate_created",
+        entityType: "exchange_rate",
+        entityId: rate.id,
+        performedByUserId: userId,
+        performedByRole: req.userRole,
+        metadata: JSON.stringify({ base: rate.baseCurrency, target: rate.targetCurrency, rate: rate.rate })
+      });
+
+      return res.status(201).json(rate);
+    } catch (error) {
+      console.error("Error creating exchange rate:", error);
+      return res.status(500).json({ message: "Failed to create exchange rate" });
+    }
+  });
+
+  // Get latest exchange rate for a pair
+  app.get("/api/exchange-rates/latest", isAuthenticated, async (req: any, res) => {
+    try {
+      const { base, target } = req.query;
+      if (!base || !target) {
+        return res.status(400).json({ message: "Base and target currencies are required" });
+      }
+      const rate = await storage.getLatestExchangeRate(base as string, target as string);
+      return res.json(rate);
+    } catch (error) {
+      console.error("Error fetching latest exchange rate:", error);
+      return res.status(500).json({ message: "Failed to fetch latest exchange rate" });
+    }
+  });
+
+  // Get all compliance profiles
+  app.get("/api/compliance", isAuthenticated, requireRole(["admin", "finance"]), async (req: any, res) => {
+    try {
+      const profiles = await storage.getAllComplianceProfiles();
+      return res.json(profiles);
+    } catch (error) {
+      console.error("Error fetching compliance profiles:", error);
+      return res.status(500).json({ message: "Failed to fetch compliance profiles" });
+    }
+  });
+
+  // Create compliance profile
+  app.post("/api/compliance", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const parsed = insertComplianceProfileSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid compliance profile data", errors: parsed.error.errors });
+      }
+
+      const existing = await storage.getComplianceProfileByCountry(parsed.data.countryId);
+      if (existing) {
+        return res.status(400).json({ message: "Compliance profile already exists for this country" });
+      }
+
+      const country = await storage.getCountryById(parsed.data.countryId);
+      if (!country) {
+        return res.status(400).json({ message: "Country not found" });
+      }
+
+      const profile = await storage.createComplianceProfile(parsed.data);
+
+      await storage.createAuditLog({
+        action: "compliance_profile_created",
+        entityType: "compliance_profile",
+        entityId: profile.id,
+        performedByUserId: userId,
+        performedByRole: "admin",
+        metadata: JSON.stringify({ countryId: profile.countryId, legalEntityName: profile.legalEntityName })
+      });
+
+      return res.status(201).json(profile);
+    } catch (error) {
+      console.error("Error creating compliance profile:", error);
+      return res.status(500).json({ message: "Failed to create compliance profile" });
+    }
+  });
+
+  // Update compliance profile
+  app.patch("/api/compliance/:profileId", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { profileId } = req.params;
+      const { legalEntityName, registrationId, taxId, notes } = req.body;
+
+      const allProfiles = await storage.getAllComplianceProfiles();
+      const found = allProfiles.find((p: any) => p.id === profileId);
+      if (!found) {
+        return res.status(404).json({ message: "Compliance profile not found" });
+      }
+
+      const updated = await storage.updateComplianceProfile(profileId, {
+        legalEntityName, registrationId, taxId, notes
+      });
+
+      await storage.createAuditLog({
+        action: "compliance_profile_updated",
+        entityType: "compliance_profile",
+        entityId: profileId,
+        performedByUserId: userId,
+        performedByRole: "admin",
+        metadata: JSON.stringify({ legalEntityName, notes })
+      });
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error updating compliance profile:", error);
+      return res.status(500).json({ message: "Failed to update compliance profile" });
+    }
+  });
+
+  // Get country analytics
+  app.get("/api/analytics/countries", isAuthenticated, requireRole(["admin", "finance"]), async (req: any, res) => {
+    try {
+      const { countryId } = req.query;
+      const analytics = await storage.getCountryAnalytics(countryId as string | undefined);
+      return res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching country analytics:", error);
+      return res.status(500).json({ message: "Failed to fetch country analytics" });
+    }
+  });
+
+  // Get compliance overview
+  app.get("/api/compliance/overview", isAuthenticated, requireRole(["admin", "finance"]), async (req: any, res) => {
+    try {
+      const overview = await storage.getComplianceOverview();
+      return res.json(overview);
+    } catch (error) {
+      console.error("Error fetching compliance overview:", error);
+      return res.status(500).json({ message: "Failed to fetch compliance overview" });
     }
   });
 

@@ -54,7 +54,11 @@ import {
   Award,
   Play,
   Pause,
-  StopCircle
+  StopCircle,
+  Globe,
+  Plus,
+  Percent,
+  Building
 } from "lucide-react";
 import type { DriverProfile, Trip, User } from "@shared/schema";
 import { NotificationBell } from "@/components/notification-bell";
@@ -617,6 +621,170 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
       return res.json();
     },
     enabled: !!user && !isDirector && !isTripCoordinator && activeTab === "incentives",
+  });
+
+  // Phase 15 - Countries, Tax Rules, Exchange Rates, Compliance
+  type CountryWithDetails = {
+    id: string;
+    name: string;
+    isoCode: string;
+    currency: string;
+    timezone: string;
+    active: boolean;
+    createdAt: string;
+    taxRulesCount: number;
+    activeTripsCount: number;
+    totalRevenue: string;
+  };
+
+  type TaxRuleWithDetails = {
+    id: string;
+    countryId: string;
+    name: string;
+    taxType: string;
+    rate: string;
+    appliesTo: string;
+    effectiveFrom: string;
+    effectiveTo: string | null;
+    countryName?: string;
+    countryCode?: string;
+  };
+
+  type ExchangeRateType = {
+    id: string;
+    baseCurrency: string;
+    targetCurrency: string;
+    rate: string;
+    source: string;
+    asOfDate: string;
+  };
+
+  type ComplianceOverviewType = {
+    totalCountries: number;
+    activeCountries: number;
+    taxRulesCount: number;
+    totalEstimatedTax: string;
+  };
+
+  const { data: countriesData = [], isLoading: countriesLoading } = useQuery<CountryWithDetails[]>({
+    queryKey: ["/api/countries"],
+    queryFn: async () => {
+      const res = await fetch("/api/countries", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch countries");
+      return res.json();
+    },
+    enabled: !!user && !isDirector && !isTripCoordinator && activeTab === "countries",
+  });
+
+  const { data: taxRulesData = [], isLoading: taxRulesLoading } = useQuery<TaxRuleWithDetails[]>({
+    queryKey: ["/api/tax-rules"],
+    queryFn: async () => {
+      const res = await fetch("/api/tax-rules", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch tax rules");
+      return res.json();
+    },
+    enabled: !!user && !isDirector && !isTripCoordinator && activeTab === "countries",
+  });
+
+  const { data: exchangeRatesData = [] } = useQuery<ExchangeRateType[]>({
+    queryKey: ["/api/exchange-rates"],
+    queryFn: async () => {
+      const res = await fetch("/api/exchange-rates", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch exchange rates");
+      return res.json();
+    },
+    enabled: !!user && !isDirector && !isTripCoordinator && activeTab === "countries",
+  });
+
+  const { data: complianceOverview } = useQuery<ComplianceOverviewType>({
+    queryKey: ["/api/compliance/overview"],
+    queryFn: async () => {
+      const res = await fetch("/api/compliance/overview", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch compliance overview");
+      return res.json();
+    },
+    enabled: !!user && !isDirector && !isTripCoordinator && activeTab === "countries",
+  });
+
+  const [showCreateCountryDialog, setShowCreateCountryDialog] = useState(false);
+  const [newCountry, setNewCountry] = useState({ name: "", isoCode: "", currency: "", timezone: "" });
+  const [showCreateTaxRuleDialog, setShowCreateTaxRuleDialog] = useState(false);
+  const [newTaxRule, setNewTaxRule] = useState({ countryId: "", name: "", taxType: "VAT" as string, rate: "", appliesTo: "FARE" as string, effectiveFrom: "" });
+  const [showCreateExchangeRateDialog, setShowCreateExchangeRateDialog] = useState(false);
+  const [newExchangeRate, setNewExchangeRate] = useState({ baseCurrency: "", targetCurrency: "", rate: "" });
+  const [countriesSubTab, setCountriesSubTab] = useState<"countries" | "taxes" | "rates">("countries");
+
+  const createCountryMutation = useMutation({
+    mutationFn: async (data: typeof newCountry) => {
+      const res = await apiRequest("POST", "/api/countries", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/countries"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/compliance/overview"] });
+      setShowCreateCountryDialog(false);
+      setNewCountry({ name: "", isoCode: "", currency: "", timezone: "" });
+      toast({ title: "Country created", description: "Country added successfully" });
+    },
+    onError: () => {
+      toast({ title: "Creation failed", description: "Could not create country", variant: "destructive" });
+    },
+  });
+
+  const createTaxRuleMutation = useMutation({
+    mutationFn: async (data: typeof newTaxRule) => {
+      const res = await apiRequest("POST", "/api/tax-rules", {
+        ...data,
+        effectiveFrom: new Date(data.effectiveFrom).toISOString(),
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tax-rules"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/countries"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/compliance/overview"] });
+      setShowCreateTaxRuleDialog(false);
+      setNewTaxRule({ countryId: "", name: "", taxType: "VAT", rate: "", appliesTo: "FARE", effectiveFrom: "" });
+      toast({ title: "Tax rule created", description: "Tax rule added successfully" });
+    },
+    onError: () => {
+      toast({ title: "Creation failed", description: "Could not create tax rule", variant: "destructive" });
+    },
+  });
+
+  const createExchangeRateMutation = useMutation({
+    mutationFn: async (data: typeof newExchangeRate) => {
+      const res = await apiRequest("POST", "/api/exchange-rates", {
+        ...data,
+        source: "MANUAL",
+        asOfDate: new Date().toISOString(),
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/exchange-rates"] });
+      setShowCreateExchangeRateDialog(false);
+      setNewExchangeRate({ baseCurrency: "", targetCurrency: "", rate: "" });
+      toast({ title: "Exchange rate created", description: "Exchange rate added successfully" });
+    },
+    onError: () => {
+      toast({ title: "Creation failed", description: "Could not create exchange rate", variant: "destructive" });
+    },
+  });
+
+  const toggleCountryMutation = useMutation({
+    mutationFn: async ({ countryId, active }: { countryId: string; active: boolean }) => {
+      const res = await apiRequest("PATCH", `/api/countries/${countryId}`, { active });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/countries"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/compliance/overview"] });
+      toast({ title: "Country updated", description: "Country status updated" });
+    },
+    onError: () => {
+      toast({ title: "Update failed", description: "Could not update country", variant: "destructive" });
+    },
   });
 
   const [showCreateProgramDialog, setShowCreateProgramDialog] = useState(false);
@@ -1364,6 +1532,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <TabsTrigger value="incentives" data-testid="tab-incentives">
                 <Gift className="h-4 w-4 mr-2" />
                 Incentives
+              </TabsTrigger>
+            )}
+            {!isDirector && !isTripCoordinator && (
+              <TabsTrigger value="countries" data-testid="tab-countries">
+                <Globe className="h-4 w-4 mr-2" />
+                Countries
               </TabsTrigger>
             )}
           </TabsList>
@@ -4026,6 +4200,452 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                       data-testid="button-confirm-revoke"
                     >
                       Revoke Earning
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </TabsContent>
+          )}
+
+          {/* Countries Tab - Phase 15 */}
+          {!isDirector && !isTripCoordinator && (
+            <TabsContent value="countries">
+              <div className="grid gap-4 md:grid-cols-4 mb-6">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Countries</CardTitle>
+                    <Globe className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{complianceOverview?.totalCountries || 0}</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Active Countries</CardTitle>
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{complianceOverview?.activeCountries || 0}</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Tax Rules</CardTitle>
+                    <Percent className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{complianceOverview?.taxRulesCount || 0}</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Estimated Tax</CardTitle>
+                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">${complianceOverview?.totalEstimatedTax || "0.00"}</div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="flex gap-2 mb-4">
+                <Button
+                  variant={countriesSubTab === "countries" ? "default" : "outline"}
+                  onClick={() => setCountriesSubTab("countries")}
+                  data-testid="button-subtab-countries"
+                >
+                  <Globe className="h-4 w-4 mr-2" />
+                  Countries
+                </Button>
+                <Button
+                  variant={countriesSubTab === "taxes" ? "default" : "outline"}
+                  onClick={() => setCountriesSubTab("taxes")}
+                  data-testid="button-subtab-taxes"
+                >
+                  <Percent className="h-4 w-4 mr-2" />
+                  Tax Rules
+                </Button>
+                <Button
+                  variant={countriesSubTab === "rates" ? "default" : "outline"}
+                  onClick={() => setCountriesSubTab("rates")}
+                  data-testid="button-subtab-rates"
+                >
+                  <ArrowLeftRight className="h-4 w-4 mr-2" />
+                  Exchange Rates
+                </Button>
+              </div>
+
+              {countriesSubTab === "countries" && (
+                <Card>
+                  <CardHeader>
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <CardTitle>Countries</CardTitle>
+                        <CardDescription>Manage operating countries</CardDescription>
+                      </div>
+                      <Button onClick={() => setShowCreateCountryDialog(true)} data-testid="button-create-country">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Country
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {countriesLoading ? (
+                      <div className="py-8 text-center text-muted-foreground">Loading countries...</div>
+                    ) : countriesData.length === 0 ? (
+                      <EmptyState
+                        icon={Globe}
+                        title="No countries configured"
+                        description="Add operating countries to enable multi-country support"
+                      />
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Country</TableHead>
+                            <TableHead>ISO Code</TableHead>
+                            <TableHead>Currency</TableHead>
+                            <TableHead>Timezone</TableHead>
+                            <TableHead>Tax Rules</TableHead>
+                            <TableHead>Revenue</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {countriesData.map((country) => (
+                            <TableRow key={country.id} data-testid={`row-country-${country.id}`}>
+                              <TableCell className="font-medium">{country.name}</TableCell>
+                              <TableCell><Badge variant="outline">{country.isoCode}</Badge></TableCell>
+                              <TableCell>{country.currency}</TableCell>
+                              <TableCell>{country.timezone}</TableCell>
+                              <TableCell>{country.taxRulesCount}</TableCell>
+                              <TableCell>${country.totalRevenue}</TableCell>
+                              <TableCell>
+                                <Badge variant={country.active ? "default" : "secondary"}>
+                                  {country.active ? "Active" : "Inactive"}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => toggleCountryMutation.mutate({ countryId: country.id, active: !country.active })}
+                                  data-testid={`button-toggle-country-${country.id}`}
+                                >
+                                  {country.active ? "Deactivate" : "Activate"}
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {countriesSubTab === "taxes" && (
+                <Card>
+                  <CardHeader>
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <CardTitle>Tax Rules</CardTitle>
+                        <CardDescription>Configure tax rates by country</CardDescription>
+                      </div>
+                      <Button onClick={() => setShowCreateTaxRuleDialog(true)} data-testid="button-create-tax-rule">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Tax Rule
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {taxRulesLoading ? (
+                      <div className="py-8 text-center text-muted-foreground">Loading tax rules...</div>
+                    ) : taxRulesData.length === 0 ? (
+                      <EmptyState
+                        icon={Percent}
+                        title="No tax rules configured"
+                        description="Add tax rules to calculate taxes for trips"
+                      />
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Country</TableHead>
+                            <TableHead>Type</TableHead>
+                            <TableHead>Rate</TableHead>
+                            <TableHead>Applies To</TableHead>
+                            <TableHead>Effective From</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {taxRulesData.map((rule) => (
+                            <TableRow key={rule.id} data-testid={`row-tax-rule-${rule.id}`}>
+                              <TableCell className="font-medium">{rule.name}</TableCell>
+                              <TableCell>{rule.countryName || rule.countryCode}</TableCell>
+                              <TableCell><Badge variant="outline">{rule.taxType}</Badge></TableCell>
+                              <TableCell>{rule.rate}%</TableCell>
+                              <TableCell>{rule.appliesTo}</TableCell>
+                              <TableCell>{new Date(rule.effectiveFrom).toLocaleDateString()}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {countriesSubTab === "rates" && (
+                <Card>
+                  <CardHeader>
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <CardTitle>Exchange Rates</CardTitle>
+                        <CardDescription>Manage currency exchange rates</CardDescription>
+                      </div>
+                      <Button onClick={() => setShowCreateExchangeRateDialog(true)} data-testid="button-create-exchange-rate">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Rate
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {exchangeRatesData.length === 0 ? (
+                      <EmptyState
+                        icon={ArrowLeftRight}
+                        title="No exchange rates configured"
+                        description="Add exchange rates for currency conversion"
+                      />
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Base Currency</TableHead>
+                            <TableHead>Target Currency</TableHead>
+                            <TableHead>Rate</TableHead>
+                            <TableHead>Source</TableHead>
+                            <TableHead>As Of</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {exchangeRatesData.map((rate) => (
+                            <TableRow key={rate.id} data-testid={`row-exchange-rate-${rate.id}`}>
+                              <TableCell className="font-medium">{rate.baseCurrency}</TableCell>
+                              <TableCell>{rate.targetCurrency}</TableCell>
+                              <TableCell>{rate.rate}</TableCell>
+                              <TableCell><Badge variant="outline">{rate.source}</Badge></TableCell>
+                              <TableCell>{new Date(rate.asOfDate).toLocaleDateString()}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Create Country Dialog */}
+              <Dialog open={showCreateCountryDialog} onOpenChange={setShowCreateCountryDialog}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add Country</DialogTitle>
+                    <DialogDescription>Configure a new operating country</DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4">
+                    <div>
+                      <label className="text-sm font-medium">Country Name</label>
+                      <Input
+                        value={newCountry.name}
+                        onChange={(e) => setNewCountry({ ...newCountry, name: e.target.value })}
+                        placeholder="e.g., Kenya"
+                        data-testid="input-country-name"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">ISO Code (2-3 chars)</label>
+                      <Input
+                        value={newCountry.isoCode}
+                        onChange={(e) => setNewCountry({ ...newCountry, isoCode: e.target.value.toUpperCase() })}
+                        placeholder="e.g., KE"
+                        maxLength={3}
+                        data-testid="input-country-iso"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Currency Code</label>
+                      <Input
+                        value={newCountry.currency}
+                        onChange={(e) => setNewCountry({ ...newCountry, currency: e.target.value.toUpperCase() })}
+                        placeholder="e.g., KES"
+                        maxLength={3}
+                        data-testid="input-country-currency"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Timezone</label>
+                      <Input
+                        value={newCountry.timezone}
+                        onChange={(e) => setNewCountry({ ...newCountry, timezone: e.target.value })}
+                        placeholder="e.g., Africa/Nairobi"
+                        data-testid="input-country-timezone"
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setShowCreateCountryDialog(false)}>Cancel</Button>
+                    <Button
+                      onClick={() => createCountryMutation.mutate(newCountry)}
+                      disabled={createCountryMutation.isPending || !newCountry.name || !newCountry.isoCode || !newCountry.currency || !newCountry.timezone}
+                      data-testid="button-submit-country"
+                    >
+                      Add Country
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              {/* Create Tax Rule Dialog */}
+              <Dialog open={showCreateTaxRuleDialog} onOpenChange={setShowCreateTaxRuleDialog}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add Tax Rule</DialogTitle>
+                    <DialogDescription>Configure a tax rate for a country</DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4">
+                    <div>
+                      <label className="text-sm font-medium">Country</label>
+                      <Select value={newTaxRule.countryId} onValueChange={(v) => setNewTaxRule({ ...newTaxRule, countryId: v })}>
+                        <SelectTrigger data-testid="select-tax-rule-country">
+                          <SelectValue placeholder="Select country" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {countriesData.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Name</label>
+                      <Input
+                        value={newTaxRule.name}
+                        onChange={(e) => setNewTaxRule({ ...newTaxRule, name: e.target.value })}
+                        placeholder="e.g., VAT"
+                        data-testid="input-tax-rule-name"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Tax Type</label>
+                      <Select value={newTaxRule.taxType} onValueChange={(v) => setNewTaxRule({ ...newTaxRule, taxType: v })}>
+                        <SelectTrigger data-testid="select-tax-rule-type">
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="VAT">VAT</SelectItem>
+                          <SelectItem value="SALES">Sales Tax</SelectItem>
+                          <SelectItem value="SERVICE">Service Tax</SelectItem>
+                          <SelectItem value="OTHER">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Rate (%)</label>
+                      <Input
+                        type="number"
+                        value={newTaxRule.rate}
+                        onChange={(e) => setNewTaxRule({ ...newTaxRule, rate: e.target.value })}
+                        placeholder="e.g., 16"
+                        data-testid="input-tax-rule-rate"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Applies To</label>
+                      <Select value={newTaxRule.appliesTo} onValueChange={(v) => setNewTaxRule({ ...newTaxRule, appliesTo: v })}>
+                        <SelectTrigger data-testid="select-tax-rule-applies">
+                          <SelectValue placeholder="Select scope" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="FARE">Fare Only</SelectItem>
+                          <SelectItem value="COMMISSION">Commission Only</SelectItem>
+                          <SelectItem value="BOTH">Both</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Effective From</label>
+                      <Input
+                        type="date"
+                        value={newTaxRule.effectiveFrom}
+                        onChange={(e) => setNewTaxRule({ ...newTaxRule, effectiveFrom: e.target.value })}
+                        data-testid="input-tax-rule-effective"
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setShowCreateTaxRuleDialog(false)}>Cancel</Button>
+                    <Button
+                      onClick={() => createTaxRuleMutation.mutate(newTaxRule)}
+                      disabled={createTaxRuleMutation.isPending || !newTaxRule.countryId || !newTaxRule.name || !newTaxRule.rate || !newTaxRule.effectiveFrom}
+                      data-testid="button-submit-tax-rule"
+                    >
+                      Add Tax Rule
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              {/* Create Exchange Rate Dialog */}
+              <Dialog open={showCreateExchangeRateDialog} onOpenChange={setShowCreateExchangeRateDialog}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add Exchange Rate</DialogTitle>
+                    <DialogDescription>Configure a currency exchange rate</DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4">
+                    <div>
+                      <label className="text-sm font-medium">Base Currency</label>
+                      <Input
+                        value={newExchangeRate.baseCurrency}
+                        onChange={(e) => setNewExchangeRate({ ...newExchangeRate, baseCurrency: e.target.value.toUpperCase() })}
+                        placeholder="e.g., USD"
+                        maxLength={3}
+                        data-testid="input-exchange-base"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Target Currency</label>
+                      <Input
+                        value={newExchangeRate.targetCurrency}
+                        onChange={(e) => setNewExchangeRate({ ...newExchangeRate, targetCurrency: e.target.value.toUpperCase() })}
+                        placeholder="e.g., KES"
+                        maxLength={3}
+                        data-testid="input-exchange-target"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Rate</label>
+                      <Input
+                        type="number"
+                        step="0.0001"
+                        value={newExchangeRate.rate}
+                        onChange={(e) => setNewExchangeRate({ ...newExchangeRate, rate: e.target.value })}
+                        placeholder="e.g., 130.50"
+                        data-testid="input-exchange-rate"
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setShowCreateExchangeRateDialog(false)}>Cancel</Button>
+                    <Button
+                      onClick={() => createExchangeRateMutation.mutate(newExchangeRate)}
+                      disabled={createExchangeRateMutation.isPending || !newExchangeRate.baseCurrency || !newExchangeRate.targetCurrency || !newExchangeRate.rate}
+                      data-testid="button-submit-exchange-rate"
+                    >
+                      Add Rate
                     </Button>
                   </DialogFooter>
                 </DialogContent>
