@@ -83,3 +83,24 @@ Preferred communication style: Simple, everyday language.
 - Trip completion automatically credits driver wallet with payout amount
 - Admin dashboard Wallets tab with payout management interface
 - Driver dashboard Earnings Wallet section showing balance, transactions, and payout history
+
+### Phase 12 – Admin Financial Analytics & Reports (January 2026)
+- Real-time financial analytics for Admin and Finance roles
+- Aggregated metrics: trips (total/completed/cancelled), revenue (gross/commission/driver earnings), refunds, chargebacks, wallets, payouts
+- Time range filtering: Today, 7d, 30d, 90d, All Time
+- Admin dashboard Reports tab with:
+  - Financial overview cards (trips, revenue, commission, driver earnings)
+  - Refunds, chargebacks, and wallet payout summaries
+  - Driver wallet balance overview (total, available, locked)
+  - Revenue over time table
+  - CSV export functionality for all report types
+- API endpoints:
+  - GET /api/analytics/overview - Aggregated financial overview
+  - GET /api/analytics/trips - Trip analytics by date
+  - GET /api/analytics/revenue - Revenue analytics by date
+  - GET /api/analytics/refunds - Refund analytics by date
+  - GET /api/analytics/payouts - Payout analytics by date
+  - GET /api/analytics/reconciliation - Payment reconciliation stats
+  - GET /api/reports/export - CSV export endpoint
+- Role-based access: Admin/Finance only (Directors excluded)
+- Read-only analytics - no data mutation
