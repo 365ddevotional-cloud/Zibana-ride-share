@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import type { DriverProfile, Trip, User } from "@shared/schema";
 import { useEffect } from "react";
+import { NotificationBell } from "@/components/notification-bell";
 
 type DriverWithUser = DriverProfile & { email?: string };
 type TripWithDetails = Trip & { driverName?: string; riderName?: string };
@@ -234,6 +235,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <NotificationBell />
             <ThemeToggle />
             <UserAvatar user={user} size="sm" />
             <Button variant="ghost" size="icon" onClick={() => logout()} data-testid="button-logout">

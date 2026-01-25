@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import type { Trip } from "@shared/schema";
 import { useEffect } from "react";
+import { NotificationBell } from "@/components/notification-bell";
 
 const rideRequestSchema = z.object({
   pickupLocation: z.string().min(3, "Please enter a pickup location"),
@@ -146,6 +147,7 @@ export default function RiderDashboard() {
         <div className="container mx-auto flex h-16 items-center justify-between gap-4 px-4">
           <Logo />
           <div className="flex items-center gap-3">
+            <NotificationBell />
             <ThemeToggle />
             <UserAvatar user={user} size="sm" />
             <Button variant="ghost" size="icon" onClick={() => logout()} data-testid="button-logout">
