@@ -100,6 +100,14 @@ Key database tables:
 - Rider cancel ride action (for requested and accepted status)
 - Clean layout with proper empty states
 
+### Phase 4 – Pricing & Commission Logic (FROZEN - Stable)
+- Fare calculation model: Base fare ($5) + per-passenger fee ($1/passenger)
+- ZIBA commission: 20% of total fare
+- Driver payout: 80% of total fare
+- Pricing stored per trip (fareAmount, driverPayout, commissionAmount)
+- Admin dashboard shows revenue overview (completed trips, total fares, commission, driver payouts)
+- Pricing utility: server/pricing.ts
+
 ### FROZEN Components (DO NOT MODIFY)
 - Authentication flow (Replit Auth + OpenID Connect)
 - Role assignments and routing logic
