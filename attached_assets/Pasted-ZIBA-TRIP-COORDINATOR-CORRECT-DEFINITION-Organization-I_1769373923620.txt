@@ -1,0 +1,205 @@
+ZIBA “TRIP COORDINATOR” — CORRECT DEFINITION
+
+(Organization / Institutional Rider Account)
+
+🔑 What a Trip Coordinator IS
+
+A Trip Coordinator is an organization (not an admin, not staff) that:
+
+Signs up to ZIBA
+
+Has its own account
+
+Books rides for third-party beneficiaries
+(clients, members, patients, students, staff, etc.)
+
+Think:
+
+NGOs
+
+Hospitals
+
+Churches
+
+Schools
+
+Government programs
+
+Corporate transport desks
+
+Community programs
+
+➡️ This is a specialized Rider-type account, not platform governance.
+
+🧭 CORE RESPONSIBILITIES OF A TRIP COORDINATOR
+1️⃣ Book Trips for Others (Primary Role)
+
+Create trips on behalf of beneficiaries
+
+Enter:
+
+Pickup location
+
+Dropoff location
+
+Passenger name
+
+Passenger phone (optional)
+
+Notes for driver (e.g. “elderly passenger”, “wheelchair”)
+
+Submit ride requests just like a rider
+
+✅ The beneficiary does NOT need a ZIBA account
+
+2️⃣ Manage Multiple Trips
+
+Book multiple rides per day
+
+Schedule rides sequentially or independently
+
+Track:
+
+Requested trips
+
+Accepted trips
+
+In-progress trips
+
+Completed / cancelled trips
+
+3️⃣ Trip Monitoring Dashboard
+
+Trip Coordinator can:
+
+View all trips they created
+
+See:
+
+Assigned driver
+
+Trip status
+
+Estimated fare
+
+Completion state
+
+❌ Cannot:
+
+Assign drivers
+
+Override driver decisions
+
+Modify system routing
+
+4️⃣ Billing & Payment Responsibility
+
+Trip Coordinator is the paying entity, not the passenger
+
+All fares are:
+
+Charged to the organization
+
+Reflected under the organization’s account
+
+Supports:
+
+Postpaid / prepaid models (later phase)
+
+In Phase 5: simulation only
+
+5️⃣ Disputes & Feedback (Limited)
+
+Can:
+
+Report issues on trips they booked
+
+Submit disputes
+
+Add notes about passenger experience
+
+Can rate drivers as an organization
+
+❌ Cannot:
+
+Moderate other disputes
+
+Edit ratings from other users
+
+6️⃣ Notifications
+
+Receives in-app notifications for:
+
+Driver acceptance
+
+Trip start
+
+Trip completion
+
+Trip cancellation
+
+Dispute resolution updates
+
+🔐 ACCESS & PERMISSIONS (VERY IMPORTANT)
+
+Trip Coordinator CAN:
+
+Book rides
+
+View its own trip history
+
+Submit disputes
+
+View receipts / fare summaries
+
+Trip Coordinator CANNOT:
+
+See other riders’ trips
+
+See driver wallets
+
+Access Admin dashboard
+
+Access Directors tab
+
+Modify pricing or commission
+
+Perform refunds directly
+
+Mark payments as paid
+
+Publish the app
+
+🧩 HOW IT FITS ZIBA ARCHITECTURE
+
+Role type: TRIP_COORDINATOR
+
+System behavior:
+Treated as a specialized Rider with expanded fields
+
+Backend:
+Trips store:
+
+createdByUserId (Trip Coordinator)
+
+passengerName
+
+passengerContact (optional)
+
+This design:
+
+Avoids breaking Rider flow
+
+Avoids touching Driver flow
+
+Keeps Admin logic intact
+
+🧠 WHY THIS IS A STRONG DESIGN
+
+Enables institutional adoption
+
+Opens doors for contracts & partnerships
+
+Supports healthcare, NGO, church, and corporate use cases
+
+Mirrors real-world ride-hailing B2B models

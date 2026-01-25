@@ -1,0 +1,155 @@
+You are continuing development of the ZIBA ride-hailing app.
+Phases 1–14 are COMPLETE and MUST NOT be modified.
+
+IMPLEMENT PHASE 14.5 — TRIP COORDINATOR (INSTITUTIONAL RIDER) MODULE.
+
+This role represents organizations that book rides for third-party beneficiaries.
+It is NOT admin, NOT staff, NOT governance.
+
+DO NOT BREAK EXISTING RIDER OR DRIVER FLOWS.
+EXTEND ONLY.
+
+────────────────────────
+ROLE DEFINITION
+────────────────────────
+
+ROLE: TRIP_COORDINATOR
+
+System behavior:
+- Treated as a specialized Rider
+- Can book trips for non-account passengers
+- Is the paying entity for trips it creates
+
+────────────────────────
+DATABASE EXTENSIONS (Prisma)
+────────────────────────
+
+1) Extend User model (NO breaking changes):
+
+TripCoordinatorProfile
+- id
+- userId
+- organizationName
+- organizationType (NGO | HOSPITAL | CHURCH | SCHOOL | GOV | CORPORATE | OTHER)
+- contactEmail
+- contactPhone (optional)
+- billingMode (SIMULATED)
+- createdAt
+
+2) Extend Trip model:
+
+Add fields:
+- passengerName (string, required for Trip Coordinator trips)
+- passengerContact (string, optional)
+- bookedForType (SELF | THIRD_PARTY)
+
+Ensure:
+- These fields are OPTIONAL for normal Riders
+- REQUIRED only when role = TRIP_COORDINATOR
+
+────────────────────────
+TRIP BOOKING LOGIC
+────────────────────────
+
+Trip Coordinator CAN:
+- Create trips for others
+- Enter passenger name & notes
+- Submit trips like normal riders
+
+Trip Coordinator CANNOT:
+- Assign drivers
+- Modify routing
+- Override dispatch logic
+
+Trips created must store:
+- createdByUserId = Trip Coordinator
+- passengerName
+- passengerContact
+- notesForDriver
+
+────────────────────────
+TRIP COORDINATOR DASHBOARD
+────────────────────────
+
+Create a dedicated dashboard view:
+
+📍 My Organization Trips
+
+Features:
+- List all trips created by this coordinator
+- Filter by status
+- View driver, fare estimate, completion state
+- View receipts (read-only)
+- View disputes submitted
+
+NO access to:
+- Other riders’ trips
+- Driver wallets
+- Admin or Directors tabs
+
+────────────────────────
+BILLING & RECEIPTS (SIMULATION)
+────────────────────────
+
+For each completed trip:
+- Fare is attributed to Trip Coordinator account
+- Display under “Organization Charges”
+- No real payment processing yet
+
+Receipts must include:
+- Organization name
+- Passenger name
+- Trip date
+- Fare summary
+
+────────────────────────
+DISPUTES & FEEDBACK
+────────────────────────
+
+Trip Coordinator may:
+- Submit disputes ONLY for trips they created
+- Add notes about beneficiary experience
+- Rate drivers as an organization
+
+NO moderation privileges.
+
+────────────────────────
+NOTIFICATIONS
+────────────────────────
+
+Trip Coordinator receives:
+- Driver accepted
+- Trip started
+- Trip completed
+- Trip cancelled
+- Dispute updates
+
+────────────────────────
+SECURITY & PERMISSIONS
+────────────────────────
+
+Enforce:
+- Trip Coordinator sees ONLY its own data
+- Cannot access Admin, Finance, Directors
+- Cannot issue refunds or mark payments paid
+- Cannot change pricing or commission
+
+────────────────────────
+AUDIT & SAFETY
+────────────────────────
+
+• All actions logged to AuditLog
+• No wallet manipulation in this phase
+• No pricing changes
+• No cross-role leakage
+
+────────────────────────
+FINAL CHECKS
+────────────────────────
+
+• Rider flow unaffected
+• Driver flow unaffected
+• Existing trips untouched
+• App compiles cleanly
+
+IMPLEMENT PHASE 14.5 ONLY.

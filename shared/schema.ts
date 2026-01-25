@@ -44,6 +44,10 @@ export const incentiveTypeEnum = pgEnum("incentive_type", ["trip", "streak", "pe
 export const incentiveProgramStatusEnum = pgEnum("incentive_program_status", ["active", "paused", "ended"]);
 export const incentiveEarningStatusEnum = pgEnum("incentive_earning_status", ["pending", "approved", "paid", "revoked"]);
 
+// Phase 14.5 - Trip Coordinator enums
+export const organizationTypeEnum = pgEnum("organization_type", ["ngo", "hospital", "church", "school", "gov", "corporate", "other"]);
+export const bookedForTypeEnum = pgEnum("booked_for_type", ["self", "third_party"]);
+
 // User roles table - maps users to their roles
 export const userRoles = pgTable("user_roles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -91,6 +95,18 @@ export const directorProfiles = pgTable("director_profiles", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Phase 14.5 - Trip Coordinator profiles table
+export const tripCoordinatorProfiles = pgTable("trip_coordinator_profiles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique(),
+  organizationName: varchar("organization_name", { length: 200 }).notNull(),
+  organizationType: organizationTypeEnum("organization_type").notNull(),
+  contactEmail: varchar("contact_email", { length: 255 }).notNull(),
+  contactPhone: varchar("contact_phone", { length: 50 }),
+  billingMode: varchar("billing_mode", { length: 50 }).notNull().default("simulated"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Trips table
 export const trips = pgTable("trips", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -110,6 +126,11 @@ export const trips = pgTable("trips", {
   cancelledAt: timestamp("cancelled_at"),
   cancelledBy: cancelledByEnum("cancelled_by"),
   cancellationReason: text("cancellation_reason"),
+  // Phase 14.5 - Trip Coordinator fields
+  bookedForType: bookedForTypeEnum("booked_for_type").default("self"),
+  passengerName: varchar("passenger_name", { length: 200 }),
+  passengerContact: varchar("passenger_contact", { length: 100 }),
+  notesForDriver: text("notes_for_driver"),
 });
 
 // Payout transactions table - tracks driver earnings and payouts
@@ -398,6 +419,13 @@ export const insertDirectorProfileSchema = createInsertSchema(directorProfiles).
   status: true,
 });
 
+// Phase 14.5 - Trip Coordinator schemas
+export const insertTripCoordinatorProfileSchema = createInsertSchema(tripCoordinatorProfiles).omit({
+  id: true,
+  createdAt: true,
+  billingMode: true,
+});
+
 export const insertTripSchema = createInsertSchema(trips).omit({
   id: true,
   createdAt: true,
@@ -496,6 +524,16 @@ export type RiderProfile = typeof riderProfiles.$inferSelect;
 export type InsertDirectorProfile = z.infer<typeof insertDirectorProfileSchema>;
 export type DirectorProfile = typeof directorProfiles.$inferSelect;
 
+// Phase 14.5 - Trip Coordinator types
+export type InsertTripCoordinatorProfile = z.infer<typeof insertTripCoordinatorProfileSchema>;
+export type TripCoordinatorProfile = typeof tripCoordinatorProfiles.$inferSelect;
+
+export type TripCoordinatorWithUser = TripCoordinatorProfile & {
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+};
+
 export type InsertTrip = z.infer<typeof insertTripSchema>;
 export type Trip = typeof trips.$inferSelect;
 
@@ -516,6 +554,7 @@ export type Dispute = typeof disputes.$inferSelect;
 export type TripWithDetails = Trip & {
   driverName?: string;
   riderName?: string;
+  organizationName?: string;
 };
 
 export type DriverWithUser = DriverProfile & {
