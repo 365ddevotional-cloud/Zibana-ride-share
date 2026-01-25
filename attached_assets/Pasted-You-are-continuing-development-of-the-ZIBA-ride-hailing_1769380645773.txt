@@ -1,0 +1,171 @@
+You are continuing development of the ZIBA ride-hailing app.
+Phases 1–20 are COMPLETE and MUST NOT be modified.
+
+IMPLEMENT PHASE 20.5 — NAVIGATION & UX POLISH.
+
+This phase improves navigation, usability, and role safety.
+NO business logic changes.
+NO backend data changes.
+
+EXTEND UI ONLY.
+
+────────────────────────
+OBJECTIVES
+────────────────────────
+
+1) Make Admin dashboard KPI cards clickable
+2) Add consistent back navigation on detail pages
+3) Wire ZIBA logo to public home page
+4) Add profile menu behavior for all roles
+5) Hide Admin access from public UI (RBAC-safe)
+
+────────────────────────
+ADMIN DASHBOARD KPI CARDS
+────────────────────────
+
+Make ALL KPI cards in the first two rows clickable.
+
+Each card should navigate to the relevant page with filters applied:
+
+• Total Drivers → /drivers
+• Pending Approval → /drivers?status=pending
+• Total Riders → /riders
+• Total Trips → /trips
+• Active Trips → /trips?status=active
+• Completed Trips → /trips?status=completed
+• Total Fares → /reports?tab=revenue
+• ZIBA Commission → /reports?tab=commission
+• Driver Payouts → /payouts
+
+Implementation rules:
+- Wrap cards in navigation links
+- Preserve card hover/focus states
+- Do NOT add new pages
+- Reuse existing routes with query params
+
+────────────────────────
+BACK NAVIGATION
+────────────────────────
+
+Add a standard back arrow (←) to ALL list/detail pages:
+
+• Drivers
+• Riders
+• Trips
+• Payouts
+• Reports
+• Disputes
+• Refunds
+• Chargebacks
+• Wallets
+• Fraud
+• Incentives
+• Contracts
+• Support Tickets
+
+Back arrow behavior:
+- Returns to previous page using navigation history
+- NOT hardcoded routes
+
+Ensure mobile-friendly placement.
+
+────────────────────────
+ZIBA LOGO NAVIGATION
+────────────────────────
+
+Update ZIBA logo behavior:
+
+• Clicking ZIBA logo ALWAYS routes to Public Home page (/)
+• NEVER routes directly to Admin Dashboard
+
+Admin access must be role-gated, not logo-gated.
+
+────────────────────────
+ADMIN LOGIN VISIBILITY
+────────────────────────
+
+Harden Admin access UX:
+
+• Remove Admin links from public home
+• Remove Admin options from general login UI
+• Admin routes remain protected by RBAC
+• Unauthorized access to /admin routes redirects safely
+
+DO NOT rely on obscurity alone.
+RBAC remains the enforcement mechanism.
+
+────────────────────────
+PROFILE ICON BEHAVIOR (ALL ROLES)
+────────────────────────
+
+Make profile icons clickable everywhere.
+
+Clicking profile icon opens a menu:
+
+ADMIN:
+- Profile
+- Admin Settings
+- Sign Out
+
+SUPPORT_AGENT:
+- Profile
+- Assigned Tickets
+- Sign Out
+
+RIDER:
+- Profile
+- My Trips
+- Payments
+- Settings
+- Sign Out
+
+DRIVER:
+- Profile
+- Vehicle
+- Earnings
+- Settings
+- Sign Out
+
+TRIP_COORDINATOR:
+- Organization Profile
+- Organization Trips
+- Billing (read-only)
+- Settings
+- Sign Out
+
+Rules:
+- Profile menus are role-aware
+- No cross-role links
+- No Admin items visible to non-admins
+
+────────────────────────
+NAVIGATION CONSISTENCY RULES
+────────────────────────
+
+• KPI cards = data drill-down
+• Tabs = work context
+• Profile icon = account context
+• ZIBA logo = public home
+
+Do NOT mix responsibilities.
+
+────────────────────────
+ACCESSIBILITY & UX
+────────────────────────
+
+• Ensure all clickable cards have hover states
+• Ensure keyboard navigation works
+• Ensure touch targets are mobile-friendly
+• Prevent accidental clicks on non-interactive elements
+
+────────────────────────
+FINAL SAFETY CHECKS
+────────────────────────
+
+• NO backend changes
+• NO RBAC logic changes
+• NO pricing or wallet changes
+• NO data mutations
+• App compiles cleanly
+
+IMPLEMENT PHASE 20.5 ONLY.

@@ -43,6 +43,7 @@ import {
   AlertTriangle,
   CreditCard,
   ArrowLeftRight,
+  ArrowLeft,
   BarChart3,
   Download,
   Calendar,
@@ -59,7 +60,8 @@ import {
   Plus,
   Percent,
   Building,
-  FileText
+  FileText,
+  ChevronRight
 } from "lucide-react";
 import type { DriverProfile, Trip, User } from "@shared/schema";
 import { NotificationBell } from "@/components/notification-bell";
@@ -1605,63 +1607,88 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 mb-6">
-          <Card>
+          <Card 
+            className="cursor-pointer hover-elevate transition-all" 
+            onClick={() => setActiveTab("drivers")}
+            data-testid="kpi-total-drivers"
+          >
             <CardContent className="flex items-center gap-4 pt-6">
               <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
                 <Car className="h-6 w-6 text-blue-600 dark:text-blue-400" />
               </div>
-              <div>
+              <div className="flex-1">
                 <p className="text-2xl font-bold">{stats?.totalDrivers || 0}</p>
                 <p className="text-sm text-muted-foreground">Total Drivers</p>
               </div>
+              <ChevronRight className="h-5 w-5 text-muted-foreground" />
             </CardContent>
           </Card>
           
-          <Card>
+          <Card 
+            className="cursor-pointer hover-elevate transition-all" 
+            onClick={() => setActiveTab("drivers")}
+            data-testid="kpi-pending-approval"
+          >
             <CardContent className="flex items-center gap-4 pt-6">
               <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-yellow-100 dark:bg-yellow-900/30">
                 <Clock className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
               </div>
-              <div>
+              <div className="flex-1">
                 <p className="text-2xl font-bold">{stats?.pendingDrivers || 0}</p>
                 <p className="text-sm text-muted-foreground">Pending Approval</p>
               </div>
+              <ChevronRight className="h-5 w-5 text-muted-foreground" />
             </CardContent>
           </Card>
 
-          <Card>
+          <Card 
+            className="cursor-pointer hover-elevate transition-all" 
+            onClick={() => setActiveTab("riders")}
+            data-testid="kpi-total-riders"
+          >
             <CardContent className="flex items-center gap-4 pt-6">
               <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-indigo-100 dark:bg-indigo-900/30">
                 <Users className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
               </div>
-              <div>
+              <div className="flex-1">
                 <p className="text-2xl font-bold">{stats?.totalRiders || 0}</p>
                 <p className="text-sm text-muted-foreground">Total Riders</p>
               </div>
+              <ChevronRight className="h-5 w-5 text-muted-foreground" />
             </CardContent>
           </Card>
           
-          <Card>
+          <Card 
+            className="cursor-pointer hover-elevate transition-all" 
+            onClick={() => setActiveTab("trips")}
+            data-testid="kpi-total-trips"
+          >
             <CardContent className="flex items-center gap-4 pt-6">
               <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-900/30">
                 <Activity className="h-6 w-6 text-purple-600 dark:text-purple-400" />
               </div>
-              <div>
+              <div className="flex-1">
                 <p className="text-2xl font-bold">{stats?.totalTrips || 0}</p>
                 <p className="text-sm text-muted-foreground">Total Trips</p>
               </div>
+              <ChevronRight className="h-5 w-5 text-muted-foreground" />
             </CardContent>
           </Card>
           
-          <Card>
+          <Card 
+            className="cursor-pointer hover-elevate transition-all" 
+            onClick={() => setActiveTab("trips")}
+            data-testid="kpi-active-trips"
+          >
             <CardContent className="flex items-center gap-4 pt-6">
               <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
                 <MapPin className="h-6 w-6 text-green-600 dark:text-green-400" />
               </div>
-              <div>
+              <div className="flex-1">
                 <p className="text-2xl font-bold">{stats?.activeTrips || 0}</p>
                 <p className="text-sm text-muted-foreground">Active Trips</p>
               </div>
+              <ChevronRight className="h-5 w-5 text-muted-foreground" />
             </CardContent>
           </Card>
         </div>
@@ -1669,51 +1696,71 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
         <div className="mb-6">
           <h2 className="text-lg font-semibold mb-4">Revenue Overview</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Card>
+            <Card 
+              className="cursor-pointer hover-elevate transition-all" 
+              onClick={() => setActiveTab("trips")}
+              data-testid="kpi-completed-trips"
+            >
               <CardContent className="flex items-center gap-4 pt-6">
                 <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
                   <CheckCircle className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
                 </div>
-                <div>
+                <div className="flex-1">
                   <p className="text-2xl font-bold">{stats?.completedTrips || 0}</p>
                   <p className="text-sm text-muted-foreground">Completed Trips</p>
                 </div>
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
               </CardContent>
             </Card>
 
-            <Card data-testid="card-total-fares">
+            <Card 
+              className="cursor-pointer hover-elevate transition-all" 
+              onClick={() => setActiveTab("reports")}
+              data-testid="card-total-fares"
+            >
               <CardContent className="flex items-center gap-4 pt-6">
                 <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
                   <DollarSign className="h-6 w-6 text-green-600 dark:text-green-400" />
                 </div>
-                <div>
+                <div className="flex-1">
                   <p className="text-2xl font-bold">${stats?.totalFares || "0.00"}</p>
                   <p className="text-sm text-muted-foreground">Total Fares</p>
                 </div>
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
               </CardContent>
             </Card>
 
-            <Card data-testid="card-total-commission">
+            <Card 
+              className="cursor-pointer hover-elevate transition-all" 
+              onClick={() => setActiveTab("reports")}
+              data-testid="card-total-commission"
+            >
               <CardContent className="flex items-center gap-4 pt-6">
                 <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
                   <TrendingUp className="h-6 w-6 text-primary" />
                 </div>
-                <div>
+                <div className="flex-1">
                   <p className="text-2xl font-bold">${stats?.totalCommission || "0.00"}</p>
                   <p className="text-sm text-muted-foreground">ZIBA Commission (20%)</p>
                 </div>
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
               </CardContent>
             </Card>
 
-            <Card data-testid="card-driver-payouts">
+            <Card 
+              className="cursor-pointer hover-elevate transition-all" 
+              onClick={() => setActiveTab("payouts")}
+              data-testid="card-driver-payouts"
+            >
               <CardContent className="flex items-center gap-4 pt-6">
                 <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/30">
                   <Wallet className="h-6 w-6 text-orange-600 dark:text-orange-400" />
                 </div>
-                <div>
+                <div className="flex-1">
                   <p className="text-2xl font-bold">${stats?.totalDriverPayouts || "0.00"}</p>
                   <p className="text-sm text-muted-foreground">Driver Payouts</p>
                 </div>
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
               </CardContent>
             </Card>
           </div>
