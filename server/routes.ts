@@ -1185,5 +1185,224 @@ export async function registerRoutes(
     }
   });
 
+  // ============= PHASE 10B: CHARGEBACKS & RECONCILIATION =============
+
+  // Report a new chargeback (Finance/Admin only)
+  app.post("/api/chargebacks/report", isAuthenticated, requireRole(["admin", "finance"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const userRole = req.userRole;
+      const { tripId, paymentProvider, externalReference, amount, currency, reason } = req.body;
+
+      if (!tripId || !paymentProvider || !externalReference || amount === undefined) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      // Verify trip exists
+      const trip = await storage.getTripById(tripId);
+      if (!trip) {
+        return res.status(404).json({ message: "Trip not found" });
+      }
+
+      const chargeback = await storage.createChargeback({
+        tripId,
+        paymentProvider,
+        externalReference,
+        amount: String(amount),
+        currency: currency || "USD",
+        reason,
+        status: "reported",
+        reportedAt: new Date(),
+      });
+
+      // Audit log
+      await storage.createAuditLog({
+        action: "chargeback_reported",
+        entityType: "chargeback",
+        entityId: chargeback.id,
+        performedByUserId: userId,
+        performedByRole: userRole,
+        metadata: JSON.stringify({ tripId, paymentProvider, externalReference, amount }),
+      });
+
+      return res.json(chargeback);
+    } catch (error) {
+      console.error("Error reporting chargeback:", error);
+      return res.status(500).json({ message: "Failed to report chargeback" });
+    }
+  });
+
+  // Resolve a chargeback (Admin/Finance only)
+  app.post("/api/chargebacks/resolve", isAuthenticated, requireRole(["admin", "finance"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const userRole = req.userRole;
+      const { chargebackId, status, reason } = req.body;
+
+      if (!chargebackId || !status) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      const validStatuses = ["under_review", "won", "lost", "reversed"];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ message: "Invalid status" });
+      }
+
+      const chargeback = await storage.getChargebackById(chargebackId);
+      if (!chargeback) {
+        return res.status(404).json({ message: "Chargeback not found" });
+      }
+
+      // Update with resolved info
+      const updated = await storage.updateChargeback(chargebackId, { status, reason }, userId);
+
+      // Audit log
+      await storage.createAuditLog({
+        action: `chargeback_${status}`,
+        entityType: "chargeback",
+        entityId: chargebackId,
+        performedByUserId: userId,
+        performedByRole: userRole,
+        metadata: JSON.stringify({ previousStatus: chargeback.status, newStatus: status, reason }),
+      });
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error resolving chargeback:", error);
+      return res.status(500).json({ message: "Failed to resolve chargeback" });
+    }
+  });
+
+  // Get chargebacks with optional status filter
+  app.get("/api/chargebacks", isAuthenticated, requireRole(["admin", "finance", "director"]), async (req: any, res) => {
+    try {
+      const { status } = req.query;
+      const chargebacksList = await storage.getFilteredChargebacks({ status: status as string });
+      return res.json(chargebacksList);
+    } catch (error) {
+      console.error("Error getting chargebacks:", error);
+      return res.status(500).json({ message: "Failed to get chargebacks" });
+    }
+  });
+
+  // Get chargeback audit trail
+  app.get("/api/chargebacks/:chargebackId/audit", isAuthenticated, requireRole(["admin", "finance", "director"]), async (req: any, res) => {
+    try {
+      const { chargebackId } = req.params;
+      const auditLogs = await storage.getAuditLogsByEntity("chargeback", chargebackId);
+      return res.json(auditLogs);
+    } catch (error) {
+      console.error("Error getting chargeback audit:", error);
+      return res.status(500).json({ message: "Failed to get audit logs" });
+    }
+  });
+
+  // Run reconciliation for a trip (Finance only)
+  app.post("/api/reconciliation/run", isAuthenticated, requireRole(["admin", "finance"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const userRole = req.userRole;
+      const { tripId, actualAmount, provider } = req.body;
+
+      if (!tripId || actualAmount === undefined || !provider) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      const reconciliation = await storage.runReconciliation(tripId, String(actualAmount), provider);
+
+      // Audit log
+      await storage.createAuditLog({
+        action: "reconciliation_run",
+        entityType: "reconciliation",
+        entityId: reconciliation.id,
+        performedByUserId: userId,
+        performedByRole: userRole,
+        metadata: JSON.stringify({ tripId, actualAmount, provider, status: reconciliation.status, variance: reconciliation.variance }),
+      });
+
+      return res.json(reconciliation);
+    } catch (error) {
+      console.error("Error running reconciliation:", error);
+      return res.status(500).json({ message: "Failed to run reconciliation" });
+    }
+  });
+
+  // Get reconciliations with optional status filter
+  app.get("/api/reconciliation", isAuthenticated, requireRole(["admin", "finance", "director"]), async (req: any, res) => {
+    try {
+      const { status } = req.query;
+      const reconciliations = await storage.getFilteredReconciliations({ status: status as string });
+      return res.json(reconciliations);
+    } catch (error) {
+      console.error("Error getting reconciliations:", error);
+      return res.status(500).json({ message: "Failed to get reconciliations" });
+    }
+  });
+
+  // Mark reconciliation as reviewed (Finance/Admin only)
+  app.post("/api/reconciliation/review", isAuthenticated, requireRole(["admin", "finance"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const userRole = req.userRole;
+      const { reconciliationId, status, notes } = req.body;
+
+      if (!reconciliationId || !status) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      const validStatuses = ["matched", "mismatched"];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ message: "Invalid status. Must be 'matched' or 'mismatched'" });
+      }
+
+      const updated = await storage.updateReconciliation(reconciliationId, status, userId, notes);
+
+      // Audit log
+      await storage.createAuditLog({
+        action: "reconciliation_reviewed",
+        entityType: "reconciliation",
+        entityId: reconciliationId,
+        performedByUserId: userId,
+        performedByRole: userRole,
+        metadata: JSON.stringify({ status, notes }),
+      });
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error reviewing reconciliation:", error);
+      return res.status(500).json({ message: "Failed to review reconciliation" });
+    }
+  });
+
+  // Trip Coordinator can flag a trip as suspicious (attach chargeback evidence)
+  app.post("/api/trips/:tripId/flag", isAuthenticated, requireRole(["admin", "trip_coordinator", "finance"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const userRole = req.userRole;
+      const { tripId } = req.params;
+      const { reason, evidence } = req.body;
+
+      const trip = await storage.getTripById(tripId);
+      if (!trip) {
+        return res.status(404).json({ message: "Trip not found" });
+      }
+
+      // Create an audit log entry for the flag
+      await storage.createAuditLog({
+        action: "trip_flagged",
+        entityType: "trip",
+        entityId: tripId,
+        performedByUserId: userId,
+        performedByRole: userRole,
+        metadata: JSON.stringify({ reason, evidence }),
+      });
+
+      return res.json({ message: "Trip flagged successfully", tripId });
+    } catch (error) {
+      console.error("Error flagging trip:", error);
+      return res.status(500).json({ message: "Failed to flag trip" });
+    }
+  });
+
   return httpServer;
 }
