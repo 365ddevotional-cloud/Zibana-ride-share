@@ -48,6 +48,11 @@ export const incentiveEarningStatusEnum = pgEnum("incentive_earning_status", ["p
 export const organizationTypeEnum = pgEnum("organization_type", ["ngo", "hospital", "church", "school", "gov", "corporate", "other"]);
 export const bookedForTypeEnum = pgEnum("booked_for_type", ["self", "third_party"]);
 
+// Phase 15 - Multi-Country Tax, Currency & Compliance enums
+export const taxTypeEnum = pgEnum("tax_type", ["VAT", "SALES", "SERVICE", "OTHER"]);
+export const taxAppliesToEnum = pgEnum("tax_applies_to", ["FARE", "COMMISSION", "BOTH"]);
+export const exchangeRateSourceEnum = pgEnum("exchange_rate_source", ["MANUAL"]);
+
 // User roles table - maps users to their roles
 export const userRoles = pgTable("user_roles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -131,6 +136,10 @@ export const trips = pgTable("trips", {
   passengerName: varchar("passenger_name", { length: 200 }),
   passengerContact: varchar("passenger_contact", { length: 100 }),
   notesForDriver: text("notes_for_driver"),
+  // Phase 15 - Multi-Country fields
+  countryId: varchar("country_id"),
+  currency: varchar("currency", { length: 3 }),
+  estimatedTaxAmount: decimal("estimated_tax_amount", { precision: 10, scale: 2 }),
 });
 
 // Payout transactions table - tracks driver earnings and payouts
@@ -353,6 +362,54 @@ export const incentiveEarnings = pgTable("incentive_earnings", {
   revokedByUserId: varchar("revoked_by_user_id"),
   revocationReason: text("revocation_reason"),
   walletTransactionId: varchar("wallet_transaction_id"),
+});
+
+// Phase 15 - Multi-Country Tax, Currency & Compliance tables
+
+// Countries table
+export const countries = pgTable("countries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name", { length: 100 }).notNull(),
+  isoCode: varchar("iso_code", { length: 3 }).notNull().unique(),
+  currency: varchar("currency", { length: 3 }).notNull(),
+  timezone: varchar("timezone", { length: 50 }).notNull(),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Tax Rules table
+export const taxRules = pgTable("tax_rules", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  countryId: varchar("country_id").notNull(),
+  name: varchar("name", { length: 100 }).notNull(),
+  taxType: taxTypeEnum("tax_type").notNull(),
+  rate: decimal("rate", { precision: 5, scale: 2 }).notNull(),
+  appliesTo: taxAppliesToEnum("applies_to").notNull(),
+  effectiveFrom: timestamp("effective_from").notNull(),
+  effectiveTo: timestamp("effective_to"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Exchange Rates table
+export const exchangeRates = pgTable("exchange_rates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  baseCurrency: varchar("base_currency", { length: 3 }).notNull(),
+  targetCurrency: varchar("target_currency", { length: 3 }).notNull(),
+  rate: decimal("rate", { precision: 18, scale: 8 }).notNull(),
+  asOfDate: timestamp("as_of_date").notNull(),
+  source: exchangeRateSourceEnum("source").notNull().default("MANUAL"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Compliance Profiles table
+export const complianceProfiles = pgTable("compliance_profiles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  countryId: varchar("country_id").notNull(),
+  legalEntityName: varchar("legal_entity_name", { length: 200 }).notNull(),
+  registrationId: varchar("registration_id", { length: 100 }),
+  taxId: varchar("tax_id", { length: 100 }),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Relations
@@ -767,4 +824,81 @@ export type IncentiveEarningWithDetails = IncentiveEarning & {
   programName?: string;
   programType?: string;
   revokedByName?: string;
+};
+
+// Phase 15 - Multi-Country Tax, Currency & Compliance schemas and types
+export const insertCountrySchema = createInsertSchema(countries).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const updateCountrySchema = createInsertSchema(countries).omit({
+  id: true,
+  createdAt: true,
+}).partial();
+
+export const insertTaxRuleSchema = createInsertSchema(taxRules).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const updateTaxRuleSchema = createInsertSchema(taxRules).omit({
+  id: true,
+  createdAt: true,
+  countryId: true,
+}).partial();
+
+export const insertExchangeRateSchema = createInsertSchema(exchangeRates).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertComplianceProfileSchema = createInsertSchema(complianceProfiles).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const updateComplianceProfileSchema = createInsertSchema(complianceProfiles).omit({
+  id: true,
+  createdAt: true,
+  countryId: true,
+}).partial();
+
+export type InsertCountry = z.infer<typeof insertCountrySchema>;
+export type UpdateCountry = z.infer<typeof updateCountrySchema>;
+export type Country = typeof countries.$inferSelect;
+
+export type InsertTaxRule = z.infer<typeof insertTaxRuleSchema>;
+export type UpdateTaxRule = z.infer<typeof updateTaxRuleSchema>;
+export type TaxRule = typeof taxRules.$inferSelect;
+
+export type InsertExchangeRate = z.infer<typeof insertExchangeRateSchema>;
+export type ExchangeRate = typeof exchangeRates.$inferSelect;
+
+export type InsertComplianceProfile = z.infer<typeof insertComplianceProfileSchema>;
+export type UpdateComplianceProfile = z.infer<typeof updateComplianceProfileSchema>;
+export type ComplianceProfile = typeof complianceProfiles.$inferSelect;
+
+export type CountryWithDetails = Country & {
+  taxRulesCount?: number;
+  activeTripsCount?: number;
+  totalRevenue?: string;
+};
+
+export type TaxRuleWithDetails = TaxRule & {
+  countryName?: string;
+  countryCode?: string;
+};
+
+export type ExchangeRateWithDetails = ExchangeRate & {
+  baseCurrencyName?: string;
+  targetCurrencyName?: string;
+};
+
+export type ComplianceProfileWithDetails = ComplianceProfile & {
+  countryName?: string;
+  countryCode?: string;
+  totalTrips?: number;
+  totalRevenue?: string;
+  estimatedTax?: string;
 };

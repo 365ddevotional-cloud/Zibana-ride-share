@@ -1,0 +1,174 @@
+You are continuing development of the ZIBA ride-hailing app.
+Phases 1–14.5 are COMPLETE and MUST NOT be modified.
+
+IMPLEMENT PHASE 15 — MULTI-COUNTRY TAX, CURRENCY & COMPLIANCE.
+
+This phase prepares ZIBA for international operation without enabling real tax payments yet.
+
+DO NOT BREAK EXISTING FEATURES.
+EXTEND ONLY.
+
+────────────────────────
+OBJECTIVES
+────────────────────────
+
+1) Support multi-country configuration
+2) Support multi-currency pricing & reporting
+3) Introduce tax rules per country/region
+4) Prepare compliance metadata for audits
+5) Keep all tax calculations READ-ONLY (simulation)
+
+────────────────────────
+CORE PRINCIPLES
+────────────────────────
+
+• NO automatic tax remittance
+• NO government API integrations
+• NO real tax filing
+• Reporting + configuration ONLY
+
+This phase is about correctness and readiness.
+
+────────────────────────
+DATABASE (Prisma)
+────────────────────────
+
+Add the following models:
+
+Country
+- id
+- name
+- isoCode (e.g. NG, US, UK)
+- currency (ISO 4217, e.g. NGN, USD)
+- timezone
+- active
+- createdAt
+
+TaxRule
+- id
+- countryId
+- name
+- taxType (VAT | SALES | SERVICE | OTHER)
+- rate (percentage)
+- appliesTo (FARE | COMMISSION | BOTH)
+- effectiveFrom
+- effectiveTo (nullable)
+- createdAt
+
+ExchangeRate
+- id
+- baseCurrency
+- targetCurrency
+- rate
+- asOfDate
+- source (MANUAL)
+- createdAt
+
+ComplianceProfile
+- id
+- countryId
+- legalEntityName
+- registrationId (optional)
+- taxId (optional)
+- notes
+- createdAt
+
+Ensure indexes on countryId and currency.
+
+────────────────────────
+SYSTEM BEHAVIOR
+────────────────────────
+
+1) Trips
+- Each trip is linked to a Country
+- Currency is derived from country
+
+2) Pricing
+- All fares stored in base currency
+- Converted values shown using ExchangeRate (read-only)
+
+3) Tax Calculation (Simulation)
+- Apply TaxRule to completed trips
+- Store calculated tax amounts for reporting
+- DO NOT affect wallet balances
+
+4) Organizations (Trip Coordinators)
+- Taxes calculated under organization’s country
+- Shown on receipts as "Estimated Tax"
+
+────────────────────────
+API ROUTES
+────────────────────────
+
+GET  /api/countries
+POST /api/countries/create
+POST /api/countries/update
+
+GET  /api/tax-rules?countryId=
+POST /api/tax-rules/create
+
+GET  /api/exchange-rates
+POST /api/exchange-rates/update
+
+GET  /api/compliance/overview
+GET  /api/compliance/reports?countryId=
+
+Strict RBAC:
+- ADMIN / FINANCE only
+
+────────────────────────
+UI (ADMIN)
+────────────────────────
+
+Add Admin tabs/sections:
+
+🌍 Countries
+- Active countries
+- Currency display
+
+🧾 Tax Rules
+- Tax rate per country
+- Effective dates
+
+💱 Exchange Rates
+- Manual rate entry
+- Rate history
+
+📑 Compliance
+- Country-level summaries
+- Tax exposure reports
+- Exportable (CSV/PDF)
+
+NO rider or driver UI changes.
+
+────────────────────────
+REPORTING
+────────────────────────
+
+Extend Phase 12 reports to include:
+- Revenue by country
+- Tax exposure by country
+- Currency-converted summaries
+
+Reports must be READ-ONLY.
+
+────────────────────────
+AUDIT & SAFETY
+────────────────────────
+
+• No wallet mutations
+• No payout impact
+• No automatic deductions
+• All calculations traceable
+• Full AuditLog coverage
+
+────────────────────────
+FINAL CHECKS
+────────────────────────
+
+• Existing pricing unchanged
+• Wallets & payouts unaffected
+• Analytics still accurate
+• App compiles cleanly
+
+IMPLEMENT PHASE 15 ONLY.
