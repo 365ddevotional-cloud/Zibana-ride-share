@@ -177,6 +177,18 @@ Key database tables:
 - GET /api/rider/profile endpoint for rider profile with rating data
 - Directors have read-only access to ratings (no modifications)
 
+### Phase 9 – Disputes & Moderation (FROZEN - Stable)
+- disputes table with tripId, raisedByRole, raisedById, againstUserId, category, description, status, adminNotes
+- Categories: fare, behavior, cancellation, other
+- Status: open, under_review, resolved, rejected
+- Only one dispute per user per trip, only for completed or cancelled trips
+- DisputeForm component in TripDetailModal for riders and drivers
+- Admin Disputes tab with filtering by status, category, role
+- Dispute detail modal with admin notes and status actions (resolve/reject)
+- Directors have read-only access to disputes (view only, no actions)
+- No auto refunds or penalties - manual moderation only
+- API endpoints: POST /api/disputes, GET /api/disputes/check/:tripId, GET /api/admin/disputes, PATCH /api/admin/disputes/:id
+
 ### FROZEN Components (DO NOT MODIFY)
 - Authentication flow (Replit Auth + OpenID Connect)
 - Role assignments and routing logic
@@ -185,3 +197,4 @@ Key database tables:
 - Rider dashboard and all rider endpoints
 - Notifications system and all notification endpoints
 - Ratings system and all rating endpoints
+- Disputes system and all dispute endpoints
