@@ -232,6 +232,14 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Trip not found or already accepted" });
       }
 
+      await storage.createNotification({
+        userId: trip.riderId,
+        role: "rider",
+        title: "Driver Accepted",
+        message: `A driver has accepted your ride from ${trip.pickupLocation} to ${trip.dropoffLocation}`,
+        type: "success",
+      });
+
       return res.json(trip);
     } catch (error) {
       console.error("Error accepting ride:", error);
@@ -252,6 +260,30 @@ export async function registerRoutes(
       const trip = await storage.updateTripStatus(tripId, userId, status);
       if (!trip) {
         return res.status(404).json({ message: "Trip not found" });
+      }
+
+      if (status === "in_progress") {
+        await storage.createNotification({
+          userId: trip.riderId,
+          role: "rider",
+          title: "Trip Started",
+          message: "Your trip is now in progress. Enjoy your ride!",
+          type: "info",
+        });
+      } else if (status === "completed") {
+        await storage.createNotification({
+          userId: trip.riderId,
+          role: "rider",
+          title: "Trip Completed",
+          message: `Your trip has been completed. Fare: $${trip.fareAmount}`,
+          type: "success",
+        });
+        
+        await storage.notifyAdminsAndDirectors(
+          "Trip Completed",
+          `Trip completed. Fare: $${trip.fareAmount}, Commission: $${trip.commissionAmount}`,
+          "success"
+        );
       }
 
       return res.json(trip);
@@ -298,6 +330,13 @@ export async function registerRoutes(
       }
 
       const trip = await storage.createTrip(parsed.data);
+      
+      await storage.notifyAllDrivers(
+        "New Ride Request",
+        `New ride from ${parsed.data.pickupLocation} to ${parsed.data.dropoffLocation}`,
+        "info"
+      );
+      
       return res.json(trip);
     } catch (error) {
       console.error("Error requesting ride:", error);
@@ -366,6 +405,24 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Driver not found" });
       }
 
+      if (status === "approved") {
+        await storage.createNotification({
+          userId: driverId,
+          role: "driver",
+          title: "Account Approved",
+          message: "Congratulations! Your driver account has been approved. You can now go online and accept rides.",
+          type: "success",
+        });
+      } else if (status === "suspended") {
+        await storage.createNotification({
+          userId: driverId,
+          role: "driver",
+          title: "Account Suspended",
+          message: "Your driver account has been suspended. Please contact support for more information.",
+          type: "warning",
+        });
+      }
+
       return res.json(driver);
     } catch (error) {
       console.error("Error updating driver status:", error);
@@ -428,6 +485,14 @@ export async function registerRoutes(
       if (!payout) {
         return res.status(404).json({ message: "Payout not found or already paid" });
       }
+
+      await storage.createNotification({
+        userId: payout.driverId,
+        role: "driver",
+        title: "Payout Processed",
+        message: `Your payout of $${payout.amount} has been marked as paid.`,
+        type: "success",
+      });
 
       return res.json(payout);
     } catch (error) {
