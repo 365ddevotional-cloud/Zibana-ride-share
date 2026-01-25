@@ -4,6 +4,7 @@ import {
   riderProfiles, 
   trips,
   users,
+  payoutTransactions,
   type UserRole, 
   type InsertUserRole,
   type DriverProfile,
@@ -11,7 +12,9 @@ import {
   type RiderProfile,
   type InsertRiderProfile,
   type Trip,
-  type InsertTrip
+  type InsertTrip,
+  type PayoutTransaction,
+  type InsertPayoutTransaction
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum } from "drizzle-orm";
@@ -56,6 +59,14 @@ export interface IStorage {
     totalCommission: string;
     totalDriverPayouts: string;
   }>;
+
+  createPayoutTransaction(data: InsertPayoutTransaction): Promise<PayoutTransaction>;
+  getAllPayoutTransactions(): Promise<any[]>;
+  getPendingPayouts(): Promise<any[]>;
+  getDriverPayouts(driverId: string): Promise<PayoutTransaction[]>;
+  markPayoutAsPaid(transactionId: string, adminId: string): Promise<PayoutTransaction | null>;
+  creditDriverWallet(driverId: string, amount: string, tripId: string): Promise<void>;
+  getDriverWalletBalance(driverId: string): Promise<string>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -439,6 +450,109 @@ export class DatabaseStorage implements IStorage {
       totalCommission: parseFloat(pricingStats?.totalCommission || "0").toFixed(2),
       totalDriverPayouts: parseFloat(pricingStats?.totalDriverPayouts || "0").toFixed(2),
     };
+  }
+
+  async createPayoutTransaction(data: InsertPayoutTransaction): Promise<PayoutTransaction> {
+    const [transaction] = await db.insert(payoutTransactions).values(data).returning();
+    return transaction;
+  }
+
+  async getAllPayoutTransactions(): Promise<any[]> {
+    const allTransactions = await db
+      .select()
+      .from(payoutTransactions)
+      .orderBy(desc(payoutTransactions.createdAt))
+      .limit(200);
+
+    const transactionsWithDetails = await Promise.all(
+      allTransactions.map(async (txn) => {
+        const [driver] = await db
+          .select()
+          .from(driverProfiles)
+          .where(eq(driverProfiles.userId, txn.driverId));
+        return { ...txn, driverName: driver?.fullName || 'Unknown Driver' };
+      })
+    );
+
+    return transactionsWithDetails;
+  }
+
+  async getPendingPayouts(): Promise<any[]> {
+    const pendingTxns = await db
+      .select()
+      .from(payoutTransactions)
+      .where(
+        and(
+          eq(payoutTransactions.type, "earning"),
+          eq(payoutTransactions.status, "pending")
+        )
+      )
+      .orderBy(desc(payoutTransactions.createdAt));
+
+    const transactionsWithDetails = await Promise.all(
+      pendingTxns.map(async (txn) => {
+        const [driver] = await db
+          .select()
+          .from(driverProfiles)
+          .where(eq(driverProfiles.userId, txn.driverId));
+        return { ...txn, driverName: driver?.fullName || 'Unknown Driver' };
+      })
+    );
+
+    return transactionsWithDetails;
+  }
+
+  async getDriverPayouts(driverId: string): Promise<PayoutTransaction[]> {
+    return await db
+      .select()
+      .from(payoutTransactions)
+      .where(eq(payoutTransactions.driverId, driverId))
+      .orderBy(desc(payoutTransactions.createdAt));
+  }
+
+  async markPayoutAsPaid(transactionId: string, adminId: string): Promise<PayoutTransaction | null> {
+    const [transaction] = await db
+      .update(payoutTransactions)
+      .set({ 
+        status: "paid",
+        paidAt: new Date(),
+        paidByAdminId: adminId
+      })
+      .where(
+        and(
+          eq(payoutTransactions.id, transactionId),
+          eq(payoutTransactions.status, "pending")
+        )
+      )
+      .returning();
+    return transaction || null;
+  }
+
+  async creditDriverWallet(driverId: string, amount: string, tripId: string): Promise<void> {
+    await db
+      .update(driverProfiles)
+      .set({ 
+        walletBalance: sql`${driverProfiles.walletBalance} + ${amount}`,
+        updatedAt: new Date()
+      })
+      .where(eq(driverProfiles.userId, driverId));
+
+    await this.createPayoutTransaction({
+      driverId,
+      tripId,
+      type: "earning",
+      amount,
+      status: "pending",
+      description: `Earning from completed trip`,
+    });
+  }
+
+  async getDriverWalletBalance(driverId: string): Promise<string> {
+    const [driver] = await db
+      .select({ walletBalance: driverProfiles.walletBalance })
+      .from(driverProfiles)
+      .where(eq(driverProfiles.userId, driverId));
+    return driver?.walletBalance || "0.00";
   }
 }
 
