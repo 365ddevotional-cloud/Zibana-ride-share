@@ -206,6 +206,25 @@ Key database tables:
 - GET /api/refunds (with optional status filter), GET /api/refunds/:refundId/audit
 - POST /api/wallet/adjust for admin-only driver wallet adjustments
 
+### Phase 10B – Chargebacks & External Payment Reconciliation (FROZEN - Stable)
+- chargebacks table: tripId, riderId, driverId, paymentProvider (stripe/paystack/flutterwave/other), externalReference, amount, currency, reason, status
+- Chargeback statuses: reported, under_review, won, lost, reversed
+- payment_reconciliations table: tripId, provider, expectedAmount, actualAmount, variance, status, notes
+- Reconciliation statuses: matched, mismatched, manual_review
+- Role-based permissions:
+  - Admin/Finance: Can report chargebacks, resolve (won/lost/reversed), review reconciliations
+  - Trip Coordinator: Can flag suspicious trips
+  - Directors: Read-only access to chargebacks and reconciliations
+- Admin dashboard Chargebacks tab with two sections:
+  - Chargeback Queue: Status filtering, chargeback detail modal with audit trail
+  - Payment Reconciliation: Variance tracking, manual review actions
+- All chargeback actions logged to audit_logs table for compliance
+- API endpoints: POST /api/chargebacks/report, /api/chargebacks/resolve
+- GET /api/chargebacks (with optional status filter), GET /api/chargebacks/:id/audit
+- POST /api/reconciliation/run, /api/reconciliation/review
+- GET /api/reconciliation (with optional status filter)
+- POST /api/trips/:tripId/flag for suspicious activity flagging
+
 ### FROZEN Components (DO NOT MODIFY)
 - Authentication flow (Replit Auth + OpenID Connect)
 - Role assignments and routing logic
@@ -216,3 +235,4 @@ Key database tables:
 - Ratings system and all rating endpoints
 - Disputes system and all dispute endpoints
 - Refunds system and all refund endpoints
+- Chargebacks system and all chargeback endpoints
