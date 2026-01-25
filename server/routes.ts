@@ -322,7 +322,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/admin/drivers", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+  app.get("/api/admin/drivers", isAuthenticated, requireRole(["admin", "director"]), async (req: any, res) => {
     try {
       const drivers = await storage.getAllDriversWithDetails();
       return res.json(drivers);
@@ -332,7 +332,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/admin/trips", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+  app.get("/api/admin/trips", isAuthenticated, requireRole(["admin", "director"]), async (req: any, res) => {
     try {
       const trips = await storage.getAllTripsWithDetails();
       return res.json(trips);
@@ -342,7 +342,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/admin/stats", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+  app.get("/api/admin/stats", isAuthenticated, requireRole(["admin", "director"]), async (req: any, res) => {
     try {
       const stats = await storage.getAdminStats();
       return res.json(stats);
@@ -373,7 +373,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/admin/riders", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+  app.get("/api/admin/riders", isAuthenticated, requireRole(["admin", "director"]), async (req: any, res) => {
     try {
       const riders = await storage.getAllRidersWithDetails();
       return res.json(riders);
@@ -399,7 +399,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/admin/payouts", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+  app.get("/api/admin/payouts", isAuthenticated, requireRole(["admin", "director"]), async (req: any, res) => {
     try {
       const payouts = await storage.getAllPayoutTransactions();
       return res.json(payouts);
@@ -409,7 +409,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/admin/payouts/pending", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+  app.get("/api/admin/payouts/pending", isAuthenticated, requireRole(["admin", "director"]), async (req: any, res) => {
     try {
       const payouts = await storage.getPendingPayouts();
       return res.json(payouts);
@@ -433,6 +433,16 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error marking payout as paid:", error);
       return res.status(500).json({ message: "Failed to mark payout as paid" });
+    }
+  });
+
+  app.get("/api/admin/directors", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const directors = await storage.getAllDirectorsWithDetails();
+      return res.json(directors);
+    } catch (error) {
+      console.error("Error getting directors:", error);
+      return res.status(500).json({ message: "Failed to get directors" });
     }
   });
 
