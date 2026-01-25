@@ -285,7 +285,10 @@ export class DatabaseStorage implements IStorage {
         and(
           eq(trips.id, tripId),
           eq(trips.riderId, riderId),
-          eq(trips.status, "requested")
+          or(
+            eq(trips.status, "requested"),
+            eq(trips.status, "accepted")
+          )
         )
       )
       .returning();

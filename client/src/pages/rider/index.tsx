@@ -27,7 +27,9 @@ import {
   Plus,
   LogOut,
   History,
-  Navigation
+  Navigation,
+  CheckCircle,
+  XCircle
 } from "lucide-react";
 import type { Trip } from "@shared/schema";
 import { useEffect } from "react";
@@ -285,11 +287,63 @@ export default function RiderDashboard() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Status</span>
-                    <StatusBadge status={currentTrip.status as any} />
+                  {/* Trip Status Timeline */}
+                  <div className="flex items-center justify-between py-2" data-testid="trip-timeline">
+                    <div className="flex flex-col items-center gap-1">
+                      <div className={`flex h-8 w-8 items-center justify-center rounded-full ${
+                        ["requested", "accepted", "in_progress", "completed"].includes(currentTrip.status)
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground"
+                      }`}>
+                        <Clock className="h-4 w-4" />
+                      </div>
+                      <span className="text-xs text-muted-foreground">Requested</span>
+                    </div>
+                    <div className={`h-0.5 flex-1 mx-2 ${
+                      ["accepted", "in_progress", "completed"].includes(currentTrip.status)
+                        ? "bg-primary" : "bg-muted"
+                    }`} />
+                    <div className="flex flex-col items-center gap-1">
+                      <div className={`flex h-8 w-8 items-center justify-center rounded-full ${
+                        ["accepted", "in_progress", "completed"].includes(currentTrip.status)
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground"
+                      }`}>
+                        <Car className="h-4 w-4" />
+                      </div>
+                      <span className="text-xs text-muted-foreground">Accepted</span>
+                    </div>
+                    <div className={`h-0.5 flex-1 mx-2 ${
+                      ["in_progress", "completed"].includes(currentTrip.status)
+                        ? "bg-primary" : "bg-muted"
+                    }`} />
+                    <div className="flex flex-col items-center gap-1">
+                      <div className={`flex h-8 w-8 items-center justify-center rounded-full ${
+                        ["in_progress", "completed"].includes(currentTrip.status)
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground"
+                      }`}>
+                        <Navigation className="h-4 w-4" />
+                      </div>
+                      <span className="text-xs text-muted-foreground">In Progress</span>
+                    </div>
+                    <div className={`h-0.5 flex-1 mx-2 ${
+                      currentTrip.status === "completed" ? "bg-primary" : "bg-muted"
+                    }`} />
+                    <div className="flex flex-col items-center gap-1">
+                      <div className={`flex h-8 w-8 items-center justify-center rounded-full ${
+                        currentTrip.status === "completed"
+                          ? "bg-green-500 text-white"
+                          : "bg-muted text-muted-foreground"
+                      }`}>
+                        <CheckCircle className="h-4 w-4" />
+                      </div>
+                      <span className="text-xs text-muted-foreground">Completed</span>
+                    </div>
                   </div>
+
                   <Separator />
+                  
                   <div className="space-y-3">
                     <div className="flex items-start gap-3">
                       <MapPin className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
@@ -324,20 +378,37 @@ export default function RiderDashboard() {
                         disabled={cancelRideMutation.isPending}
                         data-testid="button-cancel-ride"
                       >
+                        <XCircle className="h-4 w-4 mr-2" />
                         Cancel Request
                       </Button>
                     </div>
                   )}
                   
                   {currentTrip.status === "accepted" && (
-                    <div className="pt-2 text-sm text-muted-foreground">
-                      <p>Your driver is on the way to pick you up!</p>
+                    <div className="pt-2 space-y-4">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Car className="h-4 w-4 animate-pulse" />
+                        <span>Your driver is on the way to pick you up!</span>
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        className="w-full"
+                        onClick={() => cancelRideMutation.mutate(currentTrip.id)}
+                        disabled={cancelRideMutation.isPending}
+                        data-testid="button-cancel-ride-accepted"
+                      >
+                        <XCircle className="h-4 w-4 mr-2" />
+                        Cancel Ride
+                      </Button>
                     </div>
                   )}
                   
                   {currentTrip.status === "in_progress" && (
-                    <div className="pt-2 text-sm text-muted-foreground">
-                      <p>You're on your way to your destination!</p>
+                    <div className="pt-2">
+                      <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
+                        <Navigation className="h-4 w-4" />
+                        <span>You're on your way to your destination!</span>
+                      </div>
                     </div>
                   )}
                 </CardContent>
