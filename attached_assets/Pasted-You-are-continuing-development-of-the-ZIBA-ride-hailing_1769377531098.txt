@@ -1,0 +1,118 @@
+You are continuing development of the ZIBA ride-hailing app.
+Phases 1–16 are COMPLETE and MUST NOT be modified.
+
+IMPLEMENT PHASE 17 — MOBILE APP OPTIMIZATION & STORE READINESS.
+
+This phase prepares ZIBA for Google Play Store and Apple App Store submission.
+
+DO NOT ADD NEW BUSINESS FEATURES.
+FOCUS ON PERFORMANCE, STABILITY, AND COMPLIANCE.
+
+────────────────────────
+OBJECTIVES
+────────────────────────
+
+1) Optimize mobile performance and loading time
+2) Ensure offline-safe and low-network behavior
+3) Harden error handling and crash resilience
+4) Prepare app for Play Store & App Store policies
+5) Finalize production configuration
+
+────────────────────────
+PERFORMANCE OPTIMIZATION
+────────────────────────
+
+• Lazy-load heavy admin and analytics views
+• Reduce initial bundle size
+• Optimize API calls (avoid over-fetching)
+• Add loading skeletons for slow networks
+• Ensure smooth transitions and animations
+
+────────────────────────
+NETWORK & OFFLINE BEHAVIOR
+────────────────────────
+
+• Graceful handling of:
+  - No internet
+  - Slow internet
+  - API timeouts
+• Show user-friendly error messages
+• Retry logic for critical requests
+• Read-only offline access where applicable
+
+────────────────────────
+ERROR HANDLING & STABILITY
+────────────────────────
+
+• Global error boundary
+• Centralized error logging
+• Safe fallbacks for failed components
+• Prevent white / blank screens
+• Validate all user inputs
+
+────────────────────────
+SECURITY & COMPLIANCE
+────────────────────────
+
+• Remove all debug logs
+• Ensure no secrets in frontend
+• Confirm RBAC enforcement everywhere
+• Validate authentication flows
+• Enforce HTTPS only
+
+────────────────────────
+STORE READINESS (ANDROID & IOS)
+────────────────────────
+
+Prepare the following:
+
+ANDROID (Google Play):
+• App name & package ID
+• Versioning (semantic version)
+• App icons (required sizes)
+• Feature graphic
+• Privacy policy URL
+• Permissions justification
+• Release build configuration
+
+IOS (Apple App Store):
+• Bundle identifier
+• App icons & launch screens
+• Privacy labels
+• App description & screenshots
+• TestFlight build readiness
+
+────────────────────────
+CONFIGURATION
+────────────────────────
+
+• Separate environments:
+  - development
+  - staging
+  - production
+• Ensure production uses:
+  - production database
+  - production API URLs
+• Disable test accounts in production
+
+────────────────────────
+QA CHECKLIST
+────────────────────────
+
+• Rider flow works end-to-end
+• Driver flow works end-to-end
+• Trip Coordinator flow works end-to-end
+• Support tickets work
+• No admin access leakage
+• No crashes during navigation
+
+────────────────────────
+FINAL CHECKS
+────────────────────────
+
+• App builds successfully for mobile
+• No console errors
+• No blocking UI issues
+• Ready for store submission
+
+IMPLEMENT PHASE 17 ONLY.

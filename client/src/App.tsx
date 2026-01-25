@@ -1,23 +1,36 @@
+import { lazy, Suspense } from "react";
 import { Switch, Route, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
+import { ErrorBoundary } from "@/components/error-boundary";
+import { NetworkStatusIndicator } from "@/components/network-status";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { FullPageLoading } from "@/components/loading-spinner";
+import { DashboardSkeleton } from "@/components/loading-skeleton";
 import NotFound from "@/pages/not-found";
 import LandingPage from "@/pages/landing";
 import RoleSelectionPage from "@/pages/role-selection";
-import DriverDashboard from "@/pages/driver/index";
-import DriverSetupPage from "@/pages/driver/setup";
-import DriverProfilePage from "@/pages/driver/profile";
-import RiderDashboard from "@/pages/rider/index";
-import AdminDashboard from "@/pages/admin/index";
-import AdminSetupPage from "@/pages/admin-setup";
-import CoordinatorDashboard from "@/pages/coordinator/index";
-import SupportDashboard from "@/pages/support/index";
+
+const DriverDashboard = lazy(() => import("@/pages/driver/index"));
+const DriverSetupPage = lazy(() => import("@/pages/driver/setup"));
+const DriverProfilePage = lazy(() => import("@/pages/driver/profile"));
+const RiderDashboard = lazy(() => import("@/pages/rider/index"));
+const AdminDashboard = lazy(() => import("@/pages/admin/index"));
+const AdminSetupPage = lazy(() => import("@/pages/admin-setup"));
+const CoordinatorDashboard = lazy(() => import("@/pages/coordinator/index"));
+const SupportDashboard = lazy(() => import("@/pages/support/index"));
+
+function LazyComponent({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={<DashboardSkeleton />}>
+      {children}
+    </Suspense>
+  );
+}
 
 function AuthenticatedRoutes() {
   const { user, isLoading: authLoading } = useAuth();
@@ -45,30 +58,54 @@ function AuthenticatedRoutes() {
   }
 
   if (userRole.role === "admin") {
-    return <AdminDashboard userRole="admin" />;
+    return (
+      <LazyComponent>
+        <AdminDashboard userRole="admin" />
+      </LazyComponent>
+    );
   }
 
   if (userRole.role === "director") {
-    return <AdminDashboard userRole="director" />;
+    return (
+      <LazyComponent>
+        <AdminDashboard userRole="director" />
+      </LazyComponent>
+    );
   }
 
   if (userRole.role === "driver") {
-    return <DriverDashboard />;
+    return (
+      <LazyComponent>
+        <DriverDashboard />
+      </LazyComponent>
+    );
   }
 
   if (userRole.role === "trip_coordinator") {
-    return <CoordinatorDashboard />;
+    return (
+      <LazyComponent>
+        <CoordinatorDashboard />
+      </LazyComponent>
+    );
   }
 
   if (userRole.role === "support_agent") {
-    return <SupportDashboard />;
+    return (
+      <LazyComponent>
+        <SupportDashboard />
+      </LazyComponent>
+    );
   }
 
-  return <RiderDashboard />;
+  return (
+    <LazyComponent>
+      <RiderDashboard />
+    </LazyComponent>
+  );
 }
 
 function Router() {
-  const { user, isLoading } = useAuth();
+  const { user } = useAuth();
   const { data: userRole } = useQuery<{ role: string } | null>({
     queryKey: ["/api/user/role"],
     enabled: !!user,
@@ -84,33 +121,47 @@ function Router() {
       </Route>
       
       <Route path="/driver">
-        {user && userRole?.role === "driver" ? <DriverDashboard /> : <Redirect to="/" />}
+        {user && userRole?.role === "driver" ? (
+          <LazyComponent><DriverDashboard /></LazyComponent>
+        ) : <Redirect to="/" />}
       </Route>
       
       <Route path="/driver/setup">
-        {user && userRole?.role === "driver" ? <DriverSetupPage /> : <Redirect to="/" />}
+        {user && userRole?.role === "driver" ? (
+          <LazyComponent><DriverSetupPage /></LazyComponent>
+        ) : <Redirect to="/" />}
       </Route>
       
       <Route path="/driver/profile">
-        {user && userRole?.role === "driver" ? <DriverProfilePage /> : <Redirect to="/" />}
+        {user && userRole?.role === "driver" ? (
+          <LazyComponent><DriverProfilePage /></LazyComponent>
+        ) : <Redirect to="/" />}
       </Route>
       
       <Route path="/rider">
-        {user && userRole?.role === "rider" ? <RiderDashboard /> : <Redirect to="/" />}
+        {user && userRole?.role === "rider" ? (
+          <LazyComponent><RiderDashboard /></LazyComponent>
+        ) : <Redirect to="/" />}
       </Route>
       
       <Route path="/admin">
-        {user && (userRole?.role === "admin" || userRole?.role === "director") 
-          ? <AdminDashboard userRole={userRole?.role || "admin"} /> 
-          : <Redirect to="/" />}
+        {user && (userRole?.role === "admin" || userRole?.role === "director") ? (
+          <LazyComponent>
+            <AdminDashboard userRole={userRole?.role || "admin"} />
+          </LazyComponent>
+        ) : <Redirect to="/" />}
       </Route>
       
       <Route path="/admin/setup">
-        {user ? <AdminSetupPage /> : <Redirect to="/" />}
+        {user ? (
+          <LazyComponent><AdminSetupPage /></LazyComponent>
+        ) : <Redirect to="/" />}
       </Route>
       
       <Route path="/coordinator">
-        {user && userRole?.role === "trip_coordinator" ? <CoordinatorDashboard /> : <Redirect to="/" />}
+        {user && userRole?.role === "trip_coordinator" ? (
+          <LazyComponent><CoordinatorDashboard /></LazyComponent>
+        ) : <Redirect to="/" />}
       </Route>
       
       <Route component={NotFound} />
@@ -120,14 +171,17 @@ function Router() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="light" storageKey="ziba-ui-theme">
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider defaultTheme="light" storageKey="ziba-ui-theme">
+          <TooltipProvider>
+            <Toaster />
+            <NetworkStatusIndicator />
+            <Router />
+          </TooltipProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 
