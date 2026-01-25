@@ -1151,3 +1151,82 @@ export type GrowthStats = {
   totalPartnerLeads: number;
   signedPartners: number;
 };
+
+// Phase 20 - Post-Launch Monitoring & Feature Flags
+
+export const featureFlags = pgTable("feature_flags", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name", { length: 100 }).notNull().unique(),
+  description: text("description"),
+  enabled: boolean("enabled").notNull().default(false),
+  rolloutPercentage: integer("rollout_percentage").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertFeatureFlagSchema = createInsertSchema(featureFlags).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertFeatureFlag = z.infer<typeof insertFeatureFlagSchema>;
+export type FeatureFlag = typeof featureFlags.$inferSelect;
+
+export type PlatformMetrics = {
+  dailyActiveUsers: number;
+  monthlyActiveUsers: number;
+  tripSuccessRate: number;
+  cancellationRate: number;
+  avgTripCompletionTime: number;
+  supportTicketVolume: number;
+};
+
+export type RiderMetrics = {
+  newSignups: number;
+  repeatUsageRate: number;
+  failedBookingAttempts: number;
+  totalRiders: number;
+};
+
+export type DriverMetrics = {
+  activeDrivers: number;
+  acceptanceRate: number;
+  completionRate: number;
+  earningsVariance: number;
+  totalDrivers: number;
+};
+
+export type OrganizationMetrics = {
+  activeOrganizations: number;
+  tripsPerOrganization: number;
+  slaComplianceRate: number;
+  invoiceCount: number;
+};
+
+export type FinancialMetrics = {
+  grossFares: string;
+  platformCommission: string;
+  refundVolume: string;
+  chargebackCount: number;
+  netRevenue: string;
+};
+
+export type MetricsOverview = {
+  platform: PlatformMetrics;
+  riders: RiderMetrics;
+  drivers: DriverMetrics;
+  organizations: OrganizationMetrics;
+  financials: FinancialMetrics;
+  alerts: MetricAlert[];
+};
+
+export type MetricAlert = {
+  id: string;
+  type: "warning" | "error" | "info";
+  metric: string;
+  message: string;
+  value: number;
+  threshold: number;
+  createdAt: Date;
+};

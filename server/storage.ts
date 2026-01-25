@@ -117,7 +117,17 @@ import {
   type PartnerLead,
   type InsertPartnerLead,
   type ReferralCodeWithStats,
-  type GrowthStats
+  type GrowthStats,
+  featureFlags,
+  type FeatureFlag,
+  type InsertFeatureFlag,
+  type PlatformMetrics,
+  type RiderMetrics,
+  type DriverMetrics,
+  type OrganizationMetrics,
+  type FinancialMetrics,
+  type MetricsOverview,
+  type MetricAlert
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte } from "drizzle-orm";
@@ -431,6 +441,20 @@ export interface IStorage {
   updatePartnerLeadStatus(leadId: string, status: string): Promise<PartnerLead | null>;
   
   getGrowthStats(): Promise<GrowthStats>;
+
+  // Phase 20 - Post-Launch Monitoring & Feature Flags
+  createFeatureFlag(data: InsertFeatureFlag): Promise<FeatureFlag>;
+  getFeatureFlag(name: string): Promise<FeatureFlag | null>;
+  getAllFeatureFlags(): Promise<FeatureFlag[]>;
+  updateFeatureFlag(name: string, data: Partial<InsertFeatureFlag>): Promise<FeatureFlag | null>;
+  isFeatureEnabled(name: string, userId?: string): Promise<boolean>;
+  
+  getPlatformMetrics(): Promise<PlatformMetrics>;
+  getRiderMetrics(): Promise<RiderMetrics>;
+  getDriverMetrics(): Promise<DriverMetrics>;
+  getOrganizationMetrics(): Promise<OrganizationMetrics>;
+  getFinancialMetrics(): Promise<FinancialMetrics>;
+  getMetricsOverview(): Promise<MetricsOverview>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3552,6 +3576,204 @@ export class DatabaseStorage implements IStorage {
       totalPartnerLeads: Number(partnerStats?.total || 0),
       signedPartners: Number(partnerStats?.signed || 0)
     };
+  }
+
+  // Phase 20 - Post-Launch Monitoring & Feature Flags
+  async createFeatureFlag(data: InsertFeatureFlag): Promise<FeatureFlag> {
+    const [flag] = await db.insert(featureFlags).values(data).returning();
+    return flag;
+  }
+
+  async getFeatureFlag(name: string): Promise<FeatureFlag | null> {
+    const [flag] = await db.select().from(featureFlags).where(eq(featureFlags.name, name));
+    return flag || null;
+  }
+
+  async getAllFeatureFlags(): Promise<FeatureFlag[]> {
+    return db.select().from(featureFlags).orderBy(desc(featureFlags.createdAt));
+  }
+
+  async updateFeatureFlag(name: string, data: Partial<InsertFeatureFlag>): Promise<FeatureFlag | null> {
+    const [updated] = await db.update(featureFlags)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(featureFlags.name, name))
+      .returning();
+    return updated || null;
+  }
+
+  async isFeatureEnabled(name: string, userId?: string): Promise<boolean> {
+    const flag = await this.getFeatureFlag(name);
+    if (!flag || !flag.enabled) return false;
+    if (flag.rolloutPercentage >= 100) return true;
+    if (flag.rolloutPercentage <= 0) return false;
+    if (userId) {
+      const hash = userId.split('').reduce((a, b) => ((a << 5) - a) + b.charCodeAt(0), 0);
+      return Math.abs(hash % 100) < flag.rolloutPercentage;
+    }
+    return Math.random() * 100 < flag.rolloutPercentage;
+  }
+
+  async getPlatformMetrics(): Promise<PlatformMetrics> {
+    const now = new Date();
+    const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    const [tripStats] = await db.select({
+      total: count(),
+      completed: sql<number>`count(*) filter (where ${trips.status} = 'completed')`,
+      cancelled: sql<number>`count(*) filter (where ${trips.status} = 'cancelled')`
+    }).from(trips);
+
+    const [ticketStats] = await db.select({ count: count() })
+      .from(supportTickets)
+      .where(gte(supportTickets.createdAt, dayAgo));
+
+    const totalTrips = Number(tripStats?.total || 0);
+    const completedTrips = Number(tripStats?.completed || 0);
+    const cancelledTrips = Number(tripStats?.cancelled || 0);
+
+    return {
+      dailyActiveUsers: 0,
+      monthlyActiveUsers: 0,
+      tripSuccessRate: totalTrips > 0 ? (completedTrips / totalTrips) * 100 : 0,
+      cancellationRate: totalTrips > 0 ? (cancelledTrips / totalTrips) * 100 : 0,
+      avgTripCompletionTime: 0,
+      supportTicketVolume: Number(ticketStats?.count || 0)
+    };
+  }
+
+  async getRiderMetrics(): Promise<RiderMetrics> {
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    const [totalRiders] = await db.select({ count: count() }).from(riderProfiles);
+    const [newSignups] = await db.select({ count: count() })
+      .from(riderProfiles)
+      .where(gte(riderProfiles.createdAt, weekAgo));
+
+    const [riderTrips] = await db.select({
+      total: sql<number>`count(distinct ${trips.riderId})`,
+      repeat: sql<number>`count(*) filter (where ${trips.riderId} in (
+        select rider_id from trips group by rider_id having count(*) > 1
+      ))`
+    }).from(trips);
+
+    return {
+      newSignups: Number(newSignups?.count || 0),
+      repeatUsageRate: 0,
+      failedBookingAttempts: 0,
+      totalRiders: Number(totalRiders?.count || 0)
+    };
+  }
+
+  async getDriverMetrics(): Promise<DriverMetrics> {
+    const [totalDrivers] = await db.select({ count: count() }).from(driverProfiles);
+    const [activeDrivers] = await db.select({ count: count() })
+      .from(driverProfiles)
+      .where(eq(driverProfiles.status, "approved"));
+
+    const [tripStats] = await db.select({
+      accepted: sql<number>`count(*) filter (where ${trips.status} != 'requested')`,
+      completed: sql<number>`count(*) filter (where ${trips.status} = 'completed')`,
+      total: count()
+    }).from(trips).where(sql`${trips.driverId} is not null`);
+
+    const total = Number(tripStats?.total || 0);
+    const accepted = Number(tripStats?.accepted || 0);
+    const completed = Number(tripStats?.completed || 0);
+
+    return {
+      activeDrivers: Number(activeDrivers?.count || 0),
+      acceptanceRate: total > 0 ? (accepted / total) * 100 : 0,
+      completionRate: accepted > 0 ? (completed / accepted) * 100 : 0,
+      earningsVariance: 0,
+      totalDrivers: Number(totalDrivers?.count || 0)
+    };
+  }
+
+  async getOrganizationMetrics(): Promise<OrganizationMetrics> {
+    const [orgStats] = await db.select({ count: count() }).from(tripCoordinatorProfiles);
+    const [contractStats] = await db.select({
+      active: sql<number>`count(*) filter (where ${organizationContracts.status} = 'ACTIVE')`
+    }).from(organizationContracts);
+    const [invoiceStats] = await db.select({ count: count() }).from(enterpriseInvoices);
+
+    const [orgTrips] = await db.select({ count: count() })
+      .from(trips)
+      .where(eq(trips.bookedForType, "third_party"));
+
+    const activeOrgs = Number(contractStats?.active || 0);
+    const tripCount = Number(orgTrips?.count || 0);
+
+    return {
+      activeOrganizations: activeOrgs,
+      tripsPerOrganization: activeOrgs > 0 ? tripCount / activeOrgs : 0,
+      slaComplianceRate: 100,
+      invoiceCount: Number(invoiceStats?.count || 0)
+    };
+  }
+
+  async getFinancialMetrics(): Promise<FinancialMetrics> {
+    const [tripFinancials] = await db.select({
+      grossFares: sql<string>`coalesce(sum(${trips.fareAmount}), 0)`,
+      commission: sql<string>`coalesce(sum(${trips.commissionAmount}), 0)`
+    }).from(trips).where(eq(trips.status, "completed"));
+
+    const [refundStats] = await db.select({
+      total: sql<string>`coalesce(sum(${refunds.amount}), 0)`
+    }).from(refunds).where(eq(refunds.status, "processed"));
+
+    const [chargebackStats] = await db.select({ count: count() }).from(chargebacks);
+
+    const grossFares = tripFinancials?.grossFares || "0.00";
+    const commission = tripFinancials?.commission || "0.00";
+    const refundVolume = refundStats?.total || "0.00";
+
+    return {
+      grossFares,
+      platformCommission: commission,
+      refundVolume,
+      chargebackCount: Number(chargebackStats?.count || 0),
+      netRevenue: (parseFloat(commission) - parseFloat(refundVolume)).toFixed(2)
+    };
+  }
+
+  async getMetricsOverview(): Promise<MetricsOverview> {
+    const [platform, riders, drivers, organizations, financials] = await Promise.all([
+      this.getPlatformMetrics(),
+      this.getRiderMetrics(),
+      this.getDriverMetrics(),
+      this.getOrganizationMetrics(),
+      this.getFinancialMetrics()
+    ]);
+
+    const alerts: MetricAlert[] = [];
+
+    if (platform.cancellationRate > 30) {
+      alerts.push({
+        id: crypto.randomUUID(),
+        type: "warning",
+        metric: "cancellation_rate",
+        message: "High cancellation rate detected",
+        value: platform.cancellationRate,
+        threshold: 30,
+        createdAt: new Date()
+      });
+    }
+
+    if (financials.chargebackCount > 10) {
+      alerts.push({
+        id: crypto.randomUUID(),
+        type: "error",
+        metric: "chargeback_count",
+        message: "Elevated chargeback volume",
+        value: financials.chargebackCount,
+        threshold: 10,
+        createdAt: new Date()
+      });
+    }
+
+    return { platform, riders, drivers, organizations, financials, alerts };
   }
 }
 

@@ -1,0 +1,152 @@
+You are continuing development of the ZIBA ride-hailing app.
+Phases 1–19 are COMPLETE and MUST NOT be modified.
+
+IMPLEMENT PHASE 20 — POST-LAUNCH MONITORING, KPIs & CONTINUOUS ITERATION.
+
+This phase focuses on observability, metrics, operational monitoring,
+and safe iteration after public launch.
+
+DO NOT ADD NEW BUSINESS FEATURES.
+FOCUS ON VISIBILITY, STABILITY, AND IMPROVEMENT LOOPS.
+
+────────────────────────
+OBJECTIVES
+────────────────────────
+
+1) Track platform health and usage
+2) Monitor KPIs across riders, drivers, and organizations
+3) Detect issues early (performance, errors, drop-offs)
+4) Enable data-driven iteration without breaking production
+5) Prepare ZIBA for long-term operation
+
+────────────────────────
+KEY PERFORMANCE INDICATORS (KPIs)
+────────────────────────
+
+PLATFORM
+- Daily Active Users (DAU)
+- Monthly Active Users (MAU)
+- Trip success rate
+- Cancellation rate
+- Average trip completion time
+- Support ticket volume
+
+RIDER
+- New rider signups
+- Repeat usage rate
+- Failed booking attempts
+
+DRIVER
+- Active drivers
+- Acceptance rate
+- Completion rate
+- Earnings stability (variance)
+
+TRIP COORDINATOR (B2B)
+- Active organizations
+- Trips per organization
+- SLA compliance rate
+- Invoice generation count
+
+FINANCIAL (READ-ONLY)
+- Gross fares
+- Platform commission
+- Refund volume
+- Chargeback count
+
+────────────────────────
+DATABASE / METRICS
+────────────────────────
+
+DO NOT introduce heavy new tables.
+
+Use:
+- Trip
+- User
+- WalletTransaction
+- SupportTicket
+- FraudEvent
+- EnterpriseInvoice
+- ReferralEvent
+
+Create lightweight aggregation views or cached summaries if needed.
+
+────────────────────────
+MONITORING & ALERTS
+────────────────────────
+
+Implement:
+- Error rate monitoring
+- API latency tracking
+- Failed transaction detection
+- Spike detection (refunds, chargebacks, cancellations)
+
+Alerts:
+- Admin-only
+- Read-only notifications
+- No automatic system actions
+
+────────────────────────
+API ROUTES
+────────────────────────
+
+GET /api/metrics/overview
+GET /api/metrics/platform
+GET /api/metrics/riders
+GET /api/metrics/drivers
+GET /api/metrics/organizations
+GET /api/metrics/financials
+
+Strict RBAC:
+- ADMIN / FINANCE only
+
+────────────────────────
+ADMIN UI
+────────────────────────
+
+Add a new Admin tab:
+
+📡 Monitoring
+
+Sections:
+1) KPI Overview Cards
+2) Trend charts (7d / 30d)
+3) Alerts & anomalies
+4) Health indicators (API, errors)
+
+NO user-facing UI changes.
+
+────────────────────────
+ITERATION & FEATURE FLAGS
+────────────────────────
+
+Introduce:
+- Feature flags (on/off)
+- Gradual rollout capability
+- Safe disabling of features without redeploy
+
+Flags must be:
+- Admin-controlled
+- Logged to AuditLog
+- Default OFF for new features
+
+────────────────────────
+AUDIT & SAFETY
+────────────────────────
+
+• Metrics are READ-ONLY
+• No automatic enforcement
+• No money movement
+• No silent changes
+• All admin actions logged
+
+────────────────────────
+FINAL CHECKS
+────────────────────────
+
+• Monitoring does not slow the app
+• Existing features untouched
+• Data accuracy verified
+• App compiles cleanly
+
+IMPLEMENT PHASE 20 ONLY.
