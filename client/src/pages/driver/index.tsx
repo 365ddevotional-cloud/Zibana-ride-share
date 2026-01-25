@@ -32,7 +32,11 @@ import {
   Wallet,
   DollarSign,
   ArrowUpRight,
-  ArrowDownLeft
+  ArrowDownLeft,
+  Gift,
+  Zap,
+  Target,
+  Award
 } from "lucide-react";
 import type { DriverProfile, Trip } from "@shared/schema";
 import { NotificationBell } from "@/components/notification-bell";
@@ -62,6 +66,16 @@ type WalletWithTransactions = {
     method: string;
     createdAt: string;
   }>;
+};
+
+type IncentiveEarning = {
+  id: string;
+  programId: string;
+  amount: string;
+  status: "pending" | "approved" | "paid" | "revoked";
+  earnedAt: string;
+  programName?: string;
+  programType?: "trip" | "streak" | "peak" | "quality" | "promo";
 };
 
 export default function DriverDashboard() {
@@ -120,6 +134,24 @@ export default function DriverDashboard() {
     queryKey: ["/api/wallets/me"],
     enabled: !!user,
   });
+
+  // Phase 14 - Incentive earnings query
+  const { data: incentiveEarnings = [], isLoading: incentivesLoading } = useQuery<IncentiveEarning[]>({
+    queryKey: ["/api/incentives/earnings/mine"],
+    queryFn: async () => {
+      const res = await fetch("/api/incentives/earnings/mine", { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!user && !!profile?.id,
+  });
+
+  const totalIncentiveEarned = incentiveEarnings
+    .filter(e => e.status === "paid")
+    .reduce((sum, e) => sum + parseFloat(e.amount), 0);
+
+  const pendingIncentives = incentiveEarnings
+    .filter(e => e.status === "pending" || e.status === "approved");
 
   const clearTripFilters = () => {
     setTripStatusFilter("");
@@ -450,6 +482,90 @@ export default function DriverDashboard() {
                                   </div>
                                 </div>
                                 <StatusBadge status={payout.status as "pending" | "processing" | "paid" | "failed" | "reversed"} />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Phase 14 - Incentive Bonuses Section */}
+            {profile.status === "approved" && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Gift className="h-5 w-5 text-primary" />
+                    Incentive Bonuses
+                  </CardTitle>
+                  <CardDescription>
+                    Bonuses earned from incentive programs
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {incentivesLoading ? (
+                    <div className="py-4 text-center text-muted-foreground text-sm">
+                      Loading bonuses...
+                    </div>
+                  ) : incentiveEarnings.length === 0 ? (
+                    <EmptyState
+                      icon={Award}
+                      title="No bonuses yet"
+                      description="Complete trips and meet program criteria to earn bonuses!"
+                    />
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-green-500/10 rounded-lg p-3">
+                          <div className="text-xs text-muted-foreground">Total Earned</div>
+                          <div className="text-lg font-bold text-green-600" data-testid="text-incentive-earned">
+                            ${totalIncentiveEarned.toFixed(2)}
+                          </div>
+                        </div>
+                        <div className="bg-yellow-500/10 rounded-lg p-3">
+                          <div className="text-xs text-muted-foreground">Pending</div>
+                          <div className="text-lg font-bold text-yellow-600" data-testid="text-incentive-pending">
+                            {pendingIncentives.length}
+                          </div>
+                        </div>
+                      </div>
+
+                      {incentiveEarnings.length > 0 && (
+                        <div className="space-y-2">
+                          <div className="text-sm font-medium">Recent Bonuses</div>
+                          <div className="space-y-1 max-h-[200px] overflow-y-auto">
+                            {incentiveEarnings.slice(0, 5).map((earning) => (
+                              <div 
+                                key={earning.id} 
+                                className="flex items-center justify-between py-2 border-b last:border-0"
+                                data-testid={`row-incentive-${earning.id}`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  {earning.programType === "trip" && <Target className="h-4 w-4 text-blue-500" />}
+                                  {earning.programType === "streak" && <Zap className="h-4 w-4 text-orange-500" />}
+                                  {earning.programType === "quality" && <Star className="h-4 w-4 text-yellow-500" />}
+                                  {earning.programType === "peak" && <Clock className="h-4 w-4 text-purple-500" />}
+                                  {earning.programType === "promo" && <Gift className="h-4 w-4 text-pink-500" />}
+                                  <div>
+                                    <div className="text-sm font-medium">{earning.programName || "Bonus"}</div>
+                                    <div className="text-xs text-muted-foreground">
+                                      {new Date(earning.earnedAt).toLocaleDateString()}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <div className={`text-sm font-medium ${
+                                    earning.status === "paid" ? "text-green-600" :
+                                    earning.status === "revoked" ? "text-red-600" :
+                                    "text-yellow-600"
+                                  }`}>
+                                    +${earning.amount}
+                                  </div>
+                                  <StatusBadge status={earning.status} />
+                                </div>
                               </div>
                             ))}
                           </div>

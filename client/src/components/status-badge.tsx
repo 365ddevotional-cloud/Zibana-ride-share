@@ -19,7 +19,11 @@ type StatusType =
   | "low"
   | "medium"
   | "high"
-  | "critical";
+  | "critical"
+  | "revoked"
+  | "active"
+  | "paused"
+  | "ended";
 
 interface StatusBadgeProps {
   status: StatusType;
@@ -98,6 +102,22 @@ const statusConfig: Record<StatusType, { label: string; className: string }> = {
   critical: {
     label: "Critical",
     className: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+  },
+  revoked: {
+    label: "Revoked",
+    className: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+  },
+  active: {
+    label: "Active",
+    className: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+  },
+  paused: {
+    label: "Paused",
+    className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+  },
+  ended: {
+    label: "Ended",
+    className: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400",
   },
 };
 

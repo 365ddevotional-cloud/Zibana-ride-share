@@ -2092,6 +2092,24 @@ export async function registerRoutes(
     }
   });
 
+  // Driver's own incentive earnings
+  app.get("/api/incentives/earnings/mine", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const profile = await storage.getDriverProfile(userId);
+      
+      if (!profile) {
+        return res.json([]);
+      }
+      
+      const earnings = await storage.getDriverIncentiveEarnings(profile.userId);
+      return res.json(earnings);
+    } catch (error) {
+      console.error("Error fetching own incentive earnings:", error);
+      return res.status(500).json({ message: "Failed to fetch incentive earnings" });
+    }
+  });
+
   app.post("/api/incentives/create", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
