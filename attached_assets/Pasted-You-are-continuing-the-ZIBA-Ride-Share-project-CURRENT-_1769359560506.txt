@@ -1,0 +1,103 @@
+You are continuing the ZIBA Ride Share project.
+
+CURRENT STATE:
+- Phases 1–7A are completed and stable
+- Trip History & Search is implemented for Admin, Director, Driver, and Rider
+- Roles exist: ADMIN, DIRECTOR (read-only), DRIVER, RIDER
+- Pricing, payments simulation, notifications, and trip lifecycle are stable
+
+GOAL:
+Implement Phase 7B — Trip Details View & Cancellation Reasons.
+
+SCOPE:
+- Backend + UI enhancements
+- NO redesign of dashboards
+- Extend existing trip views only
+- Directors remain read-only
+
+DO NOT MODIFY:
+- Authentication system
+- Pricing & commission logic
+- Payments simulation
+- Notifications system
+- Trip lifecycle states
+- Search & filtering logic from Phase 7A
+
+--------------------------------
+BACKEND REQUIREMENTS
+--------------------------------
+
+1. Trip Detail Enhancement
+- Extend the trip detail response to include:
+  - Cancellation reason (if cancelled)
+  - Who cancelled the trip (RIDER or DRIVER)
+  - Cancelled timestamp
+  - Full fare breakdown (base fare, commission, driver payout)
+
+2. Cancellation Reason Storage
+- Add support to store:
+  - cancellationReason (string)
+  - cancelledBy (enum: RIDER | DRIVER | ADMIN)
+- Ensure this data is saved only when a trip is cancelled
+
+--------------------------------
+UI REQUIREMENTS (NO REDESIGN)
+--------------------------------
+
+ADMIN DASHBOARD:
+- Trip Detail View:
+  - Show full trip information
+  - If cancelled, display:
+    - “Cancelled by”
+    - Cancellation reason
+    - Cancelled timestamp
+
+DIRECTOR DASHBOARD:
+- Same trip detail view as Admin
+- All action buttons hidden (view-only)
+
+DRIVER DASHBOARD:
+- Trip Detail View:
+  - Show trip summary
+  - If cancelled, show cancellation reason and who cancelled
+  - No edit actions
+
+RIDER DASHBOARD:
+- Trip Detail View:
+  - Show trip summary
+  - If cancelled, show cancellation reason and who cancelled
+  - No edit actions
+
+--------------------------------
+UX RULES
+--------------------------------
+- Use existing modal or detail layout
+- Clearly label cancelled trips
+- Hide cancellation fields for non-cancelled trips
+- Consistent formatting across all dashboards
+
+--------------------------------
+VERIFICATION
+--------------------------------
+- Cancelled trips display reason correctly
+- Cancelled-by role is accurate
+- Active or completed trips do not show cancellation fields
+- Directors can view but not interact
+- No console or runtime errors
+
+--------------------------------
+CHECKPOINT
+--------------------------------
+Create a checkpoint named EXACTLY:
+
+"Phase 7B – Trip Details & Cancellation Reasons Stable"
+
+DO NOT PUBLISH.
+
+--------------------------------
+FINAL CONFIRMATION
+--------------------------------
+When finished:
+- Confirm Phase 7B is complete
+- Confirm app runs without errors
+- Confirm checkpoint is saved

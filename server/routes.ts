@@ -374,8 +374,9 @@ export async function registerRoutes(
     try {
       const userId = req.user.claims.sub;
       const { tripId } = req.params;
+      const { reason } = req.body || {};
 
-      const trip = await storage.cancelTrip(tripId, userId);
+      const trip = await storage.cancelTrip(tripId, userId, reason);
       if (!trip) {
         return res.status(404).json({ message: "Trip not found or cannot be cancelled" });
       }
@@ -508,8 +509,9 @@ export async function registerRoutes(
   app.post("/api/admin/trip/:tripId/cancel", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
     try {
       const { tripId } = req.params;
+      const { reason } = req.body || {};
 
-      const trip = await storage.adminCancelTrip(tripId);
+      const trip = await storage.adminCancelTrip(tripId, reason);
       if (!trip) {
         return res.status(404).json({ message: "Trip not found or already completed/cancelled" });
       }

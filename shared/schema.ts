@@ -11,6 +11,7 @@ export const userRoleEnum = pgEnum("user_role", ["admin", "driver", "rider", "di
 export const directorStatusEnum = pgEnum("director_status", ["active", "inactive"]);
 export const driverStatusEnum = pgEnum("driver_status", ["pending", "approved", "suspended"]);
 export const tripStatusEnum = pgEnum("trip_status", ["requested", "accepted", "in_progress", "completed", "cancelled"]);
+export const cancelledByEnum = pgEnum("cancelled_by", ["rider", "driver", "admin"]);
 export const payoutStatusEnum = pgEnum("payout_status", ["pending", "paid"]);
 export const notificationTypeEnum = pgEnum("notification_type", ["info", "success", "warning"]);
 export const notificationRoleEnum = pgEnum("notification_role", ["admin", "director", "driver", "rider"]);
@@ -74,6 +75,9 @@ export const trips = pgTable("trips", {
   createdAt: timestamp("created_at").defaultNow(),
   acceptedAt: timestamp("accepted_at"),
   completedAt: timestamp("completed_at"),
+  cancelledAt: timestamp("cancelled_at"),
+  cancelledBy: cancelledByEnum("cancelled_by"),
+  cancellationReason: text("cancellation_reason"),
 });
 
 // Payout transactions table - tracks driver earnings and payouts

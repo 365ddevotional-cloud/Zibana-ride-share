@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { MapPin, User, Car, Clock, DollarSign } from "lucide-react";
+import { MapPin, User, Car, Clock, DollarSign, XCircle } from "lucide-react";
 
 interface TripDetailModalProps {
   trip: any | null;
@@ -149,6 +149,42 @@ export function TripDetailModal({ trip, open, onOpenChange }: TripDetailModalPro
               )}
             </CardContent>
           </Card>
+
+          {trip.status === "cancelled" && (
+            <Card className="border-red-200 dark:border-red-900">
+              <CardContent className="pt-4 space-y-3">
+                <div className="flex items-center gap-3">
+                  <XCircle className="h-5 w-5 text-red-500" />
+                  <div className="flex-1">
+                    <p className="text-sm text-muted-foreground">Cancelled By</p>
+                    <p className="font-medium capitalize" data-testid="text-cancelled-by">
+                      {trip.cancelledBy || "Unknown"}
+                    </p>
+                  </div>
+                </div>
+                {trip.cancellationReason && (
+                  <div className="flex items-start gap-3 pl-8">
+                    <div className="flex-1">
+                      <p className="text-sm text-muted-foreground">Reason</p>
+                      <p className="font-medium" data-testid="text-cancellation-reason">
+                        {trip.cancellationReason}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {trip.cancelledAt && (
+                  <div className="flex items-center gap-3 pl-8">
+                    <div className="flex-1">
+                      <p className="text-sm text-muted-foreground">Cancelled At</p>
+                      <p className="font-medium" data-testid="text-cancelled-at">
+                        {formatDate(trip.cancelledAt)}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           <div className="text-xs text-muted-foreground text-center pt-2">
             Trip ID: <span data-testid="text-trip-id">{trip.id}</span>

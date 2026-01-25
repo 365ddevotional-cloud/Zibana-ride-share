@@ -61,8 +61,8 @@ export interface IStorage {
   getTripById(tripId: string): Promise<any | null>;
   acceptTrip(tripId: string, driverId: string): Promise<Trip | null>;
   updateTripStatus(tripId: string, driverId: string, status: string): Promise<Trip | null>;
-  cancelTrip(tripId: string, riderId: string): Promise<Trip | null>;
-  adminCancelTrip(tripId: string): Promise<Trip | null>;
+  cancelTrip(tripId: string, riderId: string, reason?: string): Promise<Trip | null>;
+  adminCancelTrip(tripId: string, reason?: string): Promise<Trip | null>;
   getAllTrips(): Promise<any[]>;
   getAllTripsWithDetails(): Promise<any[]>;
 
@@ -337,10 +337,15 @@ export class DatabaseStorage implements IStorage {
     return trip || null;
   }
 
-  async cancelTrip(tripId: string, riderId: string): Promise<Trip | null> {
+  async cancelTrip(tripId: string, riderId: string, reason?: string): Promise<Trip | null> {
     const [trip] = await db
       .update(trips)
-      .set({ status: "cancelled" })
+      .set({ 
+        status: "cancelled",
+        cancelledAt: new Date(),
+        cancelledBy: "rider",
+        cancellationReason: reason || null,
+      })
       .where(
         and(
           eq(trips.id, tripId),
@@ -355,10 +360,15 @@ export class DatabaseStorage implements IStorage {
     return trip || null;
   }
 
-  async adminCancelTrip(tripId: string): Promise<Trip | null> {
+  async adminCancelTrip(tripId: string, reason?: string): Promise<Trip | null> {
     const [trip] = await db
       .update(trips)
-      .set({ status: "cancelled" })
+      .set({ 
+        status: "cancelled",
+        cancelledAt: new Date(),
+        cancelledBy: "admin",
+        cancellationReason: reason || null,
+      })
       .where(
         and(
           eq(trips.id, tripId),
