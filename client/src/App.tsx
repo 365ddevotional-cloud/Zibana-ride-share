@@ -104,13 +104,43 @@ function AuthenticatedRoutes() {
   );
 }
 
+function ProtectedRoute({ 
+  children, 
+  allowedRoles,
+  user,
+  userRole,
+  isLoading
+}: { 
+  children: React.ReactNode;
+  allowedRoles: string[];
+  user: any;
+  userRole: { role: string } | null | undefined;
+  isLoading: boolean;
+}) {
+  if (!user) {
+    return <Redirect to="/welcome" />;
+  }
+  
+  if (isLoading) {
+    return <FullPageLoading text="Verifying access..." />;
+  }
+  
+  if (!userRole?.role || !allowedRoles.includes(userRole.role)) {
+    return <Redirect to="/" />;
+  }
+  
+  return <>{children}</>;
+}
+
 function Router() {
-  const { user } = useAuth();
-  const { data: userRole } = useQuery<{ role: string } | null>({
+  const { user, isLoading: authLoading } = useAuth();
+  const { data: userRole, isLoading: roleLoading } = useQuery<{ role: string } | null>({
     queryKey: ["/api/user/role"],
     enabled: !!user,
     retry: false,
   });
+  
+  const isLoading = authLoading || (!!user && roleLoading);
 
   return (
     <Switch>
@@ -119,51 +149,57 @@ function Router() {
       <Route path="/welcome" component={LandingPage} />
       
       <Route path="/role-select">
-        {user ? <RoleSelectionPage /> : <Redirect to="/" />}
+        {user ? <RoleSelectionPage /> : <Redirect to="/welcome" />}
       </Route>
       
       <Route path="/driver">
-        {user && userRole?.role === "driver" ? (
+        <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["driver"]}>
           <LazyComponent><DriverDashboard /></LazyComponent>
-        ) : <Redirect to="/" />}
+        </ProtectedRoute>
       </Route>
       
       <Route path="/driver/setup">
-        {user && userRole?.role === "driver" ? (
+        <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["driver"]}>
           <LazyComponent><DriverSetupPage /></LazyComponent>
-        ) : <Redirect to="/" />}
+        </ProtectedRoute>
       </Route>
       
       <Route path="/driver/profile">
-        {user && userRole?.role === "driver" ? (
+        <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["driver"]}>
           <LazyComponent><DriverProfilePage /></LazyComponent>
-        ) : <Redirect to="/" />}
+        </ProtectedRoute>
       </Route>
       
       <Route path="/rider">
-        {user && userRole?.role === "rider" ? (
+        <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["rider"]}>
           <LazyComponent><RiderDashboard /></LazyComponent>
-        ) : <Redirect to="/" />}
+        </ProtectedRoute>
       </Route>
       
       <Route path="/admin">
-        {user && (userRole?.role === "admin" || userRole?.role === "director") ? (
+        <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["admin", "director"]}>
           <LazyComponent>
-            <AdminDashboard userRole={userRole?.role || "admin"} />
+            <AdminDashboard userRole={(userRole?.role as "admin" | "director") || "admin"} />
           </LazyComponent>
-        ) : <Redirect to="/" />}
+        </ProtectedRoute>
       </Route>
       
       <Route path="/admin/setup">
         {user ? (
           <LazyComponent><AdminSetupPage /></LazyComponent>
-        ) : <Redirect to="/" />}
+        ) : <Redirect to="/welcome" />}
       </Route>
       
       <Route path="/coordinator">
-        {user && userRole?.role === "trip_coordinator" ? (
+        <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["trip_coordinator"]}>
           <LazyComponent><CoordinatorDashboard /></LazyComponent>
-        ) : <Redirect to="/" />}
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/support">
+        <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["support_agent"]}>
+          <LazyComponent><SupportDashboard /></LazyComponent>
+        </ProtectedRoute>
       </Route>
       
       <Route component={NotFound} />
