@@ -43,7 +43,9 @@ import {
   ArrowLeftRight,
   BarChart3,
   Download,
-  Calendar
+  Calendar,
+  ShieldAlert,
+  RefreshCw
 } from "lucide-react";
 import type { DriverProfile, Trip, User } from "@shared/schema";
 import { NotificationBell } from "@/components/notification-bell";
@@ -240,6 +242,38 @@ type RevenueDataPoint = {
   driverEarnings: string;
 };
 
+type FraudOverview = {
+  riskProfiles: { total: number; low: number; medium: number; high: number; critical: number };
+  fraudEvents: { total: number; unresolved: number; resolved: number };
+};
+
+type RiskProfileWithDetails = {
+  id: string;
+  userId: string;
+  role: "rider" | "driver";
+  score: number;
+  level: "low" | "medium" | "high" | "critical";
+  lastEvaluatedAt: string;
+  createdAt: string;
+  updatedAt: string;
+  userName?: string;
+  email?: string;
+};
+
+type FraudEventWithDetails = {
+  id: string;
+  entityType: "user" | "trip";
+  entityId: string;
+  signalType: string;
+  severity: "low" | "medium" | "high";
+  description: string;
+  detectedAt: string;
+  resolvedAt?: string;
+  resolvedByUserId?: string;
+  entityName?: string;
+  resolvedByName?: string;
+};
+
 interface AdminDashboardProps {
   userRole?: "admin" | "director";
 }
@@ -251,6 +285,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("drivers");
   const [analyticsRange, setAnalyticsRange] = useState("30d");
+  const [fraudLevelFilter, setFraudLevelFilter] = useState("all");
   
   const [tripStatusFilter, setTripStatusFilter] = useState("");
   const [tripStartDate, setTripStartDate] = useState("");
@@ -429,6 +464,74 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
       toast({ title: "Export failed", description: "Could not generate report", variant: "destructive" });
     }
   };
+
+  // Phase 13 - Fraud Detection queries
+  const { data: fraudOverview } = useQuery<FraudOverview>({
+    queryKey: ["/api/fraud/overview"],
+    queryFn: async () => {
+      const res = await fetch("/api/fraud/overview", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch fraud overview");
+      return res.json();
+    },
+    enabled: !!user && !isDirector,
+  });
+
+  const { data: riskProfiles = [] } = useQuery<RiskProfileWithDetails[]>({
+    queryKey: ["/api/fraud/users", fraudLevelFilter],
+    queryFn: async () => {
+      const url = fraudLevelFilter && fraudLevelFilter !== "all" 
+        ? `/api/fraud/users?level=${fraudLevelFilter}` 
+        : "/api/fraud/users";
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch risk profiles");
+      return res.json();
+    },
+    enabled: !!user && !isDirector && activeTab === "fraud",
+  });
+
+  const { data: fraudEvents = [] } = useQuery<FraudEventWithDetails[]>({
+    queryKey: ["/api/fraud/events"],
+    queryFn: async () => {
+      const res = await fetch("/api/fraud/events?unresolved=true", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch fraud events");
+      return res.json();
+    },
+    enabled: !!user && !isDirector && activeTab === "fraud",
+  });
+
+  const runFraudEvaluationMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/fraud/evaluate", {});
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/fraud/overview"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/fraud/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/fraud/events"] });
+      toast({
+        title: "Fraud evaluation complete",
+        description: `Evaluated ${data.evaluated} users. Found ${data.highRisk} high-risk and ${data.critical} critical.`,
+      });
+    },
+    onError: () => {
+      toast({ title: "Evaluation failed", description: "Could not run fraud evaluation", variant: "destructive" });
+    },
+  });
+
+  const resolveFraudEventMutation = useMutation({
+    mutationFn: async (eventId: string) => {
+      const res = await apiRequest("POST", `/api/fraud/resolve/${eventId}`, {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/fraud/events"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/fraud/overview"] });
+      toast({ title: "Event resolved", description: "Fraud event marked as resolved" });
+    },
+    onError: () => {
+      toast({ title: "Resolution failed", description: "Could not resolve fraud event", variant: "destructive" });
+    },
+  });
 
   const updateDriverStatusMutation = useMutation({
     mutationFn: async ({ driverId, status }: { driverId: string; status: string }) => {
@@ -1043,6 +1146,17 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <TabsTrigger value="reports" data-testid="tab-reports">
                 <BarChart3 className="h-4 w-4 mr-2" />
                 Reports
+              </TabsTrigger>
+            )}
+            {!isDirector && (
+              <TabsTrigger value="fraud" data-testid="tab-fraud">
+                <ShieldAlert className="h-4 w-4 mr-2" />
+                Fraud
+                {fraudOverview && (fraudOverview.riskProfiles.high + fraudOverview.riskProfiles.critical) > 0 && (
+                  <span className="ml-2 bg-destructive text-destructive-foreground rounded-full px-2 py-0.5 text-xs">
+                    {fraudOverview.riskProfiles.high + fraudOverview.riskProfiles.critical}
+                  </span>
+                )}
               </TabsTrigger>
             )}
           </TabsList>
@@ -3079,6 +3193,247 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                             </div>
                           </CardContent>
                         </Card>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+          )}
+
+          {!isDirector && (
+            <TabsContent value="fraud">
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                      <div>
+                        <CardTitle className="flex items-center gap-2">
+                          <ShieldAlert className="h-5 w-5" />
+                          Fraud Detection & Risk Scoring
+                        </CardTitle>
+                        <CardDescription>
+                          Monitor suspicious activity and manage risk profiles
+                        </CardDescription>
+                      </div>
+                      <Button
+                        variant="outline"
+                        onClick={() => runFraudEvaluationMutation.mutate()}
+                        disabled={runFraudEvaluationMutation.isPending}
+                        data-testid="button-run-fraud-evaluation"
+                      >
+                        <RefreshCw className={`h-4 w-4 mr-2 ${runFraudEvaluationMutation.isPending ? "animate-spin" : ""}`} />
+                        Run Evaluation
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {fraudOverview && (
+                      <div className="space-y-6">
+                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                          <Card>
+                            <CardHeader className="pb-2">
+                              <CardDescription>Low Risk</CardDescription>
+                              <CardTitle className="text-2xl text-green-600" data-testid="text-fraud-low">
+                                {fraudOverview.riskProfiles.low}
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="text-xs text-muted-foreground">Score 0-20</div>
+                            </CardContent>
+                          </Card>
+                          
+                          <Card>
+                            <CardHeader className="pb-2">
+                              <CardDescription>Medium Risk</CardDescription>
+                              <CardTitle className="text-2xl text-yellow-600" data-testid="text-fraud-medium">
+                                {fraudOverview.riskProfiles.medium}
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="text-xs text-muted-foreground">Score 21-50</div>
+                            </CardContent>
+                          </Card>
+                          
+                          <Card>
+                            <CardHeader className="pb-2">
+                              <CardDescription>High Risk</CardDescription>
+                              <CardTitle className="text-2xl text-orange-600" data-testid="text-fraud-high">
+                                {fraudOverview.riskProfiles.high}
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="text-xs text-muted-foreground">Score 51-80</div>
+                            </CardContent>
+                          </Card>
+                          
+                          <Card>
+                            <CardHeader className="pb-2">
+                              <CardDescription>Critical Risk</CardDescription>
+                              <CardTitle className="text-2xl text-red-600" data-testid="text-fraud-critical">
+                                {fraudOverview.riskProfiles.critical}
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="text-xs text-muted-foreground">Score 81-100</div>
+                            </CardContent>
+                          </Card>
+                        </div>
+
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <Card>
+                            <CardHeader className="pb-2">
+                              <CardDescription>Total Risk Profiles</CardDescription>
+                              <CardTitle className="text-xl">{fraudOverview.riskProfiles.total}</CardTitle>
+                            </CardHeader>
+                          </Card>
+                          <Card>
+                            <CardHeader className="pb-2">
+                              <CardDescription>Active Fraud Events</CardDescription>
+                              <CardTitle className="text-xl">
+                                <span className="text-red-600">{fraudOverview.fraudEvents.unresolved}</span>
+                                <span className="text-muted-foreground text-sm ml-2">/ {fraudOverview.fraudEvents.total} total</span>
+                              </CardTitle>
+                            </CardHeader>
+                          </Card>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                      <CardTitle className="text-lg">Risk Profiles</CardTitle>
+                      <Select value={fraudLevelFilter} onValueChange={setFraudLevelFilter}>
+                        <SelectTrigger className="w-[140px]" data-testid="select-fraud-level">
+                          <SelectValue placeholder="Filter by level" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Levels</SelectItem>
+                          <SelectItem value="low">Low</SelectItem>
+                          <SelectItem value="medium">Medium</SelectItem>
+                          <SelectItem value="high">High</SelectItem>
+                          <SelectItem value="critical">Critical</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {riskProfiles.length === 0 ? (
+                      <EmptyState
+                        icon={ShieldAlert}
+                        title="No risk profiles"
+                        description="Run the fraud evaluation to generate risk profiles"
+                      />
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>User</TableHead>
+                              <TableHead>Role</TableHead>
+                              <TableHead>Score</TableHead>
+                              <TableHead>Level</TableHead>
+                              <TableHead>Last Evaluated</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {riskProfiles.map((profile) => (
+                              <TableRow key={profile.id} data-testid={`row-risk-profile-${profile.id}`}>
+                                <TableCell>
+                                  <div>
+                                    <div className="font-medium">{profile.userName}</div>
+                                    <div className="text-xs text-muted-foreground">{profile.email}</div>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="capitalize">{profile.role}</TableCell>
+                                <TableCell>
+                                  <span className={`font-bold ${
+                                    profile.score >= 81 ? "text-red-600" :
+                                    profile.score >= 51 ? "text-orange-600" :
+                                    profile.score >= 21 ? "text-yellow-600" :
+                                    "text-green-600"
+                                  }`}>
+                                    {profile.score}
+                                  </span>
+                                </TableCell>
+                                <TableCell>
+                                  <StatusBadge status={profile.level} />
+                                </TableCell>
+                                <TableCell className="text-muted-foreground text-sm">
+                                  {new Date(profile.lastEvaluatedAt).toLocaleDateString()}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Active Fraud Events</CardTitle>
+                    <CardDescription>Unresolved suspicious activity alerts</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {fraudEvents.length === 0 ? (
+                      <EmptyState
+                        icon={CheckCircle}
+                        title="No active fraud events"
+                        description="All fraud events have been resolved"
+                      />
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Entity</TableHead>
+                              <TableHead>Signal Type</TableHead>
+                              <TableHead>Severity</TableHead>
+                              <TableHead>Description</TableHead>
+                              <TableHead>Detected</TableHead>
+                              <TableHead>Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {fraudEvents.map((event) => (
+                              <TableRow key={event.id} data-testid={`row-fraud-event-${event.id}`}>
+                                <TableCell>
+                                  <div>
+                                    <div className="font-medium text-sm">{event.entityName}</div>
+                                    <div className="text-xs text-muted-foreground capitalize">{event.entityType}</div>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="font-medium">{event.signalType}</TableCell>
+                                <TableCell>
+                                  <StatusBadge status={event.severity} />
+                                </TableCell>
+                                <TableCell className="max-w-xs truncate text-sm text-muted-foreground">
+                                  {event.description}
+                                </TableCell>
+                                <TableCell className="text-muted-foreground text-sm">
+                                  {new Date(event.detectedAt).toLocaleDateString()}
+                                </TableCell>
+                                <TableCell>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => resolveFraudEventMutation.mutate(event.id)}
+                                    disabled={resolveFraudEventMutation.isPending}
+                                    data-testid={`button-resolve-${event.id}`}
+                                  >
+                                    <CheckCircle className="h-4 w-4 mr-1" />
+                                    Resolve
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
                       </div>
                     )}
                   </CardContent>
