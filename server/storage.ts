@@ -130,7 +130,7 @@ import {
   type MetricAlert
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, desc, count, sql, sum, gte, lte } from "drizzle-orm";
+import { eq, and, or, desc, count, sql, sum, gte, lte, lt } from "drizzle-orm";
 import { calculateFare } from "./pricing";
 
 export interface TripFilter {
@@ -145,6 +145,14 @@ export interface IStorage {
   getUserRole(userId: string): Promise<UserRole | undefined>;
   createUserRole(data: InsertUserRole): Promise<UserRole>;
   getAdminCount(): Promise<number>;
+  
+  // Admin appointment methods (SUPER_ADMIN only)
+  appointAdmin(userId: string, adminStartAt: Date, adminEndAt: Date, adminPermissions: string[], appointedBy: string): Promise<UserRole>;
+  revokeAdmin(userId: string): Promise<UserRole | undefined>;
+  getAllAdmins(): Promise<UserRole[]>;
+  checkAndExpireAdmins(): Promise<number>;
+  isAdminValid(userId: string): Promise<{ valid: boolean; role: UserRole | null; reason?: string }>;
+  updateAdminPermissions(userId: string, adminPermissions: string[], adminEndAt?: Date): Promise<UserRole | undefined>;
 
   getDriverProfile(userId: string): Promise<DriverProfile | undefined>;
   createDriverProfile(data: InsertDriverProfile): Promise<DriverProfile>;
@@ -474,6 +482,139 @@ export class DatabaseStorage implements IStorage {
       .from(userRoles)
       .where(eq(userRoles.role, "admin"));
     return result?.count || 0;
+  }
+
+  // Admin appointment methods (SUPER_ADMIN only)
+  async appointAdmin(
+    userId: string, 
+    adminStartAt: Date, 
+    adminEndAt: Date, 
+    adminPermissions: string[], 
+    appointedBy: string
+  ): Promise<UserRole> {
+    const existingRole = await this.getUserRole(userId);
+    
+    if (existingRole) {
+      const [updated] = await db
+        .update(userRoles)
+        .set({
+          role: "admin",
+          adminStartAt,
+          adminEndAt,
+          adminPermissions,
+          appointedBy,
+          updatedAt: new Date()
+        })
+        .where(eq(userRoles.userId, userId))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db
+        .insert(userRoles)
+        .values({
+          userId,
+          role: "admin",
+          adminStartAt,
+          adminEndAt,
+          adminPermissions,
+          appointedBy
+        })
+        .returning();
+      return created;
+    }
+  }
+
+  async revokeAdmin(userId: string): Promise<UserRole | undefined> {
+    const [updated] = await db
+      .update(userRoles)
+      .set({
+        role: "rider",
+        adminStartAt: null,
+        adminEndAt: null,
+        adminPermissions: null,
+        updatedAt: new Date()
+      })
+      .where(eq(userRoles.userId, userId))
+      .returning();
+    return updated;
+  }
+
+  async getAllAdmins(): Promise<UserRole[]> {
+    return db
+      .select()
+      .from(userRoles)
+      .where(or(eq(userRoles.role, "admin"), eq(userRoles.role, "super_admin")));
+  }
+
+  async checkAndExpireAdmins(): Promise<number> {
+    const now = new Date();
+    const result = await db
+      .update(userRoles)
+      .set({
+        role: "rider",
+        adminStartAt: null,
+        adminEndAt: null,
+        adminPermissions: null,
+        updatedAt: now
+      })
+      .where(
+        and(
+          eq(userRoles.role, "admin"),
+          lt(userRoles.adminEndAt, now)
+        )
+      )
+      .returning();
+    return result.length;
+  }
+
+  async isAdminValid(userId: string): Promise<{ valid: boolean; role: UserRole | null; reason?: string }> {
+    const role = await this.getUserRole(userId);
+    
+    if (!role) {
+      return { valid: false, role: null, reason: "No role found" };
+    }
+    
+    if (role.role === "super_admin") {
+      return { valid: true, role };
+    }
+    
+    if (role.role !== "admin") {
+      return { valid: false, role, reason: "Not an admin" };
+    }
+    
+    const now = new Date();
+    
+    if (role.adminStartAt && new Date(role.adminStartAt) > now) {
+      return { valid: false, role, reason: "Admin period has not started" };
+    }
+    
+    if (role.adminEndAt && new Date(role.adminEndAt) < now) {
+      return { valid: false, role, reason: "Admin period has expired" };
+    }
+    
+    return { valid: true, role };
+  }
+
+  async updateAdminPermissions(
+    userId: string, 
+    adminPermissions: string[], 
+    adminEndAt?: Date
+  ): Promise<UserRole | undefined> {
+    const updateData: any = {
+      adminPermissions,
+      updatedAt: new Date()
+    };
+    
+    if (adminEndAt) {
+      updateData.adminEndAt = adminEndAt;
+    }
+    
+    const [updated] = await db
+      .update(userRoles)
+      .set(updateData)
+      .where(and(eq(userRoles.userId, userId), eq(userRoles.role, "admin")))
+      .returning();
+    return updated;
   }
 
   async getDriverProfile(userId: string): Promise<DriverProfile | undefined> {
