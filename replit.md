@@ -117,6 +117,15 @@ Key database tables:
 - Driver wallet credited automatically when trips complete
 - No real payment integration (simulation only)
 
+### Phase 5.5 – Directors Governance Layer (FROZEN - Stable)
+- New DIRECTOR role with read-only access to admin dashboard
+- Directors tab in admin dashboard (visible to admins only)
+- Directors can view: Revenue overview, Payout ledger, Trips, Drivers list, Riders list
+- Directors cannot: Approve drivers, Suspend users, Mark payouts as paid, Modify trips
+- Role separation: Director ≠ Admin (Admin retains full control)
+- director_profiles table for storing director information
+- Authentication flow unchanged - directors use same login as other roles
+
 ### FROZEN Components (DO NOT MODIFY)
 - Authentication flow (Replit Auth + OpenID Connect)
 - Role assignments and routing logic
