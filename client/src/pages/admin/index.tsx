@@ -58,7 +58,8 @@ import {
   Globe,
   Plus,
   Percent,
-  Building
+  Building,
+  FileText
 } from "lucide-react";
 import type { DriverProfile, Trip, User } from "@shared/schema";
 import { NotificationBell } from "@/components/notification-bell";
@@ -713,6 +714,112 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
   const [showCreateExchangeRateDialog, setShowCreateExchangeRateDialog] = useState(false);
   const [newExchangeRate, setNewExchangeRate] = useState({ baseCurrency: "", targetCurrency: "", rate: "" });
   const [countriesSubTab, setCountriesSubTab] = useState<"countries" | "taxes" | "rates">("countries");
+
+  // Contracts state
+  const [showCreateContractDialog, setShowCreateContractDialog] = useState(false);
+  const [showGenerateInvoiceDialog, setShowGenerateInvoiceDialog] = useState(false);
+  const [selectedContractForInvoice, setSelectedContractForInvoice] = useState<string | null>(null);
+  const [invoicePeriod, setInvoicePeriod] = useState({ startDate: "", endDate: "" });
+  const [newContract, setNewContract] = useState({
+    tripCoordinatorId: "",
+    contractName: "",
+    contractType: "CORPORATE" as string,
+    startDate: "",
+    endDate: "",
+    billingModel: "MONTHLY_INVOICE" as string,
+    currency: "USD"
+  });
+
+  const { data: contracts = [], isLoading: contractsLoading } = useQuery<any[]>({
+    queryKey: ["/api/contracts"],
+    enabled: !!user && !isDirector && !isTripCoordinator,
+  });
+
+  const { data: contractStats } = useQuery<{
+    totalContracts: number;
+    activeContracts: number;
+    totalBilled: string;
+    pendingInvoices: number;
+  }>({
+    queryKey: ["/api/contracts/stats"],
+    enabled: !!user && !isDirector && !isTripCoordinator,
+  });
+
+  const { data: allInvoices = [] } = useQuery<any[]>({
+    queryKey: ["/api/invoices"],
+    enabled: !!user && !isDirector && !isTripCoordinator,
+  });
+
+  const { data: tripCoordinators = [] } = useQuery<any[]>({
+    queryKey: ["/api/admin/trip-coordinators"],
+    enabled: !!user && !isDirector && !isTripCoordinator,
+  });
+
+  const createContractMutation = useMutation({
+    mutationFn: async (data: typeof newContract) => {
+      const res = await apiRequest("POST", "/api/contracts", {
+        ...data,
+        startDate: new Date(data.startDate).toISOString(),
+        endDate: new Date(data.endDate).toISOString(),
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts/stats"] });
+      setShowCreateContractDialog(false);
+      setNewContract({
+        tripCoordinatorId: "",
+        contractName: "",
+        contractType: "CORPORATE",
+        startDate: "",
+        endDate: "",
+        billingModel: "MONTHLY_INVOICE",
+        currency: "USD"
+      });
+      toast({ title: "Contract created", description: "Enterprise contract created successfully" });
+    },
+    onError: () => {
+      toast({ title: "Creation failed", description: "Could not create contract", variant: "destructive" });
+    },
+  });
+
+  const generateInvoiceMutation = useMutation({
+    mutationFn: async ({ contractId, periodStart, periodEnd }: { contractId: string; periodStart: string; periodEnd: string }) => {
+      const res = await apiRequest("POST", `/api/contracts/${contractId}/invoices/generate`, {
+        periodStart: new Date(periodStart).toISOString(),
+        periodEnd: new Date(periodEnd).toISOString(),
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts/stats"] });
+      setShowGenerateInvoiceDialog(false);
+      setSelectedContractForInvoice(null);
+      setInvoicePeriod({ startDate: "", endDate: "" });
+      toast({ title: "Invoice generated", description: "Invoice created successfully" });
+    },
+    onError: () => {
+      toast({ title: "Generation failed", description: "Could not generate invoice", variant: "destructive" });
+    },
+  });
+
+  const updateInvoiceStatusMutation = useMutation({
+    mutationFn: async ({ invoiceId, status }: { invoiceId: string; status: string }) => {
+      const res = await apiRequest("PATCH", `/api/invoices/${invoiceId}/status`, { status });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts/stats"] });
+      toast({ title: "Invoice updated", description: "Invoice status updated" });
+    },
+    onError: () => {
+      toast({ title: "Update failed", description: "Could not update invoice status", variant: "destructive" });
+    },
+  });
 
   const createCountryMutation = useMutation({
     mutationFn: async (data: typeof newCountry) => {
@@ -1538,6 +1645,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <TabsTrigger value="countries" data-testid="tab-countries">
                 <Globe className="h-4 w-4 mr-2" />
                 Countries
+              </TabsTrigger>
+            )}
+            {!isDirector && !isTripCoordinator && (
+              <TabsTrigger value="contracts" data-testid="tab-contracts">
+                <FileText className="h-4 w-4 mr-2" />
+                Contracts
               </TabsTrigger>
             )}
           </TabsList>
@@ -4646,6 +4759,356 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                       data-testid="button-submit-exchange-rate"
                     >
                       Add Rate
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </TabsContent>
+          )}
+
+          {/* Contracts Tab */}
+          {!isDirector && !isTripCoordinator && (
+            <TabsContent value="contracts">
+              <div className="space-y-6">
+                {/* Contract Stats */}
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Total Contracts</CardTitle>
+                      <FileText className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{contractStats?.totalContracts || 0}</div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Active Contracts</CardTitle>
+                      <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold text-green-600">{contractStats?.activeContracts || 0}</div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Total Billed</CardTitle>
+                      <DollarSign className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">${contractStats?.totalBilled || "0.00"}</div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Pending Invoices</CardTitle>
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold text-yellow-600">{contractStats?.pendingInvoices || 0}</div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Contracts List */}
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between gap-2">
+                    <div>
+                      <CardTitle>Enterprise Contracts</CardTitle>
+                      <CardDescription>Manage organization contracts and SLAs</CardDescription>
+                    </div>
+                    <Button onClick={() => setShowCreateContractDialog(true)} data-testid="button-create-contract">
+                      <Plus className="h-4 w-4 mr-2" />
+                      New Contract
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    {contractsLoading ? (
+                      <div className="py-8 text-center text-muted-foreground">Loading contracts...</div>
+                    ) : contracts.length === 0 ? (
+                      <EmptyState
+                        icon={FileText}
+                        title="No contracts yet"
+                        description="Enterprise contracts will appear here"
+                      />
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Contract Name</TableHead>
+                              <TableHead>Organization</TableHead>
+                              <TableHead>Type</TableHead>
+                              <TableHead>Billing</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead>SLAs</TableHead>
+                              <TableHead>Invoices</TableHead>
+                              <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {contracts.map((contract: any) => (
+                              <TableRow key={contract.id} data-testid={`row-contract-${contract.id}`}>
+                                <TableCell className="font-medium">{contract.contractName}</TableCell>
+                                <TableCell>{contract.organizationName}</TableCell>
+                                <TableCell>
+                                  <Badge variant="outline">{contract.contractType}</Badge>
+                                </TableCell>
+                                <TableCell>{contract.billingModel}</TableCell>
+                                <TableCell>
+                                  <Badge variant={contract.status === "ACTIVE" ? "default" : "secondary"}>
+                                    {contract.status}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>{contract.slaCount || 0}</TableCell>
+                                <TableCell>{contract.invoiceCount || 0}</TableCell>
+                                <TableCell className="text-right">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setSelectedContractForInvoice(contract.id);
+                                      setShowGenerateInvoiceDialog(true);
+                                    }}
+                                    data-testid={`button-generate-invoice-${contract.id}`}
+                                  >
+                                    <DollarSign className="h-3 w-3 mr-1" />
+                                    Invoice
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* All Invoices */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Enterprise Invoices</CardTitle>
+                    <CardDescription>Track and manage billing invoices</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {allInvoices.length === 0 ? (
+                      <EmptyState
+                        icon={DollarSign}
+                        title="No invoices yet"
+                        description="Generated invoices will appear here"
+                      />
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Invoice ID</TableHead>
+                              <TableHead>Contract</TableHead>
+                              <TableHead>Organization</TableHead>
+                              <TableHead>Period</TableHead>
+                              <TableHead>Trips</TableHead>
+                              <TableHead>Amount</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {allInvoices.map((invoice: any) => (
+                              <TableRow key={invoice.id} data-testid={`row-invoice-${invoice.id}`}>
+                                <TableCell className="font-mono text-sm">{invoice.id.slice(0, 8)}...</TableCell>
+                                <TableCell>{invoice.contractName || "N/A"}</TableCell>
+                                <TableCell>{invoice.organizationName || "N/A"}</TableCell>
+                                <TableCell className="text-sm">
+                                  {new Date(invoice.periodStart).toLocaleDateString()} - {new Date(invoice.periodEnd).toLocaleDateString()}
+                                </TableCell>
+                                <TableCell>{invoice.totalTrips}</TableCell>
+                                <TableCell className="font-medium">${invoice.totalAmount}</TableCell>
+                                <TableCell>
+                                  <Badge variant={
+                                    invoice.status === "PAID" ? "default" :
+                                    invoice.status === "OVERDUE" ? "destructive" :
+                                    "secondary"
+                                  }>
+                                    {invoice.status}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Select
+                                    value={invoice.status}
+                                    onValueChange={(status) => updateInvoiceStatusMutation.mutate({ invoiceId: invoice.id, status })}
+                                  >
+                                    <SelectTrigger className="w-28" data-testid={`select-invoice-status-${invoice.id}`}>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="DRAFT">Draft</SelectItem>
+                                      <SelectItem value="ISSUED">Issued</SelectItem>
+                                      <SelectItem value="PAID">Paid</SelectItem>
+                                      <SelectItem value="OVERDUE">Overdue</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Create Contract Dialog */}
+              <Dialog open={showCreateContractDialog} onOpenChange={setShowCreateContractDialog}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Create Enterprise Contract</DialogTitle>
+                    <DialogDescription>Set up a new contract for an organization</DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4">
+                    <div>
+                      <label className="text-sm font-medium">Organization (Trip Coordinator)</label>
+                      <Select value={newContract.tripCoordinatorId} onValueChange={(v) => setNewContract({ ...newContract, tripCoordinatorId: v })}>
+                        <SelectTrigger data-testid="select-contract-coordinator">
+                          <SelectValue placeholder="Select organization" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {tripCoordinators.map((tc: any) => (
+                            <SelectItem key={tc.userId} value={tc.userId}>
+                              {tc.organizationName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Contract Name</label>
+                      <Input
+                        value={newContract.contractName}
+                        onChange={(e) => setNewContract({ ...newContract, contractName: e.target.value })}
+                        placeholder="e.g., Annual Service Agreement"
+                        data-testid="input-contract-name"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium">Contract Type</label>
+                        <Select value={newContract.contractType} onValueChange={(v) => setNewContract({ ...newContract, contractType: v })}>
+                          <SelectTrigger data-testid="select-contract-type">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="NGO">NGO</SelectItem>
+                            <SelectItem value="HOSPITAL">Hospital</SelectItem>
+                            <SelectItem value="CHURCH">Church</SelectItem>
+                            <SelectItem value="SCHOOL">School</SelectItem>
+                            <SelectItem value="GOV">Government</SelectItem>
+                            <SelectItem value="CORPORATE">Corporate</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Billing Model</label>
+                        <Select value={newContract.billingModel} onValueChange={(v) => setNewContract({ ...newContract, billingModel: v })}>
+                          <SelectTrigger data-testid="select-billing-model">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="PREPAID">Prepaid</SelectItem>
+                            <SelectItem value="POSTPAID">Postpaid</SelectItem>
+                            <SelectItem value="MONTHLY_INVOICE">Monthly Invoice</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium">Start Date</label>
+                        <Input
+                          type="date"
+                          value={newContract.startDate}
+                          onChange={(e) => setNewContract({ ...newContract, startDate: e.target.value })}
+                          data-testid="input-contract-start"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">End Date</label>
+                        <Input
+                          type="date"
+                          value={newContract.endDate}
+                          onChange={(e) => setNewContract({ ...newContract, endDate: e.target.value })}
+                          data-testid="input-contract-end"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Currency</label>
+                      <Input
+                        value={newContract.currency}
+                        onChange={(e) => setNewContract({ ...newContract, currency: e.target.value.toUpperCase() })}
+                        placeholder="USD"
+                        maxLength={3}
+                        data-testid="input-contract-currency"
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setShowCreateContractDialog(false)}>Cancel</Button>
+                    <Button
+                      onClick={() => createContractMutation.mutate(newContract)}
+                      disabled={createContractMutation.isPending || !newContract.tripCoordinatorId || !newContract.contractName || !newContract.startDate || !newContract.endDate}
+                      data-testid="button-submit-contract"
+                    >
+                      Create Contract
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              {/* Generate Invoice Dialog */}
+              <Dialog open={showGenerateInvoiceDialog} onOpenChange={setShowGenerateInvoiceDialog}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Generate Invoice</DialogTitle>
+                    <DialogDescription>Create an invoice for the billing period</DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4">
+                    <div>
+                      <label className="text-sm font-medium">Period Start</label>
+                      <Input
+                        type="date"
+                        value={invoicePeriod.startDate}
+                        onChange={(e) => setInvoicePeriod({ ...invoicePeriod, startDate: e.target.value })}
+                        data-testid="input-invoice-start"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Period End</label>
+                      <Input
+                        type="date"
+                        value={invoicePeriod.endDate}
+                        onChange={(e) => setInvoicePeriod({ ...invoicePeriod, endDate: e.target.value })}
+                        data-testid="input-invoice-end"
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setShowGenerateInvoiceDialog(false)}>Cancel</Button>
+                    <Button
+                      onClick={() => {
+                        if (selectedContractForInvoice) {
+                          generateInvoiceMutation.mutate({
+                            contractId: selectedContractForInvoice,
+                            periodStart: invoicePeriod.startDate,
+                            periodEnd: invoicePeriod.endDate
+                          });
+                        }
+                      }}
+                      disabled={generateInvoiceMutation.isPending || !invoicePeriod.startDate || !invoicePeriod.endDate}
+                      data-testid="button-submit-invoice"
+                    >
+                      Generate Invoice
                     </Button>
                   </DialogFooter>
                 </DialogContent>
