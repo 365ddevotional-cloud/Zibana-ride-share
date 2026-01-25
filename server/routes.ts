@@ -3898,5 +3898,175 @@ export async function registerRoutes(
     }
   });
 
+  // Phase 20 - Post-Launch Monitoring & Feature Flags
+
+  // Get metrics overview (Admin, Finance)
+  app.get("/api/metrics/overview", isAuthenticated, requireRole(["admin", "finance"]), async (req: any, res) => {
+    try {
+      const overview = await storage.getMetricsOverview();
+      return res.json(overview);
+    } catch (error) {
+      console.error("Error getting metrics overview:", error);
+      return res.status(500).json({ message: "Failed to get metrics overview" });
+    }
+  });
+
+  // Get platform metrics (Admin, Finance)
+  app.get("/api/metrics/platform", isAuthenticated, requireRole(["admin", "finance"]), async (req: any, res) => {
+    try {
+      const metrics = await storage.getPlatformMetrics();
+      return res.json(metrics);
+    } catch (error) {
+      console.error("Error getting platform metrics:", error);
+      return res.status(500).json({ message: "Failed to get platform metrics" });
+    }
+  });
+
+  // Get rider metrics (Admin, Finance)
+  app.get("/api/metrics/riders", isAuthenticated, requireRole(["admin", "finance"]), async (req: any, res) => {
+    try {
+      const metrics = await storage.getRiderMetrics();
+      return res.json(metrics);
+    } catch (error) {
+      console.error("Error getting rider metrics:", error);
+      return res.status(500).json({ message: "Failed to get rider metrics" });
+    }
+  });
+
+  // Get driver metrics (Admin, Finance)
+  app.get("/api/metrics/drivers", isAuthenticated, requireRole(["admin", "finance"]), async (req: any, res) => {
+    try {
+      const metrics = await storage.getDriverMetrics();
+      return res.json(metrics);
+    } catch (error) {
+      console.error("Error getting driver metrics:", error);
+      return res.status(500).json({ message: "Failed to get driver metrics" });
+    }
+  });
+
+  // Get organization metrics (Admin, Finance)
+  app.get("/api/metrics/organizations", isAuthenticated, requireRole(["admin", "finance"]), async (req: any, res) => {
+    try {
+      const metrics = await storage.getOrganizationMetrics();
+      return res.json(metrics);
+    } catch (error) {
+      console.error("Error getting organization metrics:", error);
+      return res.status(500).json({ message: "Failed to get organization metrics" });
+    }
+  });
+
+  // Get financial metrics (Admin, Finance)
+  app.get("/api/metrics/financials", isAuthenticated, requireRole(["admin", "finance"]), async (req: any, res) => {
+    try {
+      const metrics = await storage.getFinancialMetrics();
+      return res.json(metrics);
+    } catch (error) {
+      console.error("Error getting financial metrics:", error);
+      return res.status(500).json({ message: "Failed to get financial metrics" });
+    }
+  });
+
+  // Get all feature flags (Admin only)
+  app.get("/api/feature-flags", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const flags = await storage.getAllFeatureFlags();
+      return res.json(flags);
+    } catch (error) {
+      console.error("Error getting feature flags:", error);
+      return res.status(500).json({ message: "Failed to get feature flags" });
+    }
+  });
+
+  // Create feature flag (Admin only)
+  app.post("/api/feature-flags", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { name, description, enabled, rolloutPercentage } = req.body;
+
+      if (!name) {
+        return res.status(400).json({ message: "Feature flag name is required" });
+      }
+
+      const existing = await storage.getFeatureFlag(name);
+      if (existing) {
+        return res.status(400).json({ message: "Feature flag with this name already exists" });
+      }
+
+      const flag = await storage.createFeatureFlag({
+        name,
+        description: description || null,
+        enabled: enabled || false,
+        rolloutPercentage: rolloutPercentage || 0
+      });
+
+      await storage.createAuditLog({
+        action: "feature_flag_created",
+        entityType: "feature_flag",
+        entityId: flag.id,
+        performedByUserId: userId,
+        performedByRole: "admin",
+        metadata: JSON.stringify({ name, enabled, rolloutPercentage })
+      });
+
+      return res.json(flag);
+    } catch (error) {
+      console.error("Error creating feature flag:", error);
+      return res.status(500).json({ message: "Failed to create feature flag" });
+    }
+  });
+
+  // Update feature flag (Admin only)
+  app.patch("/api/feature-flags/:name", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { name } = req.params;
+      const { enabled, rolloutPercentage, description } = req.body;
+
+      const existing = await storage.getFeatureFlag(name);
+      if (!existing) {
+        return res.status(404).json({ message: "Feature flag not found" });
+      }
+
+      const updated = await storage.updateFeatureFlag(name, {
+        enabled: enabled !== undefined ? enabled : existing.enabled,
+        rolloutPercentage: rolloutPercentage !== undefined ? rolloutPercentage : existing.rolloutPercentage,
+        description: description !== undefined ? description : existing.description
+      });
+
+      await storage.createAuditLog({
+        action: "feature_flag_updated",
+        entityType: "feature_flag",
+        entityId: existing.id,
+        performedByUserId: userId,
+        performedByRole: "admin",
+        metadata: JSON.stringify({ 
+          name, 
+          previousEnabled: existing.enabled, 
+          newEnabled: updated?.enabled,
+          previousRollout: existing.rolloutPercentage,
+          newRollout: updated?.rolloutPercentage
+        })
+      });
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error updating feature flag:", error);
+      return res.status(500).json({ message: "Failed to update feature flag" });
+    }
+  });
+
+  // Check if feature is enabled for current user
+  app.get("/api/feature-flags/:name/check", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { name } = req.params;
+      const enabled = await storage.isFeatureEnabled(name, userId);
+      return res.json({ enabled });
+    } catch (error) {
+      console.error("Error checking feature flag:", error);
+      return res.status(500).json({ message: "Failed to check feature flag" });
+    }
+  });
+
   return httpServer;
 }
