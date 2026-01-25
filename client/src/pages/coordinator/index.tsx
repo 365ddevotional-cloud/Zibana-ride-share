@@ -138,6 +138,22 @@ export default function CoordinatorDashboard() {
     enabled: !!user && !!profile,
   });
 
+  const { data: contract } = useQuery<any>({
+    queryKey: ["/api/coordinator/contract"],
+    enabled: !!user && !!profile,
+  });
+
+  const { data: contractInvoices = [] } = useQuery<any[]>({
+    queryKey: ["/api/contracts", contract?.id, "invoices"],
+    queryFn: async () => {
+      if (!contract?.id) return [];
+      const res = await fetch(`/api/contracts/${contract.id}/invoices`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!user && !!profile && !!contract?.id,
+  });
+
   const clearTripFilters = () => {
     setTripStatusFilter("");
     setTripStartDate("");
@@ -463,6 +479,10 @@ export default function CoordinatorDashboard() {
               <AlertTriangle className="h-4 w-4 mr-2" />
               Disputes
             </TabsTrigger>
+            <TabsTrigger value="contract" data-testid="tab-contract">
+              <FileText className="h-4 w-4 mr-2" />
+              Contract
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="trips" className="space-y-4">
@@ -755,6 +775,108 @@ export default function CoordinatorDashboard() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="contract" className="space-y-4">
+            {!contract ? (
+              <Card>
+                <CardContent className="py-12">
+                  <EmptyState
+                    icon={FileText}
+                    title="No active contract"
+                    description="Your organization doesn't have an active enterprise contract yet. Contact the administrator to set one up."
+                  />
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Contract Details</CardTitle>
+                    <CardDescription>Your organization's service agreement</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Contract Name</p>
+                        <p className="font-medium">{contract.contractName}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Contract Type</p>
+                        <p className="font-medium">{contract.contractType}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Billing Model</p>
+                        <p className="font-medium">{contract.billingModel}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Status</p>
+                        <StatusBadge status={contract.status === "ACTIVE" ? "active" : "suspended"} />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Start Date</p>
+                        <p className="font-medium">{new Date(contract.startDate).toLocaleDateString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">End Date</p>
+                        <p className="font-medium">{new Date(contract.endDate).toLocaleDateString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Currency</p>
+                        <p className="font-medium">{contract.currency}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Invoices</CardTitle>
+                    <CardDescription>Billing invoices for your contract</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {contractInvoices.length === 0 ? (
+                      <EmptyState
+                        icon={Receipt}
+                        title="No invoices yet"
+                        description="Invoices will appear here once they are generated"
+                      />
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Invoice ID</TableHead>
+                            <TableHead>Period</TableHead>
+                            <TableHead>Trips</TableHead>
+                            <TableHead>Amount</TableHead>
+                            <TableHead>Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {contractInvoices.map((invoice: any) => (
+                            <TableRow key={invoice.id}>
+                              <TableCell className="font-mono text-xs">{invoice.id.slice(0, 8)}...</TableCell>
+                              <TableCell className="text-sm">
+                                {new Date(invoice.periodStart).toLocaleDateString()} - {new Date(invoice.periodEnd).toLocaleDateString()}
+                              </TableCell>
+                              <TableCell>{invoice.totalTrips}</TableCell>
+                              <TableCell className="font-medium">${invoice.totalAmount}</TableCell>
+                              <TableCell>
+                                <StatusBadge status={
+                                  invoice.status === "PAID" ? "completed" :
+                                  invoice.status === "OVERDUE" ? "cancelled" :
+                                  "pending"
+                                } />
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </CardContent>
+                </Card>
+              </>
+            )}
           </TabsContent>
         </Tabs>
 
