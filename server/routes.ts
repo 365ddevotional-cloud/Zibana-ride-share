@@ -877,5 +877,313 @@ export async function registerRoutes(
     }
   });
 
+  // ============================================
+  // PHASE 10A: REFUNDS & ADJUSTMENTS
+  // ============================================
+
+  // Create refund - Admin and Trip Coordinator only
+  app.post("/api/refunds/create", isAuthenticated, requireRole(["admin", "trip_coordinator"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const userRole = req.userRole;
+      const { tripId, amount, type, reason, linkedDisputeId } = req.body;
+
+      if (!tripId || !amount || !type || !reason) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      const trip = await storage.getTripById(tripId);
+      if (!trip) {
+        return res.status(404).json({ message: "Trip not found" });
+      }
+
+      const refundData = {
+        tripId,
+        riderId: trip.riderId,
+        driverId: trip.driverId || undefined,
+        amount: String(amount),
+        type: type as "full" | "partial" | "adjustment",
+        reason,
+        createdByRole: userRole as "admin" | "trip_coordinator" | "finance",
+        createdByUserId: userId,
+        linkedDisputeId: linkedDisputeId || undefined,
+      };
+
+      const refund = await storage.createRefund(refundData);
+
+      // Create audit log
+      await storage.createAuditLog({
+        action: "refund_created",
+        entityType: "refund",
+        entityId: refund.id,
+        performedByUserId: userId,
+        performedByRole: userRole,
+        metadata: JSON.stringify({ tripId, amount, type, reason }),
+      });
+
+      return res.json(refund);
+    } catch (error) {
+      console.error("Error creating refund:", error);
+      return res.status(500).json({ message: "Failed to create refund" });
+    }
+  });
+
+  // Approve refund - Admin can approve any, Trip Coordinator can approve <= $20
+  app.post("/api/refunds/approve", isAuthenticated, requireRole(["admin", "trip_coordinator"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const userRole = req.userRole;
+      const { refundId } = req.body;
+
+      const refund = await storage.getRefundById(refundId);
+      if (!refund) {
+        return res.status(404).json({ message: "Refund not found" });
+      }
+
+      if (refund.status !== "pending") {
+        return res.status(400).json({ message: "Refund is not pending approval" });
+      }
+
+      // Trip Coordinator can only approve refunds <= $20
+      if (userRole === "trip_coordinator" && parseFloat(refund.amount) > 20) {
+        return res.status(403).json({ message: "Trip Coordinators can only approve refunds up to $20. Admin approval required." });
+      }
+
+      const updatedRefund = await storage.updateRefund(refundId, {
+        status: "approved",
+        approvedByUserId: userId,
+      });
+
+      // Create audit log
+      await storage.createAuditLog({
+        action: "refund_approved",
+        entityType: "refund",
+        entityId: refundId,
+        performedByUserId: userId,
+        performedByRole: userRole,
+        metadata: JSON.stringify({ amount: refund.amount }),
+      });
+
+      return res.json(updatedRefund);
+    } catch (error) {
+      console.error("Error approving refund:", error);
+      return res.status(500).json({ message: "Failed to approve refund" });
+    }
+  });
+
+  // Reject refund - Admin only
+  app.post("/api/refunds/reject", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const userRole = req.userRole;
+      const { refundId, reason } = req.body;
+
+      const refund = await storage.getRefundById(refundId);
+      if (!refund) {
+        return res.status(404).json({ message: "Refund not found" });
+      }
+
+      if (refund.status !== "pending") {
+        return res.status(400).json({ message: "Refund is not pending" });
+      }
+
+      const updatedRefund = await storage.updateRefund(refundId, {
+        status: "rejected",
+        reason: reason || refund.reason,
+      });
+
+      // Create audit log
+      await storage.createAuditLog({
+        action: "refund_rejected",
+        entityType: "refund",
+        entityId: refundId,
+        performedByUserId: userId,
+        performedByRole: userRole,
+        metadata: JSON.stringify({ reason }),
+      });
+
+      return res.json(updatedRefund);
+    } catch (error) {
+      console.error("Error rejecting refund:", error);
+      return res.status(500).json({ message: "Failed to reject refund" });
+    }
+  });
+
+  // Process refund - Finance only (processes approved refunds)
+  app.post("/api/refunds/process", isAuthenticated, requireRole(["admin", "finance"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const userRole = req.userRole;
+      const { refundId } = req.body;
+
+      const refund = await storage.getRefundById(refundId);
+      if (!refund) {
+        return res.status(404).json({ message: "Refund not found" });
+      }
+
+      if (refund.status !== "approved") {
+        return res.status(400).json({ message: "Refund must be approved before processing" });
+      }
+
+      const updatedRefund = await storage.updateRefund(refundId, {
+        status: "processed",
+        processedByUserId: userId,
+      });
+
+      // Create audit log
+      await storage.createAuditLog({
+        action: "refund_processed",
+        entityType: "refund",
+        entityId: refundId,
+        performedByUserId: userId,
+        performedByRole: userRole,
+        metadata: JSON.stringify({ amount: refund.amount }),
+      });
+
+      return res.json(updatedRefund);
+    } catch (error) {
+      console.error("Error processing refund:", error);
+      return res.status(500).json({ message: "Failed to process refund" });
+    }
+  });
+
+  // Reverse refund - Admin only
+  app.post("/api/refunds/reverse", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const userRole = req.userRole;
+      const { refundId, reason } = req.body;
+
+      const refund = await storage.getRefundById(refundId);
+      if (!refund) {
+        return res.status(404).json({ message: "Refund not found" });
+      }
+
+      if (refund.status !== "processed") {
+        return res.status(400).json({ message: "Only processed refunds can be reversed" });
+      }
+
+      const updatedRefund = await storage.updateRefund(refundId, {
+        status: "reversed",
+      });
+
+      // Create audit log
+      await storage.createAuditLog({
+        action: "refund_reversed",
+        entityType: "refund",
+        entityId: refundId,
+        performedByUserId: userId,
+        performedByRole: userRole,
+        metadata: JSON.stringify({ reason }),
+      });
+
+      return res.json(updatedRefund);
+    } catch (error) {
+      console.error("Error reversing refund:", error);
+      return res.status(500).json({ message: "Failed to reverse refund" });
+    }
+  });
+
+  // Get refunds with filtering
+  app.get("/api/refunds", isAuthenticated, requireRole(["admin", "finance", "trip_coordinator", "director"]), async (req: any, res) => {
+    try {
+      const { tripId, status } = req.query;
+      const filter: any = {};
+      if (tripId) filter.tripId = tripId;
+      if (status) filter.status = status;
+
+      const refundsList = Object.keys(filter).length > 0
+        ? await storage.getFilteredRefunds(filter)
+        : await storage.getAllRefunds();
+      return res.json(refundsList);
+    } catch (error) {
+      console.error("Error getting refunds:", error);
+      return res.status(500).json({ message: "Failed to get refunds" });
+    }
+  });
+
+  // Get refund audit trail
+  app.get("/api/refunds/:refundId/audit", isAuthenticated, requireRole(["admin", "finance", "trip_coordinator", "director"]), async (req: any, res) => {
+    try {
+      const { refundId } = req.params;
+      const auditLogs = await storage.getAuditLogsByEntity("refund", refundId);
+      return res.json(auditLogs);
+    } catch (error) {
+      console.error("Error getting refund audit:", error);
+      return res.status(500).json({ message: "Failed to get audit logs" });
+    }
+  });
+
+  // Rider view own refunds
+  app.get("/api/rider/refunds", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const refundsList = await storage.getRiderRefunds(userId);
+      return res.json(refundsList);
+    } catch (error) {
+      console.error("Error getting rider refunds:", error);
+      return res.status(500).json({ message: "Failed to get refunds" });
+    }
+  });
+
+  // Driver view refunds affecting them
+  app.get("/api/driver/refunds", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const refundsList = await storage.getDriverRefunds(userId);
+      return res.json(refundsList);
+    } catch (error) {
+      console.error("Error getting driver refunds:", error);
+      return res.status(500).json({ message: "Failed to get refunds" });
+    }
+  });
+
+  // Wallet adjustment - Admin only
+  app.post("/api/wallet/adjust", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const userRole = req.userRole;
+      const { targetUserId, amount, reason, linkedRefundId } = req.body;
+
+      if (!targetUserId || amount === undefined || !reason) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      const adjustment = await storage.createWalletAdjustment({
+        userId: targetUserId,
+        amount: String(amount),
+        reason,
+        linkedRefundId: linkedRefundId || undefined,
+        createdByUserId: userId,
+      });
+
+      // Create audit log
+      await storage.createAuditLog({
+        action: "wallet_adjusted",
+        entityType: "wallet_adjustment",
+        entityId: adjustment.id,
+        performedByUserId: userId,
+        performedByRole: userRole,
+        metadata: JSON.stringify({ targetUserId, amount, reason }),
+      });
+
+      return res.json(adjustment);
+    } catch (error) {
+      console.error("Error creating wallet adjustment:", error);
+      return res.status(500).json({ message: "Failed to create wallet adjustment" });
+    }
+  });
+
+  // Get all wallet adjustments
+  app.get("/api/wallet/adjustments", isAuthenticated, requireRole(["admin", "finance"]), async (req: any, res) => {
+    try {
+      const adjustments = await storage.getAllWalletAdjustments();
+      return res.json(adjustments);
+    } catch (error) {
+      console.error("Error getting wallet adjustments:", error);
+      return res.status(500).json({ message: "Failed to get wallet adjustments" });
+    }
+  });
+
   return httpServer;
 }
