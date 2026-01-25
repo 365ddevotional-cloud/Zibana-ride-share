@@ -93,8 +93,16 @@ Key database tables:
 - Active trip management (start trip, complete trip)
 - Pending/suspended status warnings
 
+### Phase 3A – Rider App (FROZEN - Stable)
+- Rider dashboard with current trip and recent trips
+- Improved ride request form (pickup, dropoff, passenger count)
+- Trip status timeline (requested → accepted → in_progress → completed)
+- Rider cancel ride action (for requested and accepted status)
+- Clean layout with proper empty states
+
 ### FROZEN Components (DO NOT MODIFY)
 - Authentication flow (Replit Auth + OpenID Connect)
 - Role assignments and routing logic
 - Admin dashboard and all admin endpoints
 - Driver dashboard and all driver endpoints
+- Rider dashboard and all rider endpoints
