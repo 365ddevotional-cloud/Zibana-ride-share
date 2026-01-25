@@ -2,6 +2,7 @@ import {
   userRoles, 
   driverProfiles, 
   riderProfiles, 
+  directorProfiles,
   trips,
   users,
   payoutTransactions,
@@ -11,6 +12,8 @@ import {
   type InsertDriverProfile,
   type RiderProfile,
   type InsertRiderProfile,
+  type DirectorProfile,
+  type InsertDirectorProfile,
   type Trip,
   type InsertTrip,
   type PayoutTransaction,
@@ -67,6 +70,11 @@ export interface IStorage {
   markPayoutAsPaid(transactionId: string, adminId: string): Promise<PayoutTransaction | null>;
   creditDriverWallet(driverId: string, amount: string, tripId: string): Promise<void>;
   getDriverWalletBalance(driverId: string): Promise<string>;
+
+  getDirectorProfile(userId: string): Promise<DirectorProfile | undefined>;
+  createDirectorProfile(data: InsertDirectorProfile): Promise<DirectorProfile>;
+  getAllDirectorsWithDetails(): Promise<any[]>;
+  getDirectorCount(): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -558,6 +566,50 @@ export class DatabaseStorage implements IStorage {
       .from(driverProfiles)
       .where(eq(driverProfiles.userId, driverId));
     return driver?.walletBalance || "0.00";
+  }
+
+  async getDirectorProfile(userId: string): Promise<DirectorProfile | undefined> {
+    const [profile] = await db.select().from(directorProfiles).where(eq(directorProfiles.userId, userId));
+    return profile;
+  }
+
+  async createDirectorProfile(data: InsertDirectorProfile): Promise<DirectorProfile> {
+    const [profile] = await db.insert(directorProfiles).values(data).returning();
+    return profile;
+  }
+
+  async getAllDirectorsWithDetails(): Promise<any[]> {
+    const directorRoles = await db
+      .select()
+      .from(userRoles)
+      .where(eq(userRoles.role, "director"))
+      .orderBy(desc(userRoles.createdAt));
+
+    const directorsWithDetails = await Promise.all(
+      directorRoles.map(async (role) => {
+        const [user] = await db.select().from(users).where(eq(users.id, role.userId));
+        const [profile] = await db.select().from(directorProfiles).where(eq(directorProfiles.userId, role.userId));
+        return {
+          id: role.userId,
+          email: user?.email,
+          firstName: user?.firstName,
+          lastName: user?.lastName,
+          fullName: profile?.fullName || (user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user?.email),
+          status: profile?.status || "active",
+          createdAt: role.createdAt,
+        };
+      })
+    );
+
+    return directorsWithDetails;
+  }
+
+  async getDirectorCount(): Promise<number> {
+    const [result] = await db
+      .select({ count: count() })
+      .from(userRoles)
+      .where(eq(userRoles.role, "director"));
+    return result?.count || 0;
   }
 }
 

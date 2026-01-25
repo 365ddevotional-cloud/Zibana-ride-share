@@ -7,7 +7,8 @@ import { z } from "zod";
 export * from "./models/auth";
 
 // Enums
-export const userRoleEnum = pgEnum("user_role", ["admin", "driver", "rider"]);
+export const userRoleEnum = pgEnum("user_role", ["admin", "driver", "rider", "director"]);
+export const directorStatusEnum = pgEnum("director_status", ["active", "inactive"]);
 export const driverStatusEnum = pgEnum("driver_status", ["pending", "approved", "suspended"]);
 export const tripStatusEnum = pgEnum("trip_status", ["requested", "accepted", "in_progress", "completed", "cancelled"]);
 export const payoutStatusEnum = pgEnum("payout_status", ["pending", "paid"]);
@@ -42,6 +43,16 @@ export const riderProfiles = pgTable("rider_profiles", {
   userId: varchar("user_id").notNull().unique(),
   fullName: varchar("full_name"),
   phone: varchar("phone"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Director profiles table
+export const directorProfiles = pgTable("director_profiles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique(),
+  fullName: varchar("full_name").notNull(),
+  email: varchar("email"),
+  status: directorStatusEnum("status").notNull().default("active"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -90,6 +101,10 @@ export const riderProfilesRelations = relations(riderProfiles, ({ many }) => ({
   trips: many(trips),
 }));
 
+export const directorProfilesRelations = relations(directorProfiles, ({ one }) => ({
+  // Relations defined for clarity
+}));
+
 export const tripsRelations = relations(trips, ({ one }) => ({
   driver: one(driverProfiles, {
     fields: [trips.driverId],
@@ -131,6 +146,12 @@ export const insertRiderProfileSchema = createInsertSchema(riderProfiles).omit({
   createdAt: true,
 });
 
+export const insertDirectorProfileSchema = createInsertSchema(directorProfiles).omit({
+  id: true,
+  createdAt: true,
+  status: true,
+});
+
 export const insertTripSchema = createInsertSchema(trips).omit({
   id: true,
   createdAt: true,
@@ -167,6 +188,9 @@ export type DriverProfile = typeof driverProfiles.$inferSelect;
 export type InsertRiderProfile = z.infer<typeof insertRiderProfileSchema>;
 export type RiderProfile = typeof riderProfiles.$inferSelect;
 
+export type InsertDirectorProfile = z.infer<typeof insertDirectorProfileSchema>;
+export type DirectorProfile = typeof directorProfiles.$inferSelect;
+
 export type InsertTrip = z.infer<typeof insertTripSchema>;
 export type Trip = typeof trips.$inferSelect;
 
@@ -185,4 +209,8 @@ export type DriverWithUser = DriverProfile & {
 
 export type PayoutTransactionWithDetails = PayoutTransaction & {
   driverName?: string;
+};
+
+export type DirectorWithUser = DirectorProfile & {
+  email?: string;
 };
