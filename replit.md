@@ -35,7 +35,7 @@ Preferred communication style: Simple, everyday language.
 - **ORM**: Drizzle ORM with Zod schema validation
 - **Schema**: Defined in `shared/schema.ts`
 - **Migrations**: Managed via `drizzle-kit push`
-- **Key Tables**: `users`, `sessions`, `user_roles`, `driver_profiles`, `rider_profiles`, `trips`, `notifications`, `ratings`, `disputes`, `refunds`, `chargebacks`, `wallets`, `wallet_transactions`, `wallet_payouts`, `audit_logs`, `fraud_risk_profiles`, `fraud_events`, `incentive_programs`, `incentive_earnings`.
+- **Key Tables**: `users`, `sessions`, `user_roles`, `driver_profiles`, `rider_profiles`, `trip_coordinator_profiles`, `trips`, `notifications`, `ratings`, `disputes`, `refunds`, `chargebacks`, `wallets`, `wallet_transactions`, `wallet_payouts`, `audit_logs`, `fraud_risk_profiles`, `fraud_events`, `incentive_programs`, `incentive_earnings`.
 
 ### Core Features
 
@@ -152,3 +152,39 @@ Preferred communication style: Simple, everyday language.
   - POST /api/incentives/approve/:id - Approve and pay earning
   - POST /api/incentives/revoke/:id - Revoke earning with reason
 - Role-based access: Admin/Finance only (Directors/Trip Coordinators excluded from management)
+
+### Phase 14.5 – Trip Coordinator Module (January 2026)
+- Created `trip_coordinator_profiles` table for institutional rider support
+- Extended trips table with third-party booking fields:
+  - `bookedForType`: enum ("self", "third_party") - indicates booking type
+  - `passengerName`: Name of actual passenger (required for third-party bookings)
+  - `passengerContact`: Optional contact number for passenger
+  - `notesForDriver`: Special instructions for driver
+- Organization types: ngo, hospital, church, school, gov, corporate, other
+- Billing mode: Simulated payment for all coordinator bookings
+- Trip Coordinator dashboard with:
+  - Organization profile setup (name, type, contact email, phone)
+  - Trip booking form for beneficiaries with passenger details
+  - Organization trip history with filtering
+  - Statistics overview (total trips, completed, active, charges)
+  - Receipt viewing for completed trips
+  - Dispute submission for trip issues
+  - Driver rating system
+  - Trip cancellation capability
+- Storage layer methods:
+  - createTripCoordinatorProfile / getTripCoordinatorProfile
+  - getCoordinatorTrips (with status/date filtering)
+  - getCoordinatorTripStats
+- API endpoints:
+  - GET /api/coordinator/profile - Get coordinator profile
+  - POST /api/coordinator/profile - Create organization profile
+  - GET /api/coordinator/trips - List coordinator trips
+  - GET /api/coordinator/stats - Trip statistics
+  - POST /api/coordinator/trips - Book trip for beneficiary
+  - GET /api/coordinator/receipts/:tripId - Get trip receipt
+  - POST /api/coordinator/disputes - Submit dispute
+  - GET /api/coordinator/disputes - List disputes
+  - POST /api/coordinator/ratings - Rate driver
+  - POST /api/coordinator/trips/:tripId/cancel - Cancel trip
+- Role-based access: trip_coordinator role only
+- Coordinators treated as riders for dispute purposes (raisedByRole: "rider")

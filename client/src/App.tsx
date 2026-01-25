@@ -16,6 +16,7 @@ import DriverProfilePage from "@/pages/driver/profile";
 import RiderDashboard from "@/pages/rider/index";
 import AdminDashboard from "@/pages/admin/index";
 import AdminSetupPage from "@/pages/admin-setup";
+import CoordinatorDashboard from "@/pages/coordinator/index";
 
 function AuthenticatedRoutes() {
   const { user, isLoading: authLoading } = useAuth();
@@ -52,6 +53,10 @@ function AuthenticatedRoutes() {
 
   if (userRole.role === "driver") {
     return <DriverDashboard />;
+  }
+
+  if (userRole.role === "trip_coordinator") {
+    return <CoordinatorDashboard />;
   }
 
   return <RiderDashboard />;
@@ -97,6 +102,10 @@ function Router() {
       
       <Route path="/admin/setup">
         {user ? <AdminSetupPage /> : <Redirect to="/" />}
+      </Route>
+      
+      <Route path="/coordinator">
+        {user && userRole?.role === "trip_coordinator" ? <CoordinatorDashboard /> : <Redirect to="/" />}
       </Route>
       
       <Route component={NotFound} />
