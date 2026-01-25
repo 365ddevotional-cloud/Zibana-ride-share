@@ -21,7 +21,7 @@ export function Logo({ className, showText = true, size = "md", linkToHome = tru
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    navigate("/");
+    navigate("/welcome");
   };
 
   const logoContent = (

@@ -116,6 +116,8 @@ function Router() {
     <Switch>
       <Route path="/" component={AuthenticatedRoutes} />
       
+      <Route path="/welcome" component={LandingPage} />
+      
       <Route path="/role-select">
         {user ? <RoleSelectionPage /> : <Redirect to="/" />}
       </Route>
