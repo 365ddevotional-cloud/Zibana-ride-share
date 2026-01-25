@@ -2945,5 +2945,404 @@ export async function registerRoutes(
     }
   });
 
+  // ============================================
+  // Phase 16 - Support System Routes
+  // ============================================
+
+  // Rate limiting map for support endpoints
+  const supportRateLimits = new Map<string, { count: number; resetAt: number }>();
+  const SUPPORT_RATE_LIMIT = 10; // requests per minute
+  const SUPPORT_RATE_WINDOW = 60000; // 1 minute
+
+  function checkSupportRateLimit(userId: string): boolean {
+    const now = Date.now();
+    const userLimit = supportRateLimits.get(userId);
+    
+    if (!userLimit || now > userLimit.resetAt) {
+      supportRateLimits.set(userId, { count: 1, resetAt: now + SUPPORT_RATE_WINDOW });
+      return true;
+    }
+    
+    if (userLimit.count >= SUPPORT_RATE_LIMIT) {
+      return false;
+    }
+    
+    userLimit.count++;
+    return true;
+  }
+
+  // Sanitize input to prevent XSS
+  function sanitizeInput(input: string): string {
+    return input
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;")
+      .trim()
+      .slice(0, 5000); // Max length
+  }
+
+  // Create support ticket (Rider, Driver, Trip Coordinator)
+  app.post("/api/support/tickets/create", isAuthenticated, requireRole(["rider", "driver", "trip_coordinator"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const userRole = req.user?.role;
+      
+      if (!checkSupportRateLimit(userId)) {
+        return res.status(429).json({ message: "Rate limit exceeded. Please wait before submitting again." });
+      }
+      
+      const { subject, description, tripId, priority } = req.body;
+      
+      if (!subject || !description) {
+        return res.status(400).json({ message: "Subject and description are required" });
+      }
+      
+      if (subject.length < 5 || subject.length > 255) {
+        return res.status(400).json({ message: "Subject must be between 5 and 255 characters" });
+      }
+      
+      if (description.length < 10 || description.length > 5000) {
+        return res.status(400).json({ message: "Description must be between 10 and 5000 characters" });
+      }
+      
+      // Map user role to ticket creator role
+      let createdByRole: "rider" | "driver" | "trip_coordinator";
+      if (userRole === "driver") {
+        createdByRole = "driver";
+      } else if (userRole === "trip_coordinator") {
+        createdByRole = "trip_coordinator";
+      } else {
+        createdByRole = "rider";
+      }
+      
+      // Validate tripId if provided
+      if (tripId) {
+        const trip = await storage.getTripById(tripId);
+        if (!trip) {
+          return res.status(400).json({ message: "Invalid trip ID" });
+        }
+        // Verify user is associated with trip
+        if (trip.riderId !== userId && trip.driverId !== userId && trip.bookedByUserId !== userId) {
+          return res.status(403).json({ message: "You are not associated with this trip" });
+        }
+      }
+      
+      const ticket = await storage.createSupportTicket({
+        createdByUserId: userId,
+        createdByRole,
+        subject: sanitizeInput(subject),
+        description: sanitizeInput(description),
+        tripId: tripId || null,
+        priority: priority || "medium",
+        status: "open"
+      });
+      
+      await storage.createAuditLog({
+        action: "support_ticket_created",
+        entityType: "support_ticket",
+        entityId: ticket.id,
+        performedByUserId: userId,
+        performedByRole: createdByRole,
+        metadata: JSON.stringify({ subject: ticket.subject, tripId })
+      });
+      
+      return res.json(ticket);
+    } catch (error) {
+      console.error("Error creating support ticket:", error);
+      return res.status(500).json({ message: "Failed to create support ticket" });
+    }
+  });
+
+  // Get user's own tickets (Rider, Driver, Trip Coordinator)
+  app.get("/api/support/tickets/my", isAuthenticated, requireRole(["rider", "driver", "trip_coordinator"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const tickets = await storage.getUserSupportTickets(userId);
+      return res.json(tickets);
+    } catch (error) {
+      console.error("Error fetching user tickets:", error);
+      return res.status(500).json({ message: "Failed to fetch tickets" });
+    }
+  });
+
+  // Get ticket details with messages (ticket owner or support agent)
+  app.get("/api/support/tickets/:ticketId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const userRole = req.user?.role;
+      const { ticketId } = req.params;
+      
+      const ticket = await storage.getSupportTicketById(ticketId);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+      
+      // Access control: ticket owner, assigned agent, support_agent, or admin
+      const isOwner = ticket.createdByUserId === userId;
+      const isAssigned = ticket.assignedToUserId === userId;
+      const isSupportAgent = userRole === "support_agent";
+      const isAdmin = userRole === "admin";
+      
+      if (!isOwner && !isAssigned && !isSupportAgent && !isAdmin) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Support agents and admins can see internal notes
+      const includeInternal = isSupportAgent || isAdmin;
+      const messages = await storage.getSupportMessages(ticketId, includeInternal);
+      
+      return res.json({ ticket, messages });
+    } catch (error) {
+      console.error("Error fetching ticket details:", error);
+      return res.status(500).json({ message: "Failed to fetch ticket details" });
+    }
+  });
+
+  // Get assigned tickets (Support Agent)
+  app.get("/api/support/tickets/assigned", isAuthenticated, requireRole(["support_agent"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const tickets = await storage.getAssignedSupportTickets(userId);
+      return res.json(tickets);
+    } catch (error) {
+      console.error("Error fetching assigned tickets:", error);
+      return res.status(500).json({ message: "Failed to fetch assigned tickets" });
+    }
+  });
+
+  // Get all open tickets (Support Agent queue)
+  app.get("/api/support/tickets/queue", isAuthenticated, requireRole(["support_agent"]), async (req: any, res) => {
+    try {
+      const { status, priority } = req.query;
+      const tickets = await storage.getAllSupportTickets({ 
+        status: status as string, 
+        priority: priority as string 
+      });
+      return res.json(tickets);
+    } catch (error) {
+      console.error("Error fetching ticket queue:", error);
+      return res.status(500).json({ message: "Failed to fetch ticket queue" });
+    }
+  });
+
+  // Get escalated tickets (Admin only)
+  app.get("/api/support/tickets/escalated", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const tickets = await storage.getEscalatedSupportTickets();
+      return res.json(tickets);
+    } catch (error) {
+      console.error("Error fetching escalated tickets:", error);
+      return res.status(500).json({ message: "Failed to fetch escalated tickets" });
+    }
+  });
+
+  // Get support stats (Admin, Support Agent)
+  app.get("/api/support/stats", isAuthenticated, requireRole(["admin", "support_agent"]), async (req: any, res) => {
+    try {
+      const stats = await storage.getSupportStats();
+      return res.json(stats);
+    } catch (error) {
+      console.error("Error fetching support stats:", error);
+      return res.status(500).json({ message: "Failed to fetch support stats" });
+    }
+  });
+
+  // Assign ticket to self (Support Agent)
+  app.post("/api/support/tickets/:ticketId/assign", isAuthenticated, requireRole(["support_agent"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { ticketId } = req.params;
+      
+      const ticket = await storage.getSupportTicketById(ticketId);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+      
+      if (ticket.status === "closed" || ticket.status === "resolved") {
+        return res.status(400).json({ message: "Cannot assign closed tickets" });
+      }
+      
+      const updated = await storage.assignSupportTicket(ticketId, userId);
+      
+      await storage.createAuditLog({
+        action: "support_ticket_assigned",
+        entityType: "support_ticket",
+        entityId: ticketId,
+        performedByUserId: userId,
+        performedByRole: "support_agent",
+        metadata: JSON.stringify({ previousStatus: ticket.status })
+      });
+      
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error assigning ticket:", error);
+      return res.status(500).json({ message: "Failed to assign ticket" });
+    }
+  });
+
+  // Respond to ticket (owner or support agent)
+  app.post("/api/support/tickets/respond", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const userRole = req.user?.role;
+      const { ticketId, message, internal } = req.body;
+      
+      if (!checkSupportRateLimit(userId)) {
+        return res.status(429).json({ message: "Rate limit exceeded" });
+      }
+      
+      if (!ticketId || !message) {
+        return res.status(400).json({ message: "Ticket ID and message are required" });
+      }
+      
+      if (message.length < 1 || message.length > 5000) {
+        return res.status(400).json({ message: "Message must be between 1 and 5000 characters" });
+      }
+      
+      const ticket = await storage.getSupportTicketById(ticketId);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+      
+      // Check ticket is not closed
+      if (ticket.status === "closed") {
+        return res.status(400).json({ message: "Cannot respond to closed tickets" });
+      }
+      
+      // Access control
+      const isOwner = ticket.createdByUserId === userId;
+      const isAssigned = ticket.assignedToUserId === userId;
+      const isSupportAgent = userRole === "support_agent";
+      const isAdmin = userRole === "admin";
+      
+      if (!isOwner && !isAssigned && !isSupportAgent && !isAdmin) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Only support agents and admins can post internal notes
+      const isInternal = (isSupportAgent || isAdmin) && internal === true;
+      
+      const supportMessage = await storage.createSupportMessage({
+        ticketId,
+        senderUserId: userId,
+        senderRole: userRole,
+        message: sanitizeInput(message),
+        internal: isInternal
+      });
+      
+      await storage.createAuditLog({
+        action: "support_message_sent",
+        entityType: "support_ticket",
+        entityId: ticketId,
+        performedByUserId: userId,
+        performedByRole: userRole,
+        metadata: JSON.stringify({ internal: isInternal })
+      });
+      
+      return res.json(supportMessage);
+    } catch (error) {
+      console.error("Error responding to ticket:", error);
+      return res.status(500).json({ message: "Failed to send message" });
+    }
+  });
+
+  // Escalate ticket (Support Agent)
+  app.post("/api/support/tickets/escalate", isAuthenticated, requireRole(["support_agent"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { ticketId, reason } = req.body;
+      
+      if (!ticketId) {
+        return res.status(400).json({ message: "Ticket ID is required" });
+      }
+      
+      const ticket = await storage.getSupportTicketById(ticketId);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+      
+      if (ticket.status === "closed" || ticket.status === "resolved") {
+        return res.status(400).json({ message: "Cannot escalate closed tickets" });
+      }
+      
+      const updated = await storage.escalateSupportTicket(ticketId);
+      
+      // Add internal note about escalation
+      if (reason) {
+        await storage.createSupportMessage({
+          ticketId,
+          senderUserId: userId,
+          senderRole: "support_agent",
+          message: `Escalated: ${sanitizeInput(reason)}`,
+          internal: true
+        });
+      }
+      
+      await storage.createAuditLog({
+        action: "support_ticket_escalated",
+        entityType: "support_ticket",
+        entityId: ticketId,
+        performedByUserId: userId,
+        performedByRole: "support_agent",
+        metadata: JSON.stringify({ reason: reason || "No reason provided" })
+      });
+      
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error escalating ticket:", error);
+      return res.status(500).json({ message: "Failed to escalate ticket" });
+    }
+  });
+
+  // Close/Resolve ticket (Support Agent or Admin)
+  app.post("/api/support/tickets/close", isAuthenticated, requireRole(["support_agent", "admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const userRole = req.user?.role;
+      const { ticketId, resolution } = req.body;
+      
+      if (!ticketId) {
+        return res.status(400).json({ message: "Ticket ID is required" });
+      }
+      
+      const ticket = await storage.getSupportTicketById(ticketId);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+      
+      if (ticket.status === "closed") {
+        return res.status(400).json({ message: "Ticket is already closed" });
+      }
+      
+      const updated = await storage.closeSupportTicket(ticketId, "resolved");
+      
+      // Add resolution note
+      if (resolution) {
+        await storage.createSupportMessage({
+          ticketId,
+          senderUserId: userId,
+          senderRole: userRole,
+          message: `Resolution: ${sanitizeInput(resolution)}`,
+          internal: false
+        });
+      }
+      
+      await storage.createAuditLog({
+        action: "support_ticket_closed",
+        entityType: "support_ticket",
+        entityId: ticketId,
+        performedByUserId: userId,
+        performedByRole: userRole,
+        metadata: JSON.stringify({ previousStatus: ticket.status, resolution })
+      });
+      
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error closing ticket:", error);
+      return res.status(500).json({ message: "Failed to close ticket" });
+    }
+  });
+
   return httpServer;
 }

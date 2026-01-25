@@ -3052,17 +3052,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getSupportMessages(ticketId: string, includeInternal: boolean = false): Promise<SupportMessage[]> {
-    let query = db.select().from(supportMessages)
-      .where(eq(supportMessages.ticketId, ticketId));
-    
-    if (!includeInternal) {
-      query = query.where(and(
-        eq(supportMessages.ticketId, ticketId),
-        eq(supportMessages.internal, false)
-      )) as any;
+    if (includeInternal) {
+      return db.select().from(supportMessages)
+        .where(eq(supportMessages.ticketId, ticketId))
+        .orderBy(supportMessages.createdAt);
     }
     
-    return query.orderBy(supportMessages.createdAt);
+    return db.select().from(supportMessages)
+      .where(and(
+        eq(supportMessages.ticketId, ticketId),
+        eq(supportMessages.internal, false)
+      ))
+      .orderBy(supportMessages.createdAt);
   }
 
   async getSupportStats(): Promise<{
