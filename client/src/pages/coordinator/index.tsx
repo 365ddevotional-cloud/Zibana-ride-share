@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserAvatar } from "@/components/user-avatar";
+import { ProfileDropdown } from "@/components/profile-dropdown";
 import { StatusBadge } from "@/components/status-badge";
 import { EmptyState } from "@/components/empty-state";
 import { FullPageLoading } from "@/components/loading-spinner";
@@ -421,10 +422,7 @@ export default function CoordinatorDashboard() {
           <div className="flex items-center gap-2">
             <NotificationBell />
             <ThemeToggle />
-            <UserAvatar user={user} size="sm" />
-            <Button variant="outline" size="sm" onClick={handleLogout} data-testid="button-logout">
-              <LogOut className="h-4 w-4" />
-            </Button>
+            <ProfileDropdown user={user} role="trip_coordinator" onLogout={handleLogout} />
           </div>
         </div>
       </header>

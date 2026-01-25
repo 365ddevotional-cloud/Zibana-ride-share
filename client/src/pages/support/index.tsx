@@ -24,6 +24,9 @@ import {
   User,
   LogOut
 } from "lucide-react";
+import { Logo } from "@/components/logo";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { ProfileDropdown } from "@/components/profile-dropdown";
 
 type SupportTicket = {
   id: string;
@@ -228,24 +231,18 @@ export default function SupportDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b bg-card">
+      <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <Headphones className="h-8 w-8 text-primary" />
-            <div>
-              <h1 className="text-xl font-bold">ZIBA Support</h1>
-              <p className="text-sm text-muted-foreground">Support Agent Dashboard</p>
+            <Logo />
+            <div className="hidden sm:flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+              <Headphones className="h-3 w-3" />
+              Support Agent
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <User className="h-4 w-4" />
-              {user?.firstName || user?.email || "Support Agent"}
-            </div>
-            <Button variant="outline" size="sm" onClick={() => logout()} data-testid="button-logout">
-              <LogOut className="h-4 w-4 mr-2" />
-              Logout
-            </Button>
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+            <ProfileDropdown user={user} role="support_agent" onLogout={logout} />
           </div>
         </div>
       </header>

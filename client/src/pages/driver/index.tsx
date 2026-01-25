@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserAvatar } from "@/components/user-avatar";
+import { ProfileDropdown } from "@/components/profile-dropdown";
 import { StatusBadge } from "@/components/status-badge";
 import { EmptyState } from "@/components/empty-state";
 import { FullPageLoading } from "@/components/loading-spinner";
@@ -259,10 +260,7 @@ export default function DriverDashboard() {
           <div className="flex items-center gap-3">
             <NotificationBell />
             <ThemeToggle />
-            <UserAvatar user={user} size="sm" />
-            <Button variant="ghost" size="icon" onClick={() => logout()} data-testid="button-logout">
-              <LogOut className="h-5 w-5" />
-            </Button>
+            <ProfileDropdown user={user} role="driver" onLogout={logout} />
           </div>
         </div>
       </header>
