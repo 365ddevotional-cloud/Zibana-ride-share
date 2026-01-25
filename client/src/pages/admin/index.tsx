@@ -173,6 +173,38 @@ type ChargebackWithDetails = {
   resolvedByName?: string;
 };
 
+type WalletWithDetails = {
+  id: string;
+  userId: string;
+  role: "driver" | "ziba";
+  balance: string;
+  lockedBalance: string;
+  currency: string;
+  ownerName?: string;
+  pendingPayoutAmount?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type WalletPayoutWithDetails = {
+  id: string;
+  walletId: string;
+  amount: string;
+  method: string;
+  status: string;
+  periodStart: string;
+  periodEnd: string;
+  initiatedByUserId: string;
+  processedByUserId?: string;
+  failureReason?: string;
+  createdAt: string;
+  processedAt?: string;
+  driverName?: string;
+  driverUserId?: string;
+  initiatedByName?: string;
+  processedByName?: string;
+};
+
 type ReconciliationWithDetails = {
   id: string;
   tripId: string;
@@ -303,6 +335,38 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
     queryKey: ["/api/admin/directors"],
     enabled: !!user && !isDirector,
   });
+
+  // Phase 11 - Wallet queries
+  const [walletPayoutStatusFilter, setWalletPayoutStatusFilter] = useState<string>("all");
+  const [selectedWalletPayout, setSelectedWalletPayout] = useState<WalletPayoutWithDetails | null>(null);
+  const [walletPayoutDetailOpen, setWalletPayoutDetailOpen] = useState(false);
+  const [initiatePayoutOpen, setInitiatePayoutOpen] = useState(false);
+  const [selectedWalletForPayout, setSelectedWalletForPayout] = useState<WalletWithDetails | null>(null);
+  const [payoutAmount, setPayoutAmount] = useState("");
+  const [payoutMethod, setPayoutMethod] = useState("bank");
+  const [payoutPeriodStart, setPayoutPeriodStart] = useState("");
+  const [payoutPeriodEnd, setPayoutPeriodEnd] = useState("");
+
+  const { data: driverWallets = [], isLoading: walletsLoading } = useQuery<WalletWithDetails[]>({
+    queryKey: ["/api/admin/wallets"],
+    enabled: !!user,
+  });
+
+  const walletPayoutQueryKey = walletPayoutStatusFilter && walletPayoutStatusFilter !== "all"
+    ? `/api/payouts?status=${walletPayoutStatusFilter}`
+    : "/api/payouts";
+
+  const { data: walletPayouts = [], isLoading: walletPayoutsLoading } = useQuery<WalletPayoutWithDetails[]>({
+    queryKey: ["/api/payouts", walletPayoutStatusFilter],
+    queryFn: async () => {
+      const res = await fetch(walletPayoutQueryKey, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch wallet payouts");
+      return res.json();
+    },
+    enabled: !!user,
+  });
+
+  const pendingWalletPayouts = walletPayouts.filter(p => p.status === "pending" || p.status === "processing");
 
   const updateDriverStatusMutation = useMutation({
     mutationFn: async ({ driverId, status }: { driverId: string; status: string }) => {
@@ -605,6 +669,75 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
     },
   });
 
+  // Phase 11 - Wallet Payout mutations
+  const initiatePayoutMutation = useMutation({
+    mutationFn: async (data: { walletId: string; amount: string; method: string; periodStart: string; periodEnd: string }) => {
+      const response = await apiRequest("POST", "/api/payouts/initiate", data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/payouts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/wallets"] });
+      setInitiatePayoutOpen(false);
+      setSelectedWalletForPayout(null);
+      setPayoutAmount("");
+      setPayoutMethod("bank");
+      setPayoutPeriodStart("");
+      setPayoutPeriodEnd("");
+      toast({ title: "Payout initiated", description: "The payout has been initiated and balance held" });
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({ title: "Session expired", description: "Please log in again", variant: "destructive" });
+        setTimeout(() => { window.location.href = "/api/login"; }, 500);
+        return;
+      }
+      toast({ title: "Error", description: error.message || "Failed to initiate payout", variant: "destructive" });
+    },
+  });
+
+  const processPayoutMutation = useMutation({
+    mutationFn: async (payoutId: string) => {
+      const response = await apiRequest("POST", "/api/payouts/process", { payoutId });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/payouts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/wallets"] });
+      setWalletPayoutDetailOpen(false);
+      toast({ title: "Payout processed", description: "The payout has been processed and driver notified" });
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({ title: "Session expired", description: "Please log in again", variant: "destructive" });
+        setTimeout(() => { window.location.href = "/api/login"; }, 500);
+        return;
+      }
+      toast({ title: "Error", description: error.message || "Failed to process payout", variant: "destructive" });
+    },
+  });
+
+  const reversePayoutMutation = useMutation({
+    mutationFn: async ({ payoutId, reason }: { payoutId: string; reason: string }) => {
+      const response = await apiRequest("POST", "/api/payouts/reverse", { payoutId, reason });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/payouts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/wallets"] });
+      setWalletPayoutDetailOpen(false);
+      toast({ title: "Payout reversed", description: "The payout has been reversed" });
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({ title: "Session expired", description: "Please log in again", variant: "destructive" });
+        setTimeout(() => { window.location.href = "/api/login"; }, 500);
+        return;
+      }
+      toast({ title: "Error", description: error.message || "Failed to reverse payout", variant: "destructive" });
+    },
+  });
+
   useEffect(() => {
     if (!authLoading && !user) {
       setLocation("/");
@@ -826,6 +959,15 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               {reportedChargebacks.length > 0 && (
                 <span className="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-0.5">
                   {reportedChargebacks.length}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="wallets" data-testid="tab-wallets">
+              <Wallet className="h-4 w-4 mr-2" />
+              Wallets
+              {pendingWalletPayouts.length > 0 && (
+                <span className="ml-2 bg-blue-500 text-white text-xs rounded-full px-2 py-0.5">
+                  {pendingWalletPayouts.length}
                 </span>
               )}
             </TabsTrigger>
@@ -2171,6 +2313,376 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                   {isDirector && (
                     <div className="text-sm text-muted-foreground italic">
                       Directors have read-only access to chargebacks.
+                    </div>
+                  )}
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
+
+          {/* Phase 11 - Wallets Tab */}
+          <TabsContent value="wallets">
+            <div className="space-y-6">
+              {/* Driver Wallets Section */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Driver Wallets</CardTitle>
+                  <CardDescription>
+                    View driver earnings and initiate payouts
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {walletsLoading ? (
+                    <div className="py-8 text-center text-muted-foreground">
+                      Loading wallets...
+                    </div>
+                  ) : driverWallets.length === 0 ? (
+                    <EmptyState
+                      icon={Wallet}
+                      title="No driver wallets yet"
+                      description="Driver wallets will be created when drivers complete trips"
+                    />
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Driver</TableHead>
+                            <TableHead className="text-right">Balance</TableHead>
+                            <TableHead className="text-right">Locked</TableHead>
+                            <TableHead className="text-right">Available</TableHead>
+                            <TableHead className="text-right">Pending Payouts</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {driverWallets.map((wallet) => {
+                            const availableBalance = (parseFloat(wallet.balance) - parseFloat(wallet.lockedBalance)).toFixed(2);
+                            return (
+                              <TableRow key={wallet.id} data-testid={`row-wallet-${wallet.id}`}>
+                                <TableCell className="font-medium">{wallet.ownerName || "Unknown"}</TableCell>
+                                <TableCell className="text-right">${wallet.balance}</TableCell>
+                                <TableCell className="text-right text-muted-foreground">${wallet.lockedBalance}</TableCell>
+                                <TableCell className="text-right font-medium text-green-600">${availableBalance}</TableCell>
+                                <TableCell className="text-right text-muted-foreground">${wallet.pendingPayoutAmount || "0.00"}</TableCell>
+                                <TableCell className="text-right">
+                                  {!isDirector && parseFloat(availableBalance) > 0 && (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => {
+                                        setSelectedWalletForPayout(wallet);
+                                        setPayoutAmount(availableBalance);
+                                        setInitiatePayoutOpen(true);
+                                      }}
+                                      data-testid={`button-initiate-payout-${wallet.id}`}
+                                    >
+                                      <DollarSign className="h-4 w-4 mr-1" />
+                                      Initiate Payout
+                                    </Button>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Payout Cycles Section */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Payout Cycles</CardTitle>
+                  <CardDescription>
+                    Track and manage wallet payouts
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-4 mb-4">
+                    <Select value={walletPayoutStatusFilter} onValueChange={setWalletPayoutStatusFilter}>
+                      <SelectTrigger className="w-40" data-testid="select-wallet-payout-status">
+                        <SelectValue placeholder="Status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All</SelectItem>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="processing">Processing</SelectItem>
+                        <SelectItem value="paid">Paid</SelectItem>
+                        <SelectItem value="failed">Failed</SelectItem>
+                        <SelectItem value="reversed">Reversed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {walletPayoutsLoading ? (
+                    <div className="py-8 text-center text-muted-foreground">
+                      Loading payouts...
+                    </div>
+                  ) : walletPayouts.length === 0 ? (
+                    <EmptyState
+                      icon={DollarSign}
+                      title="No payout cycles yet"
+                      description="Initiated payouts will appear here"
+                    />
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Driver</TableHead>
+                            <TableHead className="text-right">Amount</TableHead>
+                            <TableHead>Method</TableHead>
+                            <TableHead>Period</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Initiated By</TableHead>
+                            <TableHead>Created</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {walletPayouts.map((payout) => (
+                            <TableRow 
+                              key={payout.id} 
+                              className="cursor-pointer hover-elevate"
+                              onClick={() => {
+                                setSelectedWalletPayout(payout);
+                                setWalletPayoutDetailOpen(true);
+                              }}
+                              data-testid={`row-wallet-payout-${payout.id}`}
+                            >
+                              <TableCell className="font-medium">{payout.driverName || "Unknown"}</TableCell>
+                              <TableCell className="text-right">${payout.amount}</TableCell>
+                              <TableCell className="capitalize">{payout.method}</TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                {new Date(payout.periodStart).toLocaleDateString()} - {new Date(payout.periodEnd).toLocaleDateString()}
+                              </TableCell>
+                              <TableCell>
+                                <StatusBadge status={payout.status} />
+                              </TableCell>
+                              <TableCell>{payout.initiatedByName || "-"}</TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                {new Date(payout.createdAt).toLocaleDateString()}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedWalletPayout(payout);
+                                    setWalletPayoutDetailOpen(true);
+                                  }}
+                                  data-testid={`button-view-payout-${payout.id}`}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Initiate Payout Dialog */}
+          <Dialog open={initiatePayoutOpen} onOpenChange={setInitiatePayoutOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Initiate Payout</DialogTitle>
+                <DialogDescription>
+                  Create a payout for {selectedWalletForPayout?.ownerName}
+                </DialogDescription>
+              </DialogHeader>
+              {selectedWalletForPayout && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium">Available Balance</label>
+                      <p className="text-lg font-bold text-green-600">
+                        ${(parseFloat(selectedWalletForPayout.balance) - parseFloat(selectedWalletForPayout.lockedBalance)).toFixed(2)}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Locked Balance</label>
+                      <p className="text-lg text-muted-foreground">
+                        ${selectedWalletForPayout.lockedBalance}
+                      </p>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium block mb-2">Payout Amount</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      max={(parseFloat(selectedWalletForPayout.balance) - parseFloat(selectedWalletForPayout.lockedBalance)).toFixed(2)}
+                      value={payoutAmount}
+                      onChange={(e) => setPayoutAmount(e.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      data-testid="input-payout-amount"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium block mb-2">Payment Method</label>
+                    <Select value={payoutMethod} onValueChange={setPayoutMethod}>
+                      <SelectTrigger data-testid="select-payout-method">
+                        <SelectValue placeholder="Select method" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="bank">Bank Transfer</SelectItem>
+                        <SelectItem value="mobile">Mobile Money</SelectItem>
+                        <SelectItem value="cash">Cash</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium block mb-2">Period Start</label>
+                      <input
+                        type="date"
+                        value={payoutPeriodStart}
+                        onChange={(e) => setPayoutPeriodStart(e.target.value)}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        data-testid="input-period-start"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium block mb-2">Period End</label>
+                      <input
+                        type="date"
+                        value={payoutPeriodEnd}
+                        onChange={(e) => setPayoutPeriodEnd(e.target.value)}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        data-testid="input-period-end"
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setInitiatePayoutOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        if (!payoutAmount || !payoutPeriodStart || !payoutPeriodEnd) {
+                          toast({ title: "Error", description: "Please fill all fields", variant: "destructive" });
+                          return;
+                        }
+                        initiatePayoutMutation.mutate({
+                          walletId: selectedWalletForPayout.id,
+                          amount: payoutAmount,
+                          method: payoutMethod,
+                          periodStart: payoutPeriodStart,
+                          periodEnd: payoutPeriodEnd,
+                        });
+                      }}
+                      disabled={initiatePayoutMutation.isPending}
+                      data-testid="button-confirm-payout"
+                    >
+                      {initiatePayoutMutation.isPending ? "Initiating..." : "Initiate Payout"}
+                    </Button>
+                  </DialogFooter>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
+
+          {/* Wallet Payout Detail Modal */}
+          <Dialog open={walletPayoutDetailOpen} onOpenChange={setWalletPayoutDetailOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Payout Details</DialogTitle>
+                <DialogDescription>
+                  View payout information and take actions
+                </DialogDescription>
+              </DialogHeader>
+              {selectedWalletPayout && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm text-muted-foreground">Driver</label>
+                      <p className="font-medium">{selectedWalletPayout.driverName}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm text-muted-foreground">Amount</label>
+                      <p className="font-bold text-lg">${selectedWalletPayout.amount}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm text-muted-foreground">Method</label>
+                      <p className="capitalize">{selectedWalletPayout.method}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm text-muted-foreground">Status</label>
+                      <StatusBadge status={selectedWalletPayout.status} />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="text-sm text-muted-foreground">Period</label>
+                      <p>{new Date(selectedWalletPayout.periodStart).toLocaleDateString()} - {new Date(selectedWalletPayout.periodEnd).toLocaleDateString()}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm text-muted-foreground">Initiated By</label>
+                      <p>{selectedWalletPayout.initiatedByName || "-"}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm text-muted-foreground">Initiated At</label>
+                      <p>{new Date(selectedWalletPayout.createdAt).toLocaleString()}</p>
+                    </div>
+                    {selectedWalletPayout.processedByName && (
+                      <>
+                        <div>
+                          <label className="text-sm text-muted-foreground">Processed By</label>
+                          <p>{selectedWalletPayout.processedByName}</p>
+                        </div>
+                        <div>
+                          <label className="text-sm text-muted-foreground">Processed At</label>
+                          <p>{selectedWalletPayout.processedAt ? new Date(selectedWalletPayout.processedAt).toLocaleString() : "-"}</p>
+                        </div>
+                      </>
+                    )}
+                    {selectedWalletPayout.failureReason && (
+                      <div className="col-span-2">
+                        <label className="text-sm text-muted-foreground">Failure Reason</label>
+                        <p className="text-destructive">{selectedWalletPayout.failureReason}</p>
+                      </div>
+                    )}
+                  </div>
+                  {!isDirector && (
+                    <DialogFooter className="gap-2">
+                      {selectedWalletPayout.status === "pending" && (
+                        <Button
+                          onClick={() => processPayoutMutation.mutate(selectedWalletPayout.id)}
+                          disabled={processPayoutMutation.isPending}
+                          data-testid="button-process-payout"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Process Payout
+                        </Button>
+                      )}
+                      {(selectedWalletPayout.status === "pending" || selectedWalletPayout.status === "paid") && (
+                        <Button
+                          variant="destructive"
+                          onClick={() => {
+                            const reason = prompt("Enter reason for reversal:");
+                            if (reason) {
+                              reversePayoutMutation.mutate({ payoutId: selectedWalletPayout.id, reason });
+                            }
+                          }}
+                          disabled={reversePayoutMutation.isPending}
+                          data-testid="button-reverse-payout"
+                        >
+                          <XCircle className="h-4 w-4 mr-2" />
+                          Reverse
+                        </Button>
+                      )}
+                    </DialogFooter>
+                  )}
+                  {isDirector && (
+                    <div className="text-sm text-muted-foreground italic">
+                      Directors have read-only access to payouts.
                     </div>
                   )}
                 </div>
