@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { MapPin, User, Car, Clock, DollarSign, XCircle } from "lucide-react";
 import { RatingForm } from "./rating-form";
+import { DisputeForm } from "./dispute-form";
 
 interface TripDetailModalProps {
   trip: any | null;
@@ -193,6 +194,13 @@ export function TripDetailModal({ trip, open, onOpenChange, userRole }: TripDeta
               tripId={trip.id}
               targetName={userRole === "driver" ? trip.riderName || "Rider" : trip.driverName || "Driver"}
               targetRole={userRole === "driver" ? "rider" : "driver"}
+            />
+          )}
+
+          {(userRole === "driver" || userRole === "rider") && (
+            <DisputeForm 
+              tripId={trip.id}
+              tripStatus={trip.status}
             />
           )}
 
