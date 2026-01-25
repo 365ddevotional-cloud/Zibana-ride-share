@@ -17,6 +17,8 @@ import {
   wallets,
   walletTransactions,
   walletPayouts,
+  riskProfiles,
+  fraudEvents,
   type UserRole, 
   type InsertUserRole,
   type DriverProfile,
@@ -53,7 +55,11 @@ import {
   type WalletTransaction,
   type InsertWalletTransaction,
   type WalletPayout,
-  type InsertWalletPayout
+  type InsertWalletPayout,
+  type RiskProfile,
+  type InsertRiskProfile,
+  type FraudEvent,
+  type InsertFraudEvent
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte } from "drizzle-orm";
@@ -215,6 +221,34 @@ export interface IStorage {
   getRefundsAnalytics(startDate?: Date, endDate?: Date): Promise<any[]>;
   getPayoutsAnalytics(startDate?: Date, endDate?: Date): Promise<any[]>;
   getReconciliationAnalytics(startDate?: Date, endDate?: Date): Promise<{ matched: number; mismatched: number; manualReview: number }>;
+
+  // Phase 13 - Fraud Detection
+  getRiskProfile(userId: string): Promise<RiskProfile | null>;
+  getOrCreateRiskProfile(userId: string, role: "rider" | "driver"): Promise<RiskProfile>;
+  updateRiskProfile(userId: string, score: number, level: "low" | "medium" | "high" | "critical"): Promise<RiskProfile | null>;
+  getAllRiskProfiles(): Promise<any[]>;
+  getRiskProfilesByLevel(level: string): Promise<any[]>;
+  getFraudOverview(): Promise<{
+    riskProfiles: { total: number; low: number; medium: number; high: number; critical: number };
+    fraudEvents: { total: number; unresolved: number; resolved: number };
+  }>;
+
+  createFraudEvent(data: InsertFraudEvent): Promise<FraudEvent>;
+  getFraudEventById(eventId: string): Promise<FraudEvent | null>;
+  getAllFraudEvents(): Promise<any[]>;
+  getUnresolvedFraudEvents(): Promise<any[]>;
+  getFraudEventsByEntityId(entityId: string): Promise<FraudEvent[]>;
+  getFraudEventsBySeverity(severity: string): Promise<any[]>;
+  resolveFraudEvent(eventId: string, resolvedByUserId: string): Promise<FraudEvent | null>;
+
+  getUserFraudSignals(userId: string, role: "rider" | "driver"): Promise<{
+    refundCount: number;
+    chargebackCount: number;
+    disputeCount: number;
+    tripCount: number;
+    cancelledCount: number;
+    reversedPayoutCount: number;
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2003,6 +2037,210 @@ export class DatabaseStorage implements IStorage {
 
     const stats = results[0] || { matched: 0, mismatched: 0, manualReview: 0 };
     return { matched: Number(stats.matched), mismatched: Number(stats.mismatched), manualReview: Number(stats.manualReview) };
+  }
+
+  // Phase 13 - Fraud Detection
+  async getRiskProfile(userId: string): Promise<RiskProfile | null> {
+    const [profile] = await db.select().from(riskProfiles).where(eq(riskProfiles.userId, userId));
+    return profile || null;
+  }
+
+  async getOrCreateRiskProfile(userId: string, role: "rider" | "driver"): Promise<RiskProfile> {
+    let profile = await this.getRiskProfile(userId);
+    if (!profile) {
+      const [newProfile] = await db.insert(riskProfiles).values({ userId, role }).returning();
+      profile = newProfile;
+    }
+    return profile;
+  }
+
+  async updateRiskProfile(userId: string, score: number, level: "low" | "medium" | "high" | "critical"): Promise<RiskProfile | null> {
+    const [updated] = await db
+      .update(riskProfiles)
+      .set({ score, level, lastEvaluatedAt: new Date(), updatedAt: new Date() })
+      .where(eq(riskProfiles.userId, userId))
+      .returning();
+    return updated || null;
+  }
+
+  async getAllRiskProfiles(): Promise<any[]> {
+    const allProfiles = await db.select().from(riskProfiles).orderBy(desc(riskProfiles.score));
+    const profilesWithDetails = await Promise.all(
+      allProfiles.map(async (profile) => {
+        const [user] = await db.select().from(users).where(eq(users.id, profile.userId));
+        let userName = "Unknown";
+        if (profile.role === "driver") {
+          const [dp] = await db.select().from(driverProfiles).where(eq(driverProfiles.userId, profile.userId));
+          userName = dp?.fullName || "Unknown Driver";
+        } else {
+          const [rp] = await db.select().from(riderProfiles).where(eq(riderProfiles.userId, profile.userId));
+          userName = rp?.fullName || user?.email || "Unknown Rider";
+        }
+        return { ...profile, userName, email: user?.email };
+      })
+    );
+    return profilesWithDetails;
+  }
+
+  async getRiskProfilesByLevel(level: string): Promise<any[]> {
+    const allProfiles = await db.select().from(riskProfiles).where(eq(riskProfiles.level, level as any)).orderBy(desc(riskProfiles.score));
+    const profilesWithDetails = await Promise.all(
+      allProfiles.map(async (profile) => {
+        const [user] = await db.select().from(users).where(eq(users.id, profile.userId));
+        let userName = "Unknown";
+        if (profile.role === "driver") {
+          const [dp] = await db.select().from(driverProfiles).where(eq(driverProfiles.userId, profile.userId));
+          userName = dp?.fullName || "Unknown Driver";
+        } else {
+          const [rp] = await db.select().from(riderProfiles).where(eq(riderProfiles.userId, profile.userId));
+          userName = rp?.fullName || user?.email || "Unknown Rider";
+        }
+        return { ...profile, userName, email: user?.email };
+      })
+    );
+    return profilesWithDetails;
+  }
+
+  async getFraudOverview() {
+    const [profileStats] = await db.select({
+      total: count(),
+      low: sql<number>`count(*) filter (where ${riskProfiles.level} = 'low')`,
+      medium: sql<number>`count(*) filter (where ${riskProfiles.level} = 'medium')`,
+      high: sql<number>`count(*) filter (where ${riskProfiles.level} = 'high')`,
+      critical: sql<number>`count(*) filter (where ${riskProfiles.level} = 'critical')`
+    }).from(riskProfiles);
+
+    const [eventStats] = await db.select({
+      total: count(),
+      unresolved: sql<number>`count(*) filter (where ${fraudEvents.resolvedAt} is null)`,
+      resolved: sql<number>`count(*) filter (where ${fraudEvents.resolvedAt} is not null)`
+    }).from(fraudEvents);
+
+    return {
+      riskProfiles: {
+        total: profileStats?.total || 0,
+        low: Number(profileStats?.low || 0),
+        medium: Number(profileStats?.medium || 0),
+        high: Number(profileStats?.high || 0),
+        critical: Number(profileStats?.critical || 0)
+      },
+      fraudEvents: {
+        total: eventStats?.total || 0,
+        unresolved: Number(eventStats?.unresolved || 0),
+        resolved: Number(eventStats?.resolved || 0)
+      }
+    };
+  }
+
+  async createFraudEvent(data: InsertFraudEvent): Promise<FraudEvent> {
+    const [event] = await db.insert(fraudEvents).values(data).returning();
+    return event;
+  }
+
+  async getFraudEventById(eventId: string): Promise<FraudEvent | null> {
+    const [event] = await db.select().from(fraudEvents).where(eq(fraudEvents.id, eventId));
+    return event || null;
+  }
+
+  async getAllFraudEvents(): Promise<any[]> {
+    const allEvents = await db.select().from(fraudEvents).orderBy(desc(fraudEvents.detectedAt));
+    const eventsWithDetails = await Promise.all(
+      allEvents.map(async (event) => {
+        let entityName = "Unknown";
+        let resolvedByName;
+        if (event.entityType === "user") {
+          const [user] = await db.select().from(users).where(eq(users.id, event.entityId));
+          const [dp] = await db.select().from(driverProfiles).where(eq(driverProfiles.userId, event.entityId));
+          const [rp] = await db.select().from(riderProfiles).where(eq(riderProfiles.userId, event.entityId));
+          entityName = dp?.fullName || rp?.fullName || user?.email || "Unknown User";
+        } else if (event.entityType === "trip") {
+          const [trip] = await db.select().from(trips).where(eq(trips.id, event.entityId));
+          entityName = trip ? `Trip: ${trip.pickupLocation} → ${trip.dropoffLocation}` : "Unknown Trip";
+        }
+        if (event.resolvedByUserId) {
+          const [resolver] = await db.select().from(users).where(eq(users.id, event.resolvedByUserId));
+          resolvedByName = resolver?.email;
+        }
+        return { ...event, entityName, resolvedByName };
+      })
+    );
+    return eventsWithDetails;
+  }
+
+  async getUnresolvedFraudEvents(): Promise<any[]> {
+    const events = await this.getAllFraudEvents();
+    return events.filter(e => !e.resolvedAt);
+  }
+
+  async getFraudEventsByEntityId(entityId: string): Promise<FraudEvent[]> {
+    return await db.select().from(fraudEvents).where(eq(fraudEvents.entityId, entityId)).orderBy(desc(fraudEvents.detectedAt));
+  }
+
+  async getFraudEventsBySeverity(severity: string): Promise<any[]> {
+    const allEvents = await db.select().from(fraudEvents).where(eq(fraudEvents.severity, severity as any)).orderBy(desc(fraudEvents.detectedAt));
+    const eventsWithDetails = await Promise.all(
+      allEvents.map(async (event) => {
+        let entityName = "Unknown";
+        if (event.entityType === "user") {
+          const [user] = await db.select().from(users).where(eq(users.id, event.entityId));
+          const [dp] = await db.select().from(driverProfiles).where(eq(driverProfiles.userId, event.entityId));
+          const [rp] = await db.select().from(riderProfiles).where(eq(riderProfiles.userId, event.entityId));
+          entityName = dp?.fullName || rp?.fullName || user?.email || "Unknown User";
+        } else if (event.entityType === "trip") {
+          const [trip] = await db.select().from(trips).where(eq(trips.id, event.entityId));
+          entityName = trip ? `Trip: ${trip.pickupLocation}` : "Unknown Trip";
+        }
+        return { ...event, entityName };
+      })
+    );
+    return eventsWithDetails;
+  }
+
+  async resolveFraudEvent(eventId: string, resolvedByUserId: string): Promise<FraudEvent | null> {
+    const [updated] = await db
+      .update(fraudEvents)
+      .set({ resolvedAt: new Date(), resolvedByUserId })
+      .where(eq(fraudEvents.id, eventId))
+      .returning();
+    return updated || null;
+  }
+
+  async getUserFraudSignals(userId: string, role: "rider" | "driver") {
+    const refundResult = await db.select({ count: count() }).from(refunds)
+      .where(role === "rider" ? eq(refunds.riderId, userId) : eq(refunds.driverId, userId));
+    const refundCount = refundResult[0]?.count || 0;
+
+    const chargebackResult = await db.select({ count: count() }).from(chargebacks)
+      .innerJoin(trips, eq(chargebacks.tripId, trips.id))
+      .where(role === "rider" ? eq(trips.riderId, userId) : eq(trips.driverId, userId));
+    const chargebackCount = chargebackResult[0]?.count || 0;
+
+    const disputeResult = await db.select({ count: count() }).from(disputes)
+      .where(or(eq(disputes.raisedById, userId), eq(disputes.againstUserId, userId)));
+    const disputeCount = disputeResult[0]?.count || 0;
+
+    const tripResult = await db.select({ count: count() }).from(trips)
+      .where(role === "rider" ? eq(trips.riderId, userId) : eq(trips.driverId, userId));
+    const tripCount = tripResult[0]?.count || 0;
+
+    const cancelledResult = await db.select({ count: count() }).from(trips)
+      .where(and(
+        role === "rider" ? eq(trips.riderId, userId) : eq(trips.driverId, userId),
+        eq(trips.status, "cancelled")
+      ));
+    const cancelledCount = cancelledResult[0]?.count || 0;
+
+    let reversedPayoutCount = 0;
+    if (role === "driver") {
+      const wallet = await this.getWalletByUserId(userId);
+      if (wallet) {
+        const reversedResult = await db.select({ count: count() }).from(walletPayouts)
+          .where(and(eq(walletPayouts.walletId, wallet.id), eq(walletPayouts.status, "reversed")));
+        reversedPayoutCount = reversedResult[0]?.count || 0;
+      }
+    }
+
+    return { refundCount, chargebackCount, disputeCount, tripCount, cancelledCount, reversedPayoutCount };
   }
 }
 
