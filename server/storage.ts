@@ -9,6 +9,9 @@ import {
   notifications,
   ratings,
   disputes,
+  refunds,
+  walletAdjustments,
+  auditLogs,
   type UserRole, 
   type InsertUserRole,
   type DriverProfile,
@@ -27,7 +30,14 @@ import {
   type InsertRating,
   type Dispute,
   type InsertDispute,
-  type UpdateDispute
+  type UpdateDispute,
+  type Refund,
+  type InsertRefund,
+  type UpdateRefund,
+  type WalletAdjustment,
+  type InsertWalletAdjustment,
+  type AuditLog,
+  type InsertAuditLog
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte } from "drizzle-orm";
@@ -120,6 +130,23 @@ export interface IStorage {
   getFilteredDisputes(filter: { status?: string; category?: string; raisedByRole?: string }): Promise<any[]>;
   updateDispute(disputeId: string, data: UpdateDispute): Promise<Dispute | null>;
   getTripDisputes(tripId: string): Promise<Dispute[]>;
+
+  createRefund(data: InsertRefund): Promise<Refund>;
+  getRefundById(refundId: string): Promise<Refund | null>;
+  getRefundsByTripId(tripId: string): Promise<Refund[]>;
+  getAllRefunds(): Promise<any[]>;
+  getFilteredRefunds(filter: { status?: string; tripId?: string }): Promise<any[]>;
+  updateRefund(refundId: string, data: Partial<UpdateRefund>): Promise<Refund | null>;
+  getRiderRefunds(riderId: string): Promise<Refund[]>;
+  getDriverRefunds(driverId: string): Promise<Refund[]>;
+
+  createWalletAdjustment(data: InsertWalletAdjustment): Promise<WalletAdjustment>;
+  getUserWalletAdjustments(userId: string): Promise<WalletAdjustment[]>;
+  getAllWalletAdjustments(): Promise<WalletAdjustment[]>;
+
+  createAuditLog(data: InsertAuditLog): Promise<AuditLog>;
+  getAuditLogsByEntity(entityType: string, entityId: string): Promise<AuditLog[]>;
+  getAllAuditLogs(): Promise<AuditLog[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1060,6 +1087,146 @@ export class DatabaseStorage implements IStorage {
 
   async getTripDisputes(tripId: string): Promise<Dispute[]> {
     return await db.select().from(disputes).where(eq(disputes.tripId, tripId));
+  }
+
+  async createRefund(data: InsertRefund): Promise<Refund> {
+    const [refund] = await db.insert(refunds).values(data).returning();
+    return refund;
+  }
+
+  async getRefundById(refundId: string): Promise<Refund | null> {
+    const [refund] = await db.select().from(refunds).where(eq(refunds.id, refundId));
+    return refund || null;
+  }
+
+  async getRefundsByTripId(tripId: string): Promise<Refund[]> {
+    return await db.select().from(refunds).where(eq(refunds.tripId, tripId));
+  }
+
+  async getAllRefunds(): Promise<any[]> {
+    const allRefunds = await db.select().from(refunds).orderBy(desc(refunds.createdAt));
+    
+    const refundsWithDetails = await Promise.all(
+      allRefunds.map(async (refund) => {
+        const [rider] = await db.select().from(users).where(eq(users.id, refund.riderId));
+        const [driver] = refund.driverId 
+          ? await db.select().from(users).where(eq(users.id, refund.driverId))
+          : [null];
+        const [trip] = await db.select().from(trips).where(eq(trips.id, refund.tripId));
+        const [createdBy] = await db.select().from(users).where(eq(users.id, refund.createdByUserId));
+        const [approvedBy] = refund.approvedByUserId 
+          ? await db.select().from(users).where(eq(users.id, refund.approvedByUserId))
+          : [null];
+        const [processedBy] = refund.processedByUserId 
+          ? await db.select().from(users).where(eq(users.id, refund.processedByUserId))
+          : [null];
+        
+        return {
+          ...refund,
+          riderName: rider ? `${rider.firstName || ""} ${rider.lastName || ""}`.trim() || "Unknown" : "Unknown",
+          driverName: driver ? `${driver.firstName || ""} ${driver.lastName || ""}`.trim() || "N/A" : "N/A",
+          tripPickup: trip?.pickupLocation,
+          tripDropoff: trip?.dropoffLocation,
+          tripStatus: trip?.status,
+          createdByName: createdBy ? `${createdBy.firstName || ""} ${createdBy.lastName || ""}`.trim() || "Unknown" : "Unknown",
+          approvedByName: approvedBy ? `${approvedBy.firstName || ""} ${approvedBy.lastName || ""}`.trim() : null,
+          processedByName: processedBy ? `${processedBy.firstName || ""} ${processedBy.lastName || ""}`.trim() : null,
+        };
+      })
+    );
+    
+    return refundsWithDetails;
+  }
+
+  async getFilteredRefunds(filter: { status?: string; tripId?: string }): Promise<any[]> {
+    const conditions = [];
+    
+    if (filter.status) {
+      conditions.push(eq(refunds.status, filter.status as any));
+    }
+    if (filter.tripId) {
+      conditions.push(eq(refunds.tripId, filter.tripId));
+    }
+    
+    const filteredRefunds = conditions.length > 0
+      ? await db.select().from(refunds).where(and(...conditions)).orderBy(desc(refunds.createdAt))
+      : await db.select().from(refunds).orderBy(desc(refunds.createdAt));
+    
+    const refundsWithDetails = await Promise.all(
+      filteredRefunds.map(async (refund) => {
+        const [rider] = await db.select().from(users).where(eq(users.id, refund.riderId));
+        const [driver] = refund.driverId 
+          ? await db.select().from(users).where(eq(users.id, refund.driverId))
+          : [null];
+        const [trip] = await db.select().from(trips).where(eq(trips.id, refund.tripId));
+        const [createdBy] = await db.select().from(users).where(eq(users.id, refund.createdByUserId));
+        const [approvedBy] = refund.approvedByUserId 
+          ? await db.select().from(users).where(eq(users.id, refund.approvedByUserId))
+          : [null];
+        const [processedBy] = refund.processedByUserId 
+          ? await db.select().from(users).where(eq(users.id, refund.processedByUserId))
+          : [null];
+        
+        return {
+          ...refund,
+          riderName: rider ? `${rider.firstName || ""} ${rider.lastName || ""}`.trim() || "Unknown" : "Unknown",
+          driverName: driver ? `${driver.firstName || ""} ${driver.lastName || ""}`.trim() || "N/A" : "N/A",
+          tripPickup: trip?.pickupLocation,
+          tripDropoff: trip?.dropoffLocation,
+          tripStatus: trip?.status,
+          createdByName: createdBy ? `${createdBy.firstName || ""} ${createdBy.lastName || ""}`.trim() || "Unknown" : "Unknown",
+          approvedByName: approvedBy ? `${approvedBy.firstName || ""} ${approvedBy.lastName || ""}`.trim() : null,
+          processedByName: processedBy ? `${processedBy.firstName || ""} ${processedBy.lastName || ""}`.trim() : null,
+        };
+      })
+    );
+    
+    return refundsWithDetails;
+  }
+
+  async updateRefund(refundId: string, data: Partial<UpdateRefund>): Promise<Refund | null> {
+    const [refund] = await db
+      .update(refunds)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(refunds.id, refundId))
+      .returning();
+    return refund || null;
+  }
+
+  async getRiderRefunds(riderId: string): Promise<Refund[]> {
+    return await db.select().from(refunds).where(eq(refunds.riderId, riderId)).orderBy(desc(refunds.createdAt));
+  }
+
+  async getDriverRefunds(driverId: string): Promise<Refund[]> {
+    return await db.select().from(refunds).where(eq(refunds.driverId, driverId)).orderBy(desc(refunds.createdAt));
+  }
+
+  async createWalletAdjustment(data: InsertWalletAdjustment): Promise<WalletAdjustment> {
+    const [adjustment] = await db.insert(walletAdjustments).values(data).returning();
+    return adjustment;
+  }
+
+  async getUserWalletAdjustments(userId: string): Promise<WalletAdjustment[]> {
+    return await db.select().from(walletAdjustments).where(eq(walletAdjustments.userId, userId)).orderBy(desc(walletAdjustments.createdAt));
+  }
+
+  async getAllWalletAdjustments(): Promise<WalletAdjustment[]> {
+    return await db.select().from(walletAdjustments).orderBy(desc(walletAdjustments.createdAt));
+  }
+
+  async createAuditLog(data: InsertAuditLog): Promise<AuditLog> {
+    const [log] = await db.insert(auditLogs).values(data).returning();
+    return log;
+  }
+
+  async getAuditLogsByEntity(entityType: string, entityId: string): Promise<AuditLog[]> {
+    return await db.select().from(auditLogs)
+      .where(and(eq(auditLogs.entityType, entityType), eq(auditLogs.entityId, entityId)))
+      .orderBy(desc(auditLogs.createdAt));
+  }
+
+  async getAllAuditLogs(): Promise<AuditLog[]> {
+    return await db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt));
   }
 }
 
