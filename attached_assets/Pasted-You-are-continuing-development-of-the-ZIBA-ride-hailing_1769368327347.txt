@@ -1,0 +1,151 @@
+You are continuing development of the ZIBA ride-hailing app.
+Phase 10A (Refunds & Adjustments) is COMPLETE and must NOT be altered.
+
+IMPLEMENT PHASE 10B — CHARGEBACKS & EXTERNAL PAYMENT RECONCILIATION.
+
+DO NOT BREAK EXISTING FEATURES.
+EXTEND ONLY.
+
+────────────────────────
+OBJECTIVES
+────────────────────────
+
+1) Track external chargebacks coming from payment processors
+2) Reconcile gateway transactions with internal trips
+3) Protect drivers and ZIBA from silent losses
+4) Provide a finance-grade audit trail
+
+────────────────────────
+ROLES & PERMISSIONS
+────────────────────────
+
+ADMIN
+FINANCE
+TRIP_COORDINATOR
+RIDER
+DRIVER
+
+• RIDER: View chargeback impact only
+• DRIVER: View earnings impact only
+• TRIP_COORDINATOR:
+   - Can flag suspicious trips
+   - Can attach chargeback evidence
+• FINANCE:
+   - Can reconcile payments
+   - Can confirm chargebacks
+• ADMIN:
+   - Full control (override, reverse, lock)
+
+────────────────────────
+DATABASE (Prisma)
+────────────────────────
+
+Add the following models:
+
+Chargeback
+- id
+- tripId
+- paymentProvider (STRIPE | PAYSTACK | FLUTTERWAVE | OTHER)
+- externalReference
+- amount
+- currency
+- reason
+- status (REPORTED | UNDER_REVIEW | WON | LOST | REVERSED)
+- reportedAt
+- resolvedAt (nullable)
+- createdAt
+
+PaymentReconciliation
+- id
+- tripId
+- expectedAmount
+- actualAmount
+- variance
+- provider
+- status (MATCHED | MISMATCHED | MANUAL_REVIEW)
+- reconciledByUserId (nullable)
+- createdAt
+
+Ensure indexing on tripId and externalReference.
+
+────────────────────────
+BUSINESS RULES
+────────────────────────
+
+1) A Chargeback MUST:
+- Reference a Trip
+- Reference an external payment ID
+
+2) When Chargeback = LOST:
+- Rider wallet is debited (if possible)
+- Driver payout is protected if already paid
+- ZIBA absorbs loss if required
+- All actions logged
+
+3) Chargebacks DO NOT auto-refund
+Refunds remain a separate controlled process (Phase 10A).
+
+4) Reconciliation Rules:
+- expectedAmount = internal trip fare
+- actualAmount = gateway report
+- variance ≠ 0 → MANUAL_REVIEW
+
+────────────────────────
+API ROUTES
+────────────────────────
+
+POST   /api/chargebacks/report
+POST   /api/chargebacks/resolve
+GET    /api/chargebacks?status=
+POST   /api/reconciliation/run
+GET    /api/reconciliation?status=
+
+Strict RBAC at API level.
+
+────────────────────────
+UI (ADMIN / FINANCE ONLY)
+────────────────────────
+
+Add a new Admin tab:
+
+💳 Chargebacks
+
+Sections:
+1) Chargeback Queue
+   - Status filter
+   - Trip ID
+   - Amount
+   - Provider
+   - Status badge
+
+2) Chargeback Detail Drawer
+   - Trip summary
+   - External reference
+   - Resolution buttons
+   - Audit timeline
+
+3) Reconciliation Panel
+   - Matched vs mismatched
+   - Manual review actions
+
+NO rider-facing UI yet.
+
+────────────────────────
+AUDIT & SAFETY
+────────────────────────
+
+• Every action must log to AuditLog
+• No silent balance changes
+• No deletion of financial records
+• No automatic payouts reversal
+
+────────────────────────
+FINAL CHECKS
+────────────────────────
+
+• Prisma migrate runs clean
+• Existing refunds still function
+• Trips, payouts, wallets remain stable
+• App compiles without errors
+
+IMPLEMENT PHASE 10B ONLY.

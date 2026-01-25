@@ -22,6 +22,9 @@ export const disputeRaisedByEnum = pgEnum("dispute_raised_by", ["rider", "driver
 export const refundTypeEnum = pgEnum("refund_type", ["full", "partial", "adjustment"]);
 export const refundStatusEnum = pgEnum("refund_status", ["pending", "approved", "rejected", "processed", "reversed"]);
 export const refundCreatedByRoleEnum = pgEnum("refund_created_by_role", ["admin", "trip_coordinator", "finance"]);
+export const chargebackProviderEnum = pgEnum("chargeback_provider", ["stripe", "paystack", "flutterwave", "other"]);
+export const chargebackStatusEnum = pgEnum("chargeback_status", ["reported", "under_review", "won", "lost", "reversed"]);
+export const reconciliationStatusEnum = pgEnum("reconciliation_status", ["matched", "mismatched", "manual_review"]);
 
 // User roles table - maps users to their roles
 export const userRoles = pgTable("user_roles", {
@@ -183,6 +186,36 @@ export const auditLogs = pgTable("audit_logs", {
   performedByUserId: varchar("performed_by_user_id").notNull(),
   performedByRole: varchar("performed_by_role", { length: 50 }).notNull(),
   metadata: text("metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Chargebacks table - tracks external payment processor chargebacks
+export const chargebacks = pgTable("chargebacks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tripId: varchar("trip_id").notNull(),
+  paymentProvider: chargebackProviderEnum("payment_provider").notNull(),
+  externalReference: varchar("external_reference", { length: 255 }).notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 3 }).notNull().default("USD"),
+  reason: text("reason"),
+  status: chargebackStatusEnum("status").notNull().default("reported"),
+  reportedAt: timestamp("reported_at").notNull().defaultNow(),
+  resolvedAt: timestamp("resolved_at"),
+  resolvedByUserId: varchar("resolved_by_user_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Payment reconciliations table - tracks gateway vs internal fare matching
+export const paymentReconciliations = pgTable("payment_reconciliations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tripId: varchar("trip_id").notNull(),
+  expectedAmount: decimal("expected_amount", { precision: 10, scale: 2 }).notNull(),
+  actualAmount: decimal("actual_amount", { precision: 10, scale: 2 }).notNull(),
+  variance: decimal("variance", { precision: 10, scale: 2 }).notNull(),
+  provider: chargebackProviderEnum("provider").notNull(),
+  status: reconciliationStatusEnum("status").notNull().default("matched"),
+  reconciledByUserId: varchar("reconciled_by_user_id"),
+  notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -409,4 +442,52 @@ export type RefundWithDetails = Refund & {
   createdByName?: string;
   approvedByName?: string;
   processedByName?: string;
+};
+
+// Chargeback schemas and types
+export const insertChargebackSchema = createInsertSchema(chargebacks).omit({
+  id: true,
+  createdAt: true,
+  resolvedAt: true,
+  resolvedByUserId: true,
+});
+
+export const updateChargebackSchema = createInsertSchema(chargebacks).omit({
+  id: true,
+  createdAt: true,
+  tripId: true,
+  paymentProvider: true,
+  externalReference: true,
+  amount: true,
+  currency: true,
+  reportedAt: true,
+}).partial();
+
+export type InsertChargeback = z.infer<typeof insertChargebackSchema>;
+export type UpdateChargeback = z.infer<typeof updateChargebackSchema>;
+export type Chargeback = typeof chargebacks.$inferSelect;
+
+export type ChargebackWithDetails = Chargeback & {
+  tripPickup?: string;
+  tripDropoff?: string;
+  tripFare?: string;
+  riderName?: string;
+  driverName?: string;
+  resolvedByName?: string;
+};
+
+// Payment Reconciliation schemas and types
+export const insertPaymentReconciliationSchema = createInsertSchema(paymentReconciliations).omit({
+  id: true,
+  createdAt: true,
+  reconciledByUserId: true,
+});
+
+export type InsertPaymentReconciliation = z.infer<typeof insertPaymentReconciliationSchema>;
+export type PaymentReconciliation = typeof paymentReconciliations.$inferSelect;
+
+export type ReconciliationWithDetails = PaymentReconciliation & {
+  tripPickup?: string;
+  tripDropoff?: string;
+  reconciledByName?: string;
 };

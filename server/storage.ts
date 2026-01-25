@@ -12,6 +12,8 @@ import {
   refunds,
   walletAdjustments,
   auditLogs,
+  chargebacks,
+  paymentReconciliations,
   type UserRole, 
   type InsertUserRole,
   type DriverProfile,
@@ -37,7 +39,12 @@ import {
   type WalletAdjustment,
   type InsertWalletAdjustment,
   type AuditLog,
-  type InsertAuditLog
+  type InsertAuditLog,
+  type Chargeback,
+  type InsertChargeback,
+  type UpdateChargeback,
+  type PaymentReconciliation,
+  type InsertPaymentReconciliation
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte } from "drizzle-orm";
@@ -147,6 +154,21 @@ export interface IStorage {
   createAuditLog(data: InsertAuditLog): Promise<AuditLog>;
   getAuditLogsByEntity(entityType: string, entityId: string): Promise<AuditLog[]>;
   getAllAuditLogs(): Promise<AuditLog[]>;
+
+  // Chargebacks
+  createChargeback(data: InsertChargeback): Promise<Chargeback>;
+  getChargebackById(chargebackId: string): Promise<Chargeback | null>;
+  getAllChargebacks(): Promise<any[]>;
+  getFilteredChargebacks(filter: { status?: string }): Promise<any[]>;
+  updateChargeback(chargebackId: string, data: UpdateChargeback, resolvedByUserId?: string): Promise<Chargeback | null>;
+  getChargebacksByTripId(tripId: string): Promise<Chargeback[]>;
+
+  // Payment Reconciliations
+  createPaymentReconciliation(data: InsertPaymentReconciliation): Promise<PaymentReconciliation>;
+  getAllReconciliations(): Promise<any[]>;
+  getFilteredReconciliations(filter: { status?: string }): Promise<any[]>;
+  updateReconciliation(reconciliationId: string, status: string, reconciledByUserId: string, notes?: string): Promise<PaymentReconciliation | null>;
+  runReconciliation(tripId: string, actualAmount: string, provider: string): Promise<PaymentReconciliation>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1227,6 +1249,185 @@ export class DatabaseStorage implements IStorage {
 
   async getAllAuditLogs(): Promise<AuditLog[]> {
     return await db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt));
+  }
+
+  // Chargeback methods
+  async createChargeback(data: InsertChargeback): Promise<Chargeback> {
+    const [chargeback] = await db.insert(chargebacks).values(data).returning();
+    return chargeback;
+  }
+
+  async getChargebackById(chargebackId: string): Promise<Chargeback | null> {
+    const [chargeback] = await db.select().from(chargebacks).where(eq(chargebacks.id, chargebackId));
+    return chargeback || null;
+  }
+
+  async getAllChargebacks(): Promise<any[]> {
+    const allChargebacks = await db.select().from(chargebacks).orderBy(desc(chargebacks.createdAt));
+    const chargebacksWithDetails = await Promise.all(
+      allChargebacks.map(async (cb) => {
+        const [trip] = await db.select().from(trips).where(eq(trips.id, cb.tripId));
+        const [rider] = trip?.riderId 
+          ? await db.select().from(users).where(eq(users.id, trip.riderId))
+          : [null];
+        const [driver] = trip?.driverId 
+          ? await db.select().from(users).where(eq(users.id, trip.driverId))
+          : [null];
+        const [resolvedBy] = cb.resolvedByUserId 
+          ? await db.select().from(users).where(eq(users.id, cb.resolvedByUserId))
+          : [null];
+        
+        return {
+          ...cb,
+          tripPickup: trip?.pickupLocation,
+          tripDropoff: trip?.dropoffLocation,
+          tripFare: trip?.fareAmount,
+          riderName: rider ? `${rider.firstName || ""} ${rider.lastName || ""}`.trim() || "Unknown" : "Unknown",
+          driverName: driver ? `${driver.firstName || ""} ${driver.lastName || ""}`.trim() || "N/A" : "N/A",
+          resolvedByName: resolvedBy ? `${resolvedBy.firstName || ""} ${resolvedBy.lastName || ""}`.trim() : null,
+        };
+      })
+    );
+    return chargebacksWithDetails;
+  }
+
+  async getFilteredChargebacks(filter: { status?: string }): Promise<any[]> {
+    const conditions = [];
+    if (filter.status && filter.status !== "all") {
+      conditions.push(eq(chargebacks.status, filter.status as any));
+    }
+
+    const allChargebacks = conditions.length > 0
+      ? await db.select().from(chargebacks).where(and(...conditions)).orderBy(desc(chargebacks.createdAt))
+      : await db.select().from(chargebacks).orderBy(desc(chargebacks.createdAt));
+
+    const chargebacksWithDetails = await Promise.all(
+      allChargebacks.map(async (cb) => {
+        const [trip] = await db.select().from(trips).where(eq(trips.id, cb.tripId));
+        const [rider] = trip?.riderId 
+          ? await db.select().from(users).where(eq(users.id, trip.riderId))
+          : [null];
+        const [driver] = trip?.driverId 
+          ? await db.select().from(users).where(eq(users.id, trip.driverId))
+          : [null];
+        const [resolvedBy] = cb.resolvedByUserId 
+          ? await db.select().from(users).where(eq(users.id, cb.resolvedByUserId))
+          : [null];
+        
+        return {
+          ...cb,
+          tripPickup: trip?.pickupLocation,
+          tripDropoff: trip?.dropoffLocation,
+          tripFare: trip?.fareAmount,
+          riderName: rider ? `${rider.firstName || ""} ${rider.lastName || ""}`.trim() || "Unknown" : "Unknown",
+          driverName: driver ? `${driver.firstName || ""} ${driver.lastName || ""}`.trim() || "N/A" : "N/A",
+          resolvedByName: resolvedBy ? `${resolvedBy.firstName || ""} ${resolvedBy.lastName || ""}`.trim() : null,
+        };
+      })
+    );
+    return chargebacksWithDetails;
+  }
+
+  async updateChargeback(chargebackId: string, data: UpdateChargeback, resolvedByUserId?: string): Promise<Chargeback | null> {
+    const updateData: any = { ...data };
+    if (resolvedByUserId) {
+      updateData.resolvedByUserId = resolvedByUserId;
+      updateData.resolvedAt = new Date();
+    }
+    const [chargeback] = await db
+      .update(chargebacks)
+      .set(updateData)
+      .where(eq(chargebacks.id, chargebackId))
+      .returning();
+    return chargeback || null;
+  }
+
+  async getChargebacksByTripId(tripId: string): Promise<Chargeback[]> {
+    return await db.select().from(chargebacks).where(eq(chargebacks.tripId, tripId)).orderBy(desc(chargebacks.createdAt));
+  }
+
+  // Payment Reconciliation methods
+  async createPaymentReconciliation(data: InsertPaymentReconciliation): Promise<PaymentReconciliation> {
+    const [reconciliation] = await db.insert(paymentReconciliations).values(data).returning();
+    return reconciliation;
+  }
+
+  async getAllReconciliations(): Promise<any[]> {
+    const allReconciliations = await db.select().from(paymentReconciliations).orderBy(desc(paymentReconciliations.createdAt));
+    const reconciliationsWithDetails = await Promise.all(
+      allReconciliations.map(async (rec) => {
+        const [trip] = await db.select().from(trips).where(eq(trips.id, rec.tripId));
+        const [reconciledBy] = rec.reconciledByUserId 
+          ? await db.select().from(users).where(eq(users.id, rec.reconciledByUserId))
+          : [null];
+        
+        return {
+          ...rec,
+          tripPickup: trip?.pickupLocation,
+          tripDropoff: trip?.dropoffLocation,
+          reconciledByName: reconciledBy ? `${reconciledBy.firstName || ""} ${reconciledBy.lastName || ""}`.trim() : null,
+        };
+      })
+    );
+    return reconciliationsWithDetails;
+  }
+
+  async getFilteredReconciliations(filter: { status?: string }): Promise<any[]> {
+    const conditions = [];
+    if (filter.status && filter.status !== "all") {
+      conditions.push(eq(paymentReconciliations.status, filter.status as any));
+    }
+
+    const allReconciliations = conditions.length > 0
+      ? await db.select().from(paymentReconciliations).where(and(...conditions)).orderBy(desc(paymentReconciliations.createdAt))
+      : await db.select().from(paymentReconciliations).orderBy(desc(paymentReconciliations.createdAt));
+
+    const reconciliationsWithDetails = await Promise.all(
+      allReconciliations.map(async (rec) => {
+        const [trip] = await db.select().from(trips).where(eq(trips.id, rec.tripId));
+        const [reconciledBy] = rec.reconciledByUserId 
+          ? await db.select().from(users).where(eq(users.id, rec.reconciledByUserId))
+          : [null];
+        
+        return {
+          ...rec,
+          tripPickup: trip?.pickupLocation,
+          tripDropoff: trip?.dropoffLocation,
+          reconciledByName: reconciledBy ? `${reconciledBy.firstName || ""} ${reconciledBy.lastName || ""}`.trim() : null,
+        };
+      })
+    );
+    return reconciliationsWithDetails;
+  }
+
+  async updateReconciliation(reconciliationId: string, status: string, reconciledByUserId: string, notes?: string): Promise<PaymentReconciliation | null> {
+    const [reconciliation] = await db
+      .update(paymentReconciliations)
+      .set({ status: status as any, reconciledByUserId, notes })
+      .where(eq(paymentReconciliations.id, reconciliationId))
+      .returning();
+    return reconciliation || null;
+  }
+
+  async runReconciliation(tripId: string, actualAmount: string, provider: string): Promise<PaymentReconciliation> {
+    const [trip] = await db.select().from(trips).where(eq(trips.id, tripId));
+    if (!trip) throw new Error("Trip not found");
+    
+    const expectedAmount = trip.fareAmount || "0";
+    const expected = parseFloat(expectedAmount);
+    const actual = parseFloat(actualAmount);
+    const variance = (actual - expected).toFixed(2);
+    const status = variance === "0.00" ? "matched" : "manual_review";
+
+    const [reconciliation] = await db.insert(paymentReconciliations).values({
+      tripId,
+      expectedAmount,
+      actualAmount,
+      variance,
+      provider: provider as any,
+      status: status as any,
+    }).returning();
+    return reconciliation;
   }
 }
 
