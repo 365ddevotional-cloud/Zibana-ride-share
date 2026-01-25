@@ -64,3 +64,50 @@ Preferred communication style: Simple, everyday language.
 - `SESSION_SECRET`: Secret for session cookies.
 - `ISSUER_URL`: OpenID Connect issuer.
 - `REPL_ID`: Replit environment identifier.
+- `VITE_APP_ENV`: App environment (development/staging/production).
+
+## Recent Changes
+
+### Phase 17 – Mobile App Optimization & Store Readiness (January 2026)
+- Performance optimizations:
+  - Lazy loading for heavy dashboard components (Admin, Driver, Rider, Coordinator, Support)
+  - Reduced initial bundle size with React.lazy and Suspense
+  - Smart retry logic for failed API requests (exponential backoff)
+  - Stale time configuration for query caching (5 minutes)
+- Error handling & stability:
+  - Global ErrorBoundary component with user-friendly fallback UI
+  - ComponentErrorFallback for graceful component failures
+  - Network error utilities with user-friendly messages
+  - NetworkStatusIndicator showing offline/online status
+- Loading states:
+  - DashboardSkeleton for dashboard loading
+  - TableSkeleton, CardSkeleton, FormSkeleton, TripCardSkeleton
+  - ProfileSkeleton for user profile loading
+- Network & offline behavior:
+  - Online/offline status detection
+  - Automatic reconnection notification
+  - Retry logic for server errors (5xx)
+  - No retry for client errors (4xx)
+- Environment configuration:
+  - config.ts with environment detection (dev/staging/production)
+  - Feature flags for test accounts, debug panel, mock payments
+  - Environment-specific API base URLs
+- App store configuration (app.config.json):
+  - Android: package name, version, permissions with justifications, icon sizes
+  - iOS: bundle identifier, privacy labels, info.plist descriptions
+  - Store metadata: descriptions, keywords, privacy policy URLs
+- Security compliance:
+  - No debug logs in production code (only server request logging)
+  - No secrets exposed in frontend
+  - RBAC enforced on all protected endpoints
+  - Input validation and XSS prevention
+
+### Key Files Added/Modified
+- `client/src/components/error-boundary.tsx`: Global and component error boundaries
+- `client/src/components/loading-skeleton.tsx`: Loading skeleton components
+- `client/src/components/network-status.tsx`: Network status indicator
+- `client/src/lib/network-utils.ts`: Network utilities and retry logic
+- `client/src/lib/config.ts`: Environment configuration
+- `client/src/App.tsx`: Lazy loading, error boundary integration
+- `client/src/lib/queryClient.ts`: Retry logic for queries/mutations
+- `app.config.json`: Complete app store configuration
