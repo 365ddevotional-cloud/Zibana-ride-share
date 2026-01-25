@@ -284,6 +284,38 @@ export async function registerRoutes(
           `Trip completed. Fare: $${trip.fareAmount}, Commission: $${trip.commissionAmount}`,
           "success"
         );
+
+        // Phase 11: Credit driver and ZIBA wallets
+        if (trip.driverPayout && trip.commissionAmount) {
+          try {
+            // Get or create driver wallet
+            const driverWallet = await storage.getOrCreateWallet(userId, "driver");
+            
+            // Credit driver wallet with payout amount
+            await storage.creditWallet(
+              driverWallet.id,
+              trip.driverPayout,
+              "trip",
+              tripId,
+              undefined,
+              `Earnings from trip: ${trip.pickupLocation} → ${trip.dropoffLocation}`
+            );
+
+            // Credit ZIBA wallet with commission
+            const zibaWallet = await storage.getZibaWallet();
+            await storage.creditWallet(
+              zibaWallet.id,
+              trip.commissionAmount,
+              "trip",
+              tripId,
+              undefined,
+              `Commission from trip: ${trip.pickupLocation} → ${trip.dropoffLocation}`
+            );
+          } catch (walletError) {
+            console.error("Error crediting wallets:", walletError);
+            // Don't fail the trip completion if wallet credit fails
+          }
+        }
       }
 
       return res.json(trip);
@@ -1401,6 +1433,300 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error flagging trip:", error);
       return res.status(500).json({ message: "Failed to flag trip" });
+    }
+  });
+
+  // ========== PHASE 11 - WALLET ENDPOINTS ==========
+
+  // Get current user's wallet
+  app.get("/api/wallets/me", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const wallet = await storage.getWalletByUserId(userId);
+      
+      if (!wallet) {
+        return res.json(null);
+      }
+
+      const transactions = await storage.getWalletTransactions(wallet.id);
+      const payouts = await storage.getWalletPayoutsByWalletId(wallet.id);
+
+      return res.json({
+        ...wallet,
+        transactions: transactions.slice(0, 20),
+        payouts: payouts.slice(0, 10),
+      });
+    } catch (error) {
+      console.error("Error getting wallet:", error);
+      return res.status(500).json({ message: "Failed to get wallet" });
+    }
+  });
+
+  // Get specific user's wallet (admin/finance only)
+  app.get("/api/wallets/:userId", isAuthenticated, requireRole(["admin", "finance", "director", "trip_coordinator"]), async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const wallet = await storage.getWalletByUserId(userId);
+      
+      if (!wallet) {
+        return res.status(404).json({ message: "Wallet not found" });
+      }
+
+      return res.json(wallet);
+    } catch (error) {
+      console.error("Error getting user wallet:", error);
+      return res.status(500).json({ message: "Failed to get wallet" });
+    }
+  });
+
+  // Get wallet transactions
+  app.get("/api/wallets/:userId/transactions", isAuthenticated, async (req: any, res) => {
+    try {
+      const requestingUserId = req.user.claims.sub;
+      const { userId } = req.params;
+      const userRole = await storage.getUserRole(requestingUserId);
+
+      // Users can view their own transactions, admins/finance can view anyone's
+      const canView = requestingUserId === userId || 
+        (userRole && ["admin", "finance", "director", "trip_coordinator"].includes(userRole.role));
+      
+      if (!canView) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const wallet = await storage.getWalletByUserId(userId);
+      if (!wallet) {
+        return res.json([]);
+      }
+
+      const transactions = await storage.getWalletTransactions(wallet.id);
+      return res.json(transactions);
+    } catch (error) {
+      console.error("Error getting wallet transactions:", error);
+      return res.status(500).json({ message: "Failed to get transactions" });
+    }
+  });
+
+  // Get all driver wallets (admin/finance)
+  app.get("/api/admin/wallets", isAuthenticated, requireRole(["admin", "finance", "director", "trip_coordinator"]), async (req: any, res) => {
+    try {
+      const wallets = await storage.getAllDriverWallets();
+      return res.json(wallets);
+    } catch (error) {
+      console.error("Error getting wallets:", error);
+      return res.status(500).json({ message: "Failed to get wallets" });
+    }
+  });
+
+  // Get ZIBA platform wallet (admin/finance)
+  app.get("/api/admin/wallets/ziba", isAuthenticated, requireRole(["admin", "finance", "director"]), async (req: any, res) => {
+    try {
+      const zibaWallet = await storage.getZibaWallet();
+      const transactions = await storage.getWalletTransactions(zibaWallet.id);
+      return res.json({
+        ...zibaWallet,
+        transactions: transactions.slice(0, 50),
+      });
+    } catch (error) {
+      console.error("Error getting ZIBA wallet:", error);
+      return res.status(500).json({ message: "Failed to get ZIBA wallet" });
+    }
+  });
+
+  // ========== PHASE 11 - PAYOUT ENDPOINTS ==========
+
+  // Get all payouts (admin/finance)
+  app.get("/api/payouts", isAuthenticated, requireRole(["admin", "finance", "director", "trip_coordinator"]), async (req: any, res) => {
+    try {
+      const { status } = req.query;
+      const payouts = status 
+        ? await storage.getFilteredWalletPayouts({ status })
+        : await storage.getAllWalletPayouts();
+      return res.json(payouts);
+    } catch (error) {
+      console.error("Error getting payouts:", error);
+      return res.status(500).json({ message: "Failed to get payouts" });
+    }
+  });
+
+  // Get driver's payout history
+  app.get("/api/driver/payouts", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const payouts = await storage.getDriverPayoutHistory(userId);
+      return res.json(payouts);
+    } catch (error) {
+      console.error("Error getting driver payouts:", error);
+      return res.status(500).json({ message: "Failed to get payout history" });
+    }
+  });
+
+  // Initiate a payout (finance/admin only)
+  app.post("/api/payouts/initiate", isAuthenticated, requireRole(["admin", "finance"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const userRole = req.userRole;
+      const { walletId, amount, method, periodStart, periodEnd } = req.body;
+
+      if (!walletId || !amount || !periodStart || !periodEnd) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      const wallet = await storage.getWalletById(walletId);
+      if (!wallet) {
+        return res.status(404).json({ message: "Wallet not found" });
+      }
+
+      const availableBalance = parseFloat(wallet.balance) - parseFloat(wallet.lockedBalance);
+      const payoutAmount = parseFloat(amount);
+
+      if (payoutAmount > availableBalance) {
+        return res.status(400).json({ message: "Insufficient available balance" });
+      }
+
+      // Hold the balance
+      const held = await storage.holdWalletBalance(walletId, amount);
+      if (!held) {
+        return res.status(400).json({ message: "Failed to hold balance" });
+      }
+
+      const payout = await storage.createWalletPayout({
+        walletId,
+        amount,
+        method: method || "bank",
+        initiatedByUserId: userId,
+        periodStart: new Date(periodStart),
+        periodEnd: new Date(periodEnd),
+      });
+
+      // Audit log
+      await storage.createAuditLog({
+        action: "payout_initiated",
+        entityType: "wallet_payout",
+        entityId: payout.id,
+        performedByUserId: userId,
+        performedByRole: userRole,
+        metadata: JSON.stringify({ walletId, amount, method }),
+      });
+
+      return res.json(payout);
+    } catch (error) {
+      console.error("Error initiating payout:", error);
+      return res.status(500).json({ message: "Failed to initiate payout" });
+    }
+  });
+
+  // Process a payout (finance only)
+  app.post("/api/payouts/process", isAuthenticated, requireRole(["finance"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const userRole = req.userRole;
+      const { payoutId } = req.body;
+
+      if (!payoutId) {
+        return res.status(400).json({ message: "Missing payout ID" });
+      }
+
+      const payout = await storage.getWalletPayoutById(payoutId);
+      if (!payout) {
+        return res.status(404).json({ message: "Payout not found" });
+      }
+
+      if (payout.status !== "pending") {
+        // First move to processing
+        const updated = await storage.reverseWalletPayout(payoutId, "Processing");
+        if (!updated) {
+          return res.status(400).json({ message: "Cannot process this payout" });
+        }
+      }
+
+      // Mark as processing first
+      const processingPayout = await storage.getWalletPayoutById(payoutId);
+      if (processingPayout?.status === "pending") {
+        // Update to processing status manually for now
+      }
+
+      const processed = await storage.processWalletPayout(payoutId, userId);
+      if (!processed) {
+        return res.status(400).json({ message: "Failed to process payout" });
+      }
+
+      // Audit log
+      await storage.createAuditLog({
+        action: "payout_processed",
+        entityType: "wallet_payout",
+        entityId: payoutId,
+        performedByUserId: userId,
+        performedByRole: userRole,
+        metadata: JSON.stringify({ status: "paid" }),
+      });
+
+      // Notify driver
+      const wallet = await storage.getWalletById(payout.walletId);
+      if (wallet) {
+        await storage.createNotification({
+          userId: wallet.userId,
+          role: "driver",
+          title: "Payout Processed",
+          message: `Your payout of $${payout.amount} has been processed successfully.`,
+          type: "success",
+        });
+      }
+
+      return res.json(processed);
+    } catch (error) {
+      console.error("Error processing payout:", error);
+      return res.status(500).json({ message: "Failed to process payout" });
+    }
+  });
+
+  // Reverse a payout (admin only)
+  app.post("/api/payouts/reverse", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const userRole = req.userRole;
+      const { payoutId, reason } = req.body;
+
+      if (!payoutId || !reason) {
+        return res.status(400).json({ message: "Missing payout ID or reason" });
+      }
+
+      const payout = await storage.getWalletPayoutById(payoutId);
+      if (!payout) {
+        return res.status(404).json({ message: "Payout not found" });
+      }
+
+      const reversed = await storage.reverseWalletPayout(payoutId, reason);
+      if (!reversed) {
+        return res.status(400).json({ message: "Failed to reverse payout" });
+      }
+
+      // Audit log
+      await storage.createAuditLog({
+        action: "payout_reversed",
+        entityType: "wallet_payout",
+        entityId: payoutId,
+        performedByUserId: userId,
+        performedByRole: userRole,
+        metadata: JSON.stringify({ reason }),
+      });
+
+      // Notify driver
+      const wallet = await storage.getWalletById(payout.walletId);
+      if (wallet) {
+        await storage.createNotification({
+          userId: wallet.userId,
+          role: "driver",
+          title: "Payout Reversed",
+          message: `Your payout of $${payout.amount} has been reversed. Reason: ${reason}`,
+          type: "warning",
+        });
+      }
+
+      return res.json(reversed);
+    } catch (error) {
+      console.error("Error reversing payout:", error);
+      return res.status(500).json({ message: "Failed to reverse payout" });
     }
   });
 
