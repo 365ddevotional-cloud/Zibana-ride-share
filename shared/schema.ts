@@ -58,6 +58,14 @@ export const ticketStatusEnum = pgEnum("ticket_status", ["open", "in_progress", 
 export const ticketPriorityEnum = pgEnum("ticket_priority", ["low", "medium", "high"]);
 export const ticketCreatorRoleEnum = pgEnum("ticket_creator_role", ["rider", "driver", "trip_coordinator"]);
 
+// Phase 18 - Contracts, SLAs & Enterprise Billing enums
+export const contractTypeEnum = pgEnum("contract_type", ["NGO", "HOSPITAL", "CHURCH", "SCHOOL", "GOV", "CORPORATE"]);
+export const contractStatusEnum = pgEnum("contract_status", ["ACTIVE", "SUSPENDED", "EXPIRED"]);
+export const billingModelEnum = pgEnum("billing_model", ["PREPAID", "POSTPAID", "MONTHLY_INVOICE"]);
+export const slaMetricTypeEnum = pgEnum("sla_metric_type", ["RESPONSE_TIME", "COMPLETION_RATE", "AVAILABILITY"]);
+export const slaMeasurementPeriodEnum = pgEnum("sla_measurement_period", ["DAILY", "WEEKLY", "MONTHLY"]);
+export const invoiceStatusEnum = pgEnum("invoice_status", ["DRAFT", "ISSUED", "PAID", "OVERDUE"]);
+
 // User roles table - maps users to their roles
 export const userRoles = pgTable("user_roles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -961,4 +969,83 @@ export type SupportTicketWithDetails = SupportTicket & {
     dropoff: string;
     fare: string;
   } | null;
+};
+
+// Phase 18 - Contracts, SLAs & Enterprise Billing tables
+
+export const organizationContracts = pgTable("organization_contracts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tripCoordinatorId: varchar("trip_coordinator_id").notNull(),
+  contractName: varchar("contract_name", { length: 255 }).notNull(),
+  contractType: contractTypeEnum("contract_type").notNull(),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  billingModel: billingModelEnum("billing_model").notNull().default("MONTHLY_INVOICE"),
+  currency: varchar("currency", { length: 3 }).notNull().default("USD"),
+  status: contractStatusEnum("status").notNull().default("ACTIVE"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const serviceLevelAgreements = pgTable("service_level_agreements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contractId: varchar("contract_id").notNull(),
+  metricType: slaMetricTypeEnum("metric_type").notNull(),
+  targetValue: decimal("target_value", { precision: 5, scale: 2 }).notNull(),
+  measurementPeriod: slaMeasurementPeriodEnum("measurement_period").notNull().default("MONTHLY"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const enterpriseInvoices = pgTable("enterprise_invoices", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contractId: varchar("contract_id").notNull(),
+  periodStart: timestamp("period_start").notNull(),
+  periodEnd: timestamp("period_end").notNull(),
+  totalTrips: integer("total_trips").notNull().default(0),
+  totalAmount: decimal("total_amount", { precision: 12, scale: 2 }).notNull().default("0.00"),
+  currency: varchar("currency", { length: 3 }).notNull().default("USD"),
+  status: invoiceStatusEnum("status").notNull().default("DRAFT"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertOrganizationContractSchema = createInsertSchema(organizationContracts).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertServiceLevelAgreementSchema = createInsertSchema(serviceLevelAgreements).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertEnterpriseInvoiceSchema = createInsertSchema(enterpriseInvoices).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertOrganizationContract = z.infer<typeof insertOrganizationContractSchema>;
+export type OrganizationContract = typeof organizationContracts.$inferSelect;
+
+export type InsertServiceLevelAgreement = z.infer<typeof insertServiceLevelAgreementSchema>;
+export type ServiceLevelAgreement = typeof serviceLevelAgreements.$inferSelect;
+
+export type InsertEnterpriseInvoice = z.infer<typeof insertEnterpriseInvoiceSchema>;
+export type EnterpriseInvoice = typeof enterpriseInvoices.$inferSelect;
+
+export type OrganizationContractWithDetails = OrganizationContract & {
+  organizationName?: string;
+  slaCount?: number;
+  invoiceCount?: number;
+  totalBilled?: string;
+};
+
+export type ServiceLevelAgreementWithDetails = ServiceLevelAgreement & {
+  contractName?: string;
+  currentValue?: number;
+  compliancePercentage?: number;
+};
+
+export type EnterpriseInvoiceWithDetails = EnterpriseInvoice & {
+  contractName?: string;
+  organizationName?: string;
 };

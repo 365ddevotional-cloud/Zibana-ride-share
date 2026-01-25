@@ -1,0 +1,151 @@
+You are continuing development of the ZIBA ride-hailing app.
+Phases 1–17 are COMPLETE and MUST NOT be modified.
+
+IMPLEMENT PHASE 18 — CONTRACTS, SLAs & ENTERPRISE BILLING.
+
+This phase introduces contractual structure for Trip Coordinators
+without changing core trip, wallet, or payout logic.
+
+DO NOT BREAK EXISTING FEATURES.
+EXTEND ONLY.
+
+────────────────────────
+OBJECTIVES
+────────────────────────
+
+1) Enable enterprise / organizational contracts
+2) Support SLAs for institutional Trip Coordinators
+3) Introduce enterprise billing cycles (SIMULATED)
+4) Prepare ZIBA for NGO, hospital, government, and corporate agreements
+5) Maintain strict financial and role separation
+
+────────────────────────
+CORE CONCEPTS
+────────────────────────
+
+• Contracts are READ-ONLY operational rules
+• Billing remains SIMULATED (no payment execution yet)
+• SLAs guide reporting and accountability, not enforcement
+• No automatic penalties or money movement
+
+────────────────────────
+DATABASE (Prisma)
+────────────────────────
+
+Add the following models:
+
+OrganizationContract
+- id
+- tripCoordinatorId
+- contractName
+- contractType (NGO | HOSPITAL | CHURCH | SCHOOL | GOV | CORPORATE)
+- startDate
+- endDate
+- billingModel (PREPAID | POSTPAID | MONTHLY_INVOICE)
+- currency
+- status (ACTIVE | SUSPENDED | EXPIRED)
+- createdAt
+
+ServiceLevelAgreement
+- id
+- contractId
+- metricType (RESPONSE_TIME | COMPLETION_RATE | AVAILABILITY)
+- targetValue
+- measurementPeriod (DAILY | WEEKLY | MONTHLY)
+- notes
+- createdAt
+
+EnterpriseInvoice
+- id
+- contractId
+- periodStart
+- periodEnd
+- totalTrips
+- totalAmount
+- currency
+- status (DRAFT | ISSUED | PAID | OVERDUE)
+- createdAt
+
+Ensure indexes on tripCoordinatorId, contractId, status.
+
+────────────────────────
+SYSTEM BEHAVIOR
+────────────────────────
+
+1) Contract Linking
+- Trip Coordinator may have ONE active contract
+- Trips booked by the coordinator reference the contract
+
+2) SLA Tracking (READ-ONLY)
+- Measure SLA metrics using trip data
+- Display compliance percentages
+- NO automated enforcement
+
+3) Enterprise Billing (SIMULATED)
+- Aggregate trips per billing period
+- Generate invoice records
+- No wallet or payout interaction
+
+4) Visibility
+- Trip Coordinators see:
+  - Their contract
+  - SLA summaries
+  - Invoices
+- Admin / Finance see all
+
+────────────────────────
+API ROUTES
+────────────────────────
+
+POST /api/contracts/create
+POST /api/contracts/update
+GET  /api/contracts/:tripCoordinatorId
+
+POST /api/sla/create
+GET  /api/sla/:contractId
+
+POST /api/invoices/generate
+GET  /api/invoices?contractId=
+
+Strict RBAC enforcement:
+- ADMIN / FINANCE only for creation
+- Trip Coordinator = read-only access
+
+────────────────────────
+UI
+────────────────────────
+
+ADMIN / FINANCE:
+📑 Contracts
+- Create & manage contracts
+- SLA definitions
+- Invoice generation
+
+TRIP COORDINATOR DASHBOARD:
+🏢 Organization Contract
+- Contract details
+- SLA compliance summary
+- Billing history (read-only)
+
+NO rider or driver UI changes.
+
+────────────────────────
+AUDIT & SAFETY
+────────────────────────
+
+• No pricing logic changes
+• No automatic deductions
+• No wallet interaction
+• All actions logged to AuditLog
+• Contracts are immutable once active (except status)
+
+────────────────────────
+FINAL CHECKS
+────────────────────────
+
+• Existing billing unaffected
+• Trip Coordinator flow intact
+• Analytics still accurate
+• App compiles cleanly
+
+IMPLEMENT PHASE 18 ONLY.

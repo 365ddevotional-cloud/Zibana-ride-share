@@ -91,7 +91,19 @@ import {
   type InsertSupportTicket,
   type SupportMessage,
   type InsertSupportMessage,
-  type SupportTicketWithDetails
+  type SupportTicketWithDetails,
+  organizationContracts,
+  serviceLevelAgreements,
+  enterpriseInvoices,
+  type OrganizationContract,
+  type InsertOrganizationContract,
+  type ServiceLevelAgreement,
+  type InsertServiceLevelAgreement,
+  type EnterpriseInvoice,
+  type InsertEnterpriseInvoice,
+  type OrganizationContractWithDetails,
+  type ServiceLevelAgreementWithDetails,
+  type EnterpriseInvoiceWithDetails
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte } from "drizzle-orm";
@@ -353,6 +365,32 @@ export interface IStorage {
     activeCountries: number;
     taxRulesCount: number;
     totalEstimatedTax: string;
+  }>;
+
+  // Phase 18 - Contracts, SLAs & Enterprise Billing
+  createOrganizationContract(data: InsertOrganizationContract): Promise<OrganizationContract>;
+  getOrganizationContract(contractId: string): Promise<OrganizationContract | null>;
+  getContractByCoordinator(tripCoordinatorId: string): Promise<OrganizationContract | null>;
+  getAllOrganizationContracts(): Promise<OrganizationContractWithDetails[]>;
+  updateOrganizationContract(contractId: string, data: Partial<InsertOrganizationContract>): Promise<OrganizationContract | null>;
+
+  createServiceLevelAgreement(data: InsertServiceLevelAgreement): Promise<ServiceLevelAgreement>;
+  getServiceLevelAgreement(slaId: string): Promise<ServiceLevelAgreement | null>;
+  getSLAsByContract(contractId: string): Promise<ServiceLevelAgreementWithDetails[]>;
+  updateServiceLevelAgreement(slaId: string, data: Partial<InsertServiceLevelAgreement>): Promise<ServiceLevelAgreement | null>;
+
+  createEnterpriseInvoice(data: InsertEnterpriseInvoice): Promise<EnterpriseInvoice>;
+  getEnterpriseInvoice(invoiceId: string): Promise<EnterpriseInvoice | null>;
+  getInvoicesByContract(contractId: string): Promise<EnterpriseInvoiceWithDetails[]>;
+  getAllEnterpriseInvoices(): Promise<EnterpriseInvoiceWithDetails[]>;
+  updateEnterpriseInvoiceStatus(invoiceId: string, status: string): Promise<EnterpriseInvoice | null>;
+  generateInvoiceForContract(contractId: string, periodStart: Date, periodEnd: Date): Promise<EnterpriseInvoice | null>;
+
+  getContractStats(): Promise<{
+    totalContracts: number;
+    activeContracts: number;
+    totalBilled: string;
+    pendingInvoices: number;
   }>;
 }
 
@@ -3093,6 +3131,222 @@ export class DatabaseStorage implements IStorage {
       resolvedTickets: Number(stats?.resolved || 0),
       closedTickets: Number(stats?.closed || 0),
       highPriorityOpen: Number(stats?.highPriorityOpen || 0)
+    };
+  }
+
+  // Phase 18 - Contracts, SLAs & Enterprise Billing
+
+  async createOrganizationContract(data: InsertOrganizationContract): Promise<OrganizationContract> {
+    const [contract] = await db.insert(organizationContracts).values(data).returning();
+    return contract;
+  }
+
+  async getOrganizationContract(contractId: string): Promise<OrganizationContract | null> {
+    const [contract] = await db.select().from(organizationContracts).where(eq(organizationContracts.id, contractId));
+    return contract || null;
+  }
+
+  async getContractByCoordinator(tripCoordinatorId: string): Promise<OrganizationContract | null> {
+    const [contract] = await db.select().from(organizationContracts)
+      .where(and(
+        eq(organizationContracts.tripCoordinatorId, tripCoordinatorId),
+        eq(organizationContracts.status, "ACTIVE")
+      ));
+    return contract || null;
+  }
+
+  async getAllOrganizationContracts(): Promise<OrganizationContractWithDetails[]> {
+    const contractsResult = await db.select().from(organizationContracts)
+      .orderBy(desc(organizationContracts.createdAt));
+
+    const contractsWithDetails: OrganizationContractWithDetails[] = [];
+    for (const contract of contractsResult) {
+      const [profile] = await db.select().from(tripCoordinatorProfiles)
+        .where(eq(tripCoordinatorProfiles.userId, contract.tripCoordinatorId));
+      
+      const [slaCountResult] = await db.select({ count: count() }).from(serviceLevelAgreements)
+        .where(eq(serviceLevelAgreements.contractId, contract.id));
+      
+      const [invoiceCountResult] = await db.select({ count: count() }).from(enterpriseInvoices)
+        .where(eq(enterpriseInvoices.contractId, contract.id));
+
+      const [totalBilledResult] = await db.select({ 
+        total: sql<string>`coalesce(sum(${enterpriseInvoices.totalAmount}), 0)` 
+      }).from(enterpriseInvoices)
+        .where(eq(enterpriseInvoices.contractId, contract.id));
+
+      contractsWithDetails.push({
+        ...contract,
+        organizationName: profile?.organizationName || "Unknown",
+        slaCount: slaCountResult?.count || 0,
+        invoiceCount: invoiceCountResult?.count || 0,
+        totalBilled: totalBilledResult?.total || "0.00"
+      });
+    }
+
+    return contractsWithDetails;
+  }
+
+  async updateOrganizationContract(contractId: string, data: Partial<InsertOrganizationContract>): Promise<OrganizationContract | null> {
+    const [contract] = await db.update(organizationContracts)
+      .set(data)
+      .where(eq(organizationContracts.id, contractId))
+      .returning();
+    return contract || null;
+  }
+
+  async createServiceLevelAgreement(data: InsertServiceLevelAgreement): Promise<ServiceLevelAgreement> {
+    const [sla] = await db.insert(serviceLevelAgreements).values(data).returning();
+    return sla;
+  }
+
+  async getServiceLevelAgreement(slaId: string): Promise<ServiceLevelAgreement | null> {
+    const [sla] = await db.select().from(serviceLevelAgreements).where(eq(serviceLevelAgreements.id, slaId));
+    return sla || null;
+  }
+
+  async getSLAsByContract(contractId: string): Promise<ServiceLevelAgreementWithDetails[]> {
+    const slas = await db.select().from(serviceLevelAgreements)
+      .where(eq(serviceLevelAgreements.contractId, contractId))
+      .orderBy(serviceLevelAgreements.createdAt);
+
+    const [contract] = await db.select().from(organizationContracts)
+      .where(eq(organizationContracts.id, contractId));
+
+    return slas.map(sla => ({
+      ...sla,
+      contractName: contract?.contractName,
+      currentValue: 0,
+      compliancePercentage: 100
+    }));
+  }
+
+  async updateServiceLevelAgreement(slaId: string, data: Partial<InsertServiceLevelAgreement>): Promise<ServiceLevelAgreement | null> {
+    const [sla] = await db.update(serviceLevelAgreements)
+      .set(data)
+      .where(eq(serviceLevelAgreements.id, slaId))
+      .returning();
+    return sla || null;
+  }
+
+  async createEnterpriseInvoice(data: InsertEnterpriseInvoice): Promise<EnterpriseInvoice> {
+    const [invoice] = await db.insert(enterpriseInvoices).values(data).returning();
+    return invoice;
+  }
+
+  async getEnterpriseInvoice(invoiceId: string): Promise<EnterpriseInvoice | null> {
+    const [invoice] = await db.select().from(enterpriseInvoices).where(eq(enterpriseInvoices.id, invoiceId));
+    return invoice || null;
+  }
+
+  async getInvoicesByContract(contractId: string): Promise<EnterpriseInvoiceWithDetails[]> {
+    const invoices = await db.select().from(enterpriseInvoices)
+      .where(eq(enterpriseInvoices.contractId, contractId))
+      .orderBy(desc(enterpriseInvoices.createdAt));
+
+    const [contract] = await db.select().from(organizationContracts)
+      .where(eq(organizationContracts.id, contractId));
+
+    let organizationName = "Unknown";
+    if (contract) {
+      const [profile] = await db.select().from(tripCoordinatorProfiles)
+        .where(eq(tripCoordinatorProfiles.userId, contract.tripCoordinatorId));
+      organizationName = profile?.organizationName || "Unknown";
+    }
+
+    return invoices.map(invoice => ({
+      ...invoice,
+      contractName: contract?.contractName,
+      organizationName
+    }));
+  }
+
+  async getAllEnterpriseInvoices(): Promise<EnterpriseInvoiceWithDetails[]> {
+    const invoices = await db.select().from(enterpriseInvoices)
+      .orderBy(desc(enterpriseInvoices.createdAt));
+
+    const invoicesWithDetails: EnterpriseInvoiceWithDetails[] = [];
+    for (const invoice of invoices) {
+      const [contract] = await db.select().from(organizationContracts)
+        .where(eq(organizationContracts.id, invoice.contractId));
+
+      let organizationName = "Unknown";
+      if (contract) {
+        const [profile] = await db.select().from(tripCoordinatorProfiles)
+          .where(eq(tripCoordinatorProfiles.userId, contract.tripCoordinatorId));
+        organizationName = profile?.organizationName || "Unknown";
+      }
+
+      invoicesWithDetails.push({
+        ...invoice,
+        contractName: contract?.contractName,
+        organizationName
+      });
+    }
+
+    return invoicesWithDetails;
+  }
+
+  async updateEnterpriseInvoiceStatus(invoiceId: string, status: string): Promise<EnterpriseInvoice | null> {
+    const [invoice] = await db.update(enterpriseInvoices)
+      .set({ status: status as any })
+      .where(eq(enterpriseInvoices.id, invoiceId))
+      .returning();
+    return invoice || null;
+  }
+
+  async generateInvoiceForContract(contractId: string, periodStart: Date, periodEnd: Date): Promise<EnterpriseInvoice | null> {
+    const contract = await this.getOrganizationContract(contractId);
+    if (!contract) return null;
+
+    const tripsResult = await db.select({
+      count: count(),
+      total: sql<string>`coalesce(sum(${trips.fareAmount}), 0)`
+    }).from(trips)
+      .where(and(
+        eq(trips.riderId, contract.tripCoordinatorId),
+        eq(trips.status, "completed"),
+        gte(trips.completedAt, periodStart),
+        lte(trips.completedAt, periodEnd)
+      ));
+
+    const totalTrips = Number(tripsResult[0]?.count || 0);
+    const totalAmount = tripsResult[0]?.total || "0.00";
+
+    const [invoice] = await db.insert(enterpriseInvoices).values({
+      contractId,
+      periodStart,
+      periodEnd,
+      totalTrips,
+      totalAmount,
+      currency: contract.currency,
+      status: "DRAFT"
+    }).returning();
+
+    return invoice;
+  }
+
+  async getContractStats(): Promise<{
+    totalContracts: number;
+    activeContracts: number;
+    totalBilled: string;
+    pendingInvoices: number;
+  }> {
+    const [contractStats] = await db.select({
+      total: count(),
+      active: sql<number>`count(*) filter (where ${organizationContracts.status} = 'ACTIVE')`
+    }).from(organizationContracts);
+
+    const [invoiceStats] = await db.select({
+      totalBilled: sql<string>`coalesce(sum(case when ${enterpriseInvoices.status} = 'PAID' then ${enterpriseInvoices.totalAmount} else 0 end), 0)`,
+      pending: sql<number>`count(*) filter (where ${enterpriseInvoices.status} in ('DRAFT', 'ISSUED'))`
+    }).from(enterpriseInvoices);
+
+    return {
+      totalContracts: Number(contractStats?.total || 0),
+      activeContracts: Number(contractStats?.active || 0),
+      totalBilled: invoiceStats?.totalBilled || "0.00",
+      pendingInvoices: Number(invoiceStats?.pending || 0)
     };
   }
 }
