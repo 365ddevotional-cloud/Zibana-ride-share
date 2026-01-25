@@ -22,6 +22,10 @@ import {
   fraudEvents,
   incentivePrograms,
   incentiveEarnings,
+  countries,
+  taxRules,
+  exchangeRates,
+  complianceProfiles,
   type UserRole, 
   type InsertUserRole,
   type DriverProfile,
@@ -69,7 +73,18 @@ import {
   type InsertIncentiveProgram,
   type UpdateIncentiveProgram,
   type IncentiveEarning,
-  type InsertIncentiveEarning
+  type InsertIncentiveEarning,
+  type Country,
+  type InsertCountry,
+  type UpdateCountry,
+  type TaxRule,
+  type InsertTaxRule,
+  type UpdateTaxRule,
+  type ExchangeRate,
+  type InsertExchangeRate,
+  type ComplianceProfile,
+  type InsertComplianceProfile,
+  type UpdateComplianceProfile
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte } from "drizzle-orm";
@@ -292,6 +307,45 @@ export interface IStorage {
     pendingEarnings: string;
     paidEarnings: string;
     revokedEarnings: string;
+  }>;
+
+  // Phase 15 - Multi-Country
+  createCountry(data: InsertCountry): Promise<Country>;
+  getCountryById(countryId: string): Promise<Country | null>;
+  getCountryByCode(isoCode: string): Promise<Country | null>;
+  getAllCountries(): Promise<any[]>;
+  getActiveCountries(): Promise<Country[]>;
+  updateCountry(countryId: string, data: Partial<UpdateCountry>): Promise<Country | null>;
+
+  // Phase 15 - Tax Rules
+  createTaxRule(data: InsertTaxRule): Promise<TaxRule>;
+  getTaxRuleById(ruleId: string): Promise<TaxRule | null>;
+  getTaxRulesByCountry(countryId: string): Promise<any[]>;
+  getActiveTaxRules(countryId: string): Promise<TaxRule[]>;
+  getAllTaxRules(): Promise<any[]>;
+  updateTaxRule(ruleId: string, data: Partial<UpdateTaxRule>): Promise<TaxRule | null>;
+
+  // Phase 15 - Exchange Rates
+  createExchangeRate(data: InsertExchangeRate): Promise<ExchangeRate>;
+  getLatestExchangeRate(baseCurrency: string, targetCurrency: string): Promise<ExchangeRate | null>;
+  getAllExchangeRates(): Promise<ExchangeRate[]>;
+  getExchangeRateHistory(baseCurrency: string, targetCurrency: string): Promise<ExchangeRate[]>;
+
+  // Phase 15 - Compliance Profiles
+  createComplianceProfile(data: InsertComplianceProfile): Promise<ComplianceProfile>;
+  getComplianceProfileByCountry(countryId: string): Promise<ComplianceProfile | null>;
+  getAllComplianceProfiles(): Promise<any[]>;
+  updateComplianceProfile(profileId: string, data: Partial<UpdateComplianceProfile>): Promise<ComplianceProfile | null>;
+
+  // Phase 15 - Country Analytics
+  getCountryAnalytics(countryId?: string): Promise<{
+    countries: { id: string; name: string; isoCode: string; tripCount: number; revenue: string; estimatedTax: string }[];
+  }>;
+  getComplianceOverview(): Promise<{
+    totalCountries: number;
+    activeCountries: number;
+    taxRulesCount: number;
+    totalEstimatedTax: string;
   }>;
 }
 
@@ -2557,6 +2611,250 @@ export class DatabaseStorage implements IStorage {
       pendingEarnings: String(earningStats?.pendingEarnings || "0.00"),
       paidEarnings: String(earningStats?.paidEarnings || "0.00"),
       revokedEarnings: String(earningStats?.revokedEarnings || "0.00")
+    };
+  }
+
+  // ========================================
+  // Phase 15 - Multi-Country Tax, Currency & Compliance
+  // ========================================
+
+  async createCountry(data: InsertCountry): Promise<Country> {
+    const [country] = await db.insert(countries).values(data).returning();
+    return country;
+  }
+
+  async getCountryById(countryId: string): Promise<Country | null> {
+    const [country] = await db.select().from(countries).where(eq(countries.id, countryId));
+    return country || null;
+  }
+
+  async getCountryByCode(isoCode: string): Promise<Country | null> {
+    const [country] = await db.select().from(countries).where(eq(countries.isoCode, isoCode));
+    return country || null;
+  }
+
+  async getAllCountries(): Promise<any[]> {
+    const allCountries = await db.select().from(countries).orderBy(desc(countries.createdAt));
+    
+    const countriesWithDetails = await Promise.all(
+      allCountries.map(async (country) => {
+        const [taxRuleCount] = await db.select({ count: count() }).from(taxRules).where(eq(taxRules.countryId, country.id));
+        const [tripStats] = await db.select({
+          tripCount: count(),
+          revenue: sql<string>`coalesce(sum(${trips.fareAmount}), 0)`
+        }).from(trips).where(eq(trips.countryId, country.id));
+
+        return {
+          ...country,
+          taxRulesCount: Number(taxRuleCount?.count || 0),
+          activeTripsCount: Number(tripStats?.tripCount || 0),
+          totalRevenue: String(tripStats?.revenue || "0.00")
+        };
+      })
+    );
+
+    return countriesWithDetails;
+  }
+
+  async getActiveCountries(): Promise<Country[]> {
+    return await db.select().from(countries).where(eq(countries.active, true)).orderBy(countries.name);
+  }
+
+  async updateCountry(countryId: string, data: Partial<UpdateCountry>): Promise<Country | null> {
+    const [updated] = await db.update(countries).set(data).where(eq(countries.id, countryId)).returning();
+    return updated || null;
+  }
+
+  async createTaxRule(data: InsertTaxRule): Promise<TaxRule> {
+    const [rule] = await db.insert(taxRules).values(data).returning();
+    return rule;
+  }
+
+  async getTaxRuleById(ruleId: string): Promise<TaxRule | null> {
+    const [rule] = await db.select().from(taxRules).where(eq(taxRules.id, ruleId));
+    return rule || null;
+  }
+
+  async getTaxRulesByCountry(countryId: string): Promise<any[]> {
+    const rules = await db.select().from(taxRules).where(eq(taxRules.countryId, countryId)).orderBy(desc(taxRules.effectiveFrom));
+    
+    const rulesWithDetails = await Promise.all(
+      rules.map(async (rule) => {
+        const country = await this.getCountryById(rule.countryId);
+        return {
+          ...rule,
+          countryName: country?.name,
+          countryCode: country?.isoCode
+        };
+      })
+    );
+
+    return rulesWithDetails;
+  }
+
+  async getActiveTaxRules(countryId: string): Promise<TaxRule[]> {
+    const now = new Date();
+    return await db.select().from(taxRules)
+      .where(and(
+        eq(taxRules.countryId, countryId),
+        lte(taxRules.effectiveFrom, now),
+        or(
+          sql`${taxRules.effectiveTo} is null`,
+          gte(taxRules.effectiveTo, now)
+        )
+      ))
+      .orderBy(desc(taxRules.effectiveFrom));
+  }
+
+  async getAllTaxRules(): Promise<any[]> {
+    const rules = await db.select().from(taxRules).orderBy(desc(taxRules.createdAt));
+    
+    const rulesWithDetails = await Promise.all(
+      rules.map(async (rule) => {
+        const country = await this.getCountryById(rule.countryId);
+        return {
+          ...rule,
+          countryName: country?.name,
+          countryCode: country?.isoCode
+        };
+      })
+    );
+
+    return rulesWithDetails;
+  }
+
+  async updateTaxRule(ruleId: string, data: Partial<UpdateTaxRule>): Promise<TaxRule | null> {
+    const [updated] = await db.update(taxRules).set(data).where(eq(taxRules.id, ruleId)).returning();
+    return updated || null;
+  }
+
+  async createExchangeRate(data: InsertExchangeRate): Promise<ExchangeRate> {
+    const [rate] = await db.insert(exchangeRates).values(data).returning();
+    return rate;
+  }
+
+  async getLatestExchangeRate(baseCurrency: string, targetCurrency: string): Promise<ExchangeRate | null> {
+    const [rate] = await db.select().from(exchangeRates)
+      .where(and(
+        eq(exchangeRates.baseCurrency, baseCurrency),
+        eq(exchangeRates.targetCurrency, targetCurrency)
+      ))
+      .orderBy(desc(exchangeRates.asOfDate))
+      .limit(1);
+    return rate || null;
+  }
+
+  async getAllExchangeRates(): Promise<ExchangeRate[]> {
+    return await db.select().from(exchangeRates).orderBy(desc(exchangeRates.asOfDate));
+  }
+
+  async getExchangeRateHistory(baseCurrency: string, targetCurrency: string): Promise<ExchangeRate[]> {
+    return await db.select().from(exchangeRates)
+      .where(and(
+        eq(exchangeRates.baseCurrency, baseCurrency),
+        eq(exchangeRates.targetCurrency, targetCurrency)
+      ))
+      .orderBy(desc(exchangeRates.asOfDate));
+  }
+
+  async createComplianceProfile(data: InsertComplianceProfile): Promise<ComplianceProfile> {
+    const [profile] = await db.insert(complianceProfiles).values(data).returning();
+    return profile;
+  }
+
+  async getComplianceProfileByCountry(countryId: string): Promise<ComplianceProfile | null> {
+    const [profile] = await db.select().from(complianceProfiles).where(eq(complianceProfiles.countryId, countryId));
+    return profile || null;
+  }
+
+  async getAllComplianceProfiles(): Promise<any[]> {
+    const profiles = await db.select().from(complianceProfiles).orderBy(desc(complianceProfiles.createdAt));
+    
+    const profilesWithDetails = await Promise.all(
+      profiles.map(async (profile) => {
+        const country = await this.getCountryById(profile.countryId);
+        const [tripStats] = await db.select({
+          tripCount: count(),
+          revenue: sql<string>`coalesce(sum(${trips.fareAmount}), 0)`,
+          estimatedTax: sql<string>`coalesce(sum(${trips.estimatedTaxAmount}), 0)`
+        }).from(trips).where(eq(trips.countryId, profile.countryId));
+
+        return {
+          ...profile,
+          countryName: country?.name,
+          countryCode: country?.isoCode,
+          totalTrips: Number(tripStats?.tripCount || 0),
+          totalRevenue: String(tripStats?.revenue || "0.00"),
+          estimatedTax: String(tripStats?.estimatedTax || "0.00")
+        };
+      })
+    );
+
+    return profilesWithDetails;
+  }
+
+  async updateComplianceProfile(profileId: string, data: Partial<UpdateComplianceProfile>): Promise<ComplianceProfile | null> {
+    const [updated] = await db.update(complianceProfiles).set(data).where(eq(complianceProfiles.id, profileId)).returning();
+    return updated || null;
+  }
+
+  async getCountryAnalytics(countryId?: string): Promise<{
+    countries: { id: string; name: string; isoCode: string; tripCount: number; revenue: string; estimatedTax: string }[];
+  }> {
+    let query = db.select({
+      id: countries.id,
+      name: countries.name,
+      isoCode: countries.isoCode
+    }).from(countries);
+
+    if (countryId) {
+      query = query.where(eq(countries.id, countryId)) as any;
+    }
+
+    const allCountries = await query;
+
+    const countriesWithAnalytics = await Promise.all(
+      allCountries.map(async (country) => {
+        const [tripStats] = await db.select({
+          tripCount: count(),
+          revenue: sql<string>`coalesce(sum(${trips.fareAmount}), 0)`,
+          estimatedTax: sql<string>`coalesce(sum(${trips.estimatedTaxAmount}), 0)`
+        }).from(trips).where(eq(trips.countryId, country.id));
+
+        return {
+          ...country,
+          tripCount: Number(tripStats?.tripCount || 0),
+          revenue: String(tripStats?.revenue || "0.00"),
+          estimatedTax: String(tripStats?.estimatedTax || "0.00")
+        };
+      })
+    );
+
+    return { countries: countriesWithAnalytics };
+  }
+
+  async getComplianceOverview(): Promise<{
+    totalCountries: number;
+    activeCountries: number;
+    taxRulesCount: number;
+    totalEstimatedTax: string;
+  }> {
+    const [countryStats] = await db.select({
+      total: count(),
+      active: sql<number>`count(*) filter (where ${countries.active} = true)`
+    }).from(countries);
+
+    const [taxRuleCount] = await db.select({ count: count() }).from(taxRules);
+
+    const [taxStats] = await db.select({
+      totalTax: sql<string>`coalesce(sum(${trips.estimatedTaxAmount}), 0)`
+    }).from(trips);
+
+    return {
+      totalCountries: Number(countryStats?.total || 0),
+      activeCountries: Number(countryStats?.active || 0),
+      taxRulesCount: Number(taxRuleCount?.count || 0),
+      totalEstimatedTax: String(taxStats?.totalTax || "0.00")
     };
   }
 }
