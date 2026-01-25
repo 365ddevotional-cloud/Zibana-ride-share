@@ -1,0 +1,169 @@
+You are continuing development of the ZIBA ride-hailing app.
+Phases 10A (Refunds), 10B (Chargebacks), 11 (Wallets & Payouts), and 12 (Analytics & Reports)
+are COMPLETE and MUST NOT be modified.
+
+IMPLEMENT PHASE 13 — FRAUD DETECTION & RISK SCORING.
+
+DO NOT BREAK EXISTING FEATURES.
+EXTEND ONLY.
+
+────────────────────────
+OBJECTIVES
+────────────────────────
+
+1) Detect suspicious rider and driver behavior
+2) Assign dynamic risk scores to users and trips
+3) Flag high-risk activities for review
+4) Protect payouts, refunds, and chargebacks from abuse
+5) Provide admin tools for fraud oversight
+
+────────────────────────
+ROLES & ACCESS
+────────────────────────
+
+ADMIN
+FINANCE
+TRIP_COORDINATOR
+
+• ADMIN: Full fraud visibility + enforcement
+• FINANCE: Financial-risk visibility
+• TRIP_COORDINATOR: Review & flag only
+• No rider or driver access
+
+────────────────────────
+FRAUD SIGNALS
+────────────────────────
+
+Track and score the following signals:
+
+RIDER SIGNALS
+- Excessive refunds
+- Frequent chargebacks
+- Repeated short trips
+- High cancellation rate
+- Multiple payment methods in short time
+
+DRIVER SIGNALS
+- Abnormal trip frequency
+- Repeated same rider patterns
+- High dispute involvement
+- Location anomalies
+- Payout reversal history
+
+TRIP SIGNALS
+- Fare manipulation
+- Time/distance mismatch
+- Repeated identical routes
+- Rapid trip looping
+
+────────────────────────
+DATABASE (Prisma)
+────────────────────────
+
+Add the following models:
+
+RiskProfile
+- id
+- userId
+- role (RIDER | DRIVER)
+- score (0–100)
+- level (LOW | MEDIUM | HIGH | CRITICAL)
+- lastEvaluatedAt
+- createdAt
+- updatedAt
+
+FraudEvent
+- id
+- entityType (USER | TRIP)
+- entityId
+- signalType
+- severity (LOW | MEDIUM | HIGH)
+- description
+- detectedAt
+- resolvedAt (nullable)
+- resolvedByUserId (nullable)
+
+Ensure indexes on userId, entityId, and severity.
+
+────────────────────────
+RISK SCORING RULES
+────────────────────────
+
+1) Base score starts at 0
+2) Signals add weighted points
+3) Score thresholds:
+   - 0–20   → LOW
+   - 21–50  → MEDIUM
+   - 51–80  → HIGH
+   - 81–100 → CRITICAL
+
+4) CRITICAL risk triggers:
+   - Auto-lock payouts
+   - Manual review required
+   - Admin notification
+
+NO automatic bans.
+
+────────────────────────
+EVALUATION ENGINE
+────────────────────────
+
+Implement a reusable evaluation service:
+- Runs on key events (trip completion, refund, chargeback, payout)
+- Can be re-run manually by Admin
+- Stores results in RiskProfile
+- Emits FraudEvent records
+
+────────────────────────
+API ROUTES
+────────────────────────
+
+GET  /api/fraud/overview
+GET  /api/fraud/users?level=
+GET  /api/fraud/trips?severity=
+POST /api/fraud/evaluate
+POST /api/fraud/resolve
+
+Strict RBAC enforcement.
+
+────────────────────────
+UI (ADMIN DASHBOARD)
+────────────────────────
+
+Add a new Admin tab:
+
+🛡️ Fraud
+
+Sections:
+1) Risk Overview Cards
+   - Users by risk level
+   - Active fraud events
+2) Risk Tables
+   - High-risk riders
+   - High-risk drivers
+3) Fraud Event Detail Drawer
+   - Signals
+   - Risk score breakdown
+   - Resolve / Escalate actions
+
+READ-ONLY for Trip Coordinators.
+
+────────────────────────
+SAFETY & AUDIT
+────────────────────────
+
+• No automatic user suspension
+• No money movement in this phase
+• All actions logged to AuditLog
+• Full traceability to source events
+
+────────────────────────
+FINAL CHECKS
+────────────────────────
+
+• Fraud engine does not block normal trips
+• Wallets, payouts, refunds unaffected
+• Analytics still accurate
+• App compiles cleanly
+
+IMPLEMENT PHASE 13 ONLY.

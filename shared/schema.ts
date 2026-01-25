@@ -33,6 +33,12 @@ export const walletTransactionSourceEnum = pgEnum("wallet_transaction_source", [
 export const walletPayoutStatusEnum = pgEnum("wallet_payout_status", ["pending", "processing", "paid", "failed", "reversed"]);
 export const payoutMethodEnum = pgEnum("payout_method", ["bank", "mobile_money", "manual"]);
 
+// Phase 13 - Fraud Detection enums
+export const riskProfileRoleEnum = pgEnum("risk_profile_role", ["rider", "driver"]);
+export const riskLevelEnum = pgEnum("risk_level", ["low", "medium", "high", "critical"]);
+export const fraudEntityTypeEnum = pgEnum("fraud_entity_type", ["user", "trip"]);
+export const fraudSeverityEnum = pgEnum("fraud_severity", ["low", "medium", "high"]);
+
 // User roles table - maps users to their roles
 export const userRoles = pgTable("user_roles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -265,6 +271,31 @@ export const walletPayouts = pgTable("wallet_payouts", {
   failureReason: text("failure_reason"),
   createdAt: timestamp("created_at").defaultNow(),
   processedAt: timestamp("processed_at"),
+});
+
+// Phase 13 - Risk Profiles table
+export const riskProfiles = pgTable("risk_profiles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  role: riskProfileRoleEnum("role").notNull(),
+  score: integer("score").notNull().default(0),
+  level: riskLevelEnum("level").notNull().default("low"),
+  lastEvaluatedAt: timestamp("last_evaluated_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Phase 13 - Fraud Events table
+export const fraudEvents = pgTable("fraud_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  entityType: fraudEntityTypeEnum("entity_type").notNull(),
+  entityId: varchar("entity_id").notNull(),
+  signalType: varchar("signal_type", { length: 100 }).notNull(),
+  severity: fraudSeverityEnum("severity").notNull().default("low"),
+  description: text("description").notNull(),
+  detectedAt: timestamp("detected_at").defaultNow(),
+  resolvedAt: timestamp("resolved_at"),
+  resolvedByUserId: varchar("resolved_by_user_id"),
 });
 
 // Relations
@@ -580,4 +611,41 @@ export type WalletPayoutWithDetails = WalletPayout & {
   driverName?: string;
   initiatedByName?: string;
   processedByName?: string;
+};
+
+// Phase 13 - Risk Profile schemas and types
+export const insertRiskProfileSchema = createInsertSchema(riskProfiles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  lastEvaluatedAt: true,
+  score: true,
+  level: true,
+});
+
+export const insertFraudEventSchema = createInsertSchema(fraudEvents).omit({
+  id: true,
+  detectedAt: true,
+  resolvedAt: true,
+  resolvedByUserId: true,
+});
+
+export type InsertRiskProfile = z.infer<typeof insertRiskProfileSchema>;
+export type RiskProfile = typeof riskProfiles.$inferSelect;
+
+export type InsertFraudEvent = z.infer<typeof insertFraudEventSchema>;
+export type FraudEvent = typeof fraudEvents.$inferSelect;
+
+export type RiskProfileWithDetails = RiskProfile & {
+  userName?: string;
+  email?: string;
+  totalTrips?: number;
+  totalRefunds?: number;
+  totalChargebacks?: number;
+  totalDisputes?: number;
+};
+
+export type FraudEventWithDetails = FraudEvent & {
+  entityName?: string;
+  resolvedByName?: string;
 };
