@@ -719,6 +719,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               trip={selectedTrip}
               open={tripDetailOpen}
               onOpenChange={setTripDetailOpen}
+              userRole={isDirector ? "director" : "admin"}
             />
           </TabsContent>
 

@@ -563,6 +563,7 @@ export default function RiderDashboard() {
         trip={selectedTrip}
         open={tripDetailOpen}
         onOpenChange={setTripDetailOpen}
+        userRole="rider"
       />
     </div>
   );

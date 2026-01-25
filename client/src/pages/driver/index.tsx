@@ -535,6 +535,7 @@ export default function DriverDashboard() {
         trip={selectedTrip}
         open={tripDetailOpen}
         onOpenChange={setTripDetailOpen}
+        userRole="driver"
       />
     </div>
   );

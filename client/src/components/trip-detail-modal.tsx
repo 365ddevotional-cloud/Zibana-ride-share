@@ -2,11 +2,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { MapPin, User, Car, Clock, DollarSign, XCircle } from "lucide-react";
+import { RatingForm } from "./rating-form";
 
 interface TripDetailModalProps {
   trip: any | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  userRole?: "admin" | "director" | "driver" | "rider";
 }
 
 function formatDate(date: string | null): string {
@@ -31,7 +33,7 @@ function getStatusColor(status: string): string {
   }
 }
 
-export function TripDetailModal({ trip, open, onOpenChange }: TripDetailModalProps) {
+export function TripDetailModal({ trip, open, onOpenChange, userRole }: TripDetailModalProps) {
   if (!trip) return null;
 
   return (
@@ -184,6 +186,14 @@ export function TripDetailModal({ trip, open, onOpenChange }: TripDetailModalPro
                 )}
               </CardContent>
             </Card>
+          )}
+
+          {trip.status === "completed" && (userRole === "driver" || userRole === "rider") && (
+            <RatingForm 
+              tripId={trip.id}
+              targetName={userRole === "driver" ? trip.riderName || "Rider" : trip.driverName || "Driver"}
+              targetRole={userRole === "driver" ? "rider" : "driver"}
+            />
           )}
 
           <div className="text-xs text-muted-foreground text-center pt-2">
