@@ -35,7 +35,7 @@ Preferred communication style: Simple, everyday language.
 - **ORM**: Drizzle ORM with Zod schema validation
 - **Schema**: Defined in `shared/schema.ts`
 - **Migrations**: Managed via `drizzle-kit push`
-- **Key Tables**: `users`, `sessions`, `user_roles`, `driver_profiles`, `rider_profiles`, `trip_coordinator_profiles`, `trips`, `notifications`, `ratings`, `disputes`, `refunds`, `chargebacks`, `wallets`, `wallet_transactions`, `wallet_payouts`, `audit_logs`, `fraud_risk_profiles`, `fraud_events`, `incentive_programs`, `incentive_earnings`.
+- **Key Tables**: `users`, `sessions`, `user_roles`, `driver_profiles`, `rider_profiles`, `trip_coordinator_profiles`, `trips`, `notifications`, `ratings`, `disputes`, `refunds`, `chargebacks`, `wallets`, `wallet_transactions`, `wallet_payouts`, `audit_logs`, `fraud_risk_profiles`, `fraud_events`, `incentive_programs`, `incentive_earnings`, `countries`, `tax_rules`, `exchange_rates`, `compliance_profiles`.
 
 ### Core Features
 
@@ -188,3 +188,54 @@ Preferred communication style: Simple, everyday language.
   - POST /api/coordinator/trips/:tripId/cancel - Cancel trip
 - Role-based access: trip_coordinator role only
 - Coordinators treated as riders for dispute purposes (raisedByRole: "rider")
+
+### Phase 15 – Multi-Country Tax, Currency & Compliance (January 2026)
+- Created `countries`, `tax_rules`, `exchange_rates`, and `compliance_profiles` tables
+- Extended trips table with multi-country support:
+  - `countryId`: Reference to operating country
+  - `currency`: Currency code for the trip (3-char ISO)
+  - `estimatedTaxAmount`: Calculated tax amount for compliance tracking
+- Country configuration:
+  - Name, ISO code (2-3 char), default currency, timezone
+  - Active/inactive status for operational control
+- Tax rules system:
+  - Tax types: VAT, SALES, SERVICE, OTHER
+  - Applies to: FARE, COMMISSION, or BOTH
+  - Effective date ranges for rate changes
+- Exchange rates:
+  - Manual rate entry (simulation)
+  - Base/target currency pairs
+  - Historical rate tracking
+- Compliance profiles:
+  - Legal entity information per country
+  - Registration and tax IDs
+  - Notes for compliance tracking
+- Admin dashboard Countries tab with:
+  - Compliance overview metrics (total/active countries, tax rules, estimated tax)
+  - Sub-tabs for Countries, Tax Rules, Exchange Rates
+  - Country management (create, activate/deactivate)
+  - Tax rule creation with country selection
+  - Exchange rate entry
+- Storage layer methods:
+  - createCountry / getCountryById / getCountryByCode / getAllCountries / getActiveCountries / updateCountry
+  - createTaxRule / getTaxRuleById / getTaxRulesByCountry / getActiveTaxRules / getAllTaxRules / updateTaxRule
+  - createExchangeRate / getLatestExchangeRate / getAllExchangeRates / getExchangeRateHistory
+  - createComplianceProfile / getComplianceProfileByCountry / getAllComplianceProfiles / updateComplianceProfile
+  - getCountryAnalytics / getComplianceOverview
+- API endpoints:
+  - GET /api/countries - List all countries with details
+  - GET /api/countries/active - List active countries
+  - POST /api/countries - Create new country (Admin only)
+  - PATCH /api/countries/:countryId - Update country
+  - GET /api/tax-rules - List all tax rules
+  - POST /api/tax-rules - Create tax rule (Admin only)
+  - PATCH /api/tax-rules/:ruleId - Update tax rule
+  - GET /api/exchange-rates - List all exchange rates
+  - GET /api/exchange-rates/latest - Get latest rate for currency pair
+  - POST /api/exchange-rates - Create exchange rate (Admin/Finance)
+  - GET /api/compliance - List all compliance profiles
+  - POST /api/compliance - Create compliance profile (Admin only)
+  - PATCH /api/compliance/:profileId - Update compliance profile
+  - GET /api/analytics/countries - Country analytics
+  - GET /api/compliance/overview - Compliance overview stats
+- Role-based access: Admin/Finance only (Directors/Trip Coordinators excluded)
