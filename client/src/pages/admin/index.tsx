@@ -38,7 +38,9 @@ import {
   Briefcase,
   Eye,
   Star,
-  AlertTriangle
+  AlertTriangle,
+  CreditCard,
+  ArrowLeftRight
 } from "lucide-react";
 import type { DriverProfile, Trip, User } from "@shared/schema";
 import { NotificationBell } from "@/components/notification-bell";
@@ -148,6 +150,43 @@ type AuditLogEntry = {
   performedByRole: string;
   metadata?: string;
   createdAt: string;
+};
+
+type ChargebackWithDetails = {
+  id: string;
+  tripId: string;
+  paymentProvider: string;
+  externalReference: string;
+  amount: string;
+  currency: string;
+  reason?: string;
+  status: string;
+  reportedAt: string;
+  resolvedAt?: string;
+  resolvedByUserId?: string;
+  createdAt: string;
+  tripPickup?: string;
+  tripDropoff?: string;
+  tripFare?: string;
+  riderName?: string;
+  driverName?: string;
+  resolvedByName?: string;
+};
+
+type ReconciliationWithDetails = {
+  id: string;
+  tripId: string;
+  expectedAmount: string;
+  actualAmount: string;
+  variance: string;
+  provider: string;
+  status: string;
+  reconciledByUserId?: string;
+  notes?: string;
+  createdAt: string;
+  tripPickup?: string;
+  tripDropoff?: string;
+  reconciledByName?: string;
 };
 
 interface AdminDashboardProps {
@@ -484,6 +523,88 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
     },
   });
 
+  // Chargeback state and queries
+  const [chargebackStatusFilter, setChargebackStatusFilter] = useState<string>("");
+  const [selectedChargeback, setSelectedChargeback] = useState<ChargebackWithDetails | null>(null);
+  const [chargebackAuditLogs, setChargebackAuditLogs] = useState<AuditLogEntry[]>([]);
+  const [reconciliationStatusFilter, setReconciliationStatusFilter] = useState<string>("");
+
+  const { data: allChargebacks = [], isLoading: chargebacksLoading } = useQuery<ChargebackWithDetails[]>({
+    queryKey: ["/api/chargebacks", chargebackStatusFilter],
+    queryFn: async () => {
+      const params = chargebackStatusFilter ? `?status=${chargebackStatusFilter}` : "";
+      const res = await fetch(`/api/chargebacks${params}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch chargebacks");
+      return res.json();
+    },
+    enabled: !!user,
+  });
+
+  const { data: allReconciliations = [], isLoading: reconciliationsLoading } = useQuery<ReconciliationWithDetails[]>({
+    queryKey: ["/api/reconciliation", reconciliationStatusFilter],
+    queryFn: async () => {
+      const params = reconciliationStatusFilter ? `?status=${reconciliationStatusFilter}` : "";
+      const res = await fetch(`/api/reconciliation${params}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch reconciliations");
+      return res.json();
+    },
+    enabled: !!user,
+  });
+
+  const reportedChargebacks = allChargebacks.filter(c => c.status === "reported");
+  const manualReviewReconciliations = allReconciliations.filter(r => r.status === "manual_review");
+
+  const fetchChargebackAudit = async (chargebackId: string) => {
+    try {
+      const res = await fetch(`/api/chargebacks/${chargebackId}/audit`, { credentials: "include" });
+      if (res.ok) {
+        const logs = await res.json();
+        setChargebackAuditLogs(logs);
+      }
+    } catch (error) {
+      console.error("Failed to fetch chargeback audit logs:", error);
+    }
+  };
+
+  const resolveChargebackMutation = useMutation({
+    mutationFn: async ({ chargebackId, status, reason }: { chargebackId: string; status: string; reason?: string }) => {
+      const response = await apiRequest("POST", "/api/chargebacks/resolve", { chargebackId, status, reason });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/chargebacks"] });
+      setSelectedChargeback(null);
+      toast({ title: "Chargeback updated", description: "The chargeback has been updated" });
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({ title: "Session expired", description: "Please log in again", variant: "destructive" });
+        setTimeout(() => { window.location.href = "/api/login"; }, 500);
+        return;
+      }
+      toast({ title: "Error", description: error.message || "Failed to update chargeback", variant: "destructive" });
+    },
+  });
+
+  const reviewReconciliationMutation = useMutation({
+    mutationFn: async ({ reconciliationId, status, notes }: { reconciliationId: string; status: string; notes?: string }) => {
+      const response = await apiRequest("POST", "/api/reconciliation/review", { reconciliationId, status, notes });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/reconciliation"] });
+      toast({ title: "Reconciliation reviewed", description: "The reconciliation has been updated" });
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({ title: "Session expired", description: "Please log in again", variant: "destructive" });
+        setTimeout(() => { window.location.href = "/api/login"; }, 500);
+        return;
+      }
+      toast({ title: "Error", description: error.message || "Failed to review reconciliation", variant: "destructive" });
+    },
+  });
+
   useEffect(() => {
     if (!authLoading && !user) {
       setLocation("/");
@@ -696,6 +817,15 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               {pendingRefunds.length > 0 && (
                 <span className="ml-2 bg-yellow-500 text-white text-xs rounded-full px-2 py-0.5">
                   {pendingRefunds.length}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="chargebacks" data-testid="tab-chargebacks">
+              <CreditCard className="h-4 w-4 mr-2" />
+              Chargebacks
+              {reportedChargebacks.length > 0 && (
+                <span className="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-0.5">
+                  {reportedChargebacks.length}
                 </span>
               )}
             </TabsTrigger>
@@ -1667,6 +1797,380 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                   {isDirector && (
                     <div className="text-sm text-muted-foreground italic">
                       Directors have read-only access to refunds.
+                    </div>
+                  )}
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
+
+          <TabsContent value="chargebacks">
+            <Card>
+              <CardHeader>
+                <CardTitle>Chargebacks & Reconciliation</CardTitle>
+                <CardDescription>
+                  Track external payment chargebacks and reconcile gateway transactions
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                      <CreditCard className="h-5 w-5 text-red-500" />
+                      Chargeback Queue
+                    </h3>
+                    <div className="flex flex-wrap gap-3 mb-4">
+                      <Select value={chargebackStatusFilter} onValueChange={setChargebackStatusFilter}>
+                        <SelectTrigger className="w-40" data-testid="select-chargeback-status-filter">
+                          <SelectValue placeholder="All Statuses" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Statuses</SelectItem>
+                          <SelectItem value="reported">Reported</SelectItem>
+                          <SelectItem value="under_review">Under Review</SelectItem>
+                          <SelectItem value="won">Won</SelectItem>
+                          <SelectItem value="lost">Lost</SelectItem>
+                          <SelectItem value="reversed">Reversed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {chargebackStatusFilter && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setChargebackStatusFilter("")}
+                          data-testid="button-clear-chargeback-filters"
+                        >
+                          <XCircle className="h-4 w-4 mr-2" />
+                          Clear
+                        </Button>
+                      )}
+                    </div>
+                    {chargebacksLoading ? (
+                      <div className="py-8 text-center text-muted-foreground">
+                        Loading chargebacks...
+                      </div>
+                    ) : allChargebacks.length === 0 ? (
+                      <EmptyState
+                        icon={CreditCard}
+                        title="No chargebacks found"
+                        description="External chargebacks will appear here"
+                      />
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Status</TableHead>
+                              <TableHead>Provider</TableHead>
+                              <TableHead>Amount</TableHead>
+                              <TableHead>Trip</TableHead>
+                              <TableHead>External Ref</TableHead>
+                              <TableHead>Reported</TableHead>
+                              <TableHead>Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {allChargebacks.map((cb) => (
+                              <TableRow key={cb.id} data-testid={`row-chargeback-${cb.id}`}>
+                                <TableCell>
+                                  <StatusBadge status={cb.status as any} />
+                                </TableCell>
+                                <TableCell className="capitalize">{cb.paymentProvider}</TableCell>
+                                <TableCell className="font-medium text-red-600">${cb.amount} {cb.currency}</TableCell>
+                                <TableCell>
+                                  <span className="text-sm truncate max-w-32 block">
+                                    {cb.tripPickup} → {cb.tripDropoff}
+                                  </span>
+                                </TableCell>
+                                <TableCell className="font-mono text-xs">{cb.externalReference}</TableCell>
+                                <TableCell>
+                                  {new Date(cb.reportedAt).toLocaleDateString()}
+                                </TableCell>
+                                <TableCell>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedChargeback(cb);
+                                      fetchChargebackAudit(cb.id);
+                                    }}
+                                    data-testid={`button-view-chargeback-${cb.id}`}
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="border-t pt-6">
+                    <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                      <ArrowLeftRight className="h-5 w-5 text-blue-500" />
+                      Payment Reconciliation
+                      {manualReviewReconciliations.length > 0 && (
+                        <span className="ml-2 bg-orange-500 text-white text-xs rounded-full px-2 py-0.5">
+                          {manualReviewReconciliations.length} need review
+                        </span>
+                      )}
+                    </h3>
+                    <div className="flex flex-wrap gap-3 mb-4">
+                      <Select value={reconciliationStatusFilter} onValueChange={setReconciliationStatusFilter}>
+                        <SelectTrigger className="w-40" data-testid="select-reconciliation-status-filter">
+                          <SelectValue placeholder="All Statuses" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Statuses</SelectItem>
+                          <SelectItem value="matched">Matched</SelectItem>
+                          <SelectItem value="mismatched">Mismatched</SelectItem>
+                          <SelectItem value="manual_review">Manual Review</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {reconciliationStatusFilter && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setReconciliationStatusFilter("")}
+                          data-testid="button-clear-reconciliation-filters"
+                        >
+                          <XCircle className="h-4 w-4 mr-2" />
+                          Clear
+                        </Button>
+                      )}
+                    </div>
+                    {reconciliationsLoading ? (
+                      <div className="py-8 text-center text-muted-foreground">
+                        Loading reconciliations...
+                      </div>
+                    ) : allReconciliations.length === 0 ? (
+                      <EmptyState
+                        icon={ArrowLeftRight}
+                        title="No reconciliations found"
+                        description="Payment reconciliations will appear here"
+                      />
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Status</TableHead>
+                              <TableHead>Provider</TableHead>
+                              <TableHead>Expected</TableHead>
+                              <TableHead>Actual</TableHead>
+                              <TableHead>Variance</TableHead>
+                              <TableHead>Trip</TableHead>
+                              <TableHead>Created</TableHead>
+                              <TableHead>Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {allReconciliations.map((rec) => (
+                              <TableRow key={rec.id} data-testid={`row-reconciliation-${rec.id}`}>
+                                <TableCell>
+                                  <StatusBadge status={rec.status as any} />
+                                </TableCell>
+                                <TableCell className="capitalize">{rec.provider}</TableCell>
+                                <TableCell>${rec.expectedAmount}</TableCell>
+                                <TableCell>${rec.actualAmount}</TableCell>
+                                <TableCell className={parseFloat(rec.variance) !== 0 ? "text-red-600 font-medium" : "text-green-600"}>
+                                  ${rec.variance}
+                                </TableCell>
+                                <TableCell>
+                                  <span className="text-sm truncate max-w-32 block">
+                                    {rec.tripPickup} → {rec.tripDropoff}
+                                  </span>
+                                </TableCell>
+                                <TableCell>
+                                  {new Date(rec.createdAt).toLocaleDateString()}
+                                </TableCell>
+                                <TableCell>
+                                  {rec.status === "manual_review" && !isDirector && (
+                                    <div className="flex gap-1">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => reviewReconciliationMutation.mutate({ reconciliationId: rec.id, status: "matched" })}
+                                        disabled={reviewReconciliationMutation.isPending}
+                                        data-testid={`button-match-reconciliation-${rec.id}`}
+                                      >
+                                        <CheckCircle className="h-4 w-4 text-green-500" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => reviewReconciliationMutation.mutate({ reconciliationId: rec.id, status: "mismatched" })}
+                                        disabled={reviewReconciliationMutation.isPending}
+                                        data-testid={`button-mismatch-reconciliation-${rec.id}`}
+                                      >
+                                        <XCircle className="h-4 w-4 text-red-500" />
+                                      </Button>
+                                    </div>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <Dialog open={!!selectedChargeback} onOpenChange={(open) => { if (!open) { setSelectedChargeback(null); setChargebackAuditLogs([]); } }}>
+            <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto" data-testid="modal-chargeback-detail">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <CreditCard className="h-5 w-5 text-red-500" />
+                  Chargeback Details
+                </DialogTitle>
+                <DialogDescription>
+                  Review and resolve this chargeback
+                </DialogDescription>
+              </DialogHeader>
+              {selectedChargeback && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Status</p>
+                      <StatusBadge status={selectedChargeback.status as any} />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Provider</p>
+                      <p className="capitalize font-medium">{selectedChargeback.paymentProvider}</p>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Amount</p>
+                    <p className="text-xl font-bold text-red-600">${selectedChargeback.amount} {selectedChargeback.currency}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">External Reference</p>
+                    <p className="font-mono text-sm bg-muted p-2 rounded">{selectedChargeback.externalReference}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Rider</p>
+                      <p className="font-medium">{selectedChargeback.riderName}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Driver</p>
+                      <p className="font-medium">{selectedChargeback.driverName || "N/A"}</p>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Trip</p>
+                    <p className="font-medium text-sm">{selectedChargeback.tripPickup} → {selectedChargeback.tripDropoff}</p>
+                    {selectedChargeback.tripFare && (
+                      <p className="text-xs text-muted-foreground">Original fare: ${selectedChargeback.tripFare}</p>
+                    )}
+                  </div>
+                  {selectedChargeback.reason && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Reason</p>
+                      <p className="text-sm bg-muted p-3 rounded-md">{selectedChargeback.reason}</p>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Reported</p>
+                      <p className="font-medium">{new Date(selectedChargeback.reportedAt).toLocaleString()}</p>
+                    </div>
+                    {selectedChargeback.resolvedAt && (
+                      <div>
+                        <p className="text-sm text-muted-foreground">Resolved</p>
+                        <p className="font-medium">{new Date(selectedChargeback.resolvedAt).toLocaleString()}</p>
+                      </div>
+                    )}
+                  </div>
+                  {selectedChargeback.resolvedByName && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Resolved By</p>
+                      <p className="font-medium">{selectedChargeback.resolvedByName}</p>
+                    </div>
+                  )}
+
+                  {chargebackAuditLogs.length > 0 && (
+                    <div>
+                      <p className="text-sm font-medium mb-2">Audit Timeline</p>
+                      <div className="space-y-2 max-h-32 overflow-y-auto">
+                        {chargebackAuditLogs.map((log) => (
+                          <div key={log.id} className="flex items-start gap-2 text-sm border-l-2 border-muted pl-3 py-1">
+                            <div>
+                              <span className="capitalize font-medium">{log.action.replace(/_/g, " ")}</span>
+                              <span className="text-muted-foreground"> by {log.performedByRole}</span>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(log.createdAt).toLocaleString()}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {!isDirector && (
+                    <DialogFooter className="flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => { setSelectedChargeback(null); setChargebackAuditLogs([]); }}
+                        data-testid="button-close-chargeback"
+                      >
+                        Close
+                      </Button>
+                      {selectedChargeback.status === "reported" && (
+                        <Button
+                          variant="default"
+                          onClick={() => resolveChargebackMutation.mutate({ chargebackId: selectedChargeback.id, status: "under_review" })}
+                          disabled={resolveChargebackMutation.isPending}
+                          data-testid="button-review-chargeback"
+                        >
+                          Mark Under Review
+                        </Button>
+                      )}
+                      {(selectedChargeback.status === "reported" || selectedChargeback.status === "under_review") && (
+                        <>
+                          <Button
+                            variant="default"
+                            className="bg-green-600 hover:bg-green-700"
+                            onClick={() => resolveChargebackMutation.mutate({ chargebackId: selectedChargeback.id, status: "won" })}
+                            disabled={resolveChargebackMutation.isPending}
+                            data-testid="button-win-chargeback"
+                          >
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            Won
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            onClick={() => resolveChargebackMutation.mutate({ chargebackId: selectedChargeback.id, status: "lost" })}
+                            disabled={resolveChargebackMutation.isPending}
+                            data-testid="button-lose-chargeback"
+                          >
+                            <XCircle className="h-4 w-4 mr-2" />
+                            Lost
+                          </Button>
+                        </>
+                      )}
+                      {selectedChargeback.status === "lost" && (
+                        <Button
+                          variant="outline"
+                          onClick={() => resolveChargebackMutation.mutate({ chargebackId: selectedChargeback.id, status: "reversed" })}
+                          disabled={resolveChargebackMutation.isPending}
+                          data-testid="button-reverse-chargeback"
+                        >
+                          Reverse
+                        </Button>
+                      )}
+                    </DialogFooter>
+                  )}
+                  {isDirector && (
+                    <div className="text-sm text-muted-foreground italic">
+                      Directors have read-only access to chargebacks.
                     </div>
                   )}
                 </div>
