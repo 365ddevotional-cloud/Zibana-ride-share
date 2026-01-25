@@ -200,6 +200,21 @@ export interface IStorage {
   getFilteredWalletPayouts(filter: { status?: string }): Promise<any[]>;
   processWalletPayout(payoutId: string, processedByUserId: string): Promise<WalletPayout | null>;
   reverseWalletPayout(payoutId: string, failureReason: string): Promise<WalletPayout | null>;
+
+  // Phase 12 - Analytics
+  getAnalyticsOverview(startDate?: Date, endDate?: Date): Promise<{
+    trips: { total: number; completed: number; cancelled: number };
+    revenue: { grossFares: string; commission: string; driverEarnings: string; netRevenue: string };
+    refunds: { total: number; totalAmount: string };
+    chargebacks: { total: number; won: number; lost: number; pending: number };
+    wallets: { totalBalance: string; lockedBalance: string; availableBalance: string };
+    payouts: { processed: number; pending: number; failed: number; totalProcessed: string };
+  }>;
+  getTripsAnalytics(startDate?: Date, endDate?: Date): Promise<any[]>;
+  getRevenueAnalytics(startDate?: Date, endDate?: Date): Promise<any[]>;
+  getRefundsAnalytics(startDate?: Date, endDate?: Date): Promise<any[]>;
+  getPayoutsAnalytics(startDate?: Date, endDate?: Date): Promise<any[]>;
+  getReconciliationAnalytics(startDate?: Date, endDate?: Date): Promise<{ matched: number; mismatched: number; manualReview: number }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1788,6 +1803,206 @@ export class DatabaseStorage implements IStorage {
       .returning();
 
     return updatedPayout || null;
+  }
+
+  // Phase 12 - Analytics Implementation
+  async getAnalyticsOverview(startDate?: Date, endDate?: Date) {
+    const dateConditions = [];
+    if (startDate) dateConditions.push(gte(trips.createdAt, startDate));
+    if (endDate) dateConditions.push(lte(trips.createdAt, endDate));
+
+    // Trips analytics
+    const tripResults = await db.select({
+      total: count(),
+      completed: sql<number>`count(*) filter (where ${trips.status} = 'completed')`,
+      cancelled: sql<number>`count(*) filter (where ${trips.status} = 'cancelled')`
+    }).from(trips).where(dateConditions.length > 0 ? and(...dateConditions) : undefined);
+
+    const tripStats = tripResults[0] || { total: 0, completed: 0, cancelled: 0 };
+
+    // Revenue analytics from completed trips
+    const revenueResults = await db.select({
+      grossFares: sql<string>`coalesce(sum(cast(${trips.fareAmount} as decimal)), 0)`,
+      commission: sql<string>`coalesce(sum(cast(${trips.commissionAmount} as decimal)), 0)`,
+      driverEarnings: sql<string>`coalesce(sum(cast(${trips.driverPayout} as decimal)), 0)`
+    }).from(trips).where(and(
+      eq(trips.status, "completed"),
+      ...(dateConditions.length > 0 ? dateConditions : [])
+    ));
+
+    const revenue = revenueResults[0] || { grossFares: "0", commission: "0", driverEarnings: "0" };
+    const netRevenue = revenue.commission;
+
+    // Refunds analytics
+    const refundDateConditions = [];
+    if (startDate) refundDateConditions.push(gte(refunds.createdAt, startDate));
+    if (endDate) refundDateConditions.push(lte(refunds.createdAt, endDate));
+
+    const refundResults = await db.select({
+      total: count(),
+      totalAmount: sql<string>`coalesce(sum(cast(${refunds.amount} as decimal)), 0)`
+    }).from(refunds).where(refundDateConditions.length > 0 ? and(...refundDateConditions) : undefined);
+
+    const refundStats = refundResults[0] || { total: 0, totalAmount: "0" };
+
+    // Chargebacks analytics
+    const chargebackDateConditions = [];
+    if (startDate) chargebackDateConditions.push(gte(chargebacks.createdAt, startDate));
+    if (endDate) chargebackDateConditions.push(lte(chargebacks.createdAt, endDate));
+
+    const chargebackResults = await db.select({
+      total: count(),
+      won: sql<number>`count(*) filter (where ${chargebacks.status} = 'won')`,
+      lost: sql<number>`count(*) filter (where ${chargebacks.status} = 'lost')`,
+      pending: sql<number>`count(*) filter (where ${chargebacks.status} in ('reported', 'under_review'))`
+    }).from(chargebacks).where(chargebackDateConditions.length > 0 ? and(...chargebackDateConditions) : undefined);
+
+    const chargebackStats = chargebackResults[0] || { total: 0, won: 0, lost: 0, pending: 0 };
+
+    // Wallet balances (driver wallets only, exclude ZIBA platform wallet)
+    const walletResults = await db.select({
+      totalBalance: sql<string>`coalesce(sum(cast(${wallets.balance} as decimal)), 0)`,
+      lockedBalance: sql<string>`coalesce(sum(cast(${wallets.lockedBalance} as decimal)), 0)`
+    }).from(wallets).where(sql`${wallets.userId} != 'ziba-platform'`);
+
+    const walletStats = walletResults[0] || { totalBalance: "0", lockedBalance: "0" };
+    const availableBalance = (parseFloat(walletStats.totalBalance) - parseFloat(walletStats.lockedBalance)).toFixed(2);
+
+    // Payout analytics
+    const payoutDateConditions = [];
+    if (startDate) payoutDateConditions.push(gte(walletPayouts.createdAt, startDate));
+    if (endDate) payoutDateConditions.push(lte(walletPayouts.createdAt, endDate));
+
+    const payoutResults = await db.select({
+      processed: sql<number>`count(*) filter (where ${walletPayouts.status} = 'paid')`,
+      pending: sql<number>`count(*) filter (where ${walletPayouts.status} in ('pending', 'processing'))`,
+      failed: sql<number>`count(*) filter (where ${walletPayouts.status} = 'failed')`,
+      totalProcessed: sql<string>`coalesce(sum(cast(${walletPayouts.amount} as decimal)) filter (where ${walletPayouts.status} = 'paid'), 0)`
+    }).from(walletPayouts).where(payoutDateConditions.length > 0 ? and(...payoutDateConditions) : undefined);
+
+    const payoutStats = payoutResults[0] || { processed: 0, pending: 0, failed: 0, totalProcessed: "0" };
+
+    return {
+      trips: { total: Number(tripStats.total), completed: Number(tripStats.completed), cancelled: Number(tripStats.cancelled) },
+      revenue: { 
+        grossFares: parseFloat(revenue.grossFares as string).toFixed(2), 
+        commission: parseFloat(revenue.commission as string).toFixed(2), 
+        driverEarnings: parseFloat(revenue.driverEarnings as string).toFixed(2),
+        netRevenue: parseFloat(netRevenue as string).toFixed(2)
+      },
+      refunds: { total: Number(refundStats.total), totalAmount: parseFloat(refundStats.totalAmount as string).toFixed(2) },
+      chargebacks: { 
+        total: Number(chargebackStats.total), 
+        won: Number(chargebackStats.won), 
+        lost: Number(chargebackStats.lost), 
+        pending: Number(chargebackStats.pending) 
+      },
+      wallets: { totalBalance: walletStats.totalBalance, lockedBalance: walletStats.lockedBalance, availableBalance },
+      payouts: { 
+        processed: Number(payoutStats.processed), 
+        pending: Number(payoutStats.pending), 
+        failed: Number(payoutStats.failed), 
+        totalProcessed: parseFloat(payoutStats.totalProcessed as string).toFixed(2) 
+      }
+    };
+  }
+
+  async getTripsAnalytics(startDate?: Date, endDate?: Date) {
+    const dateConditions = [];
+    if (startDate) dateConditions.push(gte(trips.createdAt, startDate));
+    if (endDate) dateConditions.push(lte(trips.createdAt, endDate));
+
+    const results = await db.select({
+      date: sql<string>`date(${trips.createdAt})`,
+      total: count(),
+      completed: sql<number>`count(*) filter (where ${trips.status} = 'completed')`,
+      cancelled: sql<number>`count(*) filter (where ${trips.status} = 'cancelled')`,
+      revenue: sql<string>`coalesce(sum(cast(${trips.fareAmount} as decimal)) filter (where ${trips.status} = 'completed'), 0)`
+    })
+    .from(trips)
+    .where(dateConditions.length > 0 ? and(...dateConditions) : undefined)
+    .groupBy(sql`date(${trips.createdAt})`)
+    .orderBy(sql`date(${trips.createdAt})`);
+
+    return results;
+  }
+
+  async getRevenueAnalytics(startDate?: Date, endDate?: Date) {
+    const dateConditions = [eq(trips.status, "completed")];
+    if (startDate) dateConditions.push(gte(trips.createdAt, startDate));
+    if (endDate) dateConditions.push(lte(trips.createdAt, endDate));
+
+    const results = await db.select({
+      date: sql<string>`date(${trips.createdAt})`,
+      grossFares: sql<string>`coalesce(sum(cast(${trips.fareAmount} as decimal)), 0)`,
+      commission: sql<string>`coalesce(sum(cast(${trips.commissionAmount} as decimal)), 0)`,
+      driverEarnings: sql<string>`coalesce(sum(cast(${trips.driverPayout} as decimal)), 0)`
+    })
+    .from(trips)
+    .where(and(...dateConditions))
+    .groupBy(sql`date(${trips.createdAt})`)
+    .orderBy(sql`date(${trips.createdAt})`);
+
+    return results;
+  }
+
+  async getRefundsAnalytics(startDate?: Date, endDate?: Date) {
+    const dateConditions = [];
+    if (startDate) dateConditions.push(gte(refunds.createdAt, startDate));
+    if (endDate) dateConditions.push(lte(refunds.createdAt, endDate));
+
+    const results = await db.select({
+      date: sql<string>`date(${refunds.createdAt})`,
+      count: count(),
+      totalAmount: sql<string>`coalesce(sum(cast(${refunds.amount} as decimal)), 0)`,
+      approved: sql<number>`count(*) filter (where ${refunds.status} = 'approved')`,
+      rejected: sql<number>`count(*) filter (where ${refunds.status} = 'rejected')`,
+      processed: sql<number>`count(*) filter (where ${refunds.status} = 'processed')`
+    })
+    .from(refunds)
+    .where(dateConditions.length > 0 ? and(...dateConditions) : undefined)
+    .groupBy(sql`date(${refunds.createdAt})`)
+    .orderBy(sql`date(${refunds.createdAt})`);
+
+    return results;
+  }
+
+  async getPayoutsAnalytics(startDate?: Date, endDate?: Date) {
+    const dateConditions = [];
+    if (startDate) dateConditions.push(gte(walletPayouts.createdAt, startDate));
+    if (endDate) dateConditions.push(lte(walletPayouts.createdAt, endDate));
+
+    const results = await db.select({
+      date: sql<string>`date(${walletPayouts.createdAt})`,
+      count: count(),
+      totalAmount: sql<string>`coalesce(sum(cast(${walletPayouts.amount} as decimal)), 0)`,
+      paid: sql<number>`count(*) filter (where ${walletPayouts.status} = 'paid')`,
+      pending: sql<number>`count(*) filter (where ${walletPayouts.status} in ('pending', 'processing'))`,
+      failed: sql<number>`count(*) filter (where ${walletPayouts.status} = 'failed')`
+    })
+    .from(walletPayouts)
+    .where(dateConditions.length > 0 ? and(...dateConditions) : undefined)
+    .groupBy(sql`date(${walletPayouts.createdAt})`)
+    .orderBy(sql`date(${walletPayouts.createdAt})`);
+
+    return results;
+  }
+
+  async getReconciliationAnalytics(startDate?: Date, endDate?: Date) {
+    const dateConditions = [];
+    if (startDate) dateConditions.push(gte(paymentReconciliations.createdAt, startDate));
+    if (endDate) dateConditions.push(lte(paymentReconciliations.createdAt, endDate));
+
+    const results = await db.select({
+      matched: sql<number>`count(*) filter (where ${paymentReconciliations.status} = 'matched')`,
+      mismatched: sql<number>`count(*) filter (where ${paymentReconciliations.status} = 'mismatched')`,
+      manualReview: sql<number>`count(*) filter (where ${paymentReconciliations.status} = 'manual_review')`
+    })
+    .from(paymentReconciliations)
+    .where(dateConditions.length > 0 ? and(...dateConditions) : undefined);
+
+    const stats = results[0] || { matched: 0, mismatched: 0, manualReview: 0 };
+    return { matched: Number(stats.matched), mismatched: Number(stats.mismatched), manualReview: Number(stats.manualReview) };
   }
 }
 

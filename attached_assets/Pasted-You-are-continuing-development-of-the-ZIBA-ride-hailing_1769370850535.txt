@@ -1,0 +1,148 @@
+You are continuing development of the ZIBA ride-hailing app.
+Phases 10A (Refunds), 10B (Chargebacks & Reconciliation), and 11 (Wallets & Payouts)
+are COMPLETE and MUST NOT be modified.
+
+IMPLEMENT PHASE 12 — ADMIN FINANCIAL ANALYTICS & REPORTS.
+
+DO NOT BREAK EXISTING FEATURES.
+EXTEND ONLY.
+
+────────────────────────
+OBJECTIVES
+────────────────────────
+
+1) Provide real-time financial visibility for Admin & Finance
+2) Aggregate trips, revenue, commissions, payouts, refunds, and chargebacks
+3) Enable exportable financial reports
+4) Support daily, weekly, monthly financial views
+5) Prepare system for audit, tax, and investor reporting
+
+────────────────────────
+ROLES & ACCESS
+────────────────────────
+
+ADMIN
+FINANCE
+
+• ADMIN: Full analytics + exports
+• FINANCE: Financial analytics + exports
+• All other roles: NO access
+
+────────────────────────
+ANALYTICS METRICS
+────────────────────────
+
+Compute and expose:
+
+TRIPS
+- Total trips
+- Completed vs cancelled
+- Trips per day/week/month
+
+REVENUE
+- Gross fares
+- ZIBA commission
+- Driver earnings
+- Net platform revenue
+
+REFUNDS & CHARGEBACKS
+- Total refunds issued
+- Total chargebacks (won / lost)
+- Financial loss exposure
+
+WALLETS & PAYOUTS
+- Total driver balances
+- Locked vs available balances
+- Payouts processed
+- Payouts pending / failed
+
+VARIANCE & RECONCILIATION
+- Mismatched payments
+- Manual reviews count
+- Resolved vs unresolved items
+
+────────────────────────
+DATABASE / QUERIES
+────────────────────────
+
+DO NOT add new core tables unless absolutely required.
+
+Use:
+- Trip
+- Wallet
+- WalletTransaction
+- Refund
+- Chargeback
+- Payout
+- PaymentReconciliation
+
+Create optimized aggregation queries.
+Ensure queries scale and are indexed.
+
+────────────────────────
+API ROUTES
+────────────────────────
+
+GET /api/analytics/overview
+GET /api/analytics/trips?range=
+GET /api/analytics/revenue?range=
+GET /api/analytics/refunds?range=
+GET /api/analytics/payouts?range=
+GET /api/analytics/reconciliation?range=
+
+GET /api/reports/export?type=&range=&format=csv|pdf
+
+Strict RBAC enforcement.
+
+────────────────────────
+UI (ADMIN DASHBOARD)
+────────────────────────
+
+Add a new Admin tab:
+
+📊 Reports
+
+Sections:
+1) Financial Overview Cards
+2) Time-range selector (Today / 7d / 30d / Custom)
+3) Charts:
+   - Revenue over time
+   - Payouts vs earnings
+   - Refunds & chargebacks
+4) Tables:
+   - Detailed financial rows
+5) Export buttons:
+   - CSV
+   - PDF
+
+UI must remain lightweight and fast.
+NO client-side heavy calculations.
+
+────────────────────────
+EXPORT RULES
+────────────────────────
+
+• CSV for spreadsheets & accounting
+• PDF for audits & compliance
+• Exports must reflect selected date range
+• No data mutation during export
+
+────────────────────────
+AUDIT & SAFETY
+────────────────────────
+
+• All analytics are READ-ONLY
+• No hidden calculations
+• No data manipulation
+• All figures traceable to source records
+
+────────────────────────
+FINAL CHECKS
+────────────────────────
+
+• Analytics load without blocking UI
+• Existing dashboards still function
+• No wallet, payout, or refund logic altered
+• App compiles cleanly
+
+IMPLEMENT PHASE 12 ONLY.

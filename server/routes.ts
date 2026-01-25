@@ -1730,5 +1730,181 @@ export async function registerRoutes(
     }
   });
 
+  // Phase 12 - Analytics API Routes
+  const parseAnalyticsDateRange = (range?: string): { startDate?: Date; endDate?: Date } => {
+    const now = new Date();
+    const endDate = new Date(now);
+    endDate.setHours(23, 59, 59, 999);
+    
+    if (!range || range === "all") {
+      return {};
+    }
+    
+    let startDate = new Date(now);
+    startDate.setHours(0, 0, 0, 0);
+    
+    switch (range) {
+      case "today":
+        break;
+      case "7d":
+        startDate.setDate(startDate.getDate() - 7);
+        break;
+      case "30d":
+        startDate.setDate(startDate.getDate() - 30);
+        break;
+      case "90d":
+        startDate.setDate(startDate.getDate() - 90);
+        break;
+      default:
+        // Custom range: expect startDate,endDate format
+        if (range.includes(",")) {
+          const [start, end] = range.split(",");
+          return { 
+            startDate: new Date(start), 
+            endDate: new Date(end) 
+          };
+        }
+        return {};
+    }
+    
+    return { startDate, endDate };
+  };
+
+  app.get("/api/analytics/overview", isAuthenticated, requireRole(["admin", "finance"]), async (req: any, res) => {
+    try {
+      const { range } = req.query;
+      const { startDate, endDate } = parseAnalyticsDateRange(range as string);
+      const overview = await storage.getAnalyticsOverview(startDate, endDate);
+      return res.json(overview);
+    } catch (error) {
+      console.error("Error fetching analytics overview:", error);
+      return res.status(500).json({ message: "Failed to fetch analytics overview" });
+    }
+  });
+
+  app.get("/api/analytics/trips", isAuthenticated, requireRole(["admin", "finance"]), async (req: any, res) => {
+    try {
+      const { range } = req.query;
+      const { startDate, endDate } = parseAnalyticsDateRange(range as string);
+      const data = await storage.getTripsAnalytics(startDate, endDate);
+      return res.json(data);
+    } catch (error) {
+      console.error("Error fetching trips analytics:", error);
+      return res.status(500).json({ message: "Failed to fetch trips analytics" });
+    }
+  });
+
+  app.get("/api/analytics/revenue", isAuthenticated, requireRole(["admin", "finance"]), async (req: any, res) => {
+    try {
+      const { range } = req.query;
+      const { startDate, endDate } = parseAnalyticsDateRange(range as string);
+      const data = await storage.getRevenueAnalytics(startDate, endDate);
+      return res.json(data);
+    } catch (error) {
+      console.error("Error fetching revenue analytics:", error);
+      return res.status(500).json({ message: "Failed to fetch revenue analytics" });
+    }
+  });
+
+  app.get("/api/analytics/refunds", isAuthenticated, requireRole(["admin", "finance"]), async (req: any, res) => {
+    try {
+      const { range } = req.query;
+      const { startDate, endDate } = parseAnalyticsDateRange(range as string);
+      const data = await storage.getRefundsAnalytics(startDate, endDate);
+      return res.json(data);
+    } catch (error) {
+      console.error("Error fetching refunds analytics:", error);
+      return res.status(500).json({ message: "Failed to fetch refunds analytics" });
+    }
+  });
+
+  app.get("/api/analytics/payouts", isAuthenticated, requireRole(["admin", "finance"]), async (req: any, res) => {
+    try {
+      const { range } = req.query;
+      const { startDate, endDate } = parseAnalyticsDateRange(range as string);
+      const data = await storage.getPayoutsAnalytics(startDate, endDate);
+      return res.json(data);
+    } catch (error) {
+      console.error("Error fetching payouts analytics:", error);
+      return res.status(500).json({ message: "Failed to fetch payouts analytics" });
+    }
+  });
+
+  app.get("/api/analytics/reconciliation", isAuthenticated, requireRole(["admin", "finance"]), async (req: any, res) => {
+    try {
+      const { range } = req.query;
+      const { startDate, endDate } = parseAnalyticsDateRange(range as string);
+      const data = await storage.getReconciliationAnalytics(startDate, endDate);
+      return res.json(data);
+    } catch (error) {
+      console.error("Error fetching reconciliation analytics:", error);
+      return res.status(500).json({ message: "Failed to fetch reconciliation analytics" });
+    }
+  });
+
+  // CSV Export endpoint
+  app.get("/api/reports/export", isAuthenticated, requireRole(["admin", "finance"]), async (req: any, res) => {
+    try {
+      const { type, range, format } = req.query;
+      const { startDate, endDate } = parseAnalyticsDateRange(range as string);
+      
+      let data: any[];
+      let filename: string;
+      
+      switch (type) {
+        case "trips":
+          data = await storage.getTripsAnalytics(startDate, endDate);
+          filename = "trips_report";
+          break;
+        case "revenue":
+          data = await storage.getRevenueAnalytics(startDate, endDate);
+          filename = "revenue_report";
+          break;
+        case "refunds":
+          data = await storage.getRefundsAnalytics(startDate, endDate);
+          filename = "refunds_report";
+          break;
+        case "payouts":
+          data = await storage.getPayoutsAnalytics(startDate, endDate);
+          filename = "payouts_report";
+          break;
+        default:
+          const overview = await storage.getAnalyticsOverview(startDate, endDate);
+          data = [overview];
+          filename = "overview_report";
+      }
+      
+      if (format === "csv") {
+        if (data.length === 0) {
+          return res.status(200).send("No data available for export");
+        }
+        
+        const headers = Object.keys(data[0]);
+        const csvRows = [
+          headers.join(","),
+          ...data.map(row => 
+            headers.map(header => {
+              const value = row[header];
+              if (typeof value === "object") {
+                return JSON.stringify(value).replace(/,/g, ";");
+              }
+              return String(value ?? "").replace(/,/g, ";");
+            }).join(",")
+          )
+        ];
+        
+        res.setHeader("Content-Type", "text/csv");
+        res.setHeader("Content-Disposition", `attachment; filename="${filename}_${new Date().toISOString().split("T")[0]}.csv"`);
+        return res.send(csvRows.join("\n"));
+      }
+      
+      // Default: return JSON
+      return res.json({ data, filename, generatedAt: new Date().toISOString() });
+    } catch (error) {
+      console.error("Error generating report:", error);
+      return res.status(500).json({ message: "Failed to generate report" });
+    }
+  });
+
   return httpServer;
 }
