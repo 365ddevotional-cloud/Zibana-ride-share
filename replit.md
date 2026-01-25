@@ -126,9 +126,26 @@ Key database tables:
 - director_profiles table for storing director information
 - Authentication flow unchanged - directors use same login as other roles
 
+### Phase 6 – In-App Notifications (FROZEN - Stable)
+- notifications table with userId, role, title, message, type (info/success/warning), read status
+- Notification bell icon in all dashboard headers (admin, driver, rider)
+- Unread count badge on bell icon with real-time updates (30-second polling)
+- Popover notification list with mark-as-read functionality
+- Mark all as read action
+- Notification triggers:
+  - Rider requests ride → Notify all drivers
+  - Driver accepts ride → Notify rider
+  - Trip starts → Notify rider
+  - Trip completes → Notify rider + admins/directors
+  - Driver approved/suspended → Notify driver
+  - Payout marked as paid → Notify driver
+- API endpoints: GET /api/notifications, GET /api/notifications/unread-count, POST /api/notifications/:id/read, POST /api/notifications/read-all
+- In-app only (no email/SMS/push notifications)
+
 ### FROZEN Components (DO NOT MODIFY)
 - Authentication flow (Replit Auth + OpenID Connect)
 - Role assignments and routing logic
 - Admin dashboard and all admin endpoints
 - Driver dashboard and all driver endpoints
 - Rider dashboard and all rider endpoints
+- Notifications system and all notification endpoints
