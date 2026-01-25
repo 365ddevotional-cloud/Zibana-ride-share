@@ -3344,5 +3344,275 @@ export async function registerRoutes(
     }
   });
 
+  // Phase 18 - Contracts, SLAs & Enterprise Billing
+
+  // Get all contracts (Admin, Finance, Director)
+  app.get("/api/contracts", isAuthenticated, requireRole(["admin", "finance", "director"]), async (req: any, res) => {
+    try {
+      const contracts = await storage.getAllOrganizationContracts();
+      return res.json(contracts);
+    } catch (error) {
+      console.error("Error getting contracts:", error);
+      return res.status(500).json({ message: "Failed to get contracts" });
+    }
+  });
+
+  // Get contract stats (Admin, Finance, Director)
+  app.get("/api/contracts/stats", isAuthenticated, requireRole(["admin", "finance", "director"]), async (req: any, res) => {
+    try {
+      const stats = await storage.getContractStats();
+      return res.json(stats);
+    } catch (error) {
+      console.error("Error getting contract stats:", error);
+      return res.status(500).json({ message: "Failed to get contract stats" });
+    }
+  });
+
+  // Get single contract
+  app.get("/api/contracts/:contractId", isAuthenticated, requireRole(["admin", "finance", "director", "trip_coordinator"]), async (req: any, res) => {
+    try {
+      const { contractId } = req.params;
+      const userId = req.user?.claims?.sub;
+      const userRole = req.userRole;
+
+      const contract = await storage.getOrganizationContract(contractId);
+      if (!contract) {
+        return res.status(404).json({ message: "Contract not found" });
+      }
+
+      if (userRole === "trip_coordinator" && contract.tripCoordinatorId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      return res.json(contract);
+    } catch (error) {
+      console.error("Error getting contract:", error);
+      return res.status(500).json({ message: "Failed to get contract" });
+    }
+  });
+
+  // Create contract (Admin only)
+  app.post("/api/contracts", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { tripCoordinatorId, contractName, contractType, startDate, endDate, billingModel, currency } = req.body;
+
+      if (!tripCoordinatorId || !contractName || !contractType || !startDate || !endDate) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      const contract = await storage.createOrganizationContract({
+        tripCoordinatorId,
+        contractName: sanitizeInput(contractName),
+        contractType,
+        startDate: new Date(startDate),
+        endDate: new Date(endDate),
+        billingModel: billingModel || "MONTHLY_INVOICE",
+        currency: currency || "USD",
+        status: "ACTIVE"
+      });
+
+      await storage.createAuditLog({
+        action: "contract_created",
+        entityType: "organization_contract",
+        entityId: contract.id,
+        performedByUserId: userId,
+        performedByRole: "admin",
+        metadata: JSON.stringify({ contractName, contractType, tripCoordinatorId })
+      });
+
+      return res.json(contract);
+    } catch (error) {
+      console.error("Error creating contract:", error);
+      return res.status(500).json({ message: "Failed to create contract" });
+    }
+  });
+
+  // Update contract (Admin only)
+  app.patch("/api/contracts/:contractId", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { contractId } = req.params;
+      const updates = req.body;
+
+      const existing = await storage.getOrganizationContract(contractId);
+      if (!existing) {
+        return res.status(404).json({ message: "Contract not found" });
+      }
+
+      const updated = await storage.updateOrganizationContract(contractId, updates);
+
+      await storage.createAuditLog({
+        action: "contract_updated",
+        entityType: "organization_contract",
+        entityId: contractId,
+        performedByUserId: userId,
+        performedByRole: "admin",
+        metadata: JSON.stringify({ updates })
+      });
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error updating contract:", error);
+      return res.status(500).json({ message: "Failed to update contract" });
+    }
+  });
+
+  // Get coordinator's contract (Trip Coordinator)
+  app.get("/api/coordinator/contract", isAuthenticated, requireRole(["trip_coordinator"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const contract = await storage.getContractByCoordinator(userId);
+      return res.json(contract);
+    } catch (error) {
+      console.error("Error getting coordinator contract:", error);
+      return res.status(500).json({ message: "Failed to get contract" });
+    }
+  });
+
+  // Get SLAs for a contract
+  app.get("/api/contracts/:contractId/slas", isAuthenticated, requireRole(["admin", "finance", "director", "trip_coordinator"]), async (req: any, res) => {
+    try {
+      const { contractId } = req.params;
+      const slas = await storage.getSLAsByContract(contractId);
+      return res.json(slas);
+    } catch (error) {
+      console.error("Error getting SLAs:", error);
+      return res.status(500).json({ message: "Failed to get SLAs" });
+    }
+  });
+
+  // Create SLA (Admin only)
+  app.post("/api/contracts/:contractId/slas", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { contractId } = req.params;
+      const { metricType, targetValue, measurementPeriod, notes } = req.body;
+
+      const contract = await storage.getOrganizationContract(contractId);
+      if (!contract) {
+        return res.status(404).json({ message: "Contract not found" });
+      }
+
+      const sla = await storage.createServiceLevelAgreement({
+        contractId,
+        metricType,
+        targetValue: targetValue.toString(),
+        measurementPeriod: measurementPeriod || "MONTHLY",
+        notes: notes ? sanitizeInput(notes) : null
+      });
+
+      await storage.createAuditLog({
+        action: "sla_created",
+        entityType: "service_level_agreement",
+        entityId: sla.id,
+        performedByUserId: userId,
+        performedByRole: "admin",
+        metadata: JSON.stringify({ contractId, metricType, targetValue })
+      });
+
+      return res.json(sla);
+    } catch (error) {
+      console.error("Error creating SLA:", error);
+      return res.status(500).json({ message: "Failed to create SLA" });
+    }
+  });
+
+  // Get all invoices (Admin, Finance, Director)
+  app.get("/api/invoices", isAuthenticated, requireRole(["admin", "finance", "director"]), async (req: any, res) => {
+    try {
+      const invoices = await storage.getAllEnterpriseInvoices();
+      return res.json(invoices);
+    } catch (error) {
+      console.error("Error getting invoices:", error);
+      return res.status(500).json({ message: "Failed to get invoices" });
+    }
+  });
+
+  // Get invoices for a contract
+  app.get("/api/contracts/:contractId/invoices", isAuthenticated, requireRole(["admin", "finance", "director", "trip_coordinator"]), async (req: any, res) => {
+    try {
+      const { contractId } = req.params;
+      const invoices = await storage.getInvoicesByContract(contractId);
+      return res.json(invoices);
+    } catch (error) {
+      console.error("Error getting contract invoices:", error);
+      return res.status(500).json({ message: "Failed to get invoices" });
+    }
+  });
+
+  // Generate invoice for contract (Admin, Finance)
+  app.post("/api/contracts/:contractId/invoices/generate", isAuthenticated, requireRole(["admin", "finance"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const userRole = req.userRole;
+      const { contractId } = req.params;
+      const { periodStart, periodEnd } = req.body;
+
+      if (!periodStart || !periodEnd) {
+        return res.status(400).json({ message: "Period start and end dates are required" });
+      }
+
+      const invoice = await storage.generateInvoiceForContract(
+        contractId,
+        new Date(periodStart),
+        new Date(periodEnd)
+      );
+
+      if (!invoice) {
+        return res.status(404).json({ message: "Contract not found" });
+      }
+
+      await storage.createAuditLog({
+        action: "invoice_generated",
+        entityType: "enterprise_invoice",
+        entityId: invoice.id,
+        performedByUserId: userId,
+        performedByRole: userRole,
+        metadata: JSON.stringify({ contractId, periodStart, periodEnd, totalAmount: invoice.totalAmount })
+      });
+
+      return res.json(invoice);
+    } catch (error) {
+      console.error("Error generating invoice:", error);
+      return res.status(500).json({ message: "Failed to generate invoice" });
+    }
+  });
+
+  // Update invoice status (Admin, Finance)
+  app.patch("/api/invoices/:invoiceId/status", isAuthenticated, requireRole(["admin", "finance"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const userRole = req.userRole;
+      const { invoiceId } = req.params;
+      const { status } = req.body;
+
+      if (!["DRAFT", "ISSUED", "PAID", "OVERDUE"].includes(status)) {
+        return res.status(400).json({ message: "Invalid status" });
+      }
+
+      const invoice = await storage.getEnterpriseInvoice(invoiceId);
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+
+      const updated = await storage.updateEnterpriseInvoiceStatus(invoiceId, status);
+
+      await storage.createAuditLog({
+        action: "invoice_status_updated",
+        entityType: "enterprise_invoice",
+        entityId: invoiceId,
+        performedByUserId: userId,
+        performedByRole: userRole,
+        metadata: JSON.stringify({ previousStatus: invoice.status, newStatus: status })
+      });
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error updating invoice status:", error);
+      return res.status(500).json({ message: "Failed to update invoice status" });
+    }
+  });
+
   return httpServer;
 }
