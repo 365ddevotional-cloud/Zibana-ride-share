@@ -15,6 +15,7 @@ export const cancelledByEnum = pgEnum("cancelled_by", ["rider", "driver", "admin
 export const payoutStatusEnum = pgEnum("payout_status", ["pending", "paid"]);
 export const notificationTypeEnum = pgEnum("notification_type", ["info", "success", "warning"]);
 export const notificationRoleEnum = pgEnum("notification_role", ["admin", "director", "driver", "rider"]);
+export const raterRoleEnum = pgEnum("rater_role", ["rider", "driver"]);
 
 // User roles table - maps users to their roles
 export const userRoles = pgTable("user_roles", {
@@ -36,6 +37,8 @@ export const driverProfiles = pgTable("driver_profiles", {
   status: driverStatusEnum("status").notNull().default("pending"),
   isOnline: boolean("is_online").notNull().default(false),
   walletBalance: decimal("wallet_balance", { precision: 10, scale: 2 }).notNull().default("0.00"),
+  averageRating: decimal("average_rating", { precision: 3, scale: 2 }),
+  totalRatings: integer("total_ratings").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -46,6 +49,8 @@ export const riderProfiles = pgTable("rider_profiles", {
   userId: varchar("user_id").notNull().unique(),
   fullName: varchar("full_name"),
   phone: varchar("phone"),
+  averageRating: decimal("average_rating", { precision: 3, scale: 2 }),
+  totalRatings: integer("total_ratings").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -91,6 +96,18 @@ export const payoutTransactions = pgTable("payout_transactions", {
   description: text("description"),
   paidAt: timestamp("paid_at"),
   paidByAdminId: varchar("paid_by_admin_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Ratings table
+export const ratings = pgTable("ratings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tripId: varchar("trip_id").notNull(),
+  raterRole: raterRoleEnum("rater_role").notNull(),
+  raterId: varchar("rater_id").notNull(),
+  targetUserId: varchar("target_user_id").notNull(),
+  score: integer("score").notNull(),
+  comment: varchar("comment", { length: 300 }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -192,6 +209,11 @@ export const insertNotificationSchema = createInsertSchema(notifications).omit({
   read: true,
 });
 
+export const insertRatingSchema = createInsertSchema(ratings).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Update schemas
 export const updateDriverProfileSchema = createInsertSchema(driverProfiles).omit({
   id: true,
@@ -223,6 +245,9 @@ export type PayoutTransaction = typeof payoutTransactions.$inferSelect;
 
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 export type Notification = typeof notifications.$inferSelect;
+
+export type InsertRating = z.infer<typeof insertRatingSchema>;
+export type Rating = typeof ratings.$inferSelect;
 
 // Extended types for frontend
 export type TripWithDetails = Trip & {
