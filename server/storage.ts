@@ -84,7 +84,14 @@ import {
   type InsertExchangeRate,
   type ComplianceProfile,
   type InsertComplianceProfile,
-  type UpdateComplianceProfile
+  type UpdateComplianceProfile,
+  supportTickets,
+  supportMessages,
+  type SupportTicket,
+  type InsertSupportTicket,
+  type SupportMessage,
+  type InsertSupportMessage,
+  type SupportTicketWithDetails
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte } from "drizzle-orm";
@@ -2855,6 +2862,236 @@ export class DatabaseStorage implements IStorage {
       activeCountries: Number(countryStats?.active || 0),
       taxRulesCount: Number(taxRuleCount?.count || 0),
       totalEstimatedTax: String(taxStats?.totalTax || "0.00")
+    };
+  }
+
+  // Phase 16 - Support System
+
+  async createSupportTicket(data: InsertSupportTicket): Promise<SupportTicket> {
+    const [ticket] = await db.insert(supportTickets).values(data).returning();
+    return ticket;
+  }
+
+  async getSupportTicketById(id: string): Promise<SupportTicket | undefined> {
+    const [ticket] = await db.select().from(supportTickets).where(eq(supportTickets.id, id));
+    return ticket;
+  }
+
+  async getUserSupportTickets(userId: string): Promise<SupportTicketWithDetails[]> {
+    const ticketsResult = await db.select().from(supportTickets)
+      .where(eq(supportTickets.createdByUserId, userId))
+      .orderBy(desc(supportTickets.createdAt));
+
+    return Promise.all(ticketsResult.map(async (ticket) => {
+      const [msgCount] = await db.select({ count: count() }).from(supportMessages)
+        .where(eq(supportMessages.ticketId, ticket.id));
+      
+      let tripDetails = null;
+      if (ticket.tripId) {
+        const [trip] = await db.select().from(trips).where(eq(trips.id, ticket.tripId));
+        if (trip) {
+          tripDetails = {
+            pickup: trip.pickupLocation || "",
+            dropoff: trip.dropoffLocation || "",
+            fare: trip.fareAmount || "0.00"
+          };
+        }
+      }
+
+      return {
+        ...ticket,
+        messagesCount: Number(msgCount?.count || 0),
+        tripDetails
+      };
+    }));
+  }
+
+  async getAssignedSupportTickets(agentUserId: string): Promise<SupportTicketWithDetails[]> {
+    const ticketsResult = await db.select().from(supportTickets)
+      .where(eq(supportTickets.assignedToUserId, agentUserId))
+      .orderBy(desc(supportTickets.updatedAt));
+
+    return Promise.all(ticketsResult.map(async (ticket) => {
+      const [msgCount] = await db.select({ count: count() }).from(supportMessages)
+        .where(eq(supportMessages.ticketId, ticket.id));
+      
+      let tripDetails = null;
+      if (ticket.tripId) {
+        const [trip] = await db.select().from(trips).where(eq(trips.id, ticket.tripId));
+        if (trip) {
+          tripDetails = {
+            pickup: trip.pickupLocation || "",
+            dropoff: trip.dropoffLocation || "",
+            fare: trip.fareAmount || "0.00"
+          };
+        }
+      }
+
+      return {
+        ...ticket,
+        messagesCount: Number(msgCount?.count || 0),
+        tripDetails
+      };
+    }));
+  }
+
+  async getAllSupportTickets(filters?: { status?: string; priority?: string }): Promise<SupportTicketWithDetails[]> {
+    let query = db.select().from(supportTickets);
+    
+    const conditions = [];
+    if (filters?.status) {
+      conditions.push(eq(supportTickets.status, filters.status as any));
+    }
+    if (filters?.priority) {
+      conditions.push(eq(supportTickets.priority, filters.priority as any));
+    }
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+    
+    const ticketsResult = await query.orderBy(desc(supportTickets.updatedAt));
+
+    return Promise.all(ticketsResult.map(async (ticket) => {
+      const [msgCount] = await db.select({ count: count() }).from(supportMessages)
+        .where(eq(supportMessages.ticketId, ticket.id));
+      
+      return {
+        ...ticket,
+        messagesCount: Number(msgCount?.count || 0)
+      };
+    }));
+  }
+
+  async getOpenSupportTickets(): Promise<SupportTicketWithDetails[]> {
+    const ticketsResult = await db.select().from(supportTickets)
+      .where(or(
+        eq(supportTickets.status, "open"),
+        eq(supportTickets.status, "in_progress")
+      ))
+      .orderBy(desc(supportTickets.priority), desc(supportTickets.createdAt));
+
+    return Promise.all(ticketsResult.map(async (ticket) => {
+      const [msgCount] = await db.select({ count: count() }).from(supportMessages)
+        .where(eq(supportMessages.ticketId, ticket.id));
+      
+      return {
+        ...ticket,
+        messagesCount: Number(msgCount?.count || 0)
+      };
+    }));
+  }
+
+  async getEscalatedSupportTickets(): Promise<SupportTicketWithDetails[]> {
+    const ticketsResult = await db.select().from(supportTickets)
+      .where(eq(supportTickets.status, "escalated"))
+      .orderBy(desc(supportTickets.updatedAt));
+
+    return Promise.all(ticketsResult.map(async (ticket) => {
+      const [msgCount] = await db.select({ count: count() }).from(supportMessages)
+        .where(eq(supportMessages.ticketId, ticket.id));
+      
+      return {
+        ...ticket,
+        messagesCount: Number(msgCount?.count || 0)
+      };
+    }));
+  }
+
+  async updateSupportTicket(id: string, data: Partial<SupportTicket>): Promise<SupportTicket | undefined> {
+    const [ticket] = await db.update(supportTickets)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(supportTickets.id, id))
+      .returning();
+    return ticket;
+  }
+
+  async assignSupportTicket(ticketId: string, agentUserId: string): Promise<SupportTicket | undefined> {
+    const [ticket] = await db.update(supportTickets)
+      .set({ 
+        assignedToUserId: agentUserId, 
+        status: "in_progress" as const,
+        updatedAt: new Date() 
+      })
+      .where(eq(supportTickets.id, ticketId))
+      .returning();
+    return ticket;
+  }
+
+  async escalateSupportTicket(ticketId: string): Promise<SupportTicket | undefined> {
+    const [ticket] = await db.update(supportTickets)
+      .set({ 
+        status: "escalated" as const,
+        updatedAt: new Date() 
+      })
+      .where(eq(supportTickets.id, ticketId))
+      .returning();
+    return ticket;
+  }
+
+  async closeSupportTicket(ticketId: string, status: "resolved" | "closed" = "resolved"): Promise<SupportTicket | undefined> {
+    const [ticket] = await db.update(supportTickets)
+      .set({ 
+        status,
+        updatedAt: new Date() 
+      })
+      .where(eq(supportTickets.id, ticketId))
+      .returning();
+    return ticket;
+  }
+
+  async createSupportMessage(data: InsertSupportMessage): Promise<SupportMessage> {
+    const [message] = await db.insert(supportMessages).values(data).returning();
+    
+    // Update ticket updatedAt timestamp
+    await db.update(supportTickets)
+      .set({ updatedAt: new Date() })
+      .where(eq(supportTickets.id, data.ticketId));
+    
+    return message;
+  }
+
+  async getSupportMessages(ticketId: string, includeInternal: boolean = false): Promise<SupportMessage[]> {
+    let query = db.select().from(supportMessages)
+      .where(eq(supportMessages.ticketId, ticketId));
+    
+    if (!includeInternal) {
+      query = query.where(and(
+        eq(supportMessages.ticketId, ticketId),
+        eq(supportMessages.internal, false)
+      )) as any;
+    }
+    
+    return query.orderBy(supportMessages.createdAt);
+  }
+
+  async getSupportStats(): Promise<{
+    totalTickets: number;
+    openTickets: number;
+    inProgressTickets: number;
+    escalatedTickets: number;
+    resolvedTickets: number;
+    closedTickets: number;
+    highPriorityOpen: number;
+  }> {
+    const [stats] = await db.select({
+      total: count(),
+      open: sql<number>`count(*) filter (where ${supportTickets.status} = 'open')`,
+      inProgress: sql<number>`count(*) filter (where ${supportTickets.status} = 'in_progress')`,
+      escalated: sql<number>`count(*) filter (where ${supportTickets.status} = 'escalated')`,
+      resolved: sql<number>`count(*) filter (where ${supportTickets.status} = 'resolved')`,
+      closed: sql<number>`count(*) filter (where ${supportTickets.status} = 'closed')`,
+      highPriorityOpen: sql<number>`count(*) filter (where ${supportTickets.priority} = 'high' and ${supportTickets.status} in ('open', 'in_progress'))`
+    }).from(supportTickets);
+
+    return {
+      totalTickets: Number(stats?.total || 0),
+      openTickets: Number(stats?.open || 0),
+      inProgressTickets: Number(stats?.inProgress || 0),
+      escalatedTickets: Number(stats?.escalated || 0),
+      resolvedTickets: Number(stats?.resolved || 0),
+      closedTickets: Number(stats?.closed || 0),
+      highPriorityOpen: Number(stats?.highPriorityOpen || 0)
     };
   }
 }
