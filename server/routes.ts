@@ -838,6 +838,99 @@ export async function registerRoutes(
     }
   });
 
+  // Approval Queue Endpoints
+  app.get("/api/admin/approvals", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { type, status } = req.query;
+      
+      if (type === "driver") {
+        const drivers = await storage.getDrivers();
+        const filtered = drivers.filter(d => !status || d.status === status);
+        
+        const driversWithEmail = await Promise.all(
+          filtered.map(async (driver) => {
+            const user = await storage.getUser(driver.userId);
+            return {
+              ...driver,
+              email: user?.email || null,
+            };
+          })
+        );
+        
+        return res.json(driversWithEmail);
+      }
+      
+      return res.json([]);
+    } catch (error) {
+      console.error("Error fetching approvals:", error);
+      return res.status(500).json({ message: "Failed to fetch approvals" });
+    }
+  });
+
+  app.post("/api/admin/approvals/approve", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { type, id } = req.body;
+      
+      if (!type || !id) {
+        return res.status(400).json({ message: "Type and ID are required" });
+      }
+      
+      if (type === "driver") {
+        const driver = await storage.updateDriverStatus(id, "approved");
+        if (!driver) {
+          return res.status(404).json({ message: "Driver not found" });
+        }
+        
+        await storage.createNotification({
+          userId: id,
+          role: "driver",
+          title: "Account Approved",
+          message: "Congratulations! Your driver account has been approved. You can now go online and accept rides.",
+          type: "success",
+        });
+        
+        return res.json({ success: true, driver });
+      }
+      
+      return res.status(400).json({ message: "Invalid type" });
+    } catch (error) {
+      console.error("Error approving:", error);
+      return res.status(500).json({ message: "Failed to approve" });
+    }
+  });
+
+  app.post("/api/admin/approvals/reject", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { type, id, reason } = req.body;
+      
+      if (!type || !id) {
+        return res.status(400).json({ message: "Type and ID are required" });
+      }
+      
+      if (type === "driver") {
+        const driver = await storage.updateDriverStatus(id, "suspended");
+        if (!driver) {
+          return res.status(404).json({ message: "Driver not found" });
+        }
+        
+        await storage.createNotification({
+          userId: id,
+          role: "driver",
+          title: "Application Rejected",
+          message: reason || "Your driver application has been rejected. Please contact support for more information.",
+          type: "warning",
+        });
+        
+        return res.json({ success: true, driver });
+      }
+      
+      return res.status(400).json({ message: "Invalid type" });
+    } catch (error) {
+      console.error("Error rejecting:", error);
+      return res.status(500).json({ message: "Failed to reject" });
+    }
+  });
+
   app.get("/api/admin/riders", isAuthenticated, requireRole(["admin", "director"]), async (req: any, res) => {
     try {
       const riders = await storage.getAllRidersWithDetails();

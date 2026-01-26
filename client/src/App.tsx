@@ -20,6 +20,7 @@ const DriverSetupPage = lazy(() => import("@/pages/driver/setup"));
 const DriverProfilePage = lazy(() => import("@/pages/driver/profile"));
 const RiderDashboard = lazy(() => import("@/pages/rider/index"));
 const AdminDashboard = lazy(() => import("@/pages/admin/index"));
+const AdminApprovalsPage = lazy(() => import("@/pages/admin/approvals"));
 const AdminSetupPage = lazy(() => import("@/pages/admin-setup"));
 const CoordinatorDashboard = lazy(() => import("@/pages/coordinator/index"));
 const SupportDashboard = lazy(() => import("@/pages/support/index"));
@@ -196,6 +197,12 @@ function Router() {
         {user ? (
           <LazyComponent><AdminSetupPage /></LazyComponent>
         ) : <Redirect to="/welcome" />}
+      </Route>
+      
+      <Route path="/admin/approvals">
+        <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["admin", "super_admin"]}>
+          <LazyComponent><AdminApprovalsPage /></LazyComponent>
+        </ProtectedRoute>
       </Route>
       
       <Route path="/coordinator">
