@@ -26,7 +26,7 @@ export const driverStatusEnum = pgEnum("driver_status", ["pending", "approved", 
 export const tripStatusEnum = pgEnum("trip_status", ["requested", "accepted", "in_progress", "completed", "cancelled"]);
 export const cancelledByEnum = pgEnum("cancelled_by", ["rider", "driver", "admin"]);
 export const payoutStatusEnum = pgEnum("payout_status", ["pending", "paid"]);
-export const notificationTypeEnum = pgEnum("notification_type", ["info", "success", "warning"]);
+export const notificationTypeEnum = pgEnum("notification_type", ["info", "success", "warning", "ride_update"]);
 export const notificationRoleEnum = pgEnum("notification_role", ["admin", "director", "driver", "rider", "finance", "trip_coordinator"]);
 export const raterRoleEnum = pgEnum("rater_role", ["rider", "driver"]);
 export const disputeCategoryEnum = pgEnum("dispute_category", ["fare", "behavior", "cancellation", "other"]);
@@ -100,7 +100,16 @@ export const rideAuditActionEnum = pgEnum("ride_audit_action", [
   "compensation_denied",
   "admin_override",
   "safety_alert",
-  "idle_alert"
+  "idle_alert",
+  "ride_requested",
+  "ride_accepted",
+  "pickup_started",
+  "driver_arrived",
+  "waiting_started",
+  "trip_started",
+  "trip_completed",
+  "ride_cancelled",
+  "safety_check_response"
 ]);
 
 // User roles table - maps users to their roles with admin governance
@@ -260,6 +269,9 @@ export const rides = pgTable("rides", {
   countryId: varchar("country_id"),
   currency: varchar("currency", { length: 3 }).default("USD"),
   
+  // Passenger info
+  passengerCount: integer("passenger_count").default(1),
+  
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -269,8 +281,10 @@ export const driverMovements = pgTable("driver_movements", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   rideId: varchar("ride_id").notNull(),
   driverId: varchar("driver_id").notNull(),
-  distanceKm: decimal("distance_km", { precision: 10, scale: 3 }).notNull().default("0"),
-  durationSec: integer("duration_sec").notNull().default(0),
+  lat: decimal("lat", { precision: 10, scale: 7 }),
+  lng: decimal("lng", { precision: 10, scale: 7 }),
+  distanceKm: decimal("distance_km", { precision: 10, scale: 3 }),
+  durationSec: integer("duration_sec"),
   recordedAt: timestamp("recorded_at").defaultNow(),
 });
 

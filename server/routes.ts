@@ -4485,8 +4485,8 @@ export async function registerRoutes(
       await storage.createRideAuditLog({
         rideId: ride.id,
         action: "ride_requested",
-        performedBy: userId,
-        performedByRole: "rider",
+        actorId: userId,
+        actorRole: "rider",
         previousStatus: null,
         newStatus: "matching",
         metadata: JSON.stringify({ pickupAddress, dropoffAddress }),
@@ -4606,8 +4606,8 @@ export async function registerRoutes(
       await storage.createRideAuditLog({
         rideId,
         action: "ride_accepted",
-        performedBy: userId,
-        performedByRole: "driver",
+        actorId: userId,
+        actorRole: "driver",
         previousStatus: ride.status,
         newStatus: "accepted",
       });
@@ -4615,9 +4615,10 @@ export async function registerRoutes(
       // Notify rider
       await storage.createNotification({
         userId: ride.riderId,
+        role: "rider",
+        title: "Driver Assigned",
         type: "ride_update",
         message: "Your driver is on the way!",
-        metadata: JSON.stringify({ rideId, driverId: userId }),
       });
 
       return res.json(updatedRide);
@@ -4664,8 +4665,8 @@ export async function registerRoutes(
       await storage.createRideAuditLog({
         rideId,
         action: "pickup_started",
-        performedBy: userId,
-        performedByRole: "driver",
+        actorId: userId,
+        actorRole: "driver",
         previousStatus: ride.status,
         newStatus: "driver_en_route",
       });
@@ -4712,8 +4713,8 @@ export async function registerRoutes(
       await storage.createRideAuditLog({
         rideId,
         action: "driver_arrived",
-        performedBy: userId,
-        performedByRole: "driver",
+        actorId: userId,
+        actorRole: "driver",
         previousStatus: ride.status,
         newStatus: "arrived",
       });
@@ -4721,9 +4722,10 @@ export async function registerRoutes(
       // Notify rider
       await storage.createNotification({
         userId: ride.riderId,
+        role: "rider",
+        title: "Driver Arrived",
         type: "ride_update",
         message: "Your driver has arrived!",
-        metadata: JSON.stringify({ rideId }),
       });
 
       return res.json(updatedRide);
@@ -4760,8 +4762,8 @@ export async function registerRoutes(
       await storage.createRideAuditLog({
         rideId,
         action: "waiting_started",
-        performedBy: userId,
-        performedByRole: "driver",
+        actorId: userId,
+        actorRole: "driver",
         previousStatus: ride.status,
         newStatus: "waiting",
       });
@@ -4820,8 +4822,8 @@ export async function registerRoutes(
       await storage.createRideAuditLog({
         rideId,
         action: "trip_started",
-        performedBy: userId,
-        performedByRole: "driver",
+        actorId: userId,
+        actorRole: "driver",
         previousStatus: ride.status,
         newStatus: "in_progress",
         metadata: JSON.stringify(waitingData),
@@ -4878,15 +4880,15 @@ export async function registerRoutes(
       const tripDurationMin = (completedAt.getTime() - startedAt.getTime()) / (1000 * 60);
 
       const updatedRide = await storage.updateRideStatus(rideId, "completed", {
-        actualTripDurationMin: tripDurationMin,
+        actualDurationMin: tripDurationMin.toString(),
       });
 
       // Log the action
       await storage.createRideAuditLog({
         rideId,
         action: "trip_completed",
-        performedBy: userId,
-        performedByRole: "driver",
+        actorId: userId,
+        actorRole: "driver",
         previousStatus: ride.status,
         newStatus: "completed",
         metadata: JSON.stringify({ tripDurationMin }),
@@ -4895,9 +4897,10 @@ export async function registerRoutes(
       // Notify rider
       await storage.createNotification({
         userId: ride.riderId,
+        role: "rider",
+        title: "Trip Complete",
         type: "ride_update",
         message: "Your trip is complete! Please rate your driver.",
-        metadata: JSON.stringify({ rideId }),
       });
 
       return res.json(updatedRide);
@@ -4969,8 +4972,8 @@ export async function registerRoutes(
       await storage.createRideAuditLog({
         rideId,
         action: "ride_cancelled",
-        performedBy: userId,
-        performedByRole: role,
+        actorId: userId,
+        actorRole: role,
         previousStatus: ride.status,
         newStatus: "cancelled",
         metadata: JSON.stringify({ 
@@ -4986,16 +4989,18 @@ export async function registerRoutes(
       if (isRider && ride.driverId) {
         await storage.createNotification({
           userId: ride.driverId,
+          role: "driver",
+          title: "Ride Cancelled",
           type: "ride_update",
           message: "The rider has cancelled the ride",
-          metadata: JSON.stringify({ rideId, reason }),
         });
       } else if (isDriver) {
         await storage.createNotification({
           userId: ride.riderId,
+          role: "rider",
+          title: "Ride Cancelled",
           type: "ride_update",
           message: "Your driver has cancelled the ride. We'll find you another driver.",
-          metadata: JSON.stringify({ rideId, reason }),
         });
       }
 
@@ -5077,8 +5082,8 @@ export async function registerRoutes(
       await storage.createRideAuditLog({
         rideId,
         action: "safety_check_response",
-        performedBy: userId,
-        performedByRole: role,
+        actorId: userId,
+        actorRole: role,
         previousStatus: ride.status,
         newStatus: ride.status,
         metadata: JSON.stringify({ isSafe, message, respondedBy: role }),
