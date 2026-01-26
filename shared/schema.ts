@@ -654,6 +654,8 @@ export const countries = pgTable("countries", {
   currency: varchar("currency", { length: 3 }).notNull(),
   timezone: varchar("timezone", { length: 50 }).notNull(),
   active: boolean("active").notNull().default(true),
+  paymentsEnabled: boolean("payments_enabled").notNull().default(false),
+  paymentProvider: varchar("payment_provider", { length: 50 }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -1814,3 +1816,53 @@ export type MetricAlert = {
   threshold: number;
   createdAt: Date;
 };
+
+// ==========================================
+// PRODUCTION SWITCHES (Phase 26)
+// ==========================================
+
+export const launchModeEnum = pgEnum("launch_mode", ["soft_launch", "full_launch"]);
+
+export const systemConfig = pgTable("system_config", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: varchar("key", { length: 100 }).notNull().unique(),
+  value: text("value").notNull(),
+  description: text("description"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  updatedBy: varchar("updated_by"),
+});
+
+export const configAuditLogs = pgTable("config_audit_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  configKey: varchar("config_key", { length: 100 }).notNull(),
+  oldValue: text("old_value"),
+  newValue: text("new_value").notNull(),
+  changedBy: varchar("changed_by").notNull(),
+  changedByEmail: varchar("changed_by_email"),
+  reason: text("reason"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSystemConfigSchema = createInsertSchema(systemConfig).omit({
+  id: true,
+  updatedAt: true,
+});
+
+export const insertConfigAuditLogSchema = createInsertSchema(configAuditLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertSystemConfig = z.infer<typeof insertSystemConfigSchema>;
+export type SystemConfig = typeof systemConfig.$inferSelect;
+export type InsertConfigAuditLog = z.infer<typeof insertConfigAuditLogSchema>;
+export type ConfigAuditLog = typeof configAuditLogs.$inferSelect;
+
+// Production Switch Defaults
+export const PRODUCTION_SWITCH_DEFAULTS = {
+  LAUNCH_MODE: "soft_launch",
+  EXPLANATION_MODE: "false",
+  INVITE_REQUIRED: "true",
+  DRIVER_ONBOARDING_CAP: "50",
+  DAILY_RIDE_LIMIT: "100",
+} as const;

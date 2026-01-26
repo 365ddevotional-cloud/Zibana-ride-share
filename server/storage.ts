@@ -170,7 +170,14 @@ import {
   type DriverPayoutHistory,
   type InsertDriverPayoutHistory,
   type RiderTransactionHistory,
-  type InsertRiderTransactionHistory
+  type InsertRiderTransactionHistory,
+  systemConfig,
+  configAuditLogs,
+  type SystemConfig,
+  type InsertSystemConfig,
+  type ConfigAuditLog,
+  type InsertConfigAuditLog,
+  PRODUCTION_SWITCH_DEFAULTS
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull } from "drizzle-orm";
@@ -4943,6 +4950,105 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(riderTransactionHistory)
       .where(eq(riderTransactionHistory.riderId, riderId))
       .orderBy(desc(riderTransactionHistory.createdAt));
+  }
+
+  // ==========================================
+  // PRODUCTION SWITCHES (Phase 26)
+  // ==========================================
+
+  async getSystemConfig(key: string): Promise<string> {
+    const [config] = await db.select().from(systemConfig)
+      .where(eq(systemConfig.key, key))
+      .limit(1);
+    if (config) return config.value;
+    const defaults: Record<string, string> = PRODUCTION_SWITCH_DEFAULTS;
+    return defaults[key] || "";
+  }
+
+  async setSystemConfig(key: string, value: string, updatedBy: string, reason?: string): Promise<SystemConfig> {
+    const oldValue = await this.getSystemConfig(key);
+    
+    const [existing] = await db.select().from(systemConfig)
+      .where(eq(systemConfig.key, key))
+      .limit(1);
+    
+    let result: SystemConfig;
+    if (existing) {
+      const [updated] = await db.update(systemConfig)
+        .set({ value, updatedBy, updatedAt: new Date() })
+        .where(eq(systemConfig.key, key))
+        .returning();
+      result = updated;
+    } else {
+      const [inserted] = await db.insert(systemConfig)
+        .values({ key, value, updatedBy, updatedAt: new Date() })
+        .returning();
+      result = inserted;
+    }
+
+    // Log the change
+    await db.insert(configAuditLogs).values({
+      configKey: key,
+      oldValue: oldValue || null,
+      newValue: value,
+      changedBy: updatedBy,
+      reason: reason || null,
+    });
+
+    console.log(`[CONFIG AUDIT] ${key} changed from "${oldValue}" to "${value}" by ${updatedBy}`);
+    return result;
+  }
+
+  async getAllSystemConfigs(): Promise<SystemConfig[]> {
+    return db.select().from(systemConfig).orderBy(systemConfig.key);
+  }
+
+  async getConfigAuditLogs(limit: number = 100): Promise<ConfigAuditLog[]> {
+    return db.select().from(configAuditLogs)
+      .orderBy(desc(configAuditLogs.createdAt))
+      .limit(limit);
+  }
+
+  async getCountryPaymentSettings(countryId: string): Promise<{ paymentsEnabled: boolean; paymentProvider: string | null } | null> {
+    const [country] = await db.select({
+      paymentsEnabled: countries.paymentsEnabled,
+      paymentProvider: countries.paymentProvider
+    }).from(countries).where(eq(countries.id, countryId)).limit(1);
+    return country || null;
+  }
+
+  async setCountryPaymentSettings(
+    countryId: string, 
+    paymentsEnabled: boolean, 
+    paymentProvider: string | null, 
+    updatedBy: string
+  ): Promise<Country | null> {
+    const [country] = await db.select().from(countries).where(eq(countries.id, countryId)).limit(1);
+    if (!country) return null;
+
+    const oldEnabled = country.paymentsEnabled;
+    const oldProvider = country.paymentProvider;
+
+    const [updated] = await db.update(countries)
+      .set({ paymentsEnabled, paymentProvider })
+      .where(eq(countries.id, countryId))
+      .returning();
+
+    // Audit log
+    await db.insert(configAuditLogs).values({
+      configKey: `country_payments_${countryId}`,
+      oldValue: JSON.stringify({ paymentsEnabled: oldEnabled, paymentProvider: oldProvider }),
+      newValue: JSON.stringify({ paymentsEnabled, paymentProvider }),
+      changedBy: updatedBy,
+      reason: paymentsEnabled ? "Enabled real payments" : "Disabled real payments",
+    });
+
+    console.log(`[SECURITY AUDIT] Country ${country.name} payments: ${oldEnabled} → ${paymentsEnabled} by ${updatedBy}`);
+    return updated;
+  }
+
+  async getAllCountriesWithPaymentStatus(): Promise<Country[]> {
+    return db.select().from(countries).orderBy(countries.name);
   }
 }
 

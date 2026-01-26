@@ -1,0 +1,158 @@
+You are working on the ZIBA Ride Share application.
+
+THIS PROMPT IS AUTHORITATIVE.
+Follow it EXACTLY.
+Do NOT suggest alternatives.
+Do NOT add features beyond this scope.
+Do NOT auto-enable anything without explicit flags.
+
+Your task is to introduce CONTROLLED PRODUCTION SWITCHES
+for Payments, Launch Mode, and Compliance Explanation,
+while keeping ZIBA SAFE, REVERSIBLE, and COST-EFFICIENT.
+
+====================================================
+GLOBAL PRODUCTION SWITCH SYSTEM (MANDATORY)
+====================================================
+
+Introduce a centralized FeatureToggle / SystemConfig layer
+that controls ALL production-sensitive behavior.
+
+All switches MUST be:
+• Server-side only
+• Environment-aware
+• Admin-controlled
+• Reversible instantly
+• Logged on change
+
+====================================================
+SWITCH 1 — REAL PAYMENTS (PER COUNTRY)
+====================================================
+
+Implement country-based payment activation.
+
+Add to CountryRules / SystemConfig:
+
+• paymentsEnabled (boolean)
+• paymentProvider (string | null)
+
+DEFAULT FOR ALL COUNTRIES:
+• paymentsEnabled = false
+• paymentProvider = null
+
+Rules:
+• When paymentsEnabled = false:
+  - Wallet operates in SIMULATED mode
+  - No real money is charged
+• When paymentsEnabled = true:
+  - Wallet funding uses real provider
+  - Ride charges deduct real balance
+  - Escrow logic remains unchanged
+
+STRICT REQUIREMENTS:
+• Payments can ONLY be enabled:
+  - Per country
+  - By SUPER_ADMIN
+• Enabling payments requires:
+  - Explicit confirmation
+  - Logged admin action
+• Disabling payments must immediately revert to simulated mode
+
+DO NOT:
+• Enable payments globally
+• Auto-enable payments on deploy
+• Allow testers to trigger payments
+
+====================================================
+SWITCH 2 — SOFT LAUNCH vs FULL LAUNCH
+====================================================
+
+Implement LaunchMode with two states:
+
+• SOFT_LAUNCH (default)
+• FULL_LAUNCH
+
+SOFT_LAUNCH behavior:
+• New users allowed ONLY via invite code
+• Driver onboarding capped
+• Daily ride limits enforced
+• Manual admin monitoring expected
+
+FULL_LAUNCH behavior:
+• Open signups
+• No invite code required
+• Normal ride limits
+• Marketing-ready
+
+Rules:
+• LaunchMode is GLOBAL
+• Only SUPER_ADMIN can change it
+• Mode change must be logged
+• App UI must reflect current mode (badge or banner)
+
+====================================================
+SWITCH 3 — INVESTOR / REGULATOR EXPLANATION MODE
+====================================================
+
+Introduce ExplanationMode (read-only, NO logic changes).
+
+When enabled:
+• Admin Dashboard shows:
+  - Clear description of:
+    • Wallet-first model
+    • Escrow handling
+    • No in-app maps
+    • Cost-control decisions
+    • Driver classification
+    • Fraud protections
+• Generate a structured summary suitable for:
+  - Investors
+  - Regulators
+  - Partners
+• NO operational behavior changes
+
+Rules:
+• ExplanationMode is ADMIN-ONLY
+• No user-facing exposure
+• No effect on rides or payments
+
+====================================================
+SECURITY & AUDIT (NON-NEGOTIABLE)
+====================================================
+
+For ALL switches:
+• Log:
+  - Who changed it
+  - Old value → New value
+  - Timestamp
+• Reject changes from non-authorized roles
+• Protect endpoints with RBAC
+
+====================================================
+FINAL SAFETY REQUIREMENTS
+====================================================
+
+Confirm:
+• Real payments are OFF by default
+• Launch mode defaults to SOFT_LAUNCH
+• Explanation mode is OFF by default
+• All switches are reversible
+• No tester can enable production features
+• No real money flows without explicit admin action
+
+====================================================
+FINAL RESPONSE REQUIRED
+====================================================
+
+After implementation, respond with:
+
+1) List of switches and their default values
+2) Confirmation that ALL switches are:
+   - Server-side
+   - Role-protected
+   - Logged
+3) Explicit confirmation:
+   “Production switches implemented safely and are OFF by default.”
+
+DO NOT add features beyond this prompt.
+
+END.
