@@ -43,6 +43,16 @@ Preferred communication style: Simple, everyday language.
 - **Monitoring & KPIs**: Metrics aggregation for platform, rider, driver, organization, and financial performance, with threshold alerts and feature flag management.
 - **Growth & Marketing**: Referral codes, marketing campaigns, and partner lead tracking.
 - **Scheduled Reservations**: Uber/Lyft-style advance booking with $5.00 reservation premium, driver assignment, 30-min prep window, early arrival bonuses (up to $10), and cancellation fees (when cancelled within 1 hour of pickup).
+- **Monetization System (Phase 25)**: Wallet-based escrow flow, dynamic country-specific pricing, payment provider abstraction (Paystack/Flutterwave for Nigeria), fraud detection with rule-based abuse flagging, and comprehensive financial audit logging.
+
+### Monetization Architecture
+- **Wallet System**: Separate tables for `riderWallets`, `driverWallets`, and `zibaWallet` (platform wallet)
+- **Driver Wallet**: Three-tier balance (balance, pendingBalance, withdrawableBalance) with payout cycle
+- **Escrow Flow**: Funds locked when ride starts → released to driver/platform on completion → held on dispute
+- **Payment Providers**: Abstracted interface supporting Paystack, Flutterwave, manual, and placeholder providers
+- **Fraud Detection**: Low-cost rule-based system with configurable thresholds (excessive cancellations, reservation abuse, fake movement)
+- **Country Pricing**: Dynamic pricing rules per country including base fare, per-km/minute rates, surge multipliers, and commission percentages
+- **Financial Audit**: All financial events logged in `financialAuditLogs` table for compliance
 
 ## Navigation Architecture (LOCKED)
 - **NO external map SDKs** (Google Maps SDK, Mapbox, HERE, etc.)
