@@ -5821,5 +5821,89 @@ export async function registerRoutes(
     }
   });
 
+  // Get available reservation offers for drivers to accept
+  app.get("/api/reservations/offers", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const role = await storage.getUserRole(userId);
+      if (role?.role !== "driver") {
+        return res.status(403).json({ message: "Only drivers can view reservation offers" });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (!user || user.status !== "approved") {
+        return res.status(403).json({ message: "Only approved drivers can view offers" });
+      }
+      
+      const offers = await storage.getAvailableReservationOffers();
+      return res.json(offers);
+    } catch (error) {
+      console.error("Error fetching reservation offers:", error);
+      return res.status(500).json({ message: "Failed to fetch offers" });
+    }
+  });
+
+  // Driver accepts a reservation offer
+  app.post("/api/reservations/:id/accept", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { id } = req.params;
+
+      const role = await storage.getUserRole(userId);
+      if (role?.role !== "driver") {
+        return res.status(403).json({ message: "Only drivers can accept reservations" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user || user.status !== "approved") {
+        return res.status(403).json({ message: "Only approved drivers can accept reservations" });
+      }
+
+      const reservation = await storage.getRideById(id);
+      if (!reservation) {
+        return res.status(404).json({ message: "Reservation not found" });
+      }
+      if (!reservation.isReserved || reservation.reservationStatus !== "scheduled") {
+        return res.status(400).json({ message: "Reservation is not available for acceptance" });
+      }
+      if (reservation.assignedDriverId) {
+        return res.status(400).json({ message: "This reservation has already been accepted by another driver" });
+      }
+
+      const updated = await storage.acceptReservationOffer(id, userId);
+      if (!updated) {
+        return res.status(400).json({ message: "Could not accept reservation - it may have been taken" });
+      }
+
+      await storage.createRideAuditLog({
+        rideId: id,
+        action: "driver_accepted_reservation",
+        performedBy: userId,
+        details: { driverId: userId },
+      });
+
+      await notificationService.notifyRider(
+        reservation.riderId,
+        "ride_accepted",
+        "Driver Assigned",
+        `A driver has accepted your reservation for ${new Date(reservation.scheduledPickupAt!).toLocaleString()}`,
+        id
+      );
+
+      await notificationService.notifyDriver(
+        userId,
+        "ride_accepted",
+        "Reservation Confirmed",
+        `You've accepted a reservation for ${new Date(reservation.scheduledPickupAt!).toLocaleString()}`,
+        id
+      );
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error accepting reservation:", error);
+      return res.status(500).json({ message: "Failed to accept reservation" });
+    }
+  });
+
   return httpServer;
 }
