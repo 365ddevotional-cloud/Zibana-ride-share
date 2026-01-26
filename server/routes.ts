@@ -5936,7 +5936,8 @@ export async function registerRoutes(
 
   app.get("/api/country-pricing-rules/:countryId", isAuthenticated, requireRole(["super_admin", "admin", "finance"]), async (req, res) => {
     try {
-      const rules = await storage.getCountryPricingRules(req.params.countryId);
+      const countryId = req.params.countryId as string;
+      const rules = await storage.getCountryPricingRules(countryId);
       if (!rules) {
         return res.status(404).json({ message: "Pricing rules not found" });
       }
@@ -5959,7 +5960,8 @@ export async function registerRoutes(
 
   app.patch("/api/country-pricing-rules/:countryId", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
     try {
-      const rules = await storage.updateCountryPricingRules(req.params.countryId, req.body);
+      const countryId = req.params.countryId as string;
+      const rules = await storage.updateCountryPricingRules(countryId, req.body);
       if (!rules) {
         return res.status(404).json({ message: "Pricing rules not found" });
       }
@@ -6086,9 +6088,10 @@ export async function registerRoutes(
 
   app.patch("/api/driver-payouts/:id/fail", isAuthenticated, requireRole(["super_admin", "admin", "finance"]), async (req, res) => {
     try {
+      const payoutId = req.params.id as string;
       const { reason } = req.body;
       
-      const payout = await storage.failDriverPayout(req.params.id, reason || "Unknown error");
+      const payout = await storage.failDriverPayout(payoutId, reason || "Unknown error");
       if (!payout) {
         return res.status(404).json({ message: "Payout not found" });
       }
@@ -6184,7 +6187,8 @@ export async function registerRoutes(
 
   app.get("/api/escrows/ride/:rideId", isAuthenticated, requireRole(["super_admin", "admin", "finance"]), async (req, res) => {
     try {
-      const escrow = await storage.getEscrowByRideId(req.params.rideId);
+      const rideId = req.params.rideId as string;
+      const escrow = await storage.getEscrowByRideId(rideId);
       if (!escrow) {
         return res.status(404).json({ message: "Escrow not found" });
       }
