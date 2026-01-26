@@ -579,10 +579,9 @@ export async function registerRoutes(
         action: "ADMIN_APPOINTED",
         entityType: "user_role",
         entityId: userId,
-        userId: appointedBy,
-        oldValue: null,
-        newValue: JSON.stringify({ adminStartAt, adminEndAt, adminPermissions }),
-        ipAddress: req.ip || "unknown"
+        performedByUserId: appointedBy,
+        performedByRole: "super_admin",
+        metadata: JSON.stringify({ adminStartAt, adminEndAt, adminPermissions })
       });
 
       return res.json(admin);
@@ -607,10 +606,9 @@ export async function registerRoutes(
         action: "ADMIN_REVOKED",
         entityType: "user_role",
         entityId: userId,
-        userId: revokedBy,
-        oldValue: JSON.stringify({ role: "admin" }),
-        newValue: JSON.stringify({ role: "rider" }),
-        ipAddress: req.ip || "unknown"
+        performedByUserId: revokedBy,
+        performedByRole: "super_admin",
+        metadata: JSON.stringify({ oldRole: "admin", newRole: "rider" })
       });
 
       return res.json(admin);
@@ -642,10 +640,9 @@ export async function registerRoutes(
         action: "ADMIN_PERMISSIONS_UPDATED",
         entityType: "user_role",
         entityId: userId,
-        userId: updatedBy,
-        oldValue: null,
-        newValue: JSON.stringify({ adminPermissions, adminEndAt }),
-        ipAddress: req.ip || "unknown"
+        performedByUserId: updatedBy,
+        performedByRole: "super_admin",
+        metadata: JSON.stringify({ adminPermissions, adminEndAt })
       });
 
       return res.json(admin);
@@ -676,10 +673,9 @@ export async function registerRoutes(
         action: "ADMINS_EXPIRED",
         entityType: "system",
         entityId: "batch",
-        userId: req.user.claims.sub,
-        oldValue: null,
-        newValue: JSON.stringify({ expiredCount: count }),
-        ipAddress: req.ip || "unknown"
+        performedByUserId: req.user.claims.sub,
+        performedByRole: "super_admin",
+        metadata: JSON.stringify({ expiredCount: count })
       });
 
       return res.json({ expiredCount: count });
@@ -723,12 +719,11 @@ export async function registerRoutes(
       
       await storage.createAuditLog({
         action: "ROLE_PROMOTE_TO_ADMIN",
-        userId: promotedBy,
-        targetId: userId,
-        targetType: "user",
-        oldValue: targetRole?.role || null,
-        newValue: "admin",
-        ipAddress: req.ip || "unknown"
+        entityType: "user_role",
+        entityId: userId,
+        performedByUserId: promotedBy,
+        performedByRole: "super_admin",
+        metadata: JSON.stringify({ oldRole: targetRole?.role || null, newRole: "admin" })
       });
       
       return res.json(updatedRole);
@@ -757,12 +752,11 @@ export async function registerRoutes(
       
       await storage.createAuditLog({
         action: "ROLE_DEMOTE_TO_RIDER",
-        userId: demotedBy,
-        targetId: userId,
-        targetType: "user",
-        oldValue: "admin",
-        newValue: "rider",
-        ipAddress: req.ip || "unknown"
+        entityType: "user_role",
+        entityId: userId,
+        performedByUserId: demotedBy,
+        performedByRole: "super_admin",
+        metadata: JSON.stringify({ oldRole: "admin", newRole: "rider" })
       });
       
       return res.json(updatedRole);
