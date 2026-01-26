@@ -103,6 +103,23 @@ export const slaMetricTypeEnum = pgEnum("sla_metric_type", ["RESPONSE_TIME", "CO
 export const slaMeasurementPeriodEnum = pgEnum("sla_measurement_period", ["DAILY", "WEEKLY", "MONTHLY"]);
 export const invoiceStatusEnum = pgEnum("invoice_status", ["DRAFT", "ISSUED", "PAID", "OVERDUE"]);
 
+// Phase 25 - Monetization, Fraud & Country Pricing enums
+export const distanceUnitEnum = pgEnum("distance_unit", ["KM", "MILES"]);
+export const paymentProviderEnum = pgEnum("payment_provider", ["paystack", "flutterwave", "manual", "placeholder"]);
+export const escrowStatusEnum = pgEnum("escrow_status", ["pending", "locked", "released", "held", "refunded"]);
+export const financialEventTypeEnum = pgEnum("financial_event_type", [
+  "PAYMENT", "ESCROW_LOCK", "ESCROW_RELEASE", "ESCROW_HOLD", "PAYOUT", 
+  "FEE", "COMMISSION", "REFUND", "CANCELLATION_FEE", "RESERVATION_PREMIUM",
+  "EARLY_ARRIVAL_BONUS", "CHARGEBACK", "ADJUSTMENT"
+]);
+export const financialActorRoleEnum = pgEnum("financial_actor_role", ["RIDER", "DRIVER", "ADMIN", "SYSTEM"]);
+export const abuseTypeEnum = pgEnum("abuse_type", [
+  "excessive_cancellations", "late_cancellations", "reservation_abuse", 
+  "fake_movement", "excessive_idle", "unjustified_cancellations", 
+  "repeated_no_shows", "cancel_after_driver_moving"
+]);
+export const abuseFlagStatusEnum = pgEnum("abuse_flag_status", ["pending", "reviewed", "resolved", "dismissed"]);
+
 // Phase 22 - Enhanced Ride Lifecycle enums
 export const rideStatusEnum = pgEnum("ride_status", [
   "requested",
@@ -675,6 +692,138 @@ export const complianceProfiles = pgTable("compliance_profiles", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Phase 25 - Country Pricing Rules table
+export const countryPricingRules = pgTable("country_pricing_rules", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  countryId: varchar("country_id").notNull().unique(),
+  currency: varchar("currency", { length: 3 }).notNull(),
+  distanceUnit: distanceUnitEnum("distance_unit").notNull().default("KM"),
+  baseFare: decimal("base_fare", { precision: 10, scale: 2 }).notNull(),
+  perDistanceRate: decimal("per_distance_rate", { precision: 10, scale: 4 }).notNull(),
+  perMinuteRate: decimal("per_minute_rate", { precision: 10, scale: 4 }).notNull(),
+  waitingRate: decimal("waiting_rate", { precision: 10, scale: 4 }).notNull(),
+  minimumFare: decimal("minimum_fare", { precision: 10, scale: 2 }).notNull(),
+  reservationPremiumPercent: decimal("reservation_premium_percent", { precision: 5, scale: 2 }).notNull().default("10.00"),
+  cancellationFeeBase: decimal("cancellation_fee_base", { precision: 10, scale: 2 }).notNull().default("2.00"),
+  cancellationFeePercent: decimal("cancellation_fee_percent", { precision: 5, scale: 2 }).notNull().default("20.00"),
+  zibaCommissionPercent: decimal("ziba_commission_percent", { precision: 5, scale: 2 }).notNull().default("20.00"),
+  paymentProvider: paymentProviderEnum("payment_provider").notNull().default("placeholder"),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Phase 25 - Rider Wallets table (separate from driver wallets for clarity)
+export const riderWallets = pgTable("rider_wallets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique(),
+  balance: decimal("balance", { precision: 10, scale: 2 }).notNull().default("0.00"),
+  lockedBalance: decimal("locked_balance", { precision: 10, scale: 2 }).notNull().default("0.00"),
+  currency: varchar("currency", { length: 3 }).notNull().default("USD"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Phase 25 - Driver Wallets table (enhanced with pending and withdrawable)
+export const driverWallets = pgTable("driver_wallets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique(),
+  balance: decimal("balance", { precision: 10, scale: 2 }).notNull().default("0.00"),
+  pendingBalance: decimal("pending_balance", { precision: 10, scale: 2 }).notNull().default("0.00"),
+  withdrawableBalance: decimal("withdrawable_balance", { precision: 10, scale: 2 }).notNull().default("0.00"),
+  currency: varchar("currency", { length: 3 }).notNull().default("USD"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Phase 25 - ZIBA Platform Wallet table
+export const zibaWallet = pgTable("ziba_wallet", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  commissionBalance: decimal("commission_balance", { precision: 12, scale: 2 }).notNull().default("0.00"),
+  cancellationFees: decimal("cancellation_fees", { precision: 12, scale: 2 }).notNull().default("0.00"),
+  reservationPremiums: decimal("reservation_premiums", { precision: 12, scale: 2 }).notNull().default("0.00"),
+  currency: varchar("currency", { length: 3 }).notNull().default("USD"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Phase 25 - Escrow table
+export const escrows = pgTable("escrows", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  rideId: varchar("ride_id").notNull(),
+  riderId: varchar("rider_id").notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  status: escrowStatusEnum("status").notNull().default("pending"),
+  lockedAt: timestamp("locked_at"),
+  releasedAt: timestamp("released_at"),
+  heldAt: timestamp("held_at"),
+  releaseToDriverId: varchar("release_to_driver_id"),
+  releaseAmount: decimal("release_amount", { precision: 10, scale: 2 }),
+  platformAmount: decimal("platform_amount", { precision: 10, scale: 2 }),
+  disputeId: varchar("dispute_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Phase 25 - Financial Audit Log table (MANDATORY for all financial events)
+export const financialAuditLogs = pgTable("financial_audit_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  rideId: varchar("ride_id"),
+  userId: varchar("user_id").notNull(),
+  actorRole: financialActorRoleEnum("actor_role").notNull(),
+  eventType: financialEventTypeEnum("event_type").notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 3 }).notNull().default("USD"),
+  description: text("description"),
+  metadata: text("metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Phase 25 - Abuse Flags table (for fraud detection)
+export const abuseFlags = pgTable("abuse_flags", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  userRole: varchar("user_role", { length: 20 }).notNull(),
+  abuseType: abuseTypeEnum("abuse_type").notNull(),
+  severity: fraudSeverityEnum("severity").notNull().default("low"),
+  description: text("description").notNull(),
+  relatedRideId: varchar("related_ride_id"),
+  status: abuseFlagStatusEnum("status").notNull().default("pending"),
+  reviewedByUserId: varchar("reviewed_by_user_id"),
+  reviewNotes: text("review_notes"),
+  penaltyApplied: decimal("penalty_applied", { precision: 10, scale: 2 }),
+  createdAt: timestamp("created_at").defaultNow(),
+  resolvedAt: timestamp("resolved_at"),
+});
+
+// Phase 25 - Driver Payout History table
+export const driverPayoutHistory = pgTable("driver_payout_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  driverId: varchar("driver_id").notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 3 }).notNull().default("USD"),
+  status: walletPayoutStatusEnum("status").notNull().default("pending"),
+  method: payoutMethodEnum("method").notNull().default("manual"),
+  initiatedByUserId: varchar("initiated_by_user_id").notNull(),
+  processedByUserId: varchar("processed_by_user_id"),
+  failureReason: text("failure_reason"),
+  transactionRef: varchar("transaction_ref", { length: 100 }),
+  createdAt: timestamp("created_at").defaultNow(),
+  processedAt: timestamp("processed_at"),
+});
+
+// Phase 25 - Rider Transaction History table
+export const riderTransactionHistory = pgTable("rider_transaction_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  riderId: varchar("rider_id").notNull(),
+  type: walletTransactionTypeEnum("type").notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  source: walletTransactionSourceEnum("source").notNull(),
+  referenceId: varchar("reference_id"),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const userRolesRelations = relations(userRoles, ({ one }) => ({
   // Relations defined for clarity
@@ -1076,6 +1225,107 @@ export type WalletPayoutWithDetails = WalletPayout & {
   driverName?: string;
   initiatedByName?: string;
   processedByName?: string;
+};
+
+// Phase 25 - Monetization schemas and types
+export const insertCountryPricingRulesSchema = createInsertSchema(countryPricingRules).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const updateCountryPricingRulesSchema = createInsertSchema(countryPricingRules).omit({
+  id: true,
+  createdAt: true,
+}).partial();
+
+export const insertRiderWalletSchema = createInsertSchema(riderWallets).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  balance: true,
+  lockedBalance: true,
+});
+
+export const insertDriverWalletSchema = createInsertSchema(driverWallets).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  balance: true,
+  pendingBalance: true,
+  withdrawableBalance: true,
+});
+
+export const insertEscrowSchema = createInsertSchema(escrows).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  status: true,
+  lockedAt: true,
+  releasedAt: true,
+  heldAt: true,
+});
+
+export const insertFinancialAuditLogSchema = createInsertSchema(financialAuditLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertAbuseFlagSchema = createInsertSchema(abuseFlags).omit({
+  id: true,
+  createdAt: true,
+  resolvedAt: true,
+  status: true,
+});
+
+export const insertDriverPayoutHistorySchema = createInsertSchema(driverPayoutHistory).omit({
+  id: true,
+  createdAt: true,
+  processedAt: true,
+  status: true,
+});
+
+export const insertRiderTransactionHistorySchema = createInsertSchema(riderTransactionHistory).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertCountryPricingRules = z.infer<typeof insertCountryPricingRulesSchema>;
+export type CountryPricingRules = typeof countryPricingRules.$inferSelect;
+
+export type InsertRiderWallet = z.infer<typeof insertRiderWalletSchema>;
+export type RiderWallet = typeof riderWallets.$inferSelect;
+
+export type InsertDriverWallet = z.infer<typeof insertDriverWalletSchema>;
+export type DriverWallet = typeof driverWallets.$inferSelect;
+
+export type ZibaWallet = typeof zibaWallet.$inferSelect;
+
+export type InsertEscrow = z.infer<typeof insertEscrowSchema>;
+export type Escrow = typeof escrows.$inferSelect;
+
+export type InsertFinancialAuditLog = z.infer<typeof insertFinancialAuditLogSchema>;
+export type FinancialAuditLog = typeof financialAuditLogs.$inferSelect;
+
+export type InsertAbuseFlag = z.infer<typeof insertAbuseFlagSchema>;
+export type AbuseFlag = typeof abuseFlags.$inferSelect;
+
+export type InsertDriverPayoutHistory = z.infer<typeof insertDriverPayoutHistorySchema>;
+export type DriverPayoutHistory = typeof driverPayoutHistory.$inferSelect;
+
+export type InsertRiderTransactionHistory = z.infer<typeof insertRiderTransactionHistorySchema>;
+export type RiderTransactionHistory = typeof riderTransactionHistory.$inferSelect;
+
+export type AbuseFlagWithDetails = AbuseFlag & {
+  userName?: string;
+  reviewedByName?: string;
+};
+
+export type EscrowWithDetails = Escrow & {
+  riderName?: string;
+  driverName?: string;
+  ridePickup?: string;
+  rideDropoff?: string;
 };
 
 // Phase 13 - Risk Profile schemas and types

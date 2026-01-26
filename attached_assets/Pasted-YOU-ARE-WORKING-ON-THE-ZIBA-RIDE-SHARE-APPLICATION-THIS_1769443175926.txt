@@ -1,0 +1,210 @@
+YOU ARE WORKING ON THE ZIBA RIDE SHARE APPLICATION.
+
+THIS PROMPT IS FINAL, AUTHORITATIVE, AND MUST BE FOLLOWED EXACTLY.
+DO NOT ASK QUESTIONS.
+DO NOT PROPOSE ALTERNATIVES.
+DO NOT ADD EXTRA FEATURES.
+IMPLEMENT ONLY WHAT IS SPECIFIED.
+
+====================================================
+FINAL STEP — MONETIZATION, FRAUD & COUNTRY RULES
+(COMBINED, COST-EFFICIENT IMPLEMENTATION)
+====================================================
+
+--------------------------------
+GLOBAL PAYMENT ARCHITECTURE RULE
+--------------------------------
+
+ZIBA uses a WALLET + ESCROW model.
+
+• Riders pay BEFORE trip starts
+• Funds are HELD in escrow
+• Funds are RELEASED after trip completion
+• Disputes can delay release
+• ZIBA commission is deducted automatically
+• Driver receives net payout
+
+NO crypto.
+NO experimental providers.
+NO unnecessary complexity.
+
+--------------------------------
+PAYMENT PROVIDERS (PHASED)
+--------------------------------
+
+IMPLEMENT PROVIDER SUPPORT STRUCTURE AS FOLLOWS:
+
+• Nigeria → Paystack OR Flutterwave (choose one, abstracted)
+• Other countries → placeholder adapter (disabled)
+
+IMPORTANT:
+• Payment provider logic must be ABSTRACTED
+• Do NOT hardcode provider-specific logic into business rules
+
+--------------------------------
+WALLET STRUCTURE (FINAL)
+--------------------------------
+
+Implement the following wallets:
+
+1. RiderWallet
+   - balance
+   - currency
+   - lockedBalance (escrow)
+   - transaction history
+
+2. DriverWallet
+   - balance
+   - pendingBalance
+   - withdrawableBalance
+   - payoutHistory
+
+3. ZibaWallet
+   - commissionBalance
+   - cancellationFees
+   - reservationPremiums
+
+--------------------------------
+ESCROW FLOW (MANDATORY)
+--------------------------------
+
+WHEN rider requests ride:
+→ Pre-authorize fare estimate
+→ Lock funds in RiderWallet.lockedBalance
+
+WHEN ride completes:
+→ Recalculate final fare using:
+   - GPS distance (Haversine)
+   - Time duration (timestamps)
+   - Waiting compensation
+   - Traffic delay time
+→ Deduct ZIBA commission
+→ Credit DriverWallet.pendingBalance
+→ Credit ZibaWallet.commissionBalance
+→ Release escrow
+
+WHEN dispute opened:
+→ HOLD escrow until resolved
+
+--------------------------------
+DRIVER PAYOUT RULES
+--------------------------------
+
+• Drivers can withdraw ONLY withdrawableBalance
+• Payouts:
+  - Manual trigger (admin)
+  - OR scheduled (future)
+• Failed payouts must be logged
+• Wallet balance must NEVER go negative
+
+--------------------------------
+FRAUD & ABUSE DETECTION
+--------------------------------
+
+Implement LOW-COST, RULE-BASED FRAUD PROTECTION:
+
+1. Rider Abuse
+   - Excessive cancellations
+   - Repeated late cancellations
+   - Reservation abuse
+   → Flag for admin review
+   → Apply higher cancellation fees
+
+2. Driver Abuse
+   - Fake movement detection
+   - Excessive idle time
+   - Repeated unjustified cancellations
+   → Flag
+   → Compensation denied where applicable
+
+3. Reservation Abuse
+   - Cancel after driver started moving
+   - Repeated no-shows
+   → Higher penalty applied automatically
+
+ALL FLAGS MUST BE LOGGED.
+
+--------------------------------
+COUNTRY & PRICING RULES
+--------------------------------
+
+Implement CountryRules table:
+
+Fields:
+- countryCode
+- currency
+- distanceUnit (KM / Miles)
+- baseFare
+- perDistanceRate
+- perMinuteRate
+- waitingRate
+- reservationPremiumPercent
+- cancellationFeeRules
+- zibaCommissionPercent
+
+Fare calculation MUST use CountryRules dynamically.
+
+--------------------------------
+RESERVATION PRICING (FINAL)
+--------------------------------
+
+Reservation rides:
+• Cost MORE than normal rides
+• Include reservationPremiumPercent
+• Early arrival bonus:
+  - $0.50/min
+  - Max $10
+• Rider charged higher cancellation fee if driver has started moving
+• Driver + ZIBA compensated
+
+--------------------------------
+AUDIT & LOGGING (MANDATORY)
+--------------------------------
+
+Every financial event MUST be logged in FinancialAuditLog:
+
+- rideId
+- userId
+- actorRole (RIDER / DRIVER / ADMIN / SYSTEM)
+- eventType (PAYMENT, ESCROW_LOCK, RELEASE, PAYOUT, FEE)
+- amount
+- timestamp
+
+NO EXCEPTIONS.
+
+--------------------------------
+ADMIN CONTROLS
+--------------------------------
+
+Admin Dashboard must include:
+• Wallet overview (Rider / Driver / ZIBA)
+• Manual payout trigger
+• Dispute resolution with fund release
+• Fraud flags review
+• Country pricing editor
+
+--------------------------------
+FINAL ENFORCEMENT RULES
+--------------------------------
+
+• NO external map SDKs
+• NO routing APIs
+• GPS-based distance only
+• Native GPS deep links only
+• No automatic payouts without wallet balance
+• No silent failures
+
+--------------------------------
+COMPLETION REQUIREMENT
+--------------------------------
+
+After implementation:
+• Confirm:
+  - Payments logic complete
+  - Wallets functional
+  - Fraud rules active
+  - Country pricing applied
+  - Escrow enforced
+
+DO NOT ASK FOR CONFIRMATION.
+IMPLEMENT AND REPORT COMPLETION.
