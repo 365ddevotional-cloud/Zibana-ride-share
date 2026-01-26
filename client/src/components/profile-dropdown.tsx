@@ -15,11 +15,7 @@ import {
   LogOut, 
   User, 
   Settings, 
-  Car, 
-  DollarSign, 
   MapPin, 
-  Building, 
-  FileText, 
   CreditCard,
   Ticket,
   Sun,
@@ -44,61 +40,33 @@ export function ProfileDropdown({ user, role, onLogout }: ProfileDropdownProps) 
   const getMenuItems = () => {
     switch (role) {
       case "super_admin":
-        return (
-          <>
-            <DropdownMenuItem onClick={() => navigate("/admin")} data-testid="menu-profile">
-              <User className="mr-2 h-4 w-4" />
-              Profile
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate("/admin")} data-testid="menu-admin-management">
-              <Settings className="mr-2 h-4 w-4" />
-              Admin Management
-            </DropdownMenuItem>
-          </>
-        );
       case "admin":
-        return (
-          <>
-            <DropdownMenuItem onClick={() => navigate("/admin")} data-testid="menu-profile">
-              <User className="mr-2 h-4 w-4" />
-              Profile
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate("/admin")} data-testid="menu-admin-settings">
-              <Settings className="mr-2 h-4 w-4" />
-              Admin Settings
-            </DropdownMenuItem>
-          </>
-        );
       case "director":
-        return (
-          <>
-            <DropdownMenuItem onClick={() => navigate("/admin")} data-testid="menu-profile">
-              <User className="mr-2 h-4 w-4" />
-              Profile
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate("/admin")} data-testid="menu-director-dashboard">
-              <Settings className="mr-2 h-4 w-4" />
-              Director Dashboard
-            </DropdownMenuItem>
-          </>
-        );
       case "finance":
         return (
           <>
-            <DropdownMenuItem onClick={() => navigate("/admin")} data-testid="menu-profile">
+            <DropdownMenuItem onClick={() => navigate("/profile")} data-testid="menu-profile">
               <User className="mr-2 h-4 w-4" />
               Profile
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate("/admin")} data-testid="menu-finance-dashboard">
-              <DollarSign className="mr-2 h-4 w-4" />
-              Finance Dashboard
+            <DropdownMenuItem onClick={() => navigate("/trips")} data-testid="menu-my-trips">
+              <MapPin className="mr-2 h-4 w-4" />
+              My Trips
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate("/wallet")} data-testid="menu-payments">
+              <CreditCard className="mr-2 h-4 w-4" />
+              Payments
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate("/settings")} data-testid="menu-settings">
+              <Settings className="mr-2 h-4 w-4" />
+              Settings
             </DropdownMenuItem>
           </>
         );
       case "support_agent":
         return (
           <>
-            <DropdownMenuItem onClick={() => navigate("/support")} data-testid="menu-profile">
+            <DropdownMenuItem onClick={() => navigate("/profile")} data-testid="menu-profile">
               <User className="mr-2 h-4 w-4" />
               Profile
             </DropdownMenuItem>
@@ -106,24 +74,32 @@ export function ProfileDropdown({ user, role, onLogout }: ProfileDropdownProps) 
               <Ticket className="mr-2 h-4 w-4" />
               Assigned Tickets
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate("/wallet")} data-testid="menu-payments">
+              <CreditCard className="mr-2 h-4 w-4" />
+              Payments
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate("/settings")} data-testid="menu-settings">
+              <Settings className="mr-2 h-4 w-4" />
+              Settings
+            </DropdownMenuItem>
           </>
         );
       case "driver":
         return (
           <>
-            <DropdownMenuItem onClick={() => navigate("/driver/profile")} data-testid="menu-profile">
+            <DropdownMenuItem onClick={() => navigate("/profile")} data-testid="menu-profile">
               <User className="mr-2 h-4 w-4" />
               Profile
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate("/driver/profile")} data-testid="menu-vehicle">
-              <Car className="mr-2 h-4 w-4" />
-              Vehicle
+            <DropdownMenuItem onClick={() => navigate("/trips")} data-testid="menu-my-trips">
+              <MapPin className="mr-2 h-4 w-4" />
+              My Trips
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate("/driver")} data-testid="menu-earnings">
-              <DollarSign className="mr-2 h-4 w-4" />
-              Earnings
+            <DropdownMenuItem onClick={() => navigate("/wallet")} data-testid="menu-payments">
+              <CreditCard className="mr-2 h-4 w-4" />
+              Payments
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate("/driver/profile")} data-testid="menu-driver-settings">
+            <DropdownMenuItem onClick={() => navigate("/settings")} data-testid="menu-settings">
               <Settings className="mr-2 h-4 w-4" />
               Settings
             </DropdownMenuItem>
@@ -132,19 +108,19 @@ export function ProfileDropdown({ user, role, onLogout }: ProfileDropdownProps) 
       case "rider":
         return (
           <>
-            <DropdownMenuItem onClick={() => navigate("/rider")} data-testid="menu-profile">
+            <DropdownMenuItem onClick={() => navigate("/profile")} data-testid="menu-profile">
               <User className="mr-2 h-4 w-4" />
               Profile
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate("/rider")} data-testid="menu-my-trips">
+            <DropdownMenuItem onClick={() => navigate("/trips")} data-testid="menu-my-trips">
               <MapPin className="mr-2 h-4 w-4" />
               My Trips
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate("/rider")} data-testid="menu-payments">
+            <DropdownMenuItem onClick={() => navigate("/wallet")} data-testid="menu-payments">
               <CreditCard className="mr-2 h-4 w-4" />
               Payments
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate("/rider")} data-testid="menu-rider-settings">
+            <DropdownMenuItem onClick={() => navigate("/settings")} data-testid="menu-settings">
               <Settings className="mr-2 h-4 w-4" />
               Settings
             </DropdownMenuItem>
@@ -153,19 +129,19 @@ export function ProfileDropdown({ user, role, onLogout }: ProfileDropdownProps) 
       case "trip_coordinator":
         return (
           <>
-            <DropdownMenuItem onClick={() => navigate("/coordinator")} data-testid="menu-org-profile">
-              <Building className="mr-2 h-4 w-4" />
-              Organization Profile
+            <DropdownMenuItem onClick={() => navigate("/profile")} data-testid="menu-profile">
+              <User className="mr-2 h-4 w-4" />
+              Profile
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => navigate("/coordinator")} data-testid="menu-org-trips">
               <MapPin className="mr-2 h-4 w-4" />
               Organization Trips
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate("/coordinator")} data-testid="menu-billing">
-              <FileText className="mr-2 h-4 w-4" />
-              Billing
+            <DropdownMenuItem onClick={() => navigate("/wallet")} data-testid="menu-payments">
+              <CreditCard className="mr-2 h-4 w-4" />
+              Payments
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate("/coordinator")} data-testid="menu-coordinator-settings">
+            <DropdownMenuItem onClick={() => navigate("/settings")} data-testid="menu-settings">
               <Settings className="mr-2 h-4 w-4" />
               Settings
             </DropdownMenuItem>
@@ -173,9 +149,9 @@ export function ProfileDropdown({ user, role, onLogout }: ProfileDropdownProps) 
         );
       default:
         return (
-          <DropdownMenuItem onClick={() => navigate("/")} data-testid="menu-home">
+          <DropdownMenuItem onClick={() => navigate("/profile")} data-testid="menu-profile">
             <User className="mr-2 h-4 w-4" />
-            Home
+            Profile
           </DropdownMenuItem>
         );
     }

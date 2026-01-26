@@ -26,6 +26,11 @@ const CoordinatorDashboard = lazy(() => import("@/pages/coordinator/index"));
 const SupportDashboard = lazy(() => import("@/pages/support/index"));
 const UnauthorizedPage = lazy(() => import("@/pages/unauthorized"));
 const LegalPage = lazy(() => import("@/pages/legal"));
+const ProfilePage = lazy(() => import("@/pages/profile"));
+const TripsPage = lazy(() => import("@/pages/trips"));
+const WalletPage = lazy(() => import("@/pages/wallet"));
+const SettingsPage = lazy(() => import("@/pages/settings"));
+const AppearancePage = lazy(() => import("@/pages/settings/appearance"));
 
 function LazyComponent({ children }: { children: React.ReactNode }) {
   return (
@@ -236,6 +241,26 @@ function Router() {
         <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["support_agent"]}>
           <LazyComponent><SupportDashboard /></LazyComponent>
         </ProtectedRoute>
+      </Route>
+      
+      <Route path="/profile">
+        {user ? <LazyComponent><ProfilePage /></LazyComponent> : <Redirect to="/welcome" />}
+      </Route>
+      
+      <Route path="/trips">
+        {user ? <LazyComponent><TripsPage /></LazyComponent> : <Redirect to="/welcome" />}
+      </Route>
+      
+      <Route path="/wallet">
+        {user ? <LazyComponent><WalletPage /></LazyComponent> : <Redirect to="/welcome" />}
+      </Route>
+      
+      <Route path="/settings">
+        {user ? <LazyComponent><SettingsPage /></LazyComponent> : <Redirect to="/welcome" />}
+      </Route>
+      
+      <Route path="/settings/appearance">
+        {user ? <LazyComponent><AppearancePage /></LazyComponent> : <Redirect to="/welcome" />}
       </Route>
       
       <Route component={NotFound} />

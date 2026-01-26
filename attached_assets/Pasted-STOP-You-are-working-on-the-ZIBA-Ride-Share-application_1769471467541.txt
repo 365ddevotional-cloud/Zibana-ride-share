@@ -1,0 +1,102 @@
+STOP.
+
+You are working on the ZIBA Ride Share application.
+
+THIS PROMPT IS AUTHORITATIVE.
+Follow it EXACTLY.
+Do NOT suggest alternatives.
+Do NOT add new features.
+Do NOT touch payments configuration.
+Do NOT change country rules.
+
+Your task is to FIX UI NAVIGATION and ENABLE SAFE RIDE TESTING
+without charging real money.
+
+====================================================
+PART A — FIX PROFILE DROPDOWN NAVIGATION (ALL DASHBOARDS)
+====================================================
+
+Across ALL dashboards (RIDER, DRIVER, ADMIN):
+
+Wire the Profile dropdown menu items to real routes.
+
+Make ALL items clickable and functional.
+
+Route mapping (FINAL):
+
+• Profile      → /profile
+• My Trips     → /trips
+• Payments     → /wallet
+• Settings     → /settings
+• Appearance   → /settings/appearance
+• Sign Out     → Proper logout + redirect to /login
+
+Rules:
+• Use existing router (no new router)
+• No placeholder pages
+• If a page exists, connect to it
+• If missing, create minimal page shell ONLY
+
+Apply consistently across:
+• Rider UI
+• Driver UI
+• Admin UI
+
+====================================================
+PART B — ENABLE SAFE RIDE TESTING (NO REAL MONEY)
+====================================================
+
+Problem:
+Ride requests are blocked due to insufficient wallet balance.
+
+Solution (ADMIN-ONLY, SAFE):
+
+Implement ADMIN wallet crediting for testing.
+
+Rules:
+• Only SUPER_ADMIN can credit wallets
+• No Paystack call
+• No real money movement
+
+Admin action:
+• Select user
+• Add test balance (e.g. ₦5,000)
+• Log the action
+
+Wallet credit MUST:
+• Immediately reflect in user wallet
+• Allow ride request to proceed
+• Deduct normally during ride
+• Be logged as TEST_CREDIT
+
+====================================================
+PART C — SAFETY & LOGGING
+====================================================
+
+For every admin wallet credit:
+Log:
+• adminId
+• userId
+• amount
+• reason = TESTING
+• timestamp
+
+No tester or regular admin may credit wallets.
+
+====================================================
+FINAL INSTRUCTION
+====================================================
+
+Do NOT:
+• Change Paystack config
+• Disable wallet checks
+• Allow free rides without wallet deduction
+• Expose admin features to testers
+
+ONLY implement what is written above.
+
+After completion, respond ONLY with:
+
+“UI navigation fixed and test wallet funding enabled.”
+
+END.
