@@ -397,6 +397,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("drivers");
+  const [driverStatusFilter, setDriverStatusFilter] = useState<string>("");
   const [analyticsRange, setAnalyticsRange] = useState("30d");
   const [fraudLevelFilter, setFraudLevelFilter] = useState("all");
   
@@ -1626,7 +1627,10 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
           
           <Card 
             className="cursor-pointer hover-elevate transition-all" 
-            onClick={() => setActiveTab("drivers")}
+            onClick={() => {
+              setDriverStatusFilter("pending");
+              setActiveTab("drivers");
+            }}
             data-testid="kpi-pending-approval"
           >
             <CardContent className="flex items-center gap-4 pt-6">
@@ -1909,11 +1913,31 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
 
           <TabsContent value="drivers">
             <Card>
-              <CardHeader>
-                <CardTitle>Driver Management</CardTitle>
-                <CardDescription>
-                  Approve, suspend, or manage driver accounts
-                </CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
+                <div>
+                  <CardTitle>Driver Management</CardTitle>
+                  <CardDescription>
+                    Approve, suspend, or manage driver accounts
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Select value={driverStatusFilter} onValueChange={setDriverStatusFilter}>
+                    <SelectTrigger className="w-[160px]" data-testid="select-driver-status-filter">
+                      <SelectValue placeholder="All Statuses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="approved">Approved</SelectItem>
+                      <SelectItem value="suspended">Suspended</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {driverStatusFilter && driverStatusFilter !== "all" && (
+                    <Button variant="ghost" size="sm" onClick={() => setDriverStatusFilter("")} data-testid="button-clear-driver-filter">
+                      Clear
+                    </Button>
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
                 {driversLoading ? (
@@ -1941,7 +1965,9 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {drivers.map((driver) => (
+                        {drivers
+                          .filter(d => !driverStatusFilter || driverStatusFilter === "all" || d.status === driverStatusFilter)
+                          .map((driver) => (
                           <TableRow key={driver.id} data-testid={`row-driver-${driver.id}`}>
                             <TableCell className="font-medium">{driver.fullName}</TableCell>
                             <TableCell>{driver.phone}</TableCell>
