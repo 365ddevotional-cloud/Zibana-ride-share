@@ -1893,6 +1893,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                 Admin Management
               </TabsTrigger>
             )}
+            {isSuperAdmin && (
+              <TabsTrigger value="role-appointments" data-testid="tab-role-appointments">
+                <UserCheck className="h-4 w-4 mr-2" />
+                Role Appointments
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="drivers">
@@ -5861,6 +5867,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <AdminManagementTab />
             </TabsContent>
           )}
+
+          {isSuperAdmin && (
+            <TabsContent value="role-appointments">
+              <RoleAppointmentsTab />
+            </TabsContent>
+          )}
         </Tabs>
       </main>
     </div>
@@ -6662,5 +6674,244 @@ function AdminManagementTab() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+type UserWithRole = {
+  userId: string;
+  email: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  role: string | null;
+  createdAt: string | null;
+};
+
+function RoleAppointmentsTab() {
+  const { toast } = useToast();
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    userId: string;
+    email: string;
+    currentRole: string | null;
+    action: "promote" | "demote";
+  } | null>(null);
+
+  const { data: usersWithRoles = [], isLoading } = useQuery<UserWithRole[]>({
+    queryKey: ["/api/super-admin/users-with-roles"],
+  });
+
+  const promoteMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const response = await apiRequest("POST", `/api/super-admin/promote/${userId}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/super-admin/users-with-roles"] });
+      toast({
+        title: "User Promoted",
+        description: "User has been promoted to Admin. They must log out and log back in for changes to take effect.",
+      });
+      setConfirmDialog(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to promote user",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const demoteMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const response = await apiRequest("POST", `/api/super-admin/demote/${userId}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/super-admin/users-with-roles"] });
+      toast({
+        title: "User Demoted",
+        description: "Admin has been demoted to Rider. They must log out and log back in for changes to take effect.",
+      });
+      setConfirmDialog(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to demote user",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleConfirm = () => {
+    if (!confirmDialog) return;
+    if (confirmDialog.action === "promote") {
+      promoteMutation.mutate(confirmDialog.userId);
+    } else {
+      demoteMutation.mutate(confirmDialog.userId);
+    }
+  };
+
+  const getRoleBadgeVariant = (role: string | null) => {
+    switch (role) {
+      case "super_admin":
+        return "default";
+      case "admin":
+        return "secondary";
+      case "driver":
+        return "outline";
+      case "rider":
+        return "outline";
+      default:
+        return "outline";
+    }
+  };
+
+  const canPromote = (role: string | null) => {
+    return role !== "super_admin" && role !== "admin";
+  };
+
+  const canDemote = (role: string | null) => {
+    return role === "admin";
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <UserCheck className="h-5 w-5" />
+          Role Appointments
+        </CardTitle>
+        <CardDescription>
+          Promote users to Admin or demote Admins back to Rider. Changes require logout/login to take effect.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="py-8 text-center text-muted-foreground">
+            Loading users...
+          </div>
+        ) : usersWithRoles.length === 0 ? (
+          <EmptyState
+            icon={Users}
+            title="No users found"
+            description="No users have registered yet."
+          />
+        ) : (
+          <div className="border rounded-lg overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Current Role</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {usersWithRoles.map((user) => (
+                  <TableRow key={user.userId}>
+                    <TableCell className="font-medium">{user.email || "N/A"}</TableCell>
+                    <TableCell>
+                      {user.firstName || user.lastName
+                        ? `${user.firstName || ""} ${user.lastName || ""}`.trim()
+                        : "N/A"}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={getRoleBadgeVariant(user.role)}>
+                        {user.role ? user.role.replace("_", " ").toUpperCase() : "NO ROLE"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        {canPromote(user.role) && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              setConfirmDialog({
+                                open: true,
+                                userId: user.userId,
+                                email: user.email || "Unknown",
+                                currentRole: user.role,
+                                action: "promote",
+                              })
+                            }
+                            data-testid={`button-promote-${user.userId}`}
+                          >
+                            <UserCheck className="h-4 w-4 mr-1" />
+                            Promote to Admin
+                          </Button>
+                        )}
+                        {canDemote(user.role) && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() =>
+                              setConfirmDialog({
+                                open: true,
+                                userId: user.userId,
+                                email: user.email || "Unknown",
+                                currentRole: user.role,
+                                action: "demote",
+                              })
+                            }
+                            data-testid={`button-demote-${user.userId}`}
+                          >
+                            <UserX className="h-4 w-4 mr-1" />
+                            Demote to Rider
+                          </Button>
+                        )}
+                        {user.role === "super_admin" && (
+                          <span className="text-sm text-muted-foreground italic">
+                            Primary Owner
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+
+      <Dialog open={confirmDialog?.open || false} onOpenChange={(open) => !open && setConfirmDialog(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {confirmDialog?.action === "promote" ? "Promote to Admin" : "Demote to Rider"}
+            </DialogTitle>
+            <DialogDescription>
+              {confirmDialog?.action === "promote"
+                ? `Are you sure you want to promote ${confirmDialog?.email} to Admin? They will have administrative access to the platform.`
+                : `Are you sure you want to demote ${confirmDialog?.email} to Rider? They will lose all admin privileges.`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="bg-muted p-4 rounded-lg text-sm">
+              <p className="font-medium mb-2">Important:</p>
+              <p>The user must log out and log back in for role changes to take effect.</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDialog(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant={confirmDialog?.action === "demote" ? "destructive" : "default"}
+              onClick={handleConfirm}
+              disabled={promoteMutation.isPending || demoteMutation.isPending}
+              data-testid="button-confirm-role-change"
+            >
+              {confirmDialog?.action === "promote" ? "Confirm Promotion" : "Confirm Demotion"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Card>
   );
 }
