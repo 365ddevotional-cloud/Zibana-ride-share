@@ -44,6 +44,14 @@ Preferred communication style: Simple, everyday language.
 - **Growth & Marketing**: Referral codes, marketing campaigns, and partner lead tracking.
 - **Scheduled Reservations**: Uber/Lyft-style advance booking with $5.00 reservation premium, driver assignment, 30-min prep window, early arrival bonuses (up to $10), and cancellation fees (when cancelled within 1 hour of pickup).
 
+## Navigation Architecture (LOCKED)
+- **NO external map SDKs** (Google Maps SDK, Mapbox, HERE, etc.)
+- **NO external routing APIs** (OSRM, OpenRouteService, etc.)
+- **Navigation**: Opens native GPS apps via deep links only (Google Maps on Android, Apple Maps on iOS)
+- **Distance Calculation**: Internal Haversine formula from GPS coordinates
+- **Duration Calculation**: Timestamp differences from GPS sampling
+- **Fare Calculation**: Based on internally computed distance, time, and waiting periods
+
 ## External Dependencies
 
 ### Third-Party Services
