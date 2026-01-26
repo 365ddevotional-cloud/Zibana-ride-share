@@ -536,6 +536,8 @@ export interface IStorage {
   getUpcomingReservations(riderId: string): Promise<Ride[]>;
   getDriverUpcomingReservations(driverId: string): Promise<Ride[]>;
   getAllUpcomingReservations(): Promise<Ride[]>;
+  getAvailableReservationOffers(): Promise<Ride[]>;
+  acceptReservationOffer(rideId: string, driverId: string): Promise<Ride | null>;
   assignDriverToReservation(rideId: string, driverId: string): Promise<Ride | null>;
   updateReservationStatus(rideId: string, status: string): Promise<Ride | null>;
   cancelReservation(rideId: string, cancelledBy: string, reason?: string): Promise<Ride | null>;
@@ -4426,6 +4428,41 @@ export class DatabaseStorage implements IStorage {
         )
       )
       .orderBy(rides.scheduledPickupAt);
+  }
+
+  async getAvailableReservationOffers(): Promise<Ride[]> {
+    const now = new Date();
+    return db.select().from(rides)
+      .where(
+        and(
+          eq(rides.isReserved, true),
+          eq(rides.reservationStatus, "scheduled"),
+          sql`${rides.assignedDriverId} IS NULL`,
+          sql`${rides.scheduledPickupAt} > ${now}`
+        )
+      )
+      .orderBy(rides.scheduledPickupAt);
+  }
+
+  async acceptReservationOffer(rideId: string, driverId: string): Promise<Ride | null> {
+    const [ride] = await db.update(rides)
+      .set({
+        assignedDriverId: driverId,
+        driverId: driverId,
+        reservationStatus: "driver_assigned",
+        driverAssignedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(rides.id, rideId),
+          eq(rides.isReserved, true),
+          eq(rides.reservationStatus, "scheduled"),
+          sql`${rides.assignedDriverId} IS NULL`
+        )
+      )
+      .returning();
+    return ride || null;
   }
 
   async assignDriverToReservation(rideId: string, driverId: string): Promise<Ride | null> {
