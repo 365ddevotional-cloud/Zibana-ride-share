@@ -83,6 +83,12 @@ Preferred communication style: Simple, everyday language.
 - **Duration Calculation**: Timestamp differences from GPS sampling
 - **Fare Calculation**: Based on internally computed distance, time, and waiting periods
 
+## Driver Payout Management
+- **Payout Info Storage**: Bank/mobile money details stored in driverWallets table
+- **APIs**: GET/PATCH `/api/driver/payout-info` for drivers to manage payout details
+- **No Auto-Payouts**: All payouts require manual admin processing in test mode
+- **Audit Logging**: All payout info updates are logged
+
 ## External Dependencies
 
 ### Third-Party Services
