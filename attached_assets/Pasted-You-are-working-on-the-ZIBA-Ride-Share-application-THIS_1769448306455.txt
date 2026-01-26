@@ -1,0 +1,116 @@
+You are working on the ZIBA Ride Share application.
+
+THIS PROMPT IS AUTHORITATIVE.
+Follow it EXACTLY.
+Do NOT suggest alternatives.
+Do NOT enable anything outside Nigeria.
+Do NOT enable auto payouts.
+Do NOT enable global payments.
+
+Your task is to ENABLE REAL PAYMENTS SAFELY
+for NIGERIA ONLY using PAYSTACK,
+while keeping ALL OTHER COUNTRIES in WALLET-SIMULATED MODE.
+
+====================================================
+SCOPE (STRICT)
+====================================================
+
+• Country: NIGERIA ONLY
+• Payment Provider: PAYSTACK
+• Payment Type: WALLET FUNDING ONLY
+• Launch Mode: SOFT_LAUNCH
+• Driver Payouts: MANUAL / OFF-PLATFORM
+• All other countries: SIMULATED MODE (NO CHARGE)
+
+====================================================
+STEP 1 — COUNTRY PAYMENT SWITCH (NIGERIA ONLY)
+====================================================
+
+Update CountryRules / SystemConfig for Nigeria (NG):
+
+• countryCode = "NG"
+• paymentsEnabled = true
+• paymentProvider = "PAYSTACK"
+• walletMode = REAL
+
+For ALL other countries:
+• paymentsEnabled = false
+• paymentProvider = null
+• walletMode = SIMULATED
+
+This must be enforced server-side.
+
+====================================================
+STEP 2 — PAYSTACK INTEGRATION (LIMITED & SAFE)
+====================================================
+
+Integrate Paystack ONLY for:
+
+• Rider wallet top-ups
+• NGN currency only
+
+DO NOT:
+• Charge rides directly
+• Split payments automatically
+• Pay drivers automatically
+• Enable subscriptions
+
+Flow:
+1) Rider funds wallet via Paystack
+2) Wallet balance increases
+3) Ride deductions come from wallet
+4) Escrow logic remains unchanged
+
+====================================================
+STEP 3 — SECURITY & ROLE ENFORCEMENT
+====================================================
+
+• Only SUPER_ADMIN can enable or disable payments
+• Enabling payments requires explicit confirmation
+• All toggle changes must be logged:
+  - adminId
+  - country
+  - oldValue → newValue
+  - timestamp
+
+• Testers and normal admins CANNOT enable payments
+
+====================================================
+STEP 4 — FAILSAFE & ROLLBACK
+====================================================
+
+If Paystack fails or errors:
+• Wallet funding is blocked
+• Existing wallet balances remain intact
+• System auto-reverts Nigeria to SIMULATED MODE
+• Error is logged and admin notified
+
+====================================================
+STEP 5 — CONFIRMATION & STATUS DISPLAY
+====================================================
+
+Admin Dashboard must show:
+
+• Nigeria: REAL PAYMENTS (Paystack)
+• Other countries: SIMULATED MODE
+• Launch Mode: SOFT_LAUNCH
+• Driver payouts: MANUAL
+
+====================================================
+FINAL RESPONSE REQUIRED
+====================================================
+
+After implementation, respond with:
+
+1) Confirmation:
+   “Paystack enabled for Nigeria ONLY”
+2) Confirmation:
+   “All other countries remain in simulated mode”
+3) Confirmation:
+   “No auto payouts enabled”
+4) Confirmation:
+   “Rollback safety verified”
+
+DO NOT add features beyond this prompt.
+
+END.

@@ -6498,6 +6498,88 @@ export async function registerRoutes(
     }
   });
 
+  // ==========================================
+  // WALLET FUNDING (Paystack for Nigeria)
+  // ==========================================
+  
+  // Initialize wallet funding (Paystack for NG, simulated for others)
+  app.post("/api/wallet/fund", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const user = await storage.getUser(userId);
+      const { amount, countryCode = "NG" } = req.body;
+      
+      if (!amount || amount < 100) {
+        return res.status(400).json({ message: "Minimum funding amount is 100 NGN" });
+      }
+      
+      const { processPayment } = await import("./payment-provider");
+      
+      const result = await processPayment(countryCode, {
+        amount,
+        currency: countryCode === "NG" ? "NGN" : "USD",
+        userId,
+        email: user?.email || undefined,
+        description: "ZIBA Wallet Funding",
+        callbackUrl: `${req.protocol}://${req.get("host")}/api/wallet/verify`,
+      });
+      
+      if (!result.success) {
+        return res.status(400).json({ message: result.error || "Payment initialization failed" });
+      }
+      
+      console.log(`[Wallet] Funding initiated: ${amount} for ${userId}`);
+      
+      return res.json({
+        success: true,
+        transactionRef: result.transactionRef,
+        authorizationUrl: result.authorizationUrl,
+        message: result.message,
+      });
+    } catch (error) {
+      console.error("Error initiating wallet funding:", error);
+      return res.status(500).json({ message: "Failed to initialize payment" });
+    }
+  });
+  
+  // Verify wallet funding callback
+  app.get("/api/wallet/verify", async (req, res) => {
+    try {
+      const { reference, trxref } = req.query;
+      const transactionRef = (reference || trxref) as string;
+      
+      if (!transactionRef) {
+        return res.redirect("/?payment=failed&reason=no_reference");
+      }
+      
+      const { verifyPayment } = await import("./payment-provider");
+      const result = await verifyPayment("NG", transactionRef);
+      
+      if (result.success) {
+        console.log(`[Wallet] Payment verified: ${transactionRef}`);
+        return res.redirect(`/?payment=success&ref=${transactionRef}`);
+      } else {
+        console.log(`[Wallet] Payment failed: ${transactionRef}`);
+        return res.redirect(`/?payment=failed&ref=${transactionRef}`);
+      }
+    } catch (error) {
+      console.error("Error verifying payment:", error);
+      return res.redirect("/?payment=error");
+    }
+  });
+  
+  // Get payment status summary for admin
+  app.get("/api/admin/payment-status", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const { getPaymentStatusSummary } = await import("./payment-provider");
+      const status = await getPaymentStatusSummary();
+      return res.json(status);
+    } catch (error) {
+      console.error("Error getting payment status:", error);
+      return res.status(500).json({ message: "Failed to get status" });
+    }
+  });
+
   // Rider Transaction History
   app.get("/api/rider-transactions/:riderId", isAuthenticated, async (req: any, res) => {
     try {
