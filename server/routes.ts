@@ -471,6 +471,38 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Already have an active trip" });
       }
 
+      // WALLET-FIRST: Check rider wallet balance before allowing ride request
+      const riderWallet = await storage.getRiderWallet(userId);
+      if (!riderWallet) {
+        // Auto-create wallet with zero balance
+        await storage.createRiderWallet({ userId, currency: "USD" });
+        return res.status(400).json({ 
+          message: "Insufficient wallet balance. Please top up your wallet to request a ride.",
+          code: "INSUFFICIENT_BALANCE"
+        });
+      }
+
+      // Check if wallet is frozen
+      if (riderWallet.isFrozen) {
+        console.log(`[SECURITY AUDIT] Frozen wallet ride request attempt: userId=${userId}`);
+        return res.status(403).json({ 
+          message: "Your wallet is frozen. Please contact support.",
+          code: "WALLET_FROZEN"
+        });
+      }
+
+      // Check minimum balance requirement (at least $5 for any ride)
+      const availableBalance = parseFloat(riderWallet.balance) - parseFloat(riderWallet.lockedBalance);
+      const minimumRequiredBalance = 5.00;
+      if (availableBalance < minimumRequiredBalance) {
+        return res.status(400).json({ 
+          message: `Insufficient wallet balance. You need at least $${minimumRequiredBalance.toFixed(2)} to request a ride. Current available: $${availableBalance.toFixed(2)}`,
+          code: "INSUFFICIENT_BALANCE",
+          required: minimumRequiredBalance,
+          available: availableBalance
+        });
+      }
+
       const trip = await storage.createTrip(parsed.data);
       
       await storage.notifyAllDrivers(
@@ -6100,6 +6132,210 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error failing payout:", error);
       return res.status(500).json({ message: "Failed to update payout" });
+    }
+  });
+
+  // Admin Wallet Management - Freeze/Unfreeze/Adjust (ADMIN ONLY)
+  app.post("/api/admin/wallet/freeze/rider/:userId", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const targetUserId = req.params.userId as string;
+      const { reason } = req.body;
+      
+      if (!reason) {
+        return res.status(400).json({ message: "Freeze reason is required" });
+      }
+      
+      const wallet = await storage.freezeRiderWallet(targetUserId, reason, adminId);
+      if (!wallet) {
+        return res.status(404).json({ message: "Rider wallet not found" });
+      }
+      
+      console.log(`[SECURITY AUDIT] Rider wallet frozen: targetUserId=${targetUserId}, by=${adminId}, reason=${reason}`);
+      
+      await storage.createAuditLog({
+        action: "wallet_frozen",
+        entityType: "rider_wallet",
+        entityId: targetUserId,
+        performedByUserId: adminId,
+        performedByRole: "admin",
+        metadata: JSON.stringify({ reason, frozenAt: new Date().toISOString() }),
+      });
+      
+      return res.json({ message: "Rider wallet frozen", wallet });
+    } catch (error) {
+      console.error("Error freezing rider wallet:", error);
+      return res.status(500).json({ message: "Failed to freeze wallet" });
+    }
+  });
+
+  app.post("/api/admin/wallet/unfreeze/rider/:userId", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const targetUserId = req.params.userId as string;
+      
+      const wallet = await storage.unfreezeRiderWallet(targetUserId);
+      if (!wallet) {
+        return res.status(404).json({ message: "Rider wallet not found" });
+      }
+      
+      console.log(`[SECURITY AUDIT] Rider wallet unfrozen: targetUserId=${targetUserId}, by=${adminId}`);
+      
+      await storage.createAuditLog({
+        action: "wallet_unfrozen",
+        entityType: "rider_wallet",
+        entityId: targetUserId,
+        performedByUserId: adminId,
+        performedByRole: "admin",
+        metadata: JSON.stringify({ unfrozenAt: new Date().toISOString() }),
+      });
+      
+      return res.json({ message: "Rider wallet unfrozen", wallet });
+    } catch (error) {
+      console.error("Error unfreezing rider wallet:", error);
+      return res.status(500).json({ message: "Failed to unfreeze wallet" });
+    }
+  });
+
+  app.post("/api/admin/wallet/freeze/driver/:userId", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const targetUserId = req.params.userId as string;
+      const { reason } = req.body;
+      
+      if (!reason) {
+        return res.status(400).json({ message: "Freeze reason is required" });
+      }
+      
+      const wallet = await storage.freezeDriverWallet(targetUserId, reason, adminId);
+      if (!wallet) {
+        return res.status(404).json({ message: "Driver wallet not found" });
+      }
+      
+      console.log(`[SECURITY AUDIT] Driver wallet frozen: targetUserId=${targetUserId}, by=${adminId}, reason=${reason}`);
+      
+      await storage.createAuditLog({
+        action: "wallet_frozen",
+        entityType: "driver_wallet",
+        entityId: targetUserId,
+        performedByUserId: adminId,
+        performedByRole: "admin",
+        metadata: JSON.stringify({ reason, frozenAt: new Date().toISOString() }),
+      });
+      
+      return res.json({ message: "Driver wallet frozen", wallet });
+    } catch (error) {
+      console.error("Error freezing driver wallet:", error);
+      return res.status(500).json({ message: "Failed to freeze wallet" });
+    }
+  });
+
+  app.post("/api/admin/wallet/unfreeze/driver/:userId", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const targetUserId = req.params.userId as string;
+      
+      const wallet = await storage.unfreezeDriverWallet(targetUserId);
+      if (!wallet) {
+        return res.status(404).json({ message: "Driver wallet not found" });
+      }
+      
+      console.log(`[SECURITY AUDIT] Driver wallet unfrozen: targetUserId=${targetUserId}, by=${adminId}`);
+      
+      await storage.createAuditLog({
+        action: "wallet_unfrozen",
+        entityType: "driver_wallet",
+        entityId: targetUserId,
+        performedByUserId: adminId,
+        performedByRole: "admin",
+        metadata: JSON.stringify({ unfrozenAt: new Date().toISOString() }),
+      });
+      
+      return res.json({ message: "Driver wallet unfrozen", wallet });
+    } catch (error) {
+      console.error("Error unfreezing driver wallet:", error);
+      return res.status(500).json({ message: "Failed to unfreeze wallet" });
+    }
+  });
+
+  app.post("/api/admin/wallet/adjust/rider/:userId", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const targetUserId = req.params.userId as string;
+      const { amount, reason } = req.body;
+      
+      if (amount === undefined || !reason) {
+        return res.status(400).json({ message: "Amount and reason are required" });
+      }
+      
+      const wallet = await storage.adjustRiderWalletBalance(targetUserId, parseFloat(amount), reason, adminId);
+      if (!wallet) {
+        return res.status(404).json({ message: "Rider wallet not found" });
+      }
+      
+      console.log(`[SECURITY AUDIT] Rider wallet adjusted: targetUserId=${targetUserId}, amount=${amount}, by=${adminId}, reason=${reason}`);
+      
+      return res.json({ message: "Rider wallet adjusted", wallet });
+    } catch (error) {
+      console.error("Error adjusting rider wallet:", error);
+      return res.status(500).json({ message: "Failed to adjust wallet" });
+    }
+  });
+
+  app.post("/api/admin/wallet/adjust/driver/:userId", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const targetUserId = req.params.userId as string;
+      const { amount, reason } = req.body;
+      
+      if (amount === undefined || !reason) {
+        return res.status(400).json({ message: "Amount and reason are required" });
+      }
+      
+      const wallet = await storage.adjustDriverWalletBalance(targetUserId, parseFloat(amount), reason, adminId);
+      if (!wallet) {
+        return res.status(404).json({ message: "Driver wallet not found" });
+      }
+      
+      console.log(`[SECURITY AUDIT] Driver wallet adjusted: targetUserId=${targetUserId}, amount=${amount}, by=${adminId}, reason=${reason}`);
+      
+      return res.json({ message: "Driver wallet adjusted", wallet });
+    } catch (error) {
+      console.error("Error adjusting driver wallet:", error);
+      return res.status(500).json({ message: "Failed to adjust wallet" });
+    }
+  });
+
+  app.post("/api/admin/wallet/reverse-transaction", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const { userId, walletType, originalAmount, reason } = req.body;
+      
+      if (!userId || !walletType || originalAmount === undefined || !reason) {
+        return res.status(400).json({ message: "userId, walletType, originalAmount, and reason are required" });
+      }
+      
+      const reverseAmount = -parseFloat(originalAmount);
+      let wallet;
+      
+      if (walletType === "rider") {
+        wallet = await storage.adjustRiderWalletBalance(userId, reverseAmount, `REVERSAL: ${reason}`, adminId);
+      } else if (walletType === "driver") {
+        wallet = await storage.adjustDriverWalletBalance(userId, reverseAmount, `REVERSAL: ${reason}`, adminId);
+      } else {
+        return res.status(400).json({ message: "Invalid walletType. Must be 'rider' or 'driver'" });
+      }
+      
+      if (!wallet) {
+        return res.status(404).json({ message: "Wallet not found" });
+      }
+      
+      console.log(`[SECURITY AUDIT] Transaction reversed: userId=${userId}, walletType=${walletType}, amount=${reverseAmount}, by=${adminId}, reason=${reason}`);
+      
+      return res.json({ message: "Transaction reversed", wallet });
+    } catch (error) {
+      console.error("Error reversing transaction:", error);
+      return res.status(500).json({ message: "Failed to reverse transaction" });
     }
   });
 

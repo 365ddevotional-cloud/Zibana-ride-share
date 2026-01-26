@@ -1,0 +1,177 @@
+You are working on the ZIBA Ride Share application.
+
+THIS PROMPT IS AUTHORITATIVE.
+Follow it EXACTLY.
+Do NOT suggest alternatives.
+Do NOT split tasks.
+Do NOT integrate paid APIs.
+Do NOT add features outside this scope.
+
+Your goal is to prepare ZIBA for SAFE, COST-EFFICIENT PRODUCTION
+using a WALLET-FIRST model with full security, compliance, and
+Africa-ready payout strategy.
+
+=================================================
+GLOBAL RULES (FINAL — NON-NEGOTIABLE)
+=================================================
+
+• Wallet-FIRST monetization ONLY
+• NO direct card charging for rides
+• NO automatic driver payouts
+• ALL countries run in WALLET-SIMULATED (NO-CHARGE) MODE
+• Admin access MUST remain locked and role-protected
+• Save cost and time at all stages
+
+=================================================
+PHASE A — WALLET-FIRST PRODUCTION SETUP
+=================================================
+
+Implement wallet-first logic globally:
+
+• Riders must have wallet balance to request rides
+• Ride fares deduct from rider wallet
+• Drivers earn wallet balance per completed ride
+• ZIBA commission goes to platform wallet
+• NO real money movement yet
+
+Wallet modes:
+• SIMULATED_MODE = true (default for ALL countries)
+• REAL_MODE = false (future)
+
+Enforce:
+• Wallet balance changes ONLY server-side
+• No client-side wallet manipulation
+• Every wallet event logged with:
+  - userId
+  - amount
+  - reason
+  - timestamp
+  - rideId (if applicable)
+
+Admin abilities:
+• Freeze wallet
+• Reverse transaction
+• Adjust balance
+(All actions logged)
+
+=================================================
+PHASE B — LEGAL DOCS & POLICIES (MINIMUM REQUIRED)
+=================================================
+
+Create static legal documents and expose them in:
+• Rider app
+• Driver app
+• Admin dashboard
+
+Required documents:
+
+1) Terms of Service
+   • ZIBA is a ride marketplace
+   • Wallet = service credits
+   • ZIBA is not a bank
+
+2) Privacy Policy
+   • GPS tracking during trips
+   • Camera usage for verification
+   • Data retention policy
+
+3) Driver Agreement
+   • Independent contractor
+   • Wallet earnings = service credits
+   • Payouts processed later
+
+4) Refund & Cancellation Policy
+   • Rider cancellation rules
+   • Driver compensation rules
+   • Reservation penalties
+
+=================================================
+PHASE C — SECURITY, ROLES & TESTER ISOLATION
+=================================================
+
+Admin Security:
+• Admin routes require ADMIN or SUPER_ADMIN
+• Block admin access at:
+  - API level
+  - UI routing level
+
+Tester Rules:
+• Testers can:
+  - Create rider accounts
+  - Create driver accounts
+  - Request and complete rides
+• Testers CANNOT:
+  - Access admin dashboard
+  - Modify wallets
+  - Process payouts
+  - View other users’ data
+
+Security Measures:
+• Rate-limit wallet actions
+• Fraud flags for:
+  - Repeated cancellations
+  - Abnormal wallet usage
+• Log ALL sensitive actions
+
+=================================================
+PHASE D — DRIVER PAYOUT STRATEGY (AFRICA-READY)
+=================================================
+
+For Nigeria, South Africa, and ALL countries:
+
+• Drivers earn wallet balance ONLY
+• No automatic bank or mobile money payouts
+• Admin manually processes payouts OFF-PLATFORM
+
+Store payout metadata:
+• Bank or mobile money info
+• Earned balance
+• Withdrawable balance
+• Payout status:
+  - Pending
+  - Approved
+  - Completed
+
+Architecture must remain compatible with:
+• Paystack
+• Flutterwave
+• Peach Payments
+BUT DO NOT integrate them now.
+
+=================================================
+PHASE E — FINAL SAFETY & READINESS CHECK
+=================================================
+
+Confirm before marking production-ready:
+
+• Wallet works in SIMULATED mode
+• Ride lifecycle fully operational
+• Cancellation compensation enforced
+• Reservation pricing enforced
+• Identity verification enforced
+• Admin access fully locked
+• Testers sandboxed
+• Audit logs created for:
+  - Rides
+  - Wallets
+  - Role changes
+  - Fraud events
+
+=================================================
+FINAL RESPONSE REQUIRED
+=================================================
+
+When complete, respond with:
+
+1) Checklist showing PASS/FAIL for each phase
+2) List of active feature flags
+3) Explicit confirmation:
+   “ZIBA is running in Wallet-Simulated Production Mode”
+4) Confirmation that:
+   • No real payments are enabled
+   • No admin access leaks exist
+   • System is rollback-safe
+
+DO NOT add features beyond this prompt.
+
+END.

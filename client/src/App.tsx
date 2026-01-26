@@ -25,6 +25,7 @@ const AdminSetupPage = lazy(() => import("@/pages/admin-setup"));
 const CoordinatorDashboard = lazy(() => import("@/pages/coordinator/index"));
 const SupportDashboard = lazy(() => import("@/pages/support/index"));
 const UnauthorizedPage = lazy(() => import("@/pages/unauthorized"));
+const LegalPage = lazy(() => import("@/pages/legal"));
 
 function LazyComponent({ children }: { children: React.ReactNode }) {
   return (
@@ -168,6 +169,10 @@ function Router() {
       <Route path="/" component={AuthenticatedRoutes} />
       
       <Route path="/welcome" component={LandingPage} />
+      
+      <Route path="/legal">
+        <LazyComponent><LegalPage /></LazyComponent>
+      </Route>
       
       <Route path="/role-select">
         {user ? <RoleSelectionPage /> : <Redirect to="/welcome" />}

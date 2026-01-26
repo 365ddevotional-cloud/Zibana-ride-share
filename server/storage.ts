@@ -4638,6 +4638,55 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(riderWallets).orderBy(desc(riderWallets.updatedAt));
   }
 
+  async freezeRiderWallet(userId: string, reason: string, frozenBy: string): Promise<RiderWallet | null> {
+    const [wallet] = await db.update(riderWallets)
+      .set({
+        isFrozen: true,
+        frozenAt: new Date(),
+        frozenReason: reason,
+        frozenBy,
+        updatedAt: new Date(),
+      })
+      .where(eq(riderWallets.userId, userId))
+      .returning();
+    return wallet || null;
+  }
+
+  async unfreezeRiderWallet(userId: string): Promise<RiderWallet | null> {
+    const [wallet] = await db.update(riderWallets)
+      .set({
+        isFrozen: false,
+        frozenAt: null,
+        frozenReason: null,
+        frozenBy: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(riderWallets.userId, userId))
+      .returning();
+    return wallet || null;
+  }
+
+  async adjustRiderWalletBalance(userId: string, amount: number, reason: string, adjustedBy: string): Promise<RiderWallet | null> {
+    const [wallet] = await db.update(riderWallets)
+      .set({
+        balance: sql`${riderWallets.balance} + ${amount}`,
+        updatedAt: new Date(),
+      })
+      .where(eq(riderWallets.userId, userId))
+      .returning();
+    
+    if (wallet) {
+      await db.insert(financialAuditLogs).values({
+        userId,
+        actorRole: "ADMIN",
+        eventType: "ADJUSTMENT",
+        amount: Math.abs(amount).toFixed(2),
+        description: `Admin adjustment: ${reason} (by ${adjustedBy})`,
+      });
+    }
+    return wallet || null;
+  }
+
   // Driver Wallets
   async getDriverWallet(userId: string): Promise<DriverWallet | null> {
     const [wallet] = await db.select().from(driverWallets)
@@ -4653,6 +4702,66 @@ export class DatabaseStorage implements IStorage {
 
   async getAllDriverWalletsV2(): Promise<DriverWallet[]> {
     return db.select().from(driverWallets).orderBy(desc(driverWallets.updatedAt));
+  }
+
+  async freezeDriverWallet(userId: string, reason: string, frozenBy: string): Promise<DriverWallet | null> {
+    const [wallet] = await db.update(driverWallets)
+      .set({
+        isFrozen: true,
+        frozenAt: new Date(),
+        frozenReason: reason,
+        frozenBy,
+        updatedAt: new Date(),
+      })
+      .where(eq(driverWallets.userId, userId))
+      .returning();
+    return wallet || null;
+  }
+
+  async unfreezeDriverWallet(userId: string): Promise<DriverWallet | null> {
+    const [wallet] = await db.update(driverWallets)
+      .set({
+        isFrozen: false,
+        frozenAt: null,
+        frozenReason: null,
+        frozenBy: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(driverWallets.userId, userId))
+      .returning();
+    return wallet || null;
+  }
+
+  async adjustDriverWalletBalance(userId: string, amount: number, reason: string, adjustedBy: string): Promise<DriverWallet | null> {
+    const [wallet] = await db.update(driverWallets)
+      .set({
+        balance: sql`${driverWallets.balance} + ${amount}`,
+        updatedAt: new Date(),
+      })
+      .where(eq(driverWallets.userId, userId))
+      .returning();
+    
+    if (wallet) {
+      await db.insert(financialAuditLogs).values({
+        userId,
+        actorRole: "ADMIN",
+        eventType: "ADJUSTMENT",
+        amount: Math.abs(amount).toFixed(2),
+        description: `Admin adjustment: ${reason} (by ${adjustedBy})`,
+      });
+    }
+    return wallet || null;
+  }
+
+  async updateDriverPayoutInfo(userId: string, payoutInfo: { bankName?: string; accountNumber?: string; accountName?: string; mobileMoneyProvider?: string; mobileMoneyNumber?: string; preferredPayoutMethod?: string }): Promise<DriverWallet | null> {
+    const [wallet] = await db.update(driverWallets)
+      .set({
+        ...payoutInfo,
+        updatedAt: new Date(),
+      })
+      .where(eq(driverWallets.userId, userId))
+      .returning();
+    return wallet || null;
   }
 
   async initiateDriverPayoutV2(driverId: string, amount: number, initiatedByUserId: string): Promise<DriverPayoutHistory | null> {
