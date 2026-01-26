@@ -47,6 +47,7 @@ import { DriverRideActions } from "@/components/ride/driver-ride-actions";
 import { RideOfferCountdown } from "@/components/ride/ride-offer-countdown";
 import { VerificationPhotoSubmit } from "@/components/verification/verification-photo-submit";
 import { SafetyCheckModal } from "@/components/ride/safety-check-modal";
+import { DriverReservedTrips } from "@/components/ride/driver-reserved-trips";
 import { useDriverRide, type RideWithDetails } from "@/hooks/use-ride-lifecycle";
 import { useRideOffers } from "@/hooks/use-ride-offers";
 import { useSafetyCheck } from "@/hooks/use-safety-check";
@@ -804,6 +805,8 @@ export default function DriverDashboard() {
                 )}
               </CardContent>
             </Card>
+
+            <DriverReservedTrips />
 
             <Card>
               <CardHeader>
