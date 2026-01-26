@@ -203,6 +203,16 @@ export function RiderRideStatus({
               {isCancelling ? "Cancelling..." : "Cancel Ride"}
             </Button>
           )}
+
+          {status === "in_progress" && (
+            <div className="p-3 rounded-lg bg-muted/50 text-sm text-muted-foreground" data-testid="text-cancel-blocked">
+              <p className="flex items-center gap-2">
+                <Shield className="h-4 w-4" />
+                For your safety, cancellation is not available during an active trip. 
+                If you need to end the ride early, please speak with your driver.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 

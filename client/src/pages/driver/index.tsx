@@ -604,8 +604,8 @@ export default function DriverDashboard() {
                 onArrive={(rideId) => arrive.mutate(rideId)}
                 onStartWaiting={(rideId) => startWaiting.mutate(rideId)}
                 onStartTrip={(rideId) => startTrip.mutate(rideId)}
-                onComplete={(rideId) => completeTrip.mutate(rideId)}
-                onCancel={(rideId, reason) => cancelRide.mutate({ rideId, reason })}
+                onComplete={(rideId, isEarlyStop) => completeTrip.mutate({ rideId, isEarlyStop })}
+                onCancel={(rideId, reason, driverCancelReason) => cancelRide.mutate({ rideId, reason, driverCancelReason })}
                 onSafetyResponse={(rideId, response) => respondSafetyCheck.mutate({ rideId, response })}
                 isPending={startPickup.isPending || arrive.isPending || startWaiting.isPending || startTrip.isPending || completeTrip.isPending || cancelRide.isPending}
               />

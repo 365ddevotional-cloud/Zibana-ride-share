@@ -108,27 +108,43 @@ export function useDriverRide() {
   });
 
   const completeTrip = useMutation({
-    mutationFn: async (rideId: string) => {
-      const response = await apiRequest("POST", `/api/rides/${rideId}/complete`, {});
+    mutationFn: async ({ rideId, isEarlyStop }: { rideId: string; isEarlyStop?: boolean }) => {
+      const response = await apiRequest("POST", `/api/rides/${rideId}/complete`, {
+        confirmFinalDestination: true,
+        isEarlyStop: isEarlyStop || false,
+      });
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/rides/driver/current"] });
       queryClient.invalidateQueries({ queryKey: ["/api/driver/profile"] });
-      toast({ title: "Trip completed!", description: "Great job!" });
+      const fareMsg = data.fareBreakdown 
+        ? `Total fare: $${data.fareBreakdown.totalFare.toFixed(2)}` 
+        : "Great job!";
+      toast({ title: "Trip completed!", description: fareMsg });
     },
     onError: handleError,
   });
 
   const cancelRide = useMutation({
-    mutationFn: async ({ rideId, reason }: { rideId: string; reason?: string }) => {
-      const response = await apiRequest("POST", `/api/rides/${rideId}/cancel`, { reason });
+    mutationFn: async ({ rideId, reason, driverCancelReason }: { 
+      rideId: string; 
+      reason?: string; 
+      driverCancelReason?: string;
+    }) => {
+      const response = await apiRequest("POST", `/api/rides/${rideId}/cancel`, { 
+        reason, 
+        driverCancelReason 
+      });
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/rides/driver/current"] });
       queryClient.invalidateQueries({ queryKey: ["/api/rides/available"] });
-      toast({ title: "Ride cancelled" });
+      const compensationMsg = data.compensationEligible 
+        ? ` Driver compensation: $${data.compensationData?.driverCompensation?.toFixed(2) || "0.00"}` 
+        : "";
+      toast({ title: "Ride cancelled", description: compensationMsg || undefined });
     },
     onError: handleError,
   });

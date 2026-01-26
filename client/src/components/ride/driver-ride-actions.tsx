@@ -44,8 +44,8 @@ interface DriverRideActionsProps {
   onArrive: (rideId: string) => void;
   onStartWaiting: (rideId: string) => void;
   onStartTrip: (rideId: string) => void;
-  onComplete: (rideId: string) => void;
-  onCancel: (rideId: string, reason?: string) => void;
+  onComplete: (rideId: string, isEarlyStop?: boolean) => void;
+  onCancel: (rideId: string, reason?: string, driverCancelReason?: string) => void;
   onSafetyResponse: (rideId: string, response: "safe" | "need_help") => void;
   isPending?: boolean;
   showSafetyCheck?: boolean;
@@ -104,11 +104,9 @@ export function DriverRideActions({
     setCancelReason("");
   };
 
-  const handleEarlyEnd = (isComplete: boolean) => {
+  const handleEarlyEnd = (isEarlyStop: boolean) => {
     setEarlyEndModalOpen(false);
-    if (isComplete) {
-      onComplete(ride.id);
-    }
+    onComplete(ride.id, isEarlyStop);
   };
 
   const handleCall = () => {
@@ -184,7 +182,7 @@ export function DriverRideActions({
           <div className="space-y-3">
             <Button
               className="w-full h-12 text-lg font-semibold bg-green-600 hover:bg-green-700"
-              onClick={() => onComplete(ride.id)}
+              onClick={() => setEarlyEndModalOpen(true)}
               disabled={isPending}
               data-testid="button-complete-trip"
             >
