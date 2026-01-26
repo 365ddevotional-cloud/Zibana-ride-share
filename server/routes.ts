@@ -690,6 +690,89 @@ export async function registerRoutes(
   });
 
   // ==========================================
+  // ROLE APPOINTMENTS (SUPER_ADMIN ONLY)
+  // ==========================================
+
+  // Get all users with their roles (SUPER_ADMIN only)
+  app.get("/api/super-admin/users-with-roles", isAuthenticated, requireSuperAdmin, async (req: any, res) => {
+    try {
+      const usersWithRoles = await storage.getAllUsersWithRoles();
+      return res.json(usersWithRoles);
+    } catch (error) {
+      console.error("Error getting users with roles:", error);
+      return res.status(500).json({ message: "Failed to get users" });
+    }
+  });
+
+  // Promote user to admin (SUPER_ADMIN only)
+  app.post("/api/super-admin/promote/:userId", isAuthenticated, requireSuperAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const promotedBy = req.user.claims.sub;
+      
+      // Check if user exists
+      const targetRole = await storage.getUserRole(userId);
+      if (targetRole?.role === "super_admin") {
+        return res.status(400).json({ message: "Cannot modify super_admin role" });
+      }
+      if (targetRole?.role === "admin") {
+        return res.status(400).json({ message: "User is already an admin" });
+      }
+      
+      const updatedRole = await storage.promoteToAdmin(userId, promotedBy);
+      
+      await storage.createAuditLog({
+        action: "ROLE_PROMOTE_TO_ADMIN",
+        userId: promotedBy,
+        targetId: userId,
+        targetType: "user",
+        oldValue: targetRole?.role || null,
+        newValue: "admin",
+        ipAddress: req.ip || "unknown"
+      });
+      
+      return res.json(updatedRole);
+    } catch (error) {
+      console.error("Error promoting user:", error);
+      return res.status(500).json({ message: "Failed to promote user" });
+    }
+  });
+
+  // Demote admin to rider (SUPER_ADMIN only)
+  app.post("/api/super-admin/demote/:userId", isAuthenticated, requireSuperAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const demotedBy = req.user.claims.sub;
+      
+      // Check if user is super_admin
+      const targetRole = await storage.getUserRole(userId);
+      if (targetRole?.role === "super_admin") {
+        return res.status(400).json({ message: "Cannot demote super_admin" });
+      }
+      if (targetRole?.role !== "admin") {
+        return res.status(400).json({ message: "User is not an admin" });
+      }
+      
+      const updatedRole = await storage.demoteToRider(userId);
+      
+      await storage.createAuditLog({
+        action: "ROLE_DEMOTE_TO_RIDER",
+        userId: demotedBy,
+        targetId: userId,
+        targetType: "user",
+        oldValue: "admin",
+        newValue: "rider",
+        ipAddress: req.ip || "unknown"
+      });
+      
+      return res.json(updatedRole);
+    } catch (error) {
+      console.error("Error demoting user:", error);
+      return res.status(500).json({ message: "Failed to demote user" });
+    }
+  });
+
+  // ==========================================
   // END SUPER_ADMIN ONLY ROUTES
   // ==========================================
 

@@ -153,6 +153,11 @@ export interface IStorage {
   checkAndExpireAdmins(): Promise<number>;
   isAdminValid(userId: string): Promise<{ valid: boolean; role: UserRole | null; reason?: string }>;
   updateAdminPermissions(userId: string, adminPermissions: string[], adminEndAt?: Date): Promise<UserRole | undefined>;
+  
+  // Role Appointments (SUPER_ADMIN only)
+  getAllUsersWithRoles(): Promise<any[]>;
+  promoteToAdmin(userId: string, promotedBy: string): Promise<UserRole>;
+  demoteToRider(userId: string): Promise<UserRole | undefined>;
 
   getDriverProfile(userId: string): Promise<DriverProfile | undefined>;
   createDriverProfile(data: InsertDriverProfile): Promise<DriverProfile>;
@@ -613,6 +618,66 @@ export class DatabaseStorage implements IStorage {
       .update(userRoles)
       .set(updateData)
       .where(and(eq(userRoles.userId, userId), eq(userRoles.role, "admin")))
+      .returning();
+    return updated;
+  }
+
+  // Role Appointments (SUPER_ADMIN only)
+  async getAllUsersWithRoles(): Promise<any[]> {
+    const result = await db
+      .select({
+        userId: users.id,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        role: userRoles.role,
+        createdAt: users.createdAt
+      })
+      .from(users)
+      .leftJoin(userRoles, eq(users.id, userRoles.userId))
+      .orderBy(users.email);
+    return result;
+  }
+
+  async promoteToAdmin(userId: string, promotedBy: string): Promise<UserRole> {
+    const existingRole = await this.getUserRole(userId);
+    
+    if (existingRole) {
+      const [updated] = await db
+        .update(userRoles)
+        .set({
+          role: "admin",
+          appointedBy: promotedBy,
+          updatedAt: new Date()
+        })
+        .where(eq(userRoles.userId, userId))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db
+        .insert(userRoles)
+        .values({
+          userId,
+          role: "admin",
+          appointedBy: promotedBy
+        })
+        .returning();
+      return created;
+    }
+  }
+
+  async demoteToRider(userId: string): Promise<UserRole | undefined> {
+    const [updated] = await db
+      .update(userRoles)
+      .set({
+        role: "rider",
+        adminStartAt: null,
+        adminEndAt: null,
+        adminPermissions: null,
+        appointedBy: null,
+        updatedAt: new Date()
+      })
+      .where(eq(userRoles.userId, userId))
       .returning();
     return updated;
   }

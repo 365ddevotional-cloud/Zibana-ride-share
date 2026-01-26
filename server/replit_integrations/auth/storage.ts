@@ -1,6 +1,9 @@
 import { users, type User, type UpsertUser } from "@shared/models/auth";
+import { userRoles } from "@shared/schema";
 import { db } from "../../db";
 import { eq } from "drizzle-orm";
+
+const SUPER_ADMIN_EMAIL = "365ddevotional@gmail.com";
 
 // Interface for auth storage operations
 // (IMPORTANT) These user operations are mandatory for Replit Auth.
@@ -27,7 +30,32 @@ class AuthStorage implements IAuthStorage {
         },
       })
       .returning();
+    
+    // Permanently assign SUPER_ADMIN role to the primary owner
+    if (userData.email === SUPER_ADMIN_EMAIL && user.id) {
+      await this.ensureSuperAdminRole(user.id);
+    }
+    
     return user;
+  }
+  
+  private async ensureSuperAdminRole(userId: string): Promise<void> {
+    const [existingRole] = await db
+      .select()
+      .from(userRoles)
+      .where(eq(userRoles.userId, userId));
+    
+    if (!existingRole) {
+      await db.insert(userRoles).values({
+        userId,
+        role: "super_admin",
+      });
+    } else if (existingRole.role !== "super_admin") {
+      await db
+        .update(userRoles)
+        .set({ role: "super_admin" })
+        .where(eq(userRoles.userId, userId));
+    }
   }
 }
 
