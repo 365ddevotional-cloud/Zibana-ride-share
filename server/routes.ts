@@ -4561,6 +4561,62 @@ export async function registerRoutes(
     }
   });
 
+  // Get rider's current active ride
+  app.get("/api/rides/rider/current", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const ride = await storage.getCurrentRiderRide(userId);
+      
+      if (ride && ride.driverId) {
+        const driverProfile = await storage.getDriverProfile(ride.driverId);
+        if (driverProfile) {
+          return res.json({
+            ...ride,
+            driverName: driverProfile.fullName,
+            driverPhone: driverProfile.phone,
+            driverVehicle: `${driverProfile.vehicleMake} ${driverProfile.vehicleModel}`,
+            driverLicensePlate: driverProfile.licensePlate,
+            driverRating: driverProfile.averageRating,
+          });
+        }
+      }
+      
+      return res.json(ride);
+    } catch (error) {
+      console.error("Error fetching current rider ride:", error);
+      return res.status(500).json({ message: "Failed to fetch current ride" });
+    }
+  });
+
+  // Get driver's current active ride
+  app.get("/api/rides/driver/current", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      
+      const role = await storage.getUserRole(userId);
+      if (role?.role !== "driver") {
+        return res.status(403).json({ message: "Only drivers can access this" });
+      }
+      
+      const ride = await storage.getCurrentDriverRide(userId);
+      
+      if (ride && ride.riderId) {
+        const riderProfile = await storage.getRiderProfile(ride.riderId);
+        if (riderProfile) {
+          return res.json({
+            ...ride,
+            riderName: riderProfile.fullName || "Rider",
+          });
+        }
+      }
+      
+      return res.json(ride);
+    } catch (error) {
+      console.error("Error fetching current driver ride:", error);
+      return res.status(500).json({ message: "Failed to fetch current ride" });
+    }
+  });
+
   // Get driver's rides
   app.get("/api/rides/driver/me", isAuthenticated, async (req: any, res) => {
     try {

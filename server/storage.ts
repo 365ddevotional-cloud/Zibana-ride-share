@@ -141,7 +141,7 @@ import {
   type MetricAlert
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, desc, count, sql, sum, gte, lte, lt } from "drizzle-orm";
+import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull } from "drizzle-orm";
 import { calculateFare } from "./pricing";
 
 export interface TripFilter {
@@ -490,6 +490,9 @@ export interface IStorage {
   getRidesByStatus(status: string): Promise<Ride[]>;
   getRiderRides(riderId: string): Promise<Ride[]>;
   getDriverRides(driverId: string): Promise<Ride[]>;
+  getCurrentRiderRide(riderId: string): Promise<Ride | null>;
+  getCurrentDriverRide(driverId: string): Promise<Ride | null>;
+  getAvailableRidesForDriver(): Promise<Ride[]>;
   updateRideStatus(rideId: string, status: string, additionalData?: Partial<Ride>): Promise<Ride | null>;
   assignDriverToRide(rideId: string, driverId: string): Promise<Ride | null>;
   cancelRide(rideId: string, cancelledBy: string, reason?: string): Promise<Ride | null>;
@@ -4058,6 +4061,39 @@ export class DatabaseStorage implements IStorage {
 
   async getDriverRides(driverId: string): Promise<Ride[]> {
     return db.select().from(rides).where(eq(rides.driverId, driverId)).orderBy(desc(rides.requestedAt));
+  }
+
+  async getCurrentRiderRide(riderId: string): Promise<Ride | null> {
+    const activeStatuses = ["requested", "matching", "accepted", "driver_en_route", "arrived", "waiting", "in_progress"];
+    const [ride] = await db.select().from(rides)
+      .where(and(
+        eq(rides.riderId, riderId),
+        inArray(rides.status, activeStatuses as any)
+      ))
+      .orderBy(desc(rides.requestedAt))
+      .limit(1);
+    return ride || null;
+  }
+
+  async getCurrentDriverRide(driverId: string): Promise<Ride | null> {
+    const activeStatuses = ["accepted", "driver_en_route", "arrived", "waiting", "in_progress"];
+    const [ride] = await db.select().from(rides)
+      .where(and(
+        eq(rides.driverId, driverId),
+        inArray(rides.status, activeStatuses as any)
+      ))
+      .orderBy(desc(rides.requestedAt))
+      .limit(1);
+    return ride || null;
+  }
+
+  async getAvailableRidesForDriver(): Promise<Ride[]> {
+    return db.select().from(rides)
+      .where(and(
+        inArray(rides.status, ["requested", "matching"] as any),
+        isNull(rides.driverId)
+      ))
+      .orderBy(desc(rides.requestedAt));
   }
 
   async updateRideStatus(rideId: string, status: string, additionalData?: Partial<Ride>): Promise<Ride | null> {
