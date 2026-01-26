@@ -1,0 +1,156 @@
+You are working on the ZIBA Ride Share app.
+
+GOAL:
+Implement IMPLEMENTATION STEP A exactly as specified below.
+This is a BACKEND-ONLY foundation step.
+DO NOT modify UI, routing, maps, notifications, or pricing formulas yet.
+
+STRICT RULES:
+- Do NOT skip steps
+- Do NOT simplify enums
+- Do NOT allow invalid ride state transitions
+- Do NOT remove existing data
+- Add only what is required
+- Enforce logic at the backend level
+
+========================
+STEP A — CORE DATA MODEL
+========================
+
+1) Ensure the User model already has role-based access intact (ADMIN, SUPER_ADMIN, DRIVER, RIDER). Do NOT change role logic.
+
+2) Create or update the RideStatus enum EXACTLY as follows:
+
+RideStatus:
+- REQUESTED
+- MATCHING
+- ACCEPTED
+- DRIVER_EN_ROUTE
+- ARRIVED
+- WAITING
+- IN_PROGRESS
+- COMPLETED
+- CANCELLED
+
+Enforce sequential transitions only.
+Reject invalid jumps (example: REQUESTED → IN_PROGRESS must fail).
+
+3) Update or create the Ride table with the following REQUIRED fields:
+
+- id (uuid)
+- riderId
+- driverId (nullable until accepted)
+- status (RideStatus)
+
+Location:
+- pickupLat
+- pickupLng
+- dropoffLat
+- dropoffLng
+
+Timestamps:
+- requestedAt
+- acceptedAt
+- enRouteAt
+- arrivedAt
+- waitingStartedAt
+- startedAt
+- completedAt
+- cancelledAt
+
+Estimates:
+- estimatedDistanceKm
+- estimatedDurationMin
+
+Actuals:
+- actualDistanceKm
+- actualDurationMin
+
+Fare breakdown:
+- baseFare
+- distanceFare
+- timeFare
+- waitingFee
+- trafficFee
+- totalFare
+
+Payouts:
+- driverEarning
+- platformFee
+
+Cancellation:
+- cancelReason
+- cancelledBy (enum: RIDER, DRIVER, SYSTEM)
+
+4) Add matching window logic:
+- Add matchingExpiresAt field
+- Set matchingExpiresAt = createdAt + 10 seconds
+- If expired, backend must prevent late acceptance
+
+5) Create DriverMovement table to track motion BEFORE pickup:
+
+Fields:
+- id
+- rideId
+- driverId
+- distanceKm
+- durationSec
+- recordedAt
+
+RULE:
+- If rider cancels AFTER driver has moved ≥ 1 km OR ≥ 60 seconds,
+  driver must be eligible for compensation.
+- If below threshold, ONLY platform is compensated.
+
+6) Waiting logic enforcement:
+- First 2 minutes: free
+- Next 5 minutes: paid waiting
+- Additional 4 minutes: bonus waiting
+Track using:
+- waitingStartedAt
+- waitingPaidMin
+- waitingFeePaid
+
+7) Safety & idle detection:
+Add to Ride:
+- lastMovementAt
+- idleAlertSentAt
+- safetyCheckAt
+
+Trigger safety check if no movement ≥ 4 minutes during IN_PROGRESS.
+
+8) Create RideAuditLog table:
+
+Fields:
+- id
+- rideId
+- actorId
+- actorRole
+- action
+- metadata (JSON)
+- createdAt
+
+Log ALL:
+- approvals
+- cancellations
+- compensation decisions
+- admin overrides
+
+9) DO NOT:
+- Add UI components
+- Add map logic
+- Add notifications
+- Implement pricing formulas
+- Change auth or RBAC
+
+FINAL REQUIREMENT:
+System must now support:
+- Uber/Lyft-style lifecycle
+- Fair cancellation compensation
+- Waiting time enforcement
+- Safety monitoring
+- Auditable admin actions
+- 10-second matching countdown
+
+After completing Step A, STOP and wait.
+Do NOT proceed to Step B until instructed.

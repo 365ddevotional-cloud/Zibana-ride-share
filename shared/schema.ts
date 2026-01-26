@@ -79,6 +79,30 @@ export const slaMetricTypeEnum = pgEnum("sla_metric_type", ["RESPONSE_TIME", "CO
 export const slaMeasurementPeriodEnum = pgEnum("sla_measurement_period", ["DAILY", "WEEKLY", "MONTHLY"]);
 export const invoiceStatusEnum = pgEnum("invoice_status", ["DRAFT", "ISSUED", "PAID", "OVERDUE"]);
 
+// Phase 22 - Enhanced Ride Lifecycle enums
+export const rideStatusEnum = pgEnum("ride_status", [
+  "requested",
+  "matching",
+  "accepted",
+  "driver_en_route",
+  "arrived",
+  "waiting",
+  "in_progress",
+  "completed",
+  "cancelled"
+]);
+export const rideCancelledByEnum = pgEnum("ride_cancelled_by", ["rider", "driver", "system"]);
+export const rideAuditActionEnum = pgEnum("ride_audit_action", [
+  "status_change",
+  "driver_assigned",
+  "cancellation",
+  "compensation_awarded",
+  "compensation_denied",
+  "admin_override",
+  "safety_alert",
+  "idle_alert"
+]);
+
 // User roles table - maps users to their roles with admin governance
 export const userRoles = pgTable("user_roles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
