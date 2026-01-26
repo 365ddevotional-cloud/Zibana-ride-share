@@ -26,6 +26,10 @@ import {
   taxRules,
   exchangeRates,
   complianceProfiles,
+  // Phase 22 - Enhanced Ride Lifecycle
+  rides,
+  driverMovements,
+  rideAuditLogs,
   type UserRole, 
   type InsertUserRole,
   type DriverProfile,
@@ -38,6 +42,13 @@ import {
   type InsertTripCoordinatorProfile,
   type Trip,
   type InsertTrip,
+  // Phase 22 - Enhanced Ride types
+  type Ride,
+  type InsertRide,
+  type DriverMovement,
+  type InsertDriverMovement,
+  type RideAuditLog,
+  type InsertRideAuditLog,
   type PayoutTransaction,
   type InsertPayoutTransaction,
   type Notification,
@@ -472,6 +483,25 @@ export interface IStorage {
   getOrganizationMetrics(): Promise<OrganizationMetrics>;
   getFinancialMetrics(): Promise<FinancialMetrics>;
   getMetricsOverview(): Promise<MetricsOverview>;
+
+  // Phase 22 - Enhanced Ride Lifecycle
+  createRide(data: InsertRide): Promise<Ride>;
+  getRideById(rideId: string): Promise<Ride | null>;
+  getRidesByStatus(status: string): Promise<Ride[]>;
+  getRiderRides(riderId: string): Promise<Ride[]>;
+  getDriverRides(driverId: string): Promise<Ride[]>;
+  updateRideStatus(rideId: string, status: string, additionalData?: Partial<Ride>): Promise<Ride | null>;
+  assignDriverToRide(rideId: string, driverId: string): Promise<Ride | null>;
+  cancelRide(rideId: string, cancelledBy: string, reason?: string): Promise<Ride | null>;
+  
+  // Driver Movement tracking
+  createDriverMovement(data: InsertDriverMovement): Promise<DriverMovement>;
+  getDriverMovementsForRide(rideId: string): Promise<DriverMovement[]>;
+  getTotalDriverMovement(rideId: string): Promise<{ distanceKm: number; durationSec: number }>;
+  
+  // Ride Audit Log
+  createRideAuditLog(data: InsertRideAuditLog): Promise<RideAuditLog>;
+  getRideAuditLogs(rideId: string): Promise<RideAuditLog[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3996,6 +4026,132 @@ export class DatabaseStorage implements IStorage {
     }
 
     return { platform, riders, drivers, organizations, financials, alerts };
+  }
+
+  // Phase 22 - Enhanced Ride Lifecycle Implementation
+  async createRide(data: InsertRide): Promise<Ride> {
+    // Set matching expiration to 10 seconds from now
+    const matchingExpiresAt = new Date();
+    matchingExpiresAt.setSeconds(matchingExpiresAt.getSeconds() + 10);
+    
+    const [ride] = await db.insert(rides).values({
+      ...data,
+      status: "requested",
+      matchingExpiresAt,
+      requestedAt: new Date(),
+    }).returning();
+    return ride;
+  }
+
+  async getRideById(rideId: string): Promise<Ride | null> {
+    const [ride] = await db.select().from(rides).where(eq(rides.id, rideId));
+    return ride || null;
+  }
+
+  async getRidesByStatus(status: string): Promise<Ride[]> {
+    return db.select().from(rides).where(eq(rides.status, status as any)).orderBy(desc(rides.requestedAt));
+  }
+
+  async getRiderRides(riderId: string): Promise<Ride[]> {
+    return db.select().from(rides).where(eq(rides.riderId, riderId)).orderBy(desc(rides.requestedAt));
+  }
+
+  async getDriverRides(driverId: string): Promise<Ride[]> {
+    return db.select().from(rides).where(eq(rides.driverId, driverId)).orderBy(desc(rides.requestedAt));
+  }
+
+  async updateRideStatus(rideId: string, status: string, additionalData?: Partial<Ride>): Promise<Ride | null> {
+    const timestampField = this.getTimestampFieldForStatus(status);
+    const updateData: any = {
+      status,
+      updatedAt: new Date(),
+      ...additionalData,
+    };
+    
+    if (timestampField) {
+      updateData[timestampField] = new Date();
+    }
+
+    const [ride] = await db.update(rides)
+      .set(updateData)
+      .where(eq(rides.id, rideId))
+      .returning();
+    return ride || null;
+  }
+
+  private getTimestampFieldForStatus(status: string): string | null {
+    const mapping: Record<string, string> = {
+      accepted: "acceptedAt",
+      driver_en_route: "enRouteAt",
+      arrived: "arrivedAt",
+      waiting: "waitingStartedAt",
+      in_progress: "startedAt",
+      completed: "completedAt",
+      cancelled: "cancelledAt",
+    };
+    return mapping[status] || null;
+  }
+
+  async assignDriverToRide(rideId: string, driverId: string): Promise<Ride | null> {
+    // Check if matching window has expired
+    const [existingRide] = await db.select().from(rides).where(eq(rides.id, rideId));
+    if (!existingRide) return null;
+    
+    if (existingRide.matchingExpiresAt && new Date() > existingRide.matchingExpiresAt) {
+      throw new Error("Matching window has expired");
+    }
+
+    const [ride] = await db.update(rides)
+      .set({
+        driverId,
+        status: "accepted",
+        acceptedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(rides.id, rideId))
+      .returning();
+    return ride || null;
+  }
+
+  async cancelRide(rideId: string, cancelledBy: string, reason?: string): Promise<Ride | null> {
+    const [ride] = await db.update(rides)
+      .set({
+        status: "cancelled",
+        cancelledBy: cancelledBy as any,
+        cancelReason: reason,
+        cancelledAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(rides.id, rideId))
+      .returning();
+    return ride || null;
+  }
+
+  // Driver Movement tracking
+  async createDriverMovement(data: InsertDriverMovement): Promise<DriverMovement> {
+    const [movement] = await db.insert(driverMovements).values(data).returning();
+    return movement;
+  }
+
+  async getDriverMovementsForRide(rideId: string): Promise<DriverMovement[]> {
+    return db.select().from(driverMovements).where(eq(driverMovements.rideId, rideId)).orderBy(driverMovements.recordedAt);
+  }
+
+  async getTotalDriverMovement(rideId: string): Promise<{ distanceKm: number; durationSec: number }> {
+    const movements = await this.getDriverMovementsForRide(rideId);
+    const totalDistance = movements.reduce((sum, m) => sum + parseFloat(m.distanceKm || "0"), 0);
+    const totalDuration = movements.reduce((sum, m) => sum + (m.durationSec || 0), 0);
+    return { distanceKm: totalDistance, durationSec: totalDuration };
+  }
+
+  // Ride Audit Log
+  async createRideAuditLog(data: InsertRideAuditLog): Promise<RideAuditLog> {
+    const [log] = await db.insert(rideAuditLogs).values(data).returning();
+    return log;
+  }
+
+  async getRideAuditLogs(rideId: string): Promise<RideAuditLog[]> {
+    return db.select().from(rideAuditLogs).where(eq(rideAuditLogs.rideId, rideId)).orderBy(desc(rideAuditLogs.createdAt));
   }
 }
 
