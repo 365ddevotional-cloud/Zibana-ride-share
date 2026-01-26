@@ -71,13 +71,14 @@ Preferred communication style: Simple, everyday language.
 
 ### Phase 21 – SUPER_ADMIN Role & Admin Governance (January 2026)
 - Hierarchical role system: Introduced `super_admin` as highest authority above `admin`
+- **Permanent SUPER_ADMIN Assignment**: Primary owner (365ddevotional@gmail.com) automatically assigned super_admin on every login
 - Admin appointment system with time-bound access (max 1 year):
   - `adminStartAt`: When admin privileges begin
   - `adminEndAt`: When admin privileges expire
   - `adminPermissions`: Scope-limited permissions array
   - `appointedBy`: Tracks who granted the admin access
 - Admin permission scopes (9 types): DRIVER_MANAGEMENT, RIDER_MANAGEMENT, TRIP_MONITORING, DISPUTES, REPORTS, PAYOUTS, SUPPORT_TICKETS, INCENTIVES, FRAUD_DETECTION
-- Storage layer additions: appointAdmin, revokeAdmin, updateAdminPermissions, isAdminValid, checkAndExpireAdmins, getAllAdmins
+- Storage layer additions: appointAdmin, revokeAdmin, updateAdminPermissions, isAdminValid, checkAndExpireAdmins, getAllAdmins, getAllUsersWithRoles, promoteToAdmin, demoteToRider
 - API routes (SUPER_ADMIN only):
   - `GET /api/super-admin/admins`: List all admins
   - `POST /api/super-admin/appoint-admin`: Appoint new admin with time-bound access
@@ -85,15 +86,20 @@ Preferred communication style: Simple, everyday language.
   - `PATCH /api/super-admin/admin/:userId/permissions`: Update admin permissions/extend access
   - `GET /api/super-admin/admin/:userId/validity`: Check if admin access is still valid
   - `POST /api/super-admin/expire-admins`: Trigger expiration check for all admins
+  - `GET /api/super-admin/users-with-roles`: List all users with their roles
+  - `POST /api/super-admin/promote/:userId`: Promote user to admin
+  - `POST /api/super-admin/demote/:userId`: Demote admin to rider
 - Middleware enhancements:
   - `requireRole`: Now validates time-bound admin access before granting access
   - `requireSuperAdmin`: Dedicated middleware for strictest access control
-- Admin dashboard: New "Admin Management" tab for super_admin users with UI for:
-  - Viewing all appointed admins with their permissions and expiration dates
-  - Appointing new admins with date range and permission selection
-  - Editing admin permissions and extending access dates
-  - Revoking admin access
-- Full audit logging for all admin governance actions
+- Admin dashboard:
+  - "Admin Management" tab: Time-bound admin appointment with permissions and expiration
+  - "Role Appointments" tab: Simple role promotion/demotion (USER ↔ ADMIN)
+  - Both tabs visible only to SUPER_ADMIN users
+- Security rules:
+  - SUPER_ADMIN cannot be demoted
+  - All role changes require logout/login to take effect
+  - Full audit logging for all admin governance actions
 
 ### Phase 20 – Post-Launch Monitoring & KPIs (January 2026)
 - Database schema additions:
