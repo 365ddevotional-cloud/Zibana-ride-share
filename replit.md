@@ -54,6 +54,33 @@ Preferred communication style: Simple, everyday language.
 - **Country Pricing**: Dynamic pricing rules per country including base fare, per-km/minute rates, surge multipliers, and commission percentages
 - **Financial Audit**: All financial events logged in `financialAuditLogs` table for compliance
 
+## Production Switch System (Phase 26)
+### Switch 1: Real Payments (Per Country)
+- **Default**: `paymentsEnabled = false`, `paymentProvider = null` for ALL countries
+- **Activation**: SUPER_ADMIN only, requires explicit confirmation "ENABLE_REAL_PAYMENTS"
+- **When Disabled**: Wallet operates in SIMULATED mode, no real money charged
+- **When Enabled**: Real payment provider processes transactions, escrow logic unchanged
+- **API**: `PATCH /api/admin/countries/:countryId/payments`
+
+### Switch 2: Launch Mode (Global)
+- **Default**: `SOFT_LAUNCH` - invite codes required, driver onboarding capped, daily ride limits
+- **Options**: `soft_launch` | `full_launch`
+- **FULL_LAUNCH**: Open signups, no invite required, normal ride limits
+- **API**: `PATCH /api/admin/system-config/LAUNCH_MODE`
+
+### Switch 3: Explanation Mode (Admin Only)
+- **Default**: `false` (disabled)
+- **Purpose**: Read-only summary for investors/regulators/partners
+- **Content**: Wallet-first model, escrow handling, navigation approach, cost controls, driver classification, fraud protections
+- **API**: `GET /api/admin/explanation-summary`
+
+### Switch Safety Requirements
+- All switches are **server-side only**
+- All switches are **SUPER_ADMIN protected**
+- All changes are **logged to config_audit_logs table**
+- All switches are **instantly reversible**
+- No testers can enable production features
+
 ## Test Mode Configuration (LOCKED)
 - **GLOBAL_TEST_MODE**: Enabled - ALL countries run wallet-simulated payments
 - **No Real Payments**: All charges, payouts, escrow, and commissions are simulated internally
