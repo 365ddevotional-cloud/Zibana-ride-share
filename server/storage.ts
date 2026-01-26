@@ -530,6 +530,17 @@ export interface IStorage {
   // Ride Audit Log
   createRideAuditLog(data: InsertRideAuditLog): Promise<RideAuditLog>;
   getRideAuditLogs(rideId: string): Promise<RideAuditLog[]>;
+  
+  // Phase 24 - Reservations / Scheduled Trips
+  createReservation(data: InsertRide & { scheduledPickupAt: Date }): Promise<Ride>;
+  getUpcomingReservations(riderId: string): Promise<Ride[]>;
+  getDriverUpcomingReservations(driverId: string): Promise<Ride[]>;
+  getAllUpcomingReservations(): Promise<Ride[]>;
+  assignDriverToReservation(rideId: string, driverId: string): Promise<Ride | null>;
+  updateReservationStatus(rideId: string, status: string): Promise<Ride | null>;
+  cancelReservation(rideId: string, cancelledBy: string, reason?: string): Promise<Ride | null>;
+  getReservationsInPrepWindow(): Promise<Ride[]>;
+  applyEarlyArrivalBonus(rideId: string, bonusAmount: string): Promise<Ride | null>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -4357,6 +4368,151 @@ export class DatabaseStorage implements IStorage {
 
   async getRideAuditLogs(rideId: string): Promise<RideAuditLog[]> {
     return db.select().from(rideAuditLogs).where(eq(rideAuditLogs.rideId, rideId)).orderBy(desc(rideAuditLogs.createdAt));
+  }
+
+  // Phase 24 - Reservations / Scheduled Trips Implementation
+  async createReservation(data: InsertRide & { scheduledPickupAt: Date }): Promise<Ride> {
+    const recommendedDepartAt = new Date(data.scheduledPickupAt);
+    recommendedDepartAt.setMinutes(recommendedDepartAt.getMinutes() - 30);
+    
+    const [ride] = await db.insert(rides).values({
+      ...data,
+      status: "requested",
+      isReserved: true,
+      reservationStatus: "scheduled",
+      scheduledPickupAt: data.scheduledPickupAt,
+      recommendedDepartAt,
+      reservationConfirmedAt: new Date(),
+    }).returning();
+    return ride;
+  }
+
+  async getUpcomingReservations(riderId: string): Promise<Ride[]> {
+    const now = new Date();
+    return db.select().from(rides)
+      .where(
+        and(
+          eq(rides.riderId, riderId),
+          eq(rides.isReserved, true),
+          sql`${rides.scheduledPickupAt} > ${now}`,
+          sql`${rides.reservationStatus} IN ('scheduled', 'driver_assigned', 'prep_window')`
+        )
+      )
+      .orderBy(rides.scheduledPickupAt);
+  }
+
+  async getDriverUpcomingReservations(driverId: string): Promise<Ride[]> {
+    const now = new Date();
+    return db.select().from(rides)
+      .where(
+        and(
+          eq(rides.assignedDriverId, driverId),
+          eq(rides.isReserved, true),
+          sql`${rides.scheduledPickupAt} > ${now}`,
+          sql`${rides.reservationStatus} IN ('driver_assigned', 'prep_window', 'active')`
+        )
+      )
+      .orderBy(rides.scheduledPickupAt);
+  }
+
+  async getAllUpcomingReservations(): Promise<Ride[]> {
+    const now = new Date();
+    return db.select().from(rides)
+      .where(
+        and(
+          eq(rides.isReserved, true),
+          sql`${rides.scheduledPickupAt} > ${now}`,
+          sql`${rides.reservationStatus} IN ('scheduled', 'driver_assigned', 'prep_window')`
+        )
+      )
+      .orderBy(rides.scheduledPickupAt);
+  }
+
+  async assignDriverToReservation(rideId: string, driverId: string): Promise<Ride | null> {
+    const [ride] = await db.update(rides)
+      .set({
+        assignedDriverId: driverId,
+        driverId: driverId,
+        reservationStatus: "driver_assigned",
+        driverAssignedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(rides.id, rideId),
+          eq(rides.isReserved, true),
+          eq(rides.reservationStatus, "scheduled")
+        )
+      )
+      .returning();
+    return ride || null;
+  }
+
+  async updateReservationStatus(rideId: string, status: string): Promise<Ride | null> {
+    const [ride] = await db.update(rides)
+      .set({
+        reservationStatus: status as any,
+        updatedAt: new Date(),
+      })
+      .where(eq(rides.id, rideId))
+      .returning();
+    return ride || null;
+  }
+
+  async cancelReservation(rideId: string, cancelledBy: string, reason?: string): Promise<Ride | null> {
+    const ride = await this.getRideById(rideId);
+    if (!ride || !ride.isReserved) return null;
+    
+    const now = new Date();
+    const scheduledTime = new Date(ride.scheduledPickupAt!);
+    const hoursUntilPickup = (scheduledTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+    
+    let cancelFee: string | null = null;
+    if (hoursUntilPickup < 1 && cancelledBy === "rider") {
+      cancelFee = ride.reservationPremium || "5.00";
+    }
+    
+    const [updated] = await db.update(rides)
+      .set({
+        status: "cancelled",
+        reservationStatus: "cancelled",
+        cancelledAt: new Date(),
+        cancelledBy: cancelledBy as any,
+        cancelReason: reason,
+        reservationCancelFee: cancelFee,
+        updatedAt: new Date(),
+      })
+      .where(eq(rides.id, rideId))
+      .returning();
+    return updated || null;
+  }
+
+  async getReservationsInPrepWindow(): Promise<Ride[]> {
+    const now = new Date();
+    const thirtyMinutesFromNow = new Date(now.getTime() + 30 * 60 * 1000);
+    
+    return db.select().from(rides)
+      .where(
+        and(
+          eq(rides.isReserved, true),
+          eq(rides.reservationStatus, "driver_assigned"),
+          sql`${rides.scheduledPickupAt} <= ${thirtyMinutesFromNow}`,
+          sql`${rides.scheduledPickupAt} > ${now}`
+        )
+      )
+      .orderBy(rides.scheduledPickupAt);
+  }
+
+  async applyEarlyArrivalBonus(rideId: string, bonusAmount: string): Promise<Ride | null> {
+    const [ride] = await db.update(rides)
+      .set({
+        earlyArrivalBonus: bonusAmount,
+        earlyArrivalBonusPaid: true,
+        updatedAt: new Date(),
+      })
+      .where(eq(rides.id, rideId))
+      .returning();
+    return ride || null;
   }
 }
 
