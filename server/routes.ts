@@ -6402,6 +6402,90 @@ export async function registerRoutes(
     }
   });
 
+  // ==========================================
+  // TEST WALLET CREDIT (SUPER_ADMIN ONLY)
+  // ==========================================
+  // This allows SUPER_ADMIN to credit wallets for testing
+  // without real money movement (no Paystack calls)
+  app.post("/api/admin/wallet/test-credit", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const adminEmail = req.user.claims.email;
+      const { userId, amount, walletType = "rider" } = req.body;
+      
+      if (!userId || !amount) {
+        return res.status(400).json({ message: "userId and amount are required" });
+      }
+      
+      const creditAmount = parseFloat(amount);
+      if (isNaN(creditAmount) || creditAmount <= 0) {
+        return res.status(400).json({ message: "Amount must be a positive number" });
+      }
+      
+      // Credit the appropriate wallet
+      let wallet;
+      if (walletType === "driver") {
+        wallet = await storage.adjustDriverWalletBalance(userId, creditAmount, "TEST_CREDIT", adminId);
+      } else {
+        wallet = await storage.adjustRiderWalletBalance(userId, creditAmount, "TEST_CREDIT", adminId);
+      }
+      
+      if (!wallet) {
+        return res.status(404).json({ message: `${walletType} wallet not found for user` });
+      }
+      
+      // Log for audit trail
+      console.log(`[TEST_CREDIT AUDIT] adminId=${adminId}, adminEmail=${adminEmail}, userId=${userId}, walletType=${walletType}, amount=${creditAmount}, reason=TESTING, timestamp=${new Date().toISOString()}`);
+      
+      // Also log to financial audit
+      await storage.createFinancialAuditLog({
+        eventType: "ADJUSTMENT",
+        userId,
+        amount: String(creditAmount),
+        actorRole: "ADMIN",
+        currency: "NGN",
+        description: `TEST_CREDIT by SUPER_ADMIN (${adminEmail})`,
+        metadata: JSON.stringify({ adminId, adminEmail, reason: "TESTING", walletType }),
+      });
+      
+      return res.json({ 
+        message: `Test credit of ${creditAmount} applied to ${walletType} wallet`,
+        wallet,
+        creditAmount,
+        walletType,
+      });
+    } catch (error) {
+      console.error("Error applying test credit:", error);
+      return res.status(500).json({ message: "Failed to apply test credit" });
+    }
+  });
+
+  // Get list of users for admin wallet management
+  app.get("/api/admin/users/for-wallet-credit", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const users = await storage.getAllUsersWithRoles();
+      const usersWithWallets = await Promise.all(
+        users.map(async (user: any) => {
+          const riderWallet = await storage.getRiderWallet(user.id);
+          const driverWallet = await storage.getDriverWallet(user.id);
+          return {
+            id: user.id,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            role: user.role,
+            riderBalance: riderWallet?.balance || 0,
+            driverBalance: driverWallet?.balance || 0,
+          };
+        })
+      );
+      return res.json(usersWithWallets);
+    } catch (error) {
+      console.error("Error fetching users for wallet credit:", error);
+      return res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
   // ZIBA Platform Wallet
   app.get("/api/ziba-wallet", isAuthenticated, requireRole(["super_admin", "admin", "finance", "director"]), async (req, res) => {
     try {
