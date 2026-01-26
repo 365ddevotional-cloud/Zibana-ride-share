@@ -1,0 +1,170 @@
+You are working on the ZIBA Ride Share app.
+
+SYSTEM CONTEXT (DO NOT CHANGE):
+- Ride lifecycle, compensation logic, safety logic, notifications, sounds, identity verification, and native GPS handoff are already implemented.
+- No in-app map rendering is allowed.
+- Role-based access control (RIDER, DRIVER, ADMIN, SUPER_ADMIN) must remain enforced.
+- Existing Ride model and RideStatus must not be broken.
+
+==============================
+STEP F — RESERVATIONS (SCHEDULED RIDES)
+==============================
+
+GOAL:
+Add Uber/Lyft-style ride reservations (book-ahead trips) with higher pricing,
+early driver preparation, stronger cancellation protection, and fair driver compensation.
+
+--------------------------------
+PART 1: DATA MODEL (SAFE EXTENSION)
+--------------------------------
+
+1) Extend Ride model (or add Reservation fields linked to Ride):
+
+- isReserved (boolean, default false)
+- scheduledPickupAt (datetime, nullable)
+- reservationPremium (number)
+- recommendedDepartAt (datetime)
+- driverEnRouteStartedAt (datetime, nullable)
+- earlyArrivalBonus (number)
+- reservationCancelFee (number)
+
+Do NOT remove existing Ride fields.
+Do NOT change existing RideStatus enum.
+
+--------------------------------
+PART 2: RESERVATION CREATION (RIDER)
+--------------------------------
+
+2) Allow rider to create a Reserved Ride:
+- Rider selects:
+  - Pickup location
+  - Dropoff location
+  - Scheduled pickup date & time
+- System sets:
+  - isReserved = true
+  - status = REQUESTED
+  - scheduledPickupAt = selected time
+  - reservationPremium > normal ride price
+- Rider is informed:
+  - “Reservations cost slightly more to guarantee driver availability.”
+
+--------------------------------
+PART 3: DRIVER ASSIGNMENT (ADVANCE ACCEPTANCE)
+--------------------------------
+
+3) Notify eligible drivers of reservation offers:
+- Drivers see:
+  - “Reserved Trip”
+  - Scheduled pickup time
+  - Pickup & dropoff
+- Drivers can ACCEPT reservation ahead of time
+
+Upon acceptance:
+- Assign driverId
+- Log event
+- Notify rider with driver name & photo
+- Reservation is marked as DRIVER_ASSIGNED
+
+--------------------------------
+PART 4: PREP WINDOW & EARLY DEPARTURE
+--------------------------------
+
+4) Calculate recommendedDepartAt:
+- Based on distance & traffic estimates
+- Ensure driver arrives 30–40 minutes early when possible
+
+At recommendedDepartAt:
+- Notify driver:
+  - “Start Reservation Pickup”
+- When driver taps:
+  - Launch native GPS app to pickup
+  - Set driverEnRouteStartedAt
+  - Transition ride to DRIVER_EN_ROUTE
+- Notify rider:
+  - “Your driver is heading to you for your reserved ride. Please be ready.”
+
+--------------------------------
+PART 5: CANCELLATION RULES (CRITICAL)
+--------------------------------
+
+5) Rider cancellation logic:
+
+A) BEFORE driver starts moving:
+- Small cancellation fee or free (policy-based)
+
+B) AFTER driverEnRouteStartedAt is set:
+- Charge rider a higher cancellation fee than normal rides
+- Split fee:
+  - Driver receives compensation
+  - ZIBA receives platform fee
+- Log cancellation reason and payout
+
+--------------------------------
+PART 6: ARRIVAL, WAITING & EARLY ARRIVAL BONUS
+--------------------------------
+
+6) When driver arrives:
+- Status → ARRIVED
+- If driver arrives ≥ 10 minutes early:
+  - Award earlyArrivalBonus
+  - Bonus is funded from reservationPremium (not added at pickup time)
+
+7) At scheduledPickupAt time:
+- Apply normal waiting rules:
+  - 2 minutes grace
+  - Paid waiting phases thereafter
+- Same waiting compensation logic as standard rides
+
+--------------------------------
+PART 7: TRIP EXECUTION
+--------------------------------
+
+8) Once rider enters vehicle:
+- Driver taps Start Trip
+- Status → IN_PROGRESS
+- Native GPS opens to destination
+- All normal ride logic applies:
+  - Safety checks
+  - Traffic/time overrun compensation
+  - Early drop-off confirmation
+  - Completion & payout
+
+--------------------------------
+PART 8: UI VISIBILITY
+--------------------------------
+
+9) Rider UI:
+- “Reserve a ride” option with date/time picker
+- Reservation details shown clearly
+- Status notifications throughout lifecycle
+
+10) Driver UI:
+- “Reserved Trips” section
+- Upcoming reservations list
+- Start Pickup button appears at recommendedDepartAt
+
+11) Admin UI:
+- View reservations
+- See driver assignment
+- See cancellations & penalties
+- Audit logs intact
+
+--------------------------------
+STRICT RULES:
+--------------------------------
+- DO NOT add in-app maps
+- DO NOT weaken RBAC
+- DO NOT auto-approve drivers
+- DO NOT break existing ride flows
+- Keep audit logging for all reservation events
+
+--------------------------------
+FINAL EXPECTED RESULT:
+--------------------------------
+- Riders can book rides ahead of time
+- Drivers can accept reservations in advance
+- Drivers are prompted to head out early
+- Riders are warned and encouraged to be ready
+- Higher cancellation penalties protect drivers & ZIBA
+- Early arrival bonuses reward reliability
+- Normal waiting & trip logic applies after pickup
