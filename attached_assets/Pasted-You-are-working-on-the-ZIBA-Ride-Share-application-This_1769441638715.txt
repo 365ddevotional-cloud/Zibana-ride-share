@@ -1,0 +1,153 @@
+You are working on the ZIBA Ride Share application.
+
+This prompt is AUTHORITATIVE. Follow it exactly. Do not propose alternatives unless explicitly asked.
+
+========================
+GLOBAL ARCHITECTURE RULE
+========================
+
+ZIBA MUST NOT embed any third-party map SDKs (Google Maps SDK, Mapbox, HERE, etc).
+
+Navigation MUST ALWAYS open the driver’s or rider’s NATIVE GPS APP using deep links:
+- Android → Google Maps
+- iOS → Apple Maps
+
+No in-app live maps.
+No paid map SDKs.
+No background polling tied to map providers.
+
+This rule exists to SAVE COST and is FINAL.
+
+========================
+RIDE STATE MACHINE (FINAL)
+========================
+
+Implement the following ride lifecycle EXACTLY (Uber/Lyft aligned):
+
+1. REQUESTED
+   - Rider requests a ride
+   - Drivers nearby receive notification + sound
+   - 10-SECOND ACCEPT COUNTDOWN (not 30)
+
+2. MATCHING
+   - Multiple drivers can see the request
+   - First driver to accept wins
+   - Countdown bar visually decreases to zero
+
+3. ACCEPTED
+   - Driver accepted
+   - Rider notified immediately
+   - Show driver name + profile photo
+
+4. DRIVER_EN_ROUTE
+   - Driver taps “Navigate to Pickup”
+   - Native GPS app opens
+   - Rider sees “Driver is on the way”
+
+5. ARRIVED
+   - Driver taps “Arrived”
+   - Arrival timer starts
+   - Grace period:
+     - First 2 minutes free
+     - Next 5 minutes paid waiting
+     - Optional extra 4 minutes = higher wait compensation
+   - Rider warned in red if time exceeded
+
+6. START_TRIP
+   - Driver taps “Start Trip”
+   - Native GPS opens to destination
+   - Ride officially begins
+   - Rider can no longer cancel
+
+7. IN_PROGRESS
+   - Trip active
+   - Idle detection:
+     - If no movement for 4 minutes → safety check
+     - Ask both driver & rider “Are you safe?”
+     - Offer emergency options
+
+8. COMPLETED
+   - Driver taps “Complete Trip”
+   - Fare recalculated using:
+     - Distance
+     - Time
+     - Extra traffic delay
+     - Waiting compensation
+   - Final payout generated
+
+9. CANCELED (Controlled)
+   - Different rules depending on WHO cancels and WHEN
+
+========================
+CANCELLATION & COMPENSATION RULES
+========================
+
+A) Rider cancels BEFORE driver moves:
+   - Driver NOT compensated
+   - ZIBA may charge small fee
+
+B) Rider cancels AFTER driver has driven ≥ 1 mile / 1 km OR ≥ 1 minute:
+   - Driver compensated per distance already driven
+   - ZIBA also earns commission
+
+C) Rider cancels RESERVED ride after driver has started moving:
+   - Higher cancellation fee
+   - Driver + ZIBA compensated
+
+D) Driver cancels:
+   - Must select a reason
+   - Only valid reasons allow compensation
+   - All logged for audit
+
+========================
+RESERVATIONS (BOOK AHEAD)
+========================
+
+- Riders can schedule trips ahead of time
+- Reservation price is HIGHER than normal rides
+- Drivers are notified in advance
+- Drivers must be en route 30–40 minutes before pickup
+- Early arrival bonus:
+  - $0.50/min (max $10)
+- If rider cancels after driver starts moving:
+  - Higher cancellation fee
+- Normal arrival grace rules still apply at pickup time
+
+Drivers can:
+- Self-accept reservation offers
+- OR be admin-assigned
+(Both options enabled)
+
+========================
+IDENTITY & SAFETY
+========================
+
+During signup:
+- Upload profile photo
+- Capture LIVE photo (camera) for verification
+- Admin can review mismatches
+
+During trips:
+- Safety monitoring enabled
+- Emergency prompts when idle or abnormal behavior detected
+
+========================
+AUDIT & LOGGING
+========================
+
+Every state change MUST be logged in RideAuditLog:
+- Who acted
+- When
+- From state → to state
+- Compensation triggered (yes/no)
+
+========================
+FINAL INSTRUCTION
+========================
+
+Implement ONLY what is described above.
+Do not integrate external map SDKs.
+Do not change state names.
+Do not add paid APIs.
+
+Confirm when implementation is complete.
