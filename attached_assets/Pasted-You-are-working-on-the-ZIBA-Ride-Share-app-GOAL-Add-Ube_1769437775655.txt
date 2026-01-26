@@ -1,0 +1,82 @@
+You are working on the ZIBA Ride Share app.
+
+GOAL:
+Add Uber/Lyft-style Reservations (Scheduled Trips) without breaking existing ride logic.
+Keep native GPS handoff (no in-app maps).
+
+REQUIREMENTS (DO ALL):
+
+1) DATA MODEL (safe migration)
+- Add fields to Ride (or create Reservation fields linked to Ride):
+  - isReserved (boolean)
+  - scheduledPickupAt (datetime)
+  - reservationStatus (enum: SCHEDULED, DRIVER_ASSIGNED, PREP_WINDOW, CANCELLED) or reuse RideStatus with reserved-specific handling
+  - assignedDriverId (nullable until accepted)
+  - recommendedDepartAt (datetime)
+  - reservationPremium (number)
+  - earlyArrivalBonus (number)
+  - reservationCancelFee (number)
+  - driverEnRouteStartedAt (datetime)
+
+2) DRIVER ASSIGNMENT FLOW
+- Allow drivers to accept reservation offers ahead of time
+- Once accepted:
+  - mark DRIVER_ASSIGNED
+  - notify rider with driver profile photo + name
+
+3) PREP WINDOW / DEPART TIME
+- Compute recommendedDepartAt so driver arrives 30–40 minutes early depending on distance
+- At recommendedDepartAt:
+  - prompt driver: “Start Reservation Pickup”
+  - on tap: open native GPS to pickup
+  - set ride to DRIVER_EN_ROUTE (same status flow as normal rides)
+
+4) RIDER READINESS NOTIFICATIONS
+- Notify rider when:
+  - reservation confirmed
+  - driver assigned
+  - driver begins heading to pickup (driver en route)
+  - driver arrived
+  - waiting begins
+
+5) RESERVATION PRICING
+- Add reservationPremium to total fare (slightly higher than normal ride)
+- Use premium to fund:
+  - earlyArrivalBonus (if driver arrives ≥ 10 minutes early)
+  - higher cancellation protection
+
+6) CANCELLATION RULES (critical)
+- If rider cancels BEFORE driver starts moving:
+  - small fee or free if far enough in advance
+- If rider cancels AFTER driver starts moving toward pickup:
+  - charge higher-than-normal cancellation fee
+  - split: driver receives compensation + ZIBA platform fee
+- Log all cancellations in RideAuditLog
+
+7) ARRIVAL / WAITING RULES
+- When scheduledPickupAt time arrives:
+  - apply normal waiting rules:
+    2 minutes grace → then paid waiting phases
+- If driver arrives early:
+  - award earlyArrivalBonus funded from reservationPremium
+
+8) UI
+- Rider: add “Reserve a ride” option with scheduled time picker
+- Driver: show “Reserved Trips” list with upcoming schedule + Start Pickup button at recommendedDepartAt
+- Admin: show reserved trips, driver assigned, cancellations, fees
+
+HARD RULES:
+- Do NOT add in-app maps
+- Do NOT weaken RBAC
+- Do NOT break existing ride states
+- Keep audit logging for all reservation events
+
+FINAL RESULT:
+ZIBA supports reservations with:
+- scheduled pickup
+- driver assignment ahead of time
+- 30–40 min early en-route trigger
+- stronger cancellation fees if driver already started moving
+- early arrival bonus funded from reservation premium
+- rider readiness notifications
+- normal waiting rules at pickup time

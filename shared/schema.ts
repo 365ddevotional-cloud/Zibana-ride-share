@@ -124,6 +124,15 @@ export const driverCancelReasonEnum = pgEnum("driver_cancel_reason", [
   "rider_no_show",
   "other"
 ]);
+
+export const reservationStatusEnum = pgEnum("reservation_status", [
+  "scheduled",
+  "driver_assigned",
+  "prep_window",
+  "active",
+  "completed",
+  "cancelled"
+]);
 export const rideAuditActionEnum = pgEnum("ride_audit_action", [
   "status_change",
   "driver_assigned",
@@ -336,6 +345,20 @@ export const rides = pgTable("rides", {
   
   // Passenger info
   passengerCount: integer("passenger_count").default(1),
+  
+  // Reservation / Scheduled trip fields
+  isReserved: boolean("is_reserved").default(false),
+  scheduledPickupAt: timestamp("scheduled_pickup_at"),
+  reservationStatus: reservationStatusEnum("reservation_status"),
+  assignedDriverId: varchar("assigned_driver_id"),
+  recommendedDepartAt: timestamp("recommended_depart_at"),
+  reservationPremium: decimal("reservation_premium", { precision: 10, scale: 2 }),
+  earlyArrivalBonus: decimal("early_arrival_bonus", { precision: 10, scale: 2 }),
+  reservationCancelFee: decimal("reservation_cancel_fee", { precision: 10, scale: 2 }),
+  driverEnRouteStartedAt: timestamp("driver_en_route_started_at"),
+  reservationConfirmedAt: timestamp("reservation_confirmed_at"),
+  driverAssignedAt: timestamp("driver_assigned_at"),
+  earlyArrivalBonusPaid: boolean("early_arrival_bonus_paid").default(false),
   
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
