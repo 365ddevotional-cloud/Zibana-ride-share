@@ -415,6 +415,69 @@ export async function registerRoutes(
     }
   });
 
+  // Driver Payout Info Management
+  app.get("/api/driver/payout-info", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const wallet = await storage.getDriverWallet(userId);
+      if (!wallet) {
+        return res.json({ 
+          bankName: null, 
+          accountNumber: null, 
+          accountName: null, 
+          mobileMoneyProvider: null, 
+          mobileMoneyNumber: null,
+          preferredPayoutMethod: null,
+          withdrawableBalance: "0.00"
+        });
+      }
+      return res.json({
+        bankName: wallet.bankName,
+        accountNumber: wallet.accountNumber,
+        accountName: wallet.accountName,
+        mobileMoneyProvider: wallet.mobileMoneyProvider,
+        mobileMoneyNumber: wallet.mobileMoneyNumber,
+        preferredPayoutMethod: wallet.preferredPayoutMethod,
+        withdrawableBalance: wallet.withdrawableBalance,
+      });
+    } catch (error) {
+      console.error("Error getting driver payout info:", error);
+      return res.status(500).json({ message: "Failed to get payout info" });
+    }
+  });
+
+  app.patch("/api/driver/payout-info", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { bankName, accountNumber, accountName, mobileMoneyProvider, mobileMoneyNumber, preferredPayoutMethod } = req.body;
+      
+      let wallet = await storage.getDriverWallet(userId);
+      if (!wallet) {
+        wallet = await storage.createDriverWallet({ userId, currency: "USD" });
+      }
+      
+      const updated = await storage.updateDriverPayoutInfo(userId, {
+        bankName,
+        accountNumber,
+        accountName,
+        mobileMoneyProvider,
+        mobileMoneyNumber,
+        preferredPayoutMethod,
+      });
+      
+      if (!updated) {
+        return res.status(404).json({ message: "Driver wallet not found" });
+      }
+      
+      console.log(`[AUDIT] Driver payout info updated: userId=${userId}`);
+      
+      return res.json({ message: "Payout info updated", wallet: updated });
+    } catch (error) {
+      console.error("Error updating driver payout info:", error);
+      return res.status(500).json({ message: "Failed to update payout info" });
+    }
+  });
+
   app.get("/api/rider/profile", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
