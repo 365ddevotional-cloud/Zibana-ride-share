@@ -5830,8 +5830,8 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Only drivers can view reservation offers" });
       }
       
-      const user = await storage.getUser(userId);
-      if (!user || user.status !== "approved") {
+      const driverProfile = await storage.getDriverProfile(userId);
+      if (!driverProfile || driverProfile.status !== "approved") {
         return res.status(403).json({ message: "Only approved drivers can view offers" });
       }
       
@@ -5854,8 +5854,8 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Only drivers can accept reservations" });
       }
 
-      const user = await storage.getUser(userId);
-      if (!user || user.status !== "approved") {
+      const driverProfile = await storage.getDriverProfile(userId);
+      if (!driverProfile || driverProfile.status !== "approved") {
         return res.status(403).json({ message: "Only approved drivers can accept reservations" });
       }
 
@@ -5877,9 +5877,12 @@ export async function registerRoutes(
 
       await storage.createRideAuditLog({
         rideId: id,
-        action: "driver_accepted_reservation",
-        performedBy: userId,
-        details: { driverId: userId },
+        action: "reservation_accepted",
+        actorId: userId,
+        actorRole: "driver",
+        previousStatus: "requested",
+        newStatus: "requested",
+        metadata: JSON.stringify({ driverId: userId }),
       });
 
       await notificationService.notifyRider(
