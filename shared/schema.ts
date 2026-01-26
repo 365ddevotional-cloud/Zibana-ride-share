@@ -26,7 +26,31 @@ export const driverStatusEnum = pgEnum("driver_status", ["pending", "approved", 
 export const tripStatusEnum = pgEnum("trip_status", ["requested", "accepted", "in_progress", "completed", "cancelled"]);
 export const cancelledByEnum = pgEnum("cancelled_by", ["rider", "driver", "admin"]);
 export const payoutStatusEnum = pgEnum("payout_status", ["pending", "paid"]);
-export const notificationTypeEnum = pgEnum("notification_type", ["info", "success", "warning", "ride_update"]);
+export const notificationTypeEnum = pgEnum("notification_type", [
+  "info", 
+  "success", 
+  "warning", 
+  "ride_update",
+  "ride_offer",
+  "ride_accepted",
+  "driver_en_route",
+  "driver_arrived",
+  "waiting_started",
+  "ride_started",
+  "ride_completed",
+  "ride_cancelled",
+  "safety_check",
+  "compensation_notice",
+  "idle_alert"
+]);
+
+// Ride offer status enum
+export const rideOfferStatusEnum = pgEnum("ride_offer_status", [
+  "pending",
+  "accepted",
+  "expired",
+  "declined"
+]);
 export const notificationRoleEnum = pgEnum("notification_role", ["admin", "director", "driver", "rider", "finance", "trip_coordinator"]);
 export const raterRoleEnum = pgEnum("rater_role", ["rider", "driver"]);
 export const disputeCategoryEnum = pgEnum("dispute_category", ["fare", "behavior", "cancellation", "other"]);
@@ -117,7 +141,18 @@ export const rideAuditActionEnum = pgEnum("ride_audit_action", [
   "trip_started",
   "trip_completed",
   "ride_cancelled",
-  "safety_check_response"
+  "safety_check_response",
+  "ride_offer_sent",
+  "ride_offer_expired",
+  "idle_stop_alert"
+]);
+
+// Phase 23 - Identity Verification enums
+export const verificationStatusEnum = pgEnum("verification_status", [
+  "unverified",
+  "pending_review",
+  "verified",
+  "rejected"
 ]);
 
 // User roles table - maps users to their roles with admin governance
@@ -147,6 +182,11 @@ export const driverProfiles = pgTable("driver_profiles", {
   walletBalance: decimal("wallet_balance", { precision: 10, scale: 2 }).notNull().default("0.00"),
   averageRating: decimal("average_rating", { precision: 3, scale: 2 }),
   totalRatings: integer("total_ratings").notNull().default(0),
+  profilePhoto: text("profile_photo"),
+  verificationPhoto: text("verification_photo"),
+  verificationStatus: verificationStatusEnum("verification_status").notNull().default("unverified"),
+  verificationTimestamp: timestamp("verification_timestamp"),
+  verificationSessionId: varchar("verification_session_id"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -159,6 +199,11 @@ export const riderProfiles = pgTable("rider_profiles", {
   phone: varchar("phone"),
   averageRating: decimal("average_rating", { precision: 3, scale: 2 }),
   totalRatings: integer("total_ratings").notNull().default(0),
+  profilePhoto: text("profile_photo"),
+  verificationPhoto: text("verification_photo"),
+  verificationStatus: verificationStatusEnum("verification_status").notNull().default("unverified"),
+  verificationTimestamp: timestamp("verification_timestamp"),
+  verificationSessionId: varchar("verification_session_id"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -356,6 +401,21 @@ export const notifications = pgTable("notifications", {
   message: text("message").notNull(),
   type: notificationTypeEnum("type").notNull().default("info"),
   read: boolean("read").notNull().default(false),
+  referenceId: varchar("reference_id"),
+  referenceType: varchar("reference_type", { length: 50 }),
+  playSound: boolean("play_sound").default(false),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Ride offers table - tracks pending offers sent to drivers
+export const rideOffers = pgTable("ride_offers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  rideId: varchar("ride_id").notNull(),
+  driverId: varchar("driver_id").notNull(),
+  status: rideOfferStatusEnum("status").notNull().default("pending"),
+  offerExpiresAt: timestamp("offer_expires_at").notNull(),
+  respondedAt: timestamp("responded_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -735,6 +795,12 @@ export const insertNotificationSchema = createInsertSchema(notifications).omit({
   read: true,
 });
 
+export const insertRideOfferSchema = createInsertSchema(rideOffers).omit({
+  id: true,
+  createdAt: true,
+  respondedAt: true,
+});
+
 export const insertRatingSchema = createInsertSchema(ratings).omit({
   id: true,
   createdAt: true,
@@ -839,6 +905,9 @@ export type PayoutTransaction = typeof payoutTransactions.$inferSelect;
 
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 export type Notification = typeof notifications.$inferSelect;
+
+export type InsertRideOffer = z.infer<typeof insertRideOfferSchema>;
+export type RideOffer = typeof rideOffers.$inferSelect;
 
 export type InsertRating = z.infer<typeof insertRatingSchema>;
 export type Rating = typeof ratings.$inferSelect;

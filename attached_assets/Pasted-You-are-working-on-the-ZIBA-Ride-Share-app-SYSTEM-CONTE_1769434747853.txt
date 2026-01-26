@@ -1,0 +1,116 @@
+You are working on the ZIBA Ride Share app.
+
+SYSTEM CONTEXT (DO NOT CHANGE):
+- Core ride lifecycle, compensation logic, cancellation rules, safety logic, GPS handoff to native maps, and audit logs are already implemented.
+- Role-based access control (RIDER, DRIVER, ADMIN, SUPER_ADMIN) is enforced.
+- No in-app map rendering is allowed; native phone GPS must be used.
+- Database schema exists and must be extended safely without breaking existing data.
+
+==============================
+STEP E — NOTIFICATIONS, SOUNDS & IDENTITY VERIFICATION
+==============================
+
+GOALS (DO ALL):
+
+--------------------------------
+PART 1: NOTIFICATIONS & SOUNDS
+--------------------------------
+
+1) DRIVER RIDE OFFER ALERT
+- When a ride enters MATCHING state:
+  - Send in-app notification to nearby eligible drivers
+  - Play a short attention sound
+  - Show a visible 10-second countdown bar
+  - First driver to accept wins the ride
+  - Other drivers automatically lose the offer when accepted or timer expires
+  - Log event in RideAuditLog
+
+2) RIDER STATUS NOTIFICATIONS
+Send real-time in-app notifications to rider for:
+- Driver accepted the ride
+- Driver is on the way (EN_ROUTE)
+- Driver has arrived at pickup (ARRIVED)
+- Waiting time started (include countdown warning)
+- Ride started (IN_PROGRESS)
+- Ride completed (COMPLETED)
+- Safety check triggered
+
+3) DRIVER STATUS NOTIFICATIONS
+Send real-time in-app notifications to driver for:
+- New ride request
+- Rider cancellation (with compensation notice if eligible)
+- Waiting compensation started
+- Rider no-show allowed
+- Safety check triggered
+
+Notifications must be in-app only (no external push services yet).
+
+--------------------------------
+PART 2: PROFILE PICTURES & IDENTITY VERIFICATION
+--------------------------------
+
+4) PROFILE PHOTO SUPPORT
+- Add profilePhoto field for Rider and Driver
+- Allow image upload during profile setup
+- Store image securely
+- Display:
+  - Driver photo + name + rating to rider after acceptance
+  - Rider photo + name to driver after acceptance
+
+5) LIVE PHOTO VERIFICATION (ANTI-FRAUD)
+- During signup/onboarding:
+  - Prompt user to take a live camera photo (not file upload)
+  - Save as verificationPhoto
+  - Tag with timestamp and session ID
+- Verification status values:
+  - UNVERIFIED
+  - PENDING_REVIEW
+  - VERIFIED
+
+Rules:
+- Driver live photo is REQUIRED before activation
+- Rider live photo is OPTIONAL but supported
+- Admins can view profile photo + live verification photo
+- Only admins can approve drivers
+
+--------------------------------
+PART 3: SAFETY & STATUS LOGIC
+--------------------------------
+
+6) SAFETY STOP CHECK
+- If a trip is IN_PROGRESS and vehicle stops moving for 4 minutes:
+  - Notify rider and driver: “Are you safe?”
+  - Actions:
+    - I’m safe
+    - I need help
+  - Log responses
+  - Escalate to admin if “I need help” is selected
+
+7) UI & STATE SYNC
+- Update UI in real-time for:
+  - Ride status badges
+  - Countdown timers
+  - Safety prompts
+- Do NOT regress existing dashboards
+- Do NOT change fare or compensation calculations
+
+--------------------------------
+IMPORTANT RULES (STRICT):
+--------------------------------
+- DO NOT remove or weaken role checks
+- DO NOT auto-approve drivers
+- DO NOT change pricing logic
+- DO NOT introduce external paid services
+- DO NOT break existing schema relations
+
+--------------------------------
+FINAL EXPECTED RESULT:
+--------------------------------
+- Drivers hear a sound + see a 10-second countdown for new rides
+- Riders and drivers receive real-time ride updates
+- Profile photos appear after match
+- Live photo verification is captured and reviewable
+- Admin can approve drivers safely
+- Full audit logging remains intact
+
+Implement cleanly, safely, and incrementally.

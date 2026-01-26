@@ -30,6 +30,8 @@ import {
   rides,
   driverMovements,
   rideAuditLogs,
+  // Phase 23 - Ride Offers
+  rideOffers,
   type UserRole, 
   type InsertUserRole,
   type DriverProfile,
@@ -53,6 +55,8 @@ import {
   type InsertPayoutTransaction,
   type Notification,
   type InsertNotification,
+  type RideOffer,
+  type InsertRideOffer,
   type Rating,
   type InsertRating,
   type Dispute,
@@ -241,6 +245,21 @@ export interface IStorage {
   markAllNotificationsAsRead(userId: string): Promise<void>;
   notifyAllDrivers(title: string, message: string, type?: "info" | "success" | "warning"): Promise<void>;
   notifyAdminsAndDirectors(title: string, message: string, type?: "info" | "success" | "warning"): Promise<void>;
+  
+  // Ride offers
+  createRideOffer(data: InsertRideOffer): Promise<RideOffer>;
+  getRideOffersByRide(rideId: string): Promise<RideOffer[]>;
+  getPendingRideOfferForDriver(driverId: string): Promise<RideOffer | null>;
+  updateRideOfferStatus(offerId: string, status: "accepted" | "expired" | "declined"): Promise<RideOffer | null>;
+  expirePendingOffersForRide(rideId: string, exceptDriverId?: string): Promise<void>;
+  
+  // Profile photos
+  updateDriverProfilePhoto(userId: string, profilePhoto: string): Promise<void>;
+  updateDriverVerificationPhoto(userId: string, verificationPhoto: string, sessionId: string): Promise<void>;
+  updateDriverVerificationStatus(userId: string, status: "unverified" | "pending_review" | "verified" | "rejected"): Promise<void>;
+  updateRiderProfilePhoto(userId: string, profilePhoto: string): Promise<void>;
+  updateRiderVerificationPhoto(userId: string, verificationPhoto: string, sessionId: string): Promise<void>;
+  getDriversNeedingVerification(): Promise<DriverProfile[]>;
 
   createRating(data: InsertRating): Promise<Rating>;
   getRatingByTripAndRater(tripId: string, raterId: string): Promise<Rating | null>;
@@ -1556,6 +1575,124 @@ export class DatabaseStorage implements IStorage {
         type,
       });
     }
+  }
+
+  // Ride offers implementation
+  async createRideOffer(data: InsertRideOffer): Promise<RideOffer> {
+    const [offer] = await db.insert(rideOffers).values(data).returning();
+    return offer;
+  }
+
+  async getRideOffersByRide(rideId: string): Promise<RideOffer[]> {
+    return await db
+      .select()
+      .from(rideOffers)
+      .where(eq(rideOffers.rideId, rideId))
+      .orderBy(desc(rideOffers.createdAt));
+  }
+
+  async getPendingRideOfferForDriver(driverId: string): Promise<RideOffer | null> {
+    const [offer] = await db
+      .select()
+      .from(rideOffers)
+      .where(
+        and(
+          eq(rideOffers.driverId, driverId),
+          eq(rideOffers.status, "pending")
+        )
+      )
+      .limit(1);
+    return offer || null;
+  }
+
+  async updateRideOfferStatus(offerId: string, status: "accepted" | "expired" | "declined"): Promise<RideOffer | null> {
+    const [offer] = await db
+      .update(rideOffers)
+      .set({ 
+        status, 
+        respondedAt: new Date() 
+      })
+      .where(eq(rideOffers.id, offerId))
+      .returning();
+    return offer || null;
+  }
+
+  async expirePendingOffersForRide(rideId: string, exceptDriverId?: string): Promise<void> {
+    const conditions = [
+      eq(rideOffers.rideId, rideId),
+      eq(rideOffers.status, "pending")
+    ];
+    
+    if (exceptDriverId) {
+      await db
+        .update(rideOffers)
+        .set({ status: "expired", respondedAt: new Date() })
+        .where(
+          and(
+            ...conditions,
+            sql`${rideOffers.driverId} != ${exceptDriverId}`
+          )
+        );
+    } else {
+      await db
+        .update(rideOffers)
+        .set({ status: "expired", respondedAt: new Date() })
+        .where(and(...conditions));
+    }
+  }
+
+  // Profile photos implementation
+  async updateDriverProfilePhoto(userId: string, profilePhoto: string): Promise<void> {
+    await db
+      .update(driverProfiles)
+      .set({ profilePhoto, updatedAt: new Date() })
+      .where(eq(driverProfiles.userId, userId));
+  }
+
+  async updateDriverVerificationPhoto(userId: string, verificationPhoto: string, sessionId: string): Promise<void> {
+    await db
+      .update(driverProfiles)
+      .set({ 
+        verificationPhoto, 
+        verificationSessionId: sessionId,
+        verificationTimestamp: new Date(),
+        verificationStatus: "pending_review",
+        updatedAt: new Date() 
+      })
+      .where(eq(driverProfiles.userId, userId));
+  }
+
+  async updateDriverVerificationStatus(userId: string, status: "unverified" | "pending_review" | "verified" | "rejected"): Promise<void> {
+    await db
+      .update(driverProfiles)
+      .set({ verificationStatus: status, updatedAt: new Date() })
+      .where(eq(driverProfiles.userId, userId));
+  }
+
+  async updateRiderProfilePhoto(userId: string, profilePhoto: string): Promise<void> {
+    await db
+      .update(riderProfiles)
+      .set({ profilePhoto })
+      .where(eq(riderProfiles.userId, userId));
+  }
+
+  async updateRiderVerificationPhoto(userId: string, verificationPhoto: string, sessionId: string): Promise<void> {
+    await db
+      .update(riderProfiles)
+      .set({ 
+        verificationPhoto, 
+        verificationSessionId: sessionId,
+        verificationTimestamp: new Date(),
+        verificationStatus: "pending_review"
+      })
+      .where(eq(riderProfiles.userId, userId));
+  }
+
+  async getDriversNeedingVerification(): Promise<DriverProfile[]> {
+    return await db
+      .select()
+      .from(driverProfiles)
+      .where(eq(driverProfiles.verificationStatus, "pending_review"));
   }
 
   async createRating(data: InsertRating): Promise<Rating> {
