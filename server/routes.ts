@@ -15,7 +15,13 @@ const requireRole = (allowedRoles: string[]): RequestHandler => {
       }
       
       const userRole = await storage.getUserRole(userId);
-      if (!userRole || !allowedRoles.includes(userRole.role)) {
+      if (!userRole) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // super_admin always has access to all roles
+      const hasAccess = userRole.role === "super_admin" || allowedRoles.includes(userRole.role);
+      if (!hasAccess) {
         return res.status(403).json({ message: "Access denied" });
       }
       
