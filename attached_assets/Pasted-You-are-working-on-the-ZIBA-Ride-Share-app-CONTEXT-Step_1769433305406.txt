@@ -1,0 +1,129 @@
+You are working on the ZIBA Ride Share app.
+
+CONTEXT:
+- Step A (Lifecycle) complete
+- Step B (State transitions) complete
+- Step C (UI, timers, safety, native GPS) complete
+- Native GPS apps handle navigation (NO in-app maps)
+- Distance & time tracking already available from movement logs
+- ZIBA uses dynamic pricing like Uber/Lyft
+
+GOAL:
+Finalize fare calculation, waiting compensation, mid-ride adjustments, and cancellation payouts fairly and safely.
+
+DO NOT:
+- Add paid map APIs
+- Change role permissions
+- Remove existing audit logs
+- Break existing trip completion logic
+
+---
+
+IMPLEMENT THE FOLLOWING:
+
+### 1️⃣ BASE FARE STRUCTURE
+Each ride fare must include:
+- Base fare (flat)
+- Distance fee (per mile/km)
+- Time fee (per minute)
+- Waiting compensation (when applicable)
+- Cancellation compensation (when applicable)
+
+All components must be itemized internally.
+
+---
+
+### 2️⃣ TRAFFIC & TIME OVERRUN ADJUSTMENT
+If actual trip time exceeds estimated time due to:
+- Traffic
+- Road closures
+- Rider-requested delay
+
+THEN:
+- Automatically increase fare using:
+  (extra_minutes × time_rate)
+- Driver must be compensated for extra time
+- Rider sees updated fare before trip completion
+
+---
+
+### 3️⃣ WAITING TIME COMPENSATION
+At pickup:
+- First 2 minutes → no pay
+- Next 5 minutes → paid waiting
+- Additional 4 minutes → premium waiting
+
+Rules:
+- Waiting pay is added automatically
+- Rider is warned when paid waiting begins
+- Rider cannot cancel without penalty after paid waiting starts
+
+---
+
+### 4️⃣ DRIVER EN-ROUTE CANCELLATION PAY
+If rider cancels while driver is:
+- En route to pickup
+AND
+- Driver has moved ≥ 1 minute OR ≥ 1 km
+
+THEN:
+- Driver is paid:
+  (distance_driven × movement_rate)
+- ZIBA also collects platform fee
+
+If below threshold:
+- Driver not paid
+- ZIBA keeps cancellation fee
+
+---
+
+### 5️⃣ MID-TRIP EARLY STOP
+If ride ends earlier than original destination:
+- Prompt driver: “Is this the completed destination?”
+- If YES:
+  - Fare recalculated using:
+    • Distance traveled
+    • Time elapsed
+    • Waiting (if any)
+- If NO:
+  - Trip continues
+
+---
+
+### 6️⃣ DRIVER-INITIATED CANCELLATION (IN PROGRESS)
+Driver must select reason:
+- Rider requested cancellation
+- Safety concern
+- Vehicle issue
+- Emergency
+
+Rules:
+- Only justified reasons allow driver compensation
+- Rider-requested cancellations pay driver
+- Abuse flags added for repeated misuse
+
+---
+
+### 7️⃣ RIDER CANCELLATION (IN PROGRESS)
+- Rider cannot cancel once trip is IN_PROGRESS
+- UI must block action and show reason
+
+---
+
+### 8️⃣ FINALIZATION & PAYOUT
+On trip completion:
+- Final fare is locked
+- Driver earnings credited
+- ZIBA commission applied
+- Rider receipt generated
+- All calculations logged to RideAuditLog
+
+---
+
+FINAL CHECK:
+- Driver never loses fuel/time unfairly
+- Rider always sees fair, explainable pricing
+- ZIBA revenue protected
+- No map API costs added
+
+Implement completely and confirm when Step D is finished.
