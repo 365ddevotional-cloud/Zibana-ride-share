@@ -36,9 +36,11 @@ import {
   Star,
   User
 } from "lucide-react";
-import type { Trip, RiderProfile } from "@shared/schema";
+import type { Trip, RiderProfile, Ride } from "@shared/schema";
 import { NotificationBell } from "@/components/notification-bell";
 import { SupportSection } from "@/components/support-section";
+import { RiderRideStatus } from "@/components/ride/rider-ride-status";
+import { useRiderRide, type RideWithDetails } from "@/hooks/use-ride-lifecycle";
 
 const rideRequestSchema = z.object({
   pickupLocation: z.string().min(3, "Please enter a pickup location"),
@@ -72,6 +74,14 @@ export default function RiderDashboard() {
     enabled: !!user,
     refetchInterval: 3000,
   });
+
+  // Phase 22 - Enhanced ride lifecycle
+  const {
+    currentRide,
+    requestRide,
+    cancelRide: cancelRideAction,
+    respondSafetyCheck,
+  } = useRiderRide();
 
   const buildTripQueryParams = () => {
     const params = new URLSearchParams();
@@ -187,6 +197,7 @@ export default function RiderDashboard() {
   }
 
   const hasActiveTrip = currentTrip && ["requested", "accepted", "in_progress"].includes(currentTrip.status);
+  const hasActiveRide = currentRide && ["requested", "matching", "accepted", "driver_en_route", "arrived", "waiting", "in_progress"].includes(currentRide.status);
 
   return (
     <div className="min-h-screen bg-background">
@@ -207,7 +218,7 @@ export default function RiderDashboard() {
             <h1 className="text-2xl font-bold">Welcome back!</h1>
             <p className="text-muted-foreground">Where would you like to go today?</p>
           </div>
-          {!hasActiveTrip && !showRequestForm && (
+          {!hasActiveTrip && !hasActiveRide && !showRequestForm && (
             <Button onClick={() => setShowRequestForm(true)} data-testid="button-request-ride">
               <Plus className="h-4 w-4 mr-2" />
               Request Ride
@@ -217,7 +228,7 @@ export default function RiderDashboard() {
 
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
-            {showRequestForm && !hasActiveTrip && (
+            {showRequestForm && !hasActiveTrip && !hasActiveRide && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -324,7 +335,18 @@ export default function RiderDashboard() {
               </Card>
             )}
 
-            {hasActiveTrip && currentTrip && (
+            {/* Phase 22 - Enhanced Ride Lifecycle */}
+            {hasActiveRide && currentRide && (
+              <RiderRideStatus
+                ride={currentRide}
+                onCancel={(rideId, reason) => cancelRideAction.mutate({ rideId, reason })}
+                onSafetyResponse={(rideId, response) => respondSafetyCheck.mutate({ rideId, response })}
+                isCancelling={cancelRideAction.isPending}
+              />
+            )}
+            
+            {/* Legacy current trip fallback */}
+            {!hasActiveRide && hasActiveTrip && currentTrip && (
               <Card className="border-primary">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -461,7 +483,7 @@ export default function RiderDashboard() {
               </Card>
             )}
 
-            {!hasActiveTrip && !showRequestForm && (
+            {!hasActiveTrip && !hasActiveRide && !showRequestForm && (
               <Card className="hover-elevate cursor-pointer" onClick={() => setShowRequestForm(true)}>
                 <CardContent className="flex items-center gap-4 py-8">
                   <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">

@@ -39,9 +39,12 @@ import {
   Target,
   Award
 } from "lucide-react";
-import type { DriverProfile, Trip } from "@shared/schema";
+import type { DriverProfile, Trip, Ride } from "@shared/schema";
 import { NotificationBell } from "@/components/notification-bell";
 import { SupportSection } from "@/components/support-section";
+import { DriverRideCard } from "@/components/ride/driver-ride-card";
+import { DriverRideActions } from "@/components/ride/driver-ride-actions";
+import { useDriverRide, type RideWithDetails } from "@/hooks/use-ride-lifecycle";
 
 type TripWithRider = Trip & { riderName?: string };
 
@@ -107,6 +110,21 @@ export default function DriverDashboard() {
     enabled: !!user && profile?.status === "approved",
     refetchInterval: 3000,
   });
+
+  // Phase 22 - Enhanced ride lifecycle
+  const {
+    currentRide,
+    availableRides: lifecycleRides,
+    ridesLoading: lifecycleRidesLoading,
+    acceptRide,
+    startPickup,
+    arrive,
+    startWaiting,
+    startTrip,
+    completeTrip,
+    cancelRide,
+    respondSafetyCheck,
+  } = useDriverRide();
 
   const buildTripQueryParams = () => {
     const params = new URLSearchParams();
@@ -578,7 +596,23 @@ export default function DriverDashboard() {
           </div>
 
           <div className="lg:col-span-2 space-y-6">
-            {currentTrip && (
+            {/* Phase 22 - Enhanced Ride Lifecycle */}
+            {currentRide && (
+              <DriverRideActions
+                ride={currentRide}
+                onStartPickup={(rideId) => startPickup.mutate(rideId)}
+                onArrive={(rideId) => arrive.mutate(rideId)}
+                onStartWaiting={(rideId) => startWaiting.mutate(rideId)}
+                onStartTrip={(rideId) => startTrip.mutate(rideId)}
+                onComplete={(rideId) => completeTrip.mutate(rideId)}
+                onCancel={(rideId, reason) => cancelRide.mutate({ rideId, reason })}
+                onSafetyResponse={(rideId, response) => respondSafetyCheck.mutate({ rideId, response })}
+                isPending={startPickup.isPending || arrive.isPending || startWaiting.isPending || startTrip.isPending || completeTrip.isPending || cancelRide.isPending}
+              />
+            )}
+            
+            {/* Legacy current trip fallback */}
+            {!currentRide && currentTrip && (
               <Card className="border-primary">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -671,7 +705,7 @@ export default function DriverDashboard() {
                   <div className="py-8 text-center text-muted-foreground">
                     Loading available rides...
                   </div>
-                ) : availableRides.length === 0 ? (
+                ) : (lifecycleRides.length === 0 && availableRides.length === 0) ? (
                   <EmptyState
                     icon={Clock}
                     title="No rides available"
@@ -679,7 +713,19 @@ export default function DriverDashboard() {
                   />
                 ) : (
                   <div className="space-y-4">
-                    {availableRides.map((ride) => (
+                    {/* Phase 22 - New ride lifecycle cards with 10-second countdown */}
+                    {lifecycleRides.map((ride) => (
+                      <DriverRideCard
+                        key={ride.id}
+                        ride={ride}
+                        onAccept={(rideId) => acceptRide.mutate(rideId)}
+                        isAccepting={acceptRide.isPending}
+                        countdownSeconds={10}
+                      />
+                    ))}
+                    
+                    {/* Legacy available rides fallback */}
+                    {lifecycleRides.length === 0 && availableRides.map((ride) => (
                       <Card key={ride.id} className="hover-elevate" data-testid={`card-ride-${ride.id}`}>
                         <CardContent className="pt-4">
                           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
