@@ -19,6 +19,7 @@ import { EmptyState } from "@/components/empty-state";
 import { FullPageLoading } from "@/components/loading-spinner";
 import { TripFilterBar } from "@/components/trip-filter-bar";
 import { TripDetailModal } from "@/components/trip-detail-modal";
+import { AdminReservationsPanel } from "@/components/admin/reservations-panel";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -1792,6 +1793,10 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <MapPin className="h-4 w-4 mr-2" />
               Trips
             </TabsTrigger>
+            <TabsTrigger value="reservations" className="admin-nav-trigger rounded-md" data-testid="tab-reservations">
+              <Calendar className="h-4 w-4 mr-2" />
+              Reservations
+            </TabsTrigger>
             <TabsTrigger value="payouts" className="admin-nav-trigger rounded-md" data-testid="tab-payouts">
               <Wallet className="h-4 w-4 mr-2" />
               Payouts
@@ -2203,6 +2208,10 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               onOpenChange={setTripDetailOpen}
               userRole={isDirector ? "director" : "admin"}
             />
+          </TabsContent>
+
+          <TabsContent value="reservations">
+            <AdminReservationsPanel />
           </TabsContent>
 
           <TabsContent value="payouts">
