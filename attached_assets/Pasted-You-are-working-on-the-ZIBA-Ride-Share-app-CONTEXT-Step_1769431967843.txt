@@ -1,0 +1,134 @@
+You are working on the ZIBA Ride Share app.
+
+CONTEXT:
+- Step A (Ride lifecycle design) is approved
+- Step B (State transitions & permissions) is complete
+- Native GPS apps (Google Maps / Apple Maps / Waze) must be used instead of in-app maps to reduce API costs
+- Do NOT change backend fare logic already implemented
+- Do NOT add paid map SDKs
+- Do NOT weaken role or permission checks
+
+GOAL:
+Implement Uber/Lyft-style driver & rider UI actions, countdowns, waiting timers, and safety confirmations that align exactly with the approved ride lifecycle.
+
+---
+
+IMPLEMENT THE FOLLOWING:
+
+### 1️⃣ MATCHING & ACCEPTANCE (DRIVER)
+- When a ride request is broadcast:
+  - Show a driver notification card with:
+    • Rider first name
+    • Pickup + dropoff locations
+    • Estimated distance & ETA
+  - Display a **10-second countdown bar** (not 30 seconds)
+  - Countdown visually depletes from full to empty
+- If countdown expires:
+  - Ride auto-reassigns
+- First driver to tap **Accept Ride** wins the request
+
+---
+
+### 2️⃣ DRIVER → PICKUP FLOW
+After acceptance:
+- Show status: **DRIVER_EN_ROUTE**
+- Button: **Start Pickup**
+- On tap:
+  - Launch device native GPS app with pickup coordinates
+  - Begin movement tracking (distance + time)
+- Rider UI updates to:
+  - “Driver is on the way”
+  - Live ETA updates (no in-app map rendering)
+
+---
+
+### 3️⃣ ARRIVAL & WAITING LOGIC
+When driver arrives at pickup:
+- Status becomes **ARRIVED**
+- Button: **Arrived at Pickup**
+- Start wait timers:
+  - First 2 minutes → grace period (no pay)
+  - Next 5 minutes → paid wait time
+  - Optional extra 4 minutes → bonus wait time
+- Show visible countdown timers to both rider & driver
+- If rider cancels after driver has:
+  - Driven ≥ 1 minute OR ≥ 1 km
+  → Driver receives movement compensation
+- If < 1 minute or < 1 km:
+  → No driver compensation (ZIBA keeps fee)
+
+---
+
+### 4️⃣ START TRIP
+When rider enters vehicle:
+- Driver taps **Start Trip**
+- Status becomes **IN_PROGRESS**
+- Native GPS opens to destination
+- Rider cannot cancel during trip
+- Driver may cancel only with reason selection
+
+---
+
+### 5️⃣ MID-TRIP SAFETY MONITORING
+If vehicle stops moving for ≥ 4 minutes:
+- Trigger safety check:
+  - Notify driver: “Are you safe?”
+  - Notify rider: “Are you safe?”
+- Provide quick actions:
+  - “I’m safe”
+  - “Need help”
+  - Emergency contact option
+- Log safety event without ending trip
+
+---
+
+### 6️⃣ MIDWAY DESTINATION CHANGE
+If rider asks to stop early:
+- Prompt driver:
+  - “Is this the completed destination?”
+- If YES:
+  - End trip
+  - Recalculate fare based on:
+    • Distance traveled
+    • Time elapsed
+    • Waiting time (if any)
+- If NO:
+  - Continue trip
+
+---
+
+### 7️⃣ COMPLETION
+On **Complete Trip**:
+- Status becomes **COMPLETED**
+- Final fare calculated dynamically:
+  - Base fare
+  - Distance
+  - Time (including traffic delays)
+  - Waiting compensation (if applicable)
+- Rider prompted to rate driver
+- Driver earnings updated
+
+---
+
+### 8️⃣ UI REQUIREMENTS
+- Show clear ride status timeline:
+  Requested →
+  Accepted →
+  Driver En Route →
+  Arrived →
+  Waiting →
+  In Progress →
+  Completed / Canceled
+- Buttons must appear only when allowed by ride state
+- Rider & driver views must stay synchronized
+
+---
+
+FINAL CHECK:
+- No in-app map rendering
+- Native GPS launches only on Start Pickup / Start Trip
+- 10-second accept countdown enforced
+- Compensation rules respected
+- Safety checks active
+
+Implement completely and confirm when Step C is finished.
