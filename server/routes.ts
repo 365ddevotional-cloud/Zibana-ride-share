@@ -4897,7 +4897,7 @@ export async function registerRoutes(
     try {
       const userId = req.user?.claims?.sub;
       const { rideId } = req.params;
-      const { confirmFinalDestination } = req.body;
+      const { confirmFinalDestination, isEarlyStop } = req.body;
 
       const ride = await storage.getRideById(rideId);
       if (!ride) {
@@ -4935,8 +4935,68 @@ export async function registerRoutes(
       const completedAt = new Date();
       const tripDurationMin = (completedAt.getTime() - startedAt.getTime()) / (1000 * 60);
 
+      // Get total distance from driver movements
+      const movement = await storage.getTotalDriverMovement(rideId);
+      const actualDistanceKm = movement.distanceKm;
+
+      // Import fare calculation module
+      const { 
+        calculateCompleteFare, 
+        generateFareReceipt,
+        recalculateFareForEarlyStop 
+      } = await import("./fare-calculation.js");
+
+      // Calculate fare with all components
+      const fareBreakdown = calculateCompleteFare({
+        distanceKm: actualDistanceKm,
+        durationMin: tripDurationMin,
+        estimatedDurationMin: parseFloat(ride.estimatedDurationMin || "0"),
+        waitingStartedAt: ride.waitingStartedAt ? new Date(ride.waitingStartedAt) : null,
+        tripEndedAt: completedAt,
+        currency: ride.currency || "USD"
+      });
+
+      // Handle early stop case
+      let earlyStopData = null;
+      if (isEarlyStop) {
+        earlyStopData = recalculateFareForEarlyStop({
+          originalEstimatedKm: parseFloat(ride.estimatedDistanceKm || "0"),
+          actualDistanceKm,
+          originalEstimatedMin: parseFloat(ride.estimatedDurationMin || "0"),
+          actualDurationMin: tripDurationMin,
+          waitingStartedAt: ride.waitingStartedAt ? new Date(ride.waitingStartedAt) : null,
+          tripEndedAt: completedAt
+        });
+      }
+
+      // Update ride with final fare breakdown
       const updatedRide = await storage.updateRideStatus(rideId, "completed", {
         actualDurationMin: tripDurationMin.toString(),
+        actualDistanceKm: actualDistanceKm.toString(),
+        baseFare: fareBreakdown.baseFare.toString(),
+        distanceFare: fareBreakdown.distanceFare.toString(),
+        timeFare: fareBreakdown.timeFare.toString(),
+        waitingFee: fareBreakdown.waitingFee.toString(),
+        trafficFee: fareBreakdown.trafficFee.toString(),
+        totalFare: fareBreakdown.totalFare.toString(),
+        driverEarning: fareBreakdown.driverEarning.toString(),
+        platformFee: fareBreakdown.platformFee.toString(),
+        earlyStopConfirmed: isEarlyStop || false,
+      });
+
+      // Get driver info for receipt
+      const driverProfile = await storage.getDriverProfile(userId);
+
+      // Generate receipt
+      const receipt = generateFareReceipt({
+        rideId,
+        fareBreakdown,
+        pickupAddress: ride.pickupAddress || "Pickup location",
+        dropoffAddress: ride.dropoffAddress || "Dropoff location",
+        distanceKm: actualDistanceKm,
+        durationMin: tripDurationMin,
+        driverName: driverProfile?.fullName || "Your driver",
+        completedAt
       });
 
       // Log the action
@@ -4947,19 +5007,30 @@ export async function registerRoutes(
         actorRole: "driver",
         previousStatus: ride.status,
         newStatus: "completed",
-        metadata: JSON.stringify({ tripDurationMin }),
+        metadata: JSON.stringify({ 
+          tripDurationMin,
+          fareBreakdown,
+          receipt,
+          earlyStopData,
+          isEarlyStop: isEarlyStop || false
+        }),
       });
 
-      // Notify rider
+      // Notify rider with receipt info
       await storage.createNotification({
         userId: ride.riderId,
         role: "rider",
         title: "Trip Complete",
         type: "ride_update",
-        message: "Your trip is complete! Please rate your driver.",
+        message: `Your trip is complete! Total fare: $${fareBreakdown.totalFare.toFixed(2)}. Please rate your driver.`,
       });
 
-      return res.json(updatedRide);
+      return res.json({
+        ...updatedRide,
+        fareBreakdown,
+        receipt,
+        earlyStopData
+      });
     } catch (error) {
       console.error("Error completing trip:", error);
       return res.status(500).json({ message: "Failed to complete trip" });
@@ -4971,7 +5042,7 @@ export async function registerRoutes(
     try {
       const userId = req.user?.claims?.sub;
       const { rideId } = req.params;
-      const { reason } = req.body;
+      const { reason, driverCancelReason } = req.body;
 
       const ride = await storage.getRideById(rideId);
       if (!ride) {
@@ -4988,6 +5059,19 @@ export async function registerRoutes(
 
       const role = isRider ? "rider" : "driver";
       const { validateAction, isDriverEligibleForCompensation } = await import("./ride-lifecycle.js");
+      const { 
+        calculateCancellationCompensation, 
+        canCancelWithoutPenalty,
+        isJustifiedCancellation 
+      } = await import("./fare-calculation.js");
+
+      // Block rider cancellation during in_progress
+      if (isRider && ride.status === "in_progress") {
+        return res.status(400).json({ 
+          message: "You cannot cancel a ride that is already in progress. Please contact your driver directly.",
+          blocked: true 
+        });
+      }
 
       // Get driver movement if applicable
       let driverMovement = { distanceKm: 0, durationSec: 0 };
@@ -5007,22 +5091,53 @@ export async function registerRoutes(
       if (validation.requiresReason && !reason) {
         return res.status(400).json({ 
           message: "Cancellation reason is required",
-          requiresReason: true 
+          requiresReason: true,
+          validReasons: ["rider_requested", "safety_concern", "vehicle_issue", "emergency", "rider_no_show", "other"]
         });
       }
 
-      // Determine compensation eligibility
+      // Calculate compensation for rider cancellation
+      let compensationData = null;
       let compensationEligible = false;
-      if (isRider && ride.driverId && driverMovement.distanceKm > 0) {
-        const compensation = isDriverEligibleForCompensation(
-          driverMovement.distanceKm,
-          driverMovement.durationSec
-        );
-        compensationEligible = compensation.eligible;
+      if (isRider && ride.driverId) {
+        compensationData = calculateCancellationCompensation({
+          distanceKm: driverMovement.distanceKm,
+          durationSec: driverMovement.durationSec,
+          waitingStartedAt: ride.waitingStartedAt ? new Date(ride.waitingStartedAt) : null,
+          cancelledAt: new Date()
+        });
+        compensationEligible = compensationData.eligible;
+      }
+
+      // For driver cancellation, check if reason is justified
+      let driverCompensation = null;
+      if (isDriver && driverCancelReason) {
+        const justified = isJustifiedCancellation(driverCancelReason);
+        if (justified && ["rider_requested", "rider_no_show"].includes(driverCancelReason)) {
+          // Driver gets compensated for rider-caused cancellations
+          driverCompensation = calculateCancellationCompensation({
+            distanceKm: driverMovement.distanceKm,
+            durationSec: driverMovement.durationSec,
+            waitingStartedAt: ride.waitingStartedAt ? new Date(ride.waitingStartedAt) : null,
+            cancelledAt: new Date()
+          });
+        }
+      }
+
+      // Check penalty status for riders
+      let penaltyInfo = null;
+      if (isRider && ride.waitingStartedAt) {
+        penaltyInfo = canCancelWithoutPenalty(new Date(ride.waitingStartedAt));
       }
 
       const cancelledBy = isRider ? "rider" : "driver";
-      const updatedRide = await storage.cancelRide(rideId, cancelledBy, reason);
+      const updatedRide = await storage.cancelRide(rideId, cancelledBy, reason, {
+        driverCancelReason,
+        cancellationFee: compensationData?.riderCharge || null,
+        driverCancelCompensation: (compensationData?.driverCompensation || driverCompensation?.driverCompensation) || null,
+        platformCancelFee: (compensationData?.platformFee || driverCompensation?.platformFee) || null,
+        compensationEligible,
+      });
 
       // Log the action
       await storage.createRideAuditLog({
@@ -5034,21 +5149,28 @@ export async function registerRoutes(
         newStatus: "cancelled",
         metadata: JSON.stringify({ 
           reason, 
+          driverCancelReason,
           cancelledBy,
           compensationEligible,
+          compensationData,
+          driverCompensation,
           driverMovement,
+          penaltyInfo,
           appliedFee: validation.requiresFee,
         }),
       });
 
       // Notify the other party
       if (isRider && ride.driverId) {
+        const compensationMsg = compensationEligible 
+          ? ` You will receive a compensation of $${compensationData?.driverCompensation?.toFixed(2)}.`
+          : "";
         await storage.createNotification({
           userId: ride.driverId,
           role: "driver",
           title: "Ride Cancelled",
           type: "ride_update",
-          message: "The rider has cancelled the ride",
+          message: `The rider has cancelled the ride.${compensationMsg}`,
         });
       } else if (isDriver) {
         await storage.createNotification({
@@ -5063,6 +5185,9 @@ export async function registerRoutes(
       return res.json({
         ...updatedRide,
         compensationEligible,
+        compensationData,
+        driverCompensation,
+        penaltyInfo,
         feeApplied: validation.requiresFee,
       });
     } catch (error) {

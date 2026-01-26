@@ -92,6 +92,14 @@ export const rideStatusEnum = pgEnum("ride_status", [
   "cancelled"
 ]);
 export const rideCancelledByEnum = pgEnum("ride_cancelled_by", ["rider", "driver", "system"]);
+export const driverCancelReasonEnum = pgEnum("driver_cancel_reason", [
+  "rider_requested",
+  "safety_concern",
+  "vehicle_issue",
+  "emergency",
+  "rider_no_show",
+  "other"
+]);
 export const rideAuditActionEnum = pgEnum("ride_audit_action", [
   "status_change",
   "driver_assigned",
@@ -259,6 +267,18 @@ export const rides = pgTable("rides", {
   // Cancellation
   cancelReason: text("cancel_reason"),
   cancelledBy: rideCancelledByEnum("cancelled_by"),
+  driverCancelReason: driverCancelReasonEnum("driver_cancel_reason"),
+  
+  // Cancellation compensation
+  cancellationFee: decimal("cancellation_fee", { precision: 10, scale: 2 }),
+  driverCancelCompensation: decimal("driver_cancel_compensation", { precision: 10, scale: 2 }),
+  platformCancelFee: decimal("platform_cancel_fee", { precision: 10, scale: 2 }),
+  compensationEligible: boolean("compensation_eligible").default(false),
+  
+  // Early stop tracking
+  earlyStopConfirmed: boolean("early_stop_confirmed"),
+  originalDestinationLat: decimal("original_destination_lat", { precision: 10, scale: 7 }),
+  originalDestinationLng: decimal("original_destination_lng", { precision: 10, scale: 7 }),
   
   // Safety & idle detection
   lastMovementAt: timestamp("last_movement_at"),

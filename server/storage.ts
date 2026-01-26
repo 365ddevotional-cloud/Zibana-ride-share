@@ -495,7 +495,13 @@ export interface IStorage {
   getAvailableRidesForDriver(): Promise<Ride[]>;
   updateRideStatus(rideId: string, status: string, additionalData?: Partial<Ride>): Promise<Ride | null>;
   assignDriverToRide(rideId: string, driverId: string): Promise<Ride | null>;
-  cancelRide(rideId: string, cancelledBy: string, reason?: string): Promise<Ride | null>;
+  cancelRide(rideId: string, cancelledBy: string, reason?: string, compensationData?: {
+    driverCancelReason?: string;
+    cancellationFee?: number | null;
+    driverCancelCompensation?: number | null;
+    platformCancelFee?: number | null;
+    compensationEligible?: boolean;
+  }): Promise<Ride | null>;
   
   // Driver Movement tracking
   createDriverMovement(data: InsertDriverMovement): Promise<DriverMovement>;
@@ -4149,15 +4155,41 @@ export class DatabaseStorage implements IStorage {
     return ride || null;
   }
 
-  async cancelRide(rideId: string, cancelledBy: string, reason?: string): Promise<Ride | null> {
+  async cancelRide(rideId: string, cancelledBy: string, reason?: string, compensationData?: {
+    driverCancelReason?: string;
+    cancellationFee?: number | null;
+    driverCancelCompensation?: number | null;
+    platformCancelFee?: number | null;
+    compensationEligible?: boolean;
+  }): Promise<Ride | null> {
+    const updateData: any = {
+      status: "cancelled",
+      cancelledBy: cancelledBy as any,
+      cancelReason: reason,
+      cancelledAt: new Date(),
+      updatedAt: new Date(),
+    };
+    
+    if (compensationData) {
+      if (compensationData.driverCancelReason) {
+        updateData.driverCancelReason = compensationData.driverCancelReason;
+      }
+      if (compensationData.cancellationFee !== undefined && compensationData.cancellationFee !== null) {
+        updateData.cancellationFee = compensationData.cancellationFee.toString();
+      }
+      if (compensationData.driverCancelCompensation !== undefined && compensationData.driverCancelCompensation !== null) {
+        updateData.driverCancelCompensation = compensationData.driverCancelCompensation.toString();
+      }
+      if (compensationData.platformCancelFee !== undefined && compensationData.platformCancelFee !== null) {
+        updateData.platformCancelFee = compensationData.platformCancelFee.toString();
+      }
+      if (compensationData.compensationEligible !== undefined) {
+        updateData.compensationEligible = compensationData.compensationEligible;
+      }
+    }
+    
     const [ride] = await db.update(rides)
-      .set({
-        status: "cancelled",
-        cancelledBy: cancelledBy as any,
-        cancelReason: reason,
-        cancelledAt: new Date(),
-        updatedAt: new Date(),
-      })
+      .set(updateData)
       .where(eq(rides.id, rideId))
       .returning();
     return ride || null;
