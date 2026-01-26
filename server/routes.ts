@@ -5,6 +5,7 @@ import { storage } from "./storage";
 import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema } from "@shared/schema";
 import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, evaluateAllDrivers } from "./incentives";
 import { notificationService } from "./notification-service";
+import { routingService } from "./routing-service";
 
 const requireRole = (allowedRoles: string[]): RequestHandler => {
   return async (req: any, res, next) => {
