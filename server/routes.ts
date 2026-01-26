@@ -4,6 +4,7 @@ import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integra
 import { storage } from "./storage";
 import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema } from "@shared/schema";
 import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, evaluateAllDrivers } from "./incentives";
+import { notificationService } from "./notification-service";
 
 const requireRole = (allowedRoles: string[]): RequestHandler => {
   return async (req: any, res, next) => {
@@ -5304,6 +5305,218 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error fetching audit logs:", error);
       return res.status(500).json({ message: "Failed to fetch audit logs" });
+    }
+  });
+
+  // ==========================================
+  // Ride Offers Routes
+  // ==========================================
+
+  // Get pending ride offer for current driver
+  app.get("/api/ride-offers/pending", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const offer = await storage.getPendingRideOfferForDriver(userId);
+      
+      if (!offer) {
+        return res.json(null);
+      }
+
+      // Get ride details
+      const ride = await storage.getRideById(offer.rideId);
+      if (!ride) {
+        return res.json(null);
+      }
+
+      return res.json({
+        ...offer,
+        ride: {
+          pickupAddress: ride.pickupAddress,
+          dropoffAddress: ride.dropoffAddress,
+          estimatedFare: ride.totalFare || ride.baseFare,
+          passengerCount: ride.passengerCount,
+        }
+      });
+    } catch (error) {
+      console.error("Error getting pending offer:", error);
+      return res.status(500).json({ message: "Failed to get pending offer" });
+    }
+  });
+
+  // Accept a ride offer
+  app.post("/api/ride-offers/:offerId/accept", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { offerId } = req.params;
+
+      const offer = await storage.getPendingRideOfferForDriver(userId);
+      if (!offer || offer.id !== offerId) {
+        return res.status(400).json({ message: "Offer not found or expired" });
+      }
+
+      // Check if offer is expired
+      if (new Date() > new Date(offer.offerExpiresAt)) {
+        await storage.updateRideOfferStatus(offerId, "expired");
+        return res.status(400).json({ message: "Offer has expired" });
+      }
+
+      const ride = await storage.getRideById(offer.rideId);
+      if (!ride || ride.status !== "matching") {
+        await storage.updateRideOfferStatus(offerId, "expired");
+        return res.status(400).json({ message: "Ride is no longer available" });
+      }
+
+      // Accept the offer
+      await storage.updateRideOfferStatus(offerId, "accepted");
+
+      // Assign driver to ride
+      const updatedRide = await storage.assignDriverToRide(offer.rideId, userId);
+      
+      if (!updatedRide) {
+        return res.status(500).json({ message: "Failed to assign driver to ride" });
+      }
+
+      // Expire all other pending offers for this ride
+      await storage.expirePendingOffersForRide(offer.rideId, userId);
+
+      // Send notifications
+      await notificationService.onRideAccepted(updatedRide, userId);
+
+      // Log the action
+      await storage.createRideAuditLog({
+        rideId: offer.rideId,
+        action: "ride_accepted",
+        actorId: userId,
+        actorRole: "driver",
+        previousStatus: "matching",
+        newStatus: "accepted",
+      });
+
+      return res.json({ success: true, ride: updatedRide });
+    } catch (error) {
+      console.error("Error accepting offer:", error);
+      return res.status(500).json({ message: "Failed to accept offer" });
+    }
+  });
+
+  // Decline a ride offer
+  app.post("/api/ride-offers/:offerId/decline", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { offerId } = req.params;
+
+      const offer = await storage.getPendingRideOfferForDriver(userId);
+      if (!offer || offer.id !== offerId) {
+        return res.status(400).json({ message: "Offer not found" });
+      }
+
+      await storage.updateRideOfferStatus(offerId, "declined");
+
+      return res.json({ success: true });
+    } catch (error) {
+      console.error("Error declining offer:", error);
+      return res.status(500).json({ message: "Failed to decline offer" });
+    }
+  });
+
+  // ==========================================
+  // Profile Photo Routes
+  // ==========================================
+
+  // Upload profile photo (driver or rider)
+  app.post("/api/profile/photo", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { photoData } = req.body;
+
+      if (!photoData) {
+        return res.status(400).json({ message: "Photo data is required" });
+      }
+
+      const role = await storage.getUserRole(userId);
+      
+      if (role?.role === "driver") {
+        await storage.updateDriverProfilePhoto(userId, photoData);
+      } else if (role?.role === "rider") {
+        await storage.updateRiderProfilePhoto(userId, photoData);
+      } else {
+        return res.status(400).json({ message: "Profile photos are for riders and drivers only" });
+      }
+
+      return res.json({ success: true });
+    } catch (error) {
+      console.error("Error uploading profile photo:", error);
+      return res.status(500).json({ message: "Failed to upload photo" });
+    }
+  });
+
+  // Upload verification photo (live photo for identity verification)
+  app.post("/api/profile/verification-photo", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { photoData, sessionId } = req.body;
+
+      if (!photoData || !sessionId) {
+        return res.status(400).json({ message: "Photo data and session ID are required" });
+      }
+
+      const role = await storage.getUserRole(userId);
+      
+      if (role?.role === "driver") {
+        await storage.updateDriverVerificationPhoto(userId, photoData, sessionId);
+      } else if (role?.role === "rider") {
+        await storage.updateRiderVerificationPhoto(userId, photoData, sessionId);
+      } else {
+        return res.status(400).json({ message: "Verification photos are for riders and drivers only" });
+      }
+
+      return res.json({ success: true, status: "pending_review" });
+    } catch (error) {
+      console.error("Error uploading verification photo:", error);
+      return res.status(500).json({ message: "Failed to upload verification photo" });
+    }
+  });
+
+  // Admin: Get drivers needing verification
+  app.get("/api/admin/drivers/pending-verification", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const drivers = await storage.getDriversNeedingVerification();
+      return res.json(drivers);
+    } catch (error) {
+      console.error("Error getting pending verifications:", error);
+      return res.status(500).json({ message: "Failed to get pending verifications" });
+    }
+  });
+
+  // Admin: Approve or reject driver verification
+  app.post("/api/admin/drivers/:driverId/verify", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { driverId } = req.params;
+      const { status } = req.body;
+
+      if (!["verified", "rejected"].includes(status)) {
+        return res.status(400).json({ message: "Invalid verification status" });
+      }
+
+      await storage.updateDriverVerificationStatus(driverId, status);
+
+      // Notify driver
+      const message = status === "verified" 
+        ? "Your identity has been verified. You can now start accepting rides."
+        : "Your identity verification was not approved. Please submit a new photo.";
+
+      await storage.createNotification({
+        userId: driverId,
+        role: "driver",
+        title: status === "verified" ? "Verification Approved" : "Verification Rejected",
+        message,
+        type: status === "verified" ? "success" : "warning",
+      });
+
+      return res.json({ success: true });
+    } catch (error) {
+      console.error("Error updating verification:", error);
+      return res.status(500).json({ message: "Failed to update verification" });
     }
   });
 
