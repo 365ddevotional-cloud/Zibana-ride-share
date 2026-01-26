@@ -54,6 +54,27 @@ Preferred communication style: Simple, everyday language.
 - **Country Pricing**: Dynamic pricing rules per country including base fare, per-km/minute rates, surge multipliers, and commission percentages
 - **Financial Audit**: All financial events logged in `financialAuditLogs` table for compliance
 
+## Test Mode Configuration (LOCKED)
+- **GLOBAL_TEST_MODE**: Enabled - ALL countries run wallet-simulated payments
+- **No Real Payments**: All charges, payouts, escrow, and commissions are simulated internally
+- **Virtual Wallets**: Wallet balances are virtual and resettable
+- **Full Logic Execution**: Fare, cancellation, reservation, and compensation logic runs fully
+- **Audit Logging**: All transactions are logged for audit
+
+## Security Configuration (LOCKED)
+### Role-Based Access Control (RBAC)
+- **Roles**: RIDER, DRIVER, ADMIN, SUPER_ADMIN
+- **Admin Dashboard Access**: ONLY ADMIN or SUPER_ADMIN roles
+- **No Auto-Promotion**: Users cannot gain admin access via signup, email, or country
+- **Unauthorized Redirect**: Non-admin users accessing /admin/* are redirected to /unauthorized
+- **Security Audit Logging**: All unauthorized access attempts are logged
+
+### Admin Role Assignment
+- **Super Admin Only**: Admin roles can ONLY be assigned by SUPER_ADMIN
+- **Assignment Methods**: Role Appointments UI or direct database update
+- **Session Refresh**: Changes require logout + login to take effect
+- **Primary Owner**: 365ddevotional@gmail.com is permanently assigned SUPER_ADMIN
+
 ## Navigation Architecture (LOCKED)
 - **NO external map SDKs** (Google Maps SDK, Mapbox, HERE, etc.)
 - **NO external routing APIs** (OSRM, OpenRouteService, etc.)
