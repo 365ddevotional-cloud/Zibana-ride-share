@@ -30,9 +30,9 @@ Preferred communication style: Simple, everyday language.
 
 ### Core Features
 - **Authentication & Authorization**: Replit Auth integration with comprehensive Role-Based Access Control (RBAC) and a hierarchical `super_admin` role for governance.
-- **User & Trip Management**: Full lifecycle management of users and trips, including approval, suspension, and cancellation.
+- **User & Trip Management**: Full lifecycle management of users and trips, including approval, suspension, and cancellation. Includes profile photos and live camera identity verification with admin review workflow.
 - **Financial Operations**: Fare calculation, commission management, driver payouts, simulated payment system with virtual wallets, and payout cycles. Includes refunds, adjustments, and chargebacks.
-- **Notifications**: In-app notifications for real-time updates.
+- **Notifications**: In-app notifications for real-time updates, ride offer alerts with 10-second countdown and sound, status notifications for all ride state changes, and safety check alerts with 4-minute idle detection.
 - **Ratings & Moderation**: Mutual rating system and dispute management with admin moderation.
 - **Fraud Detection**: Real-time engine with configurable signals, risk scoring, and resolution workflows.
 - **Driver Incentives**: Management of various incentive programs (e.g., trip, streak, peak, quality, promo bonuses) integrated with driver wallets, with fraud prevention.
