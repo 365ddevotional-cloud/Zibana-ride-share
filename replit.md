@@ -69,6 +69,32 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Phase 21 – SUPER_ADMIN Role & Admin Governance (January 2026)
+- Hierarchical role system: Introduced `super_admin` as highest authority above `admin`
+- Admin appointment system with time-bound access (max 1 year):
+  - `adminStartAt`: When admin privileges begin
+  - `adminEndAt`: When admin privileges expire
+  - `adminPermissions`: Scope-limited permissions array
+  - `appointedBy`: Tracks who granted the admin access
+- Admin permission scopes (9 types): DRIVER_MANAGEMENT, RIDER_MANAGEMENT, TRIP_MONITORING, DISPUTES, REPORTS, PAYOUTS, SUPPORT_TICKETS, INCENTIVES, FRAUD_DETECTION
+- Storage layer additions: appointAdmin, revokeAdmin, updateAdminPermissions, isAdminValid, checkAndExpireAdmins, getAllAdmins
+- API routes (SUPER_ADMIN only):
+  - `GET /api/super-admin/admins`: List all admins
+  - `POST /api/super-admin/appoint-admin`: Appoint new admin with time-bound access
+  - `POST /api/super-admin/revoke-admin/:userId`: Revoke admin and downgrade to rider
+  - `PATCH /api/super-admin/admin/:userId/permissions`: Update admin permissions/extend access
+  - `GET /api/super-admin/admin/:userId/validity`: Check if admin access is still valid
+  - `POST /api/super-admin/expire-admins`: Trigger expiration check for all admins
+- Middleware enhancements:
+  - `requireRole`: Now validates time-bound admin access before granting access
+  - `requireSuperAdmin`: Dedicated middleware for strictest access control
+- Admin dashboard: New "Admin Management" tab for super_admin users with UI for:
+  - Viewing all appointed admins with their permissions and expiration dates
+  - Appointing new admins with date range and permission selection
+  - Editing admin permissions and extending access dates
+  - Revoking admin access
+- Full audit logging for all admin governance actions
+
 ### Phase 20 – Post-Launch Monitoring & KPIs (January 2026)
 - Database schema additions:
   - `feature_flags`: Gradual rollout control with name, description, enabled status, rollout percentage
