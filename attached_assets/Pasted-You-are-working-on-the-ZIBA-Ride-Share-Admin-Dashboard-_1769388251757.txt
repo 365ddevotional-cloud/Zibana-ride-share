@@ -1,0 +1,59 @@
+You are working on the ZIBA Ride Share Admin Dashboard UI.
+
+GOAL:
+Reorganize the Admin Dashboard layout to look clean, modern, exciting, and highly readable,
+and visually elevate the main navigation section.
+
+SCOPE:
+UI / UX ONLY — NO business logic, routing, auth, RBAC, or data changes.
+
+TASKS (DO ALL):
+
+1) PAGE LAYOUT REORGANIZATION
+- Apply a clear visual hierarchy:
+  - Header (ZIBA logo + role badge)
+  - KPI Cards (top metrics)
+  - Revenue Overview
+  - Primary Navigation Section
+  - Management Panels (Drivers, Riders, Trips, etc.)
+- Add consistent spacing, alignment, and section separation
+- Ensure the page feels balanced, not crowded
+
+2) PRIMARY NAVIGATION BAR STYLING
+Target the section containing:
+Drivers | Riders | Trips | Payouts | Ratings | Disputes | Refunds | Chargebacks | Wallets | Directors | Reports | Fraud | Incentives | etc.
+
+Apply the following styles:
+- Background color: DARK AMBER
+  (deep amber / burnt gold tone, not yellow)
+- Text color: PURE WHITE
+- Font weight: BOLD
+- Add subtle black outline or divider lines to improve contrast
+- Increase vertical padding for better clickability
+- Ensure icons (if any) remain visible and crisp
+
+3) READABILITY & ACCESSIBILITY
+- Maintain WCAG-friendly contrast
+- Ensure text remains readable on all screen sizes
+- No hover gimmicks that reduce clarity
+- Buttons and nav items should feel “solid” and premium
+
+4) VISUAL EXCITEMENT (WITHOUT FLASHINESS)
+- Slight elevation or shadow on navigation bar
+- Smooth, subtle hover state (no animation overload)
+- Keep the professional fintech / transport tone
+
+5) HARD RULES (DO NOT VIOLATE):
+- DO NOT change routes
+- DO NOT change permissions
+- DO NOT change role visibility
+- DO NOT add or remove navigation items
+- DO NOT alter data fetching or components’ logic
+
+FINAL RESULT:
+- Admin Dashboard looks organized, premium, and exciting
+- Navigation bar stands out clearly with dark amber background
+- White bold text is highly readable with strong contrast
+- No functional regressions
+
+Implement fully and cleanly.

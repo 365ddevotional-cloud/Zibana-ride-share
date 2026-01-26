@@ -1766,9 +1766,15 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
           </div>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-4">
-            <TabsTrigger value="drivers" data-testid="tab-drivers">
+        {/* Primary Navigation Section */}
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <Settings className="h-5 w-5 text-muted-foreground" />
+            Management Center
+          </h2>
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="admin-nav-bar mb-6 flex-wrap h-auto gap-0 p-1 rounded-lg">
+              <TabsTrigger value="drivers" className="admin-nav-trigger rounded-md" data-testid="tab-drivers">
               <Car className="h-4 w-4 mr-2" />
               Drivers
               {pendingDrivers.length > 0 && (
@@ -1777,124 +1783,124 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="riders" data-testid="tab-riders">
+            <TabsTrigger value="riders" className="admin-nav-trigger rounded-md" data-testid="tab-riders">
               <Users className="h-4 w-4 mr-2" />
               Riders
             </TabsTrigger>
-            <TabsTrigger value="trips" data-testid="tab-trips">
+            <TabsTrigger value="trips" className="admin-nav-trigger rounded-md" data-testid="tab-trips">
               <MapPin className="h-4 w-4 mr-2" />
               Trips
             </TabsTrigger>
-            <TabsTrigger value="payouts" data-testid="tab-payouts">
+            <TabsTrigger value="payouts" className="admin-nav-trigger rounded-md" data-testid="tab-payouts">
               <Wallet className="h-4 w-4 mr-2" />
               Payouts
               {pendingPayouts.length > 0 && (
-                <span className="ml-2 rounded-full bg-orange-500 px-2 py-0.5 text-xs text-white">
+                <span className="ml-2 rounded-full bg-yellow-500 px-2 py-0.5 text-xs text-white font-bold">
                   {pendingPayouts.length}
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="ratings" data-testid="tab-ratings">
+            <TabsTrigger value="ratings" className="admin-nav-trigger rounded-md" data-testid="tab-ratings">
               <Star className="h-4 w-4 mr-2" />
               Ratings
             </TabsTrigger>
-            <TabsTrigger value="disputes" data-testid="tab-disputes">
+            <TabsTrigger value="disputes" className="admin-nav-trigger rounded-md" data-testid="tab-disputes">
               <AlertTriangle className="h-4 w-4 mr-2" />
               Disputes
               {openDisputes.length > 0 && (
-                <span className="ml-2 bg-orange-500 text-white text-xs rounded-full px-2 py-0.5">
+                <span className="ml-2 bg-yellow-500 text-white text-xs rounded-full px-2 py-0.5 font-bold">
                   {openDisputes.length}
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="refunds" data-testid="tab-refunds">
+            <TabsTrigger value="refunds" className="admin-nav-trigger rounded-md" data-testid="tab-refunds">
               <DollarSign className="h-4 w-4 mr-2" />
               Refunds
               {pendingRefunds.length > 0 && (
-                <span className="ml-2 bg-yellow-500 text-white text-xs rounded-full px-2 py-0.5">
+                <span className="ml-2 bg-yellow-500 text-white text-xs rounded-full px-2 py-0.5 font-bold">
                   {pendingRefunds.length}
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="chargebacks" data-testid="tab-chargebacks">
+            <TabsTrigger value="chargebacks" className="admin-nav-trigger rounded-md" data-testid="tab-chargebacks">
               <CreditCard className="h-4 w-4 mr-2" />
               Chargebacks
               {reportedChargebacks.length > 0 && (
-                <span className="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-0.5">
+                <span className="ml-2 bg-red-400 text-white text-xs rounded-full px-2 py-0.5 font-bold">
                   {reportedChargebacks.length}
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="wallets" data-testid="tab-wallets">
+            <TabsTrigger value="wallets" className="admin-nav-trigger rounded-md" data-testid="tab-wallets">
               <Wallet className="h-4 w-4 mr-2" />
               Wallets
               {pendingWalletPayouts.length > 0 && (
-                <span className="ml-2 bg-blue-500 text-white text-xs rounded-full px-2 py-0.5">
+                <span className="ml-2 bg-blue-400 text-white text-xs rounded-full px-2 py-0.5 font-bold">
                   {pendingWalletPayouts.length}
                 </span>
               )}
             </TabsTrigger>
             {!isDirector && (
-              <TabsTrigger value="directors" data-testid="tab-directors">
+              <TabsTrigger value="directors" className="admin-nav-trigger rounded-md" data-testid="tab-directors">
                 <Briefcase className="h-4 w-4 mr-2" />
                 Directors
               </TabsTrigger>
             )}
             {!isDirector && (
-              <TabsTrigger value="reports" data-testid="tab-reports">
+              <TabsTrigger value="reports" className="admin-nav-trigger rounded-md" data-testid="tab-reports">
                 <BarChart3 className="h-4 w-4 mr-2" />
                 Reports
               </TabsTrigger>
             )}
             {!isDirector && (
-              <TabsTrigger value="fraud" data-testid="tab-fraud">
+              <TabsTrigger value="fraud" className="admin-nav-trigger rounded-md" data-testid="tab-fraud">
                 <ShieldAlert className="h-4 w-4 mr-2" />
                 Fraud
                 {fraudOverview && (fraudOverview.riskProfiles.high + fraudOverview.riskProfiles.critical) > 0 && (
-                  <span className="ml-2 bg-destructive text-destructive-foreground rounded-full px-2 py-0.5 text-xs">
+                  <span className="ml-2 bg-red-400 text-white rounded-full px-2 py-0.5 text-xs font-bold">
                     {fraudOverview.riskProfiles.high + fraudOverview.riskProfiles.critical}
                   </span>
                 )}
               </TabsTrigger>
             )}
             {!isDirector && !isTripCoordinator && (
-              <TabsTrigger value="incentives" data-testid="tab-incentives">
+              <TabsTrigger value="incentives" className="admin-nav-trigger rounded-md" data-testid="tab-incentives">
                 <Gift className="h-4 w-4 mr-2" />
                 Incentives
               </TabsTrigger>
             )}
             {!isDirector && !isTripCoordinator && (
-              <TabsTrigger value="countries" data-testid="tab-countries">
+              <TabsTrigger value="countries" className="admin-nav-trigger rounded-md" data-testid="tab-countries">
                 <Globe className="h-4 w-4 mr-2" />
                 Countries
               </TabsTrigger>
             )}
             {!isDirector && !isTripCoordinator && (
-              <TabsTrigger value="contracts" data-testid="tab-contracts">
+              <TabsTrigger value="contracts" className="admin-nav-trigger rounded-md" data-testid="tab-contracts">
                 <FileText className="h-4 w-4 mr-2" />
                 Contracts
               </TabsTrigger>
             )}
             {!isDirector && !isTripCoordinator && (
-              <TabsTrigger value="growth" data-testid="tab-growth">
+              <TabsTrigger value="growth" className="admin-nav-trigger rounded-md" data-testid="tab-growth">
                 <TrendingUp className="h-4 w-4 mr-2" />
                 Growth
               </TabsTrigger>
             )}
             {!isDirector && !isTripCoordinator && (
-              <TabsTrigger value="monitoring" data-testid="tab-monitoring">
+              <TabsTrigger value="monitoring" className="admin-nav-trigger rounded-md" data-testid="tab-monitoring">
                 <Activity className="h-4 w-4 mr-2" />
                 Monitoring
               </TabsTrigger>
             )}
             {isSuperAdmin && (
-              <TabsTrigger value="admin-management" data-testid="tab-admin-management">
+              <TabsTrigger value="admin-management" className="admin-nav-trigger rounded-md" data-testid="tab-admin-management">
                 <Shield className="h-4 w-4 mr-2" />
                 Admin Management
               </TabsTrigger>
             )}
             {isSuperAdmin && (
-              <TabsTrigger value="role-appointments" data-testid="tab-role-appointments">
+              <TabsTrigger value="role-appointments" className="admin-nav-trigger rounded-md" data-testid="tab-role-appointments">
                 <UserCheck className="h-4 w-4 mr-2" />
                 Role Appointments
               </TabsTrigger>
@@ -5874,6 +5880,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
             </TabsContent>
           )}
         </Tabs>
+        </div>
       </main>
     </div>
   );
