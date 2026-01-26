@@ -62,7 +62,8 @@ import {
   Percent,
   Building,
   FileText,
-  ChevronRight
+  ChevronRight,
+  Settings
 } from "lucide-react";
 import type { DriverProfile, Trip, User } from "@shared/schema";
 import { NotificationBell } from "@/components/notification-bell";
@@ -1884,6 +1885,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <TabsTrigger value="monitoring" data-testid="tab-monitoring">
                 <Activity className="h-4 w-4 mr-2" />
                 Monitoring
+              </TabsTrigger>
+            )}
+            {isSuperAdmin && (
+              <TabsTrigger value="admin-management" data-testid="tab-admin-management">
+                <Shield className="h-4 w-4 mr-2" />
+                Admin Management
               </TabsTrigger>
             )}
           </TabsList>
@@ -5848,6 +5855,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <MonitoringTab />
             </TabsContent>
           )}
+
+          {isSuperAdmin && (
+            <TabsContent value="admin-management">
+              <AdminManagementTab />
+            </TabsContent>
+          )}
         </Tabs>
       </main>
     </div>
@@ -6244,6 +6257,406 @@ function MonitoringTab() {
               data-testid="button-submit-feature-flag"
             >
               Create Flag
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+type AdminData = {
+  id: number;
+  userId: string;
+  role: string;
+  adminStartAt?: string | null;
+  adminEndAt?: string | null;
+  adminPermissions?: string[] | null;
+  appointedBy?: string | null;
+  user?: {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+  };
+};
+
+const ADMIN_PERMISSION_OPTIONS = [
+  { value: "DRIVER_MANAGEMENT", label: "Driver Management" },
+  { value: "RIDER_MANAGEMENT", label: "Rider Management" },
+  { value: "TRIP_MONITORING", label: "Trip Monitoring" },
+  { value: "DISPUTES", label: "Disputes" },
+  { value: "REPORTS", label: "Reports" },
+  { value: "PAYOUTS", label: "Payouts" },
+  { value: "SUPPORT_TICKETS", label: "Support Tickets" },
+  { value: "INCENTIVES", label: "Incentives" },
+  { value: "FRAUD_DETECTION", label: "Fraud Detection" },
+];
+
+function AdminManagementTab() {
+  const { toast } = useToast();
+  const [showAppointDialog, setShowAppointDialog] = useState(false);
+  const [showRevokeDialog, setShowRevokeDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [selectedAdmin, setSelectedAdmin] = useState<AdminData | null>(null);
+  const [appointForm, setAppointForm] = useState({
+    userId: "",
+    adminStartAt: new Date().toISOString().split("T")[0],
+    adminEndAt: "",
+    adminPermissions: [] as string[],
+  });
+
+  const { data: admins = [], isLoading, refetch } = useQuery<AdminData[]>({
+    queryKey: ["/api/super-admin/admins"],
+  });
+
+  const appointMutation = useMutation({
+    mutationFn: async (data: typeof appointForm) => {
+      const res = await apiRequest("POST", "/api/super-admin/appoint-admin", {
+        userId: data.userId,
+        adminStartAt: new Date(data.adminStartAt).toISOString(),
+        adminEndAt: new Date(data.adminEndAt).toISOString(),
+        adminPermissions: data.adminPermissions,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Admin appointed successfully" });
+      refetch();
+      setShowAppointDialog(false);
+      setAppointForm({
+        userId: "",
+        adminStartAt: new Date().toISOString().split("T")[0],
+        adminEndAt: "",
+        adminPermissions: [],
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to appoint admin", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const revokeMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const res = await apiRequest("POST", `/api/super-admin/revoke-admin/${userId}`, {});
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Admin access revoked" });
+      refetch();
+      setShowRevokeDialog(false);
+      setSelectedAdmin(null);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to revoke admin", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const updatePermissionsMutation = useMutation({
+    mutationFn: async (data: { userId: string; adminPermissions: string[]; adminEndAt?: string }) => {
+      const res = await apiRequest("PATCH", `/api/super-admin/admin/${data.userId}/permissions`, {
+        adminPermissions: data.adminPermissions,
+        adminEndAt: data.adminEndAt ? new Date(data.adminEndAt).toISOString() : undefined,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Admin permissions updated" });
+      refetch();
+      setShowEditDialog(false);
+      setSelectedAdmin(null);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to update permissions", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const expireAdminsMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/super-admin/expire-admins", {});
+      return res.json() as Promise<{ expiredCount: number }>;
+    },
+    onSuccess: (data) => {
+      toast({ title: `Expired ${data.expiredCount} admin(s)` });
+      refetch();
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to expire admins", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const togglePermission = (permission: string) => {
+    setAppointForm(prev => ({
+      ...prev,
+      adminPermissions: prev.adminPermissions.includes(permission)
+        ? prev.adminPermissions.filter(p => p !== permission)
+        : [...prev.adminPermissions, permission],
+    }));
+  };
+
+  const toggleEditPermission = (permission: string) => {
+    if (!selectedAdmin) return;
+    const currentPermissions = selectedAdmin.adminPermissions || [];
+    const newPermissions = currentPermissions.includes(permission)
+      ? currentPermissions.filter(p => p !== permission)
+      : [...currentPermissions, permission];
+    setSelectedAdmin({ ...selectedAdmin, adminPermissions: newPermissions });
+  };
+
+  const formatDate = (dateStr: string | null | undefined) => {
+    if (!dateStr) return "-";
+    return new Date(dateStr).toLocaleDateString();
+  };
+
+  const isExpired = (endDateStr: string | null | undefined) => {
+    if (!endDateStr) return false;
+    return new Date(endDateStr) < new Date();
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-2">
+          <div>
+            <CardTitle>Admin Management</CardTitle>
+            <CardDescription>Appoint, manage, and revoke admin access with time-bound permissions</CardDescription>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => expireAdminsMutation.mutate()}
+              disabled={expireAdminsMutation.isPending}
+              data-testid="button-expire-admins"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Check Expirations
+            </Button>
+            <Button onClick={() => setShowAppointDialog(true)} data-testid="button-appoint-admin">
+              <Plus className="h-4 w-4 mr-2" />
+              Appoint Admin
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="py-8 text-center text-muted-foreground">Loading admins...</div>
+          ) : admins.length === 0 ? (
+            <EmptyState
+              icon={Shield}
+              title="No Admins Appointed"
+              description="Appoint admins with time-limited access and specific permissions"
+            />
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>User</TableHead>
+                  <TableHead>Start Date</TableHead>
+                  <TableHead>End Date</TableHead>
+                  <TableHead>Permissions</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {admins.map((admin) => (
+                  <TableRow key={admin.id} data-testid={`row-admin-${admin.userId}`}>
+                    <TableCell className="font-medium">
+                      {admin.user?.firstName} {admin.user?.lastName}
+                      <div className="text-xs text-muted-foreground">{admin.user?.email || admin.userId}</div>
+                    </TableCell>
+                    <TableCell>{formatDate(admin.adminStartAt)}</TableCell>
+                    <TableCell>{formatDate(admin.adminEndAt)}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1 max-w-xs">
+                        {(admin.adminPermissions || []).slice(0, 3).map((perm) => (
+                          <Badge key={perm} variant="secondary" className="text-xs">
+                            {perm.replace("_", " ")}
+                          </Badge>
+                        ))}
+                        {(admin.adminPermissions || []).length > 3 && (
+                          <Badge variant="outline" className="text-xs">
+                            +{(admin.adminPermissions || []).length - 3} more
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {isExpired(admin.adminEndAt) ? (
+                        <Badge variant="destructive">Expired</Badge>
+                      ) : (
+                        <Badge variant="default">Active</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedAdmin(admin);
+                            setShowEditDialog(true);
+                          }}
+                          data-testid={`button-edit-admin-${admin.userId}`}
+                        >
+                          <Settings className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => {
+                            setSelectedAdmin(admin);
+                            setShowRevokeDialog(true);
+                          }}
+                          data-testid={`button-revoke-admin-${admin.userId}`}
+                        >
+                          <XCircle className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={showAppointDialog} onOpenChange={setShowAppointDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Appoint New Admin</DialogTitle>
+            <DialogDescription>Grant time-limited admin access with specific permissions</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">User ID</label>
+              <Input
+                value={appointForm.userId}
+                onChange={(e) => setAppointForm({ ...appointForm, userId: e.target.value })}
+                placeholder="Enter user ID to promote"
+                data-testid="input-appoint-user-id"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Start Date</label>
+                <Input
+                  type="date"
+                  value={appointForm.adminStartAt}
+                  onChange={(e) => setAppointForm({ ...appointForm, adminStartAt: e.target.value })}
+                  data-testid="input-appoint-start-date"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">End Date</label>
+                <Input
+                  type="date"
+                  value={appointForm.adminEndAt}
+                  onChange={(e) => setAppointForm({ ...appointForm, adminEndAt: e.target.value })}
+                  data-testid="input-appoint-end-date"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Permissions</label>
+              <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                {ADMIN_PERMISSION_OPTIONS.map((perm) => (
+                  <label key={perm.value} className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={appointForm.adminPermissions.includes(perm.value)}
+                      onChange={() => togglePermission(perm.value)}
+                      className="rounded"
+                    />
+                    {perm.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAppointDialog(false)}>Cancel</Button>
+            <Button
+              onClick={() => appointMutation.mutate(appointForm)}
+              disabled={appointMutation.isPending || !appointForm.userId || !appointForm.adminEndAt || appointForm.adminPermissions.length === 0}
+              data-testid="button-submit-appoint"
+            >
+              Appoint Admin
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showRevokeDialog} onOpenChange={setShowRevokeDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Revoke Admin Access</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to revoke admin access for {selectedAdmin?.user?.firstName} {selectedAdmin?.user?.lastName}?
+              They will be downgraded to a regular rider.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRevokeDialog(false)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={() => selectedAdmin && revokeMutation.mutate(selectedAdmin.userId)}
+              disabled={revokeMutation.isPending}
+              data-testid="button-confirm-revoke"
+            >
+              Revoke Access
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Admin Permissions</DialogTitle>
+            <DialogDescription>
+              Update permissions for {selectedAdmin?.user?.firstName} {selectedAdmin?.user?.lastName}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Extend End Date (Optional)</label>
+              <Input
+                type="date"
+                value={selectedAdmin?.adminEndAt?.split("T")[0] || ""}
+                onChange={(e) => selectedAdmin && setSelectedAdmin({ ...selectedAdmin, adminEndAt: e.target.value })}
+                data-testid="input-edit-end-date"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Permissions</label>
+              <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                {ADMIN_PERMISSION_OPTIONS.map((perm) => (
+                  <label key={perm.value} className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={(selectedAdmin?.adminPermissions || []).includes(perm.value)}
+                      onChange={() => toggleEditPermission(perm.value)}
+                      className="rounded"
+                    />
+                    {perm.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>Cancel</Button>
+            <Button
+              onClick={() => selectedAdmin && updatePermissionsMutation.mutate({
+                userId: selectedAdmin.userId,
+                adminPermissions: selectedAdmin.adminPermissions || [],
+                adminEndAt: selectedAdmin.adminEndAt || undefined,
+              })}
+              disabled={updatePermissionsMutation.isPending || (selectedAdmin?.adminPermissions || []).length === 0}
+              data-testid="button-submit-edit"
+            >
+              Update Permissions
             </Button>
           </DialogFooter>
         </DialogContent>
