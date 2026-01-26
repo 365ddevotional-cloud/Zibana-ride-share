@@ -5520,5 +5520,306 @@ export async function registerRoutes(
     }
   });
 
+  // ================================================
+  // Phase 24 - Reservations / Scheduled Trips Routes
+  // ================================================
+
+  // Create a new reservation (Rider action)
+  app.post("/api/reservations", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      
+      const role = await storage.getUserRole(userId);
+      if (role?.role !== "rider") {
+        return res.status(403).json({ message: "Only riders can create reservations" });
+      }
+
+      const { pickupLat, pickupLng, dropoffLat, dropoffLng, pickupAddress, dropoffAddress, scheduledPickupAt, passengerCount } = req.body;
+
+      if (!scheduledPickupAt) {
+        return res.status(400).json({ message: "Scheduled pickup time is required" });
+      }
+
+      const scheduledTime = new Date(scheduledPickupAt);
+      const now = new Date();
+      const minAdvanceTime = new Date(now.getTime() + 60 * 60 * 1000);
+      
+      if (scheduledTime < minAdvanceTime) {
+        return res.status(400).json({ message: "Reservations must be at least 1 hour in advance" });
+      }
+
+      const estimatedDistanceKm = Math.random() * 15 + 3;
+      const estimatedDurationMin = estimatedDistanceKm * 3 + Math.random() * 10;
+      const baseFare = 2.50;
+      const distanceFare = estimatedDistanceKm * 0.75;
+      const reservationPremium = 5.00;
+      const totalFare = baseFare + distanceFare + reservationPremium;
+
+      const reservation = await storage.createReservation({
+        riderId: userId,
+        pickupLat: pickupLat.toString(),
+        pickupLng: pickupLng.toString(),
+        dropoffLat: dropoffLat.toString(),
+        dropoffLng: dropoffLng.toString(),
+        pickupAddress,
+        dropoffAddress,
+        scheduledPickupAt: scheduledTime,
+        passengerCount: passengerCount || 1,
+        estimatedDistanceKm: estimatedDistanceKm.toFixed(2),
+        estimatedDurationMin: estimatedDurationMin.toFixed(0),
+        baseFare: baseFare.toFixed(2),
+        distanceFare: distanceFare.toFixed(2),
+        reservationPremium: reservationPremium.toFixed(2),
+        totalFare: totalFare.toFixed(2),
+      });
+
+      await notificationService.notifyRider(
+        userId,
+        "ride_accepted",
+        "Reservation Confirmed",
+        `Your ride is scheduled for ${scheduledTime.toLocaleString()}`,
+        reservation.id
+      );
+
+      return res.json(reservation);
+    } catch (error) {
+      console.error("Error creating reservation:", error);
+      return res.status(500).json({ message: "Failed to create reservation" });
+    }
+  });
+
+  // Get rider's upcoming reservations
+  app.get("/api/reservations/upcoming", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const reservations = await storage.getUpcomingReservations(userId);
+      return res.json(reservations);
+    } catch (error) {
+      console.error("Error fetching reservations:", error);
+      return res.status(500).json({ message: "Failed to fetch reservations" });
+    }
+  });
+
+  // Get driver's upcoming assigned reservations
+  app.get("/api/reservations/driver/upcoming", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const role = await storage.getUserRole(userId);
+      if (role?.role !== "driver") {
+        return res.status(403).json({ message: "Only drivers can view assigned reservations" });
+      }
+      const reservations = await storage.getDriverUpcomingReservations(userId);
+      return res.json(reservations);
+    } catch (error) {
+      console.error("Error fetching driver reservations:", error);
+      return res.status(500).json({ message: "Failed to fetch reservations" });
+    }
+  });
+
+  // Get all upcoming reservations (Admin)
+  app.get("/api/reservations/all", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const role = await storage.getUserRole(userId);
+      if (!["admin", "super_admin"].includes(role?.role || "")) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      const reservations = await storage.getAllUpcomingReservations();
+      return res.json(reservations);
+    } catch (error) {
+      console.error("Error fetching all reservations:", error);
+      return res.status(500).json({ message: "Failed to fetch reservations" });
+    }
+  });
+
+  // Assign driver to reservation (Admin)
+  app.post("/api/reservations/:id/assign", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { id } = req.params;
+      const { driverId } = req.body;
+
+      const role = await storage.getUserRole(userId);
+      if (!["admin", "super_admin"].includes(role?.role || "")) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const reservation = await storage.assignDriverToReservation(id, driverId);
+      if (!reservation) {
+        return res.status(404).json({ message: "Reservation not found or already assigned" });
+      }
+
+      await notificationService.notifyDriver(
+        driverId,
+        "ride_accepted",
+        "New Reserved Trip",
+        `You've been assigned a scheduled pickup for ${new Date(reservation.scheduledPickupAt!).toLocaleString()}`,
+        id
+      );
+
+      await notificationService.notifyRider(
+        reservation.riderId,
+        "ride_accepted",
+        "Driver Assigned",
+        "A driver has been assigned to your scheduled trip",
+        id
+      );
+
+      return res.json(reservation);
+    } catch (error) {
+      console.error("Error assigning driver:", error);
+      return res.status(500).json({ message: "Failed to assign driver" });
+    }
+  });
+
+  // Cancel reservation (Rider action)
+  app.post("/api/reservations/:id/cancel", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { id } = req.params;
+      const { reason } = req.body;
+
+      const reservation = await storage.getRideById(id);
+      if (!reservation || reservation.riderId !== userId) {
+        return res.status(404).json({ message: "Reservation not found" });
+      }
+
+      const cancelled = await storage.cancelReservation(id, "rider", reason);
+      if (!cancelled) {
+        return res.status(400).json({ message: "Failed to cancel reservation" });
+      }
+
+      if (cancelled.assignedDriverId) {
+        await notificationService.notifyDriver(
+          cancelled.assignedDriverId,
+          "ride_cancelled",
+          "Reservation Cancelled",
+          "A scheduled trip has been cancelled by the rider",
+          id
+        );
+      }
+
+      return res.json(cancelled);
+    } catch (error) {
+      console.error("Error cancelling reservation:", error);
+      return res.status(500).json({ message: "Failed to cancel reservation" });
+    }
+  });
+
+  // Start reserved trip (Driver action - when entering prep window)
+  app.post("/api/reservations/:id/start", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { id } = req.params;
+
+      const role = await storage.getUserRole(userId);
+      if (role?.role !== "driver") {
+        return res.status(403).json({ message: "Only drivers can start reserved trips" });
+      }
+
+      const reservation = await storage.getRideById(id);
+      if (!reservation || reservation.assignedDriverId !== userId) {
+        return res.status(404).json({ message: "Reservation not found or not assigned to you" });
+      }
+
+      const updated = await storage.updateReservationStatus(id, "active");
+      if (updated) {
+        await storage.updateRideStatus(id, "driver_en_route", {
+          enRouteAt: new Date(),
+          driverEnRouteStartedAt: new Date(),
+        });
+
+        await notificationService.notifyRider(
+          reservation.riderId,
+          "driver_en_route",
+          "Driver On The Way",
+          "Your driver is heading to the pickup location",
+          id
+        );
+      }
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error starting reservation:", error);
+      return res.status(500).json({ message: "Failed to start reservation" });
+    }
+  });
+
+  // Apply early arrival bonus
+  app.post("/api/reservations/:id/early-bonus", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { id } = req.params;
+
+      const role = await storage.getUserRole(userId);
+      if (!["admin", "super_admin"].includes(role?.role || "")) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const reservation = await storage.getRideById(id);
+      if (!reservation || !reservation.isReserved) {
+        return res.status(404).json({ message: "Reservation not found" });
+      }
+
+      if (!reservation.arrivedAt || !reservation.scheduledPickupAt) {
+        return res.status(400).json({ message: "Cannot calculate bonus - missing arrival data" });
+      }
+
+      const arrivedTime = new Date(reservation.arrivedAt);
+      const scheduledTime = new Date(reservation.scheduledPickupAt);
+      const minutesEarly = (scheduledTime.getTime() - arrivedTime.getTime()) / (1000 * 60);
+
+      if (minutesEarly <= 0) {
+        return res.status(400).json({ message: "Driver did not arrive early" });
+      }
+
+      const bonusAmount = Math.min(minutesEarly * 0.50, 10.00).toFixed(2);
+      const updated = await storage.applyEarlyArrivalBonus(id, bonusAmount);
+
+      if (updated && reservation.driverId) {
+        const wallet = await storage.getWalletByUserId(reservation.driverId);
+        if (wallet) {
+          await storage.creditWallet(
+            wallet.id,
+            bonusAmount,
+            "incentive",
+            id,
+            userId,
+            `Early arrival bonus for reservation ${id}`
+          );
+        }
+
+        await notificationService.notifyDriver(
+          reservation.driverId,
+          "ride_completed",
+          "Early Arrival Bonus",
+          `You earned $${bonusAmount} for arriving ${Math.round(minutesEarly)} minutes early`,
+          id
+        );
+      }
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error applying early bonus:", error);
+      return res.status(500).json({ message: "Failed to apply bonus" });
+    }
+  });
+
+  // Get reservations in prep window (for notification service)
+  app.get("/api/reservations/prep-window", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const role = await storage.getUserRole(userId);
+      if (!["admin", "super_admin"].includes(role?.role || "")) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      const reservations = await storage.getReservationsInPrepWindow();
+      return res.json(reservations);
+    } catch (error) {
+      console.error("Error fetching prep window reservations:", error);
+      return res.status(500).json({ message: "Failed to fetch reservations" });
+    }
+  });
+
   return httpServer;
 }
