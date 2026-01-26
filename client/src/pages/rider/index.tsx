@@ -40,7 +40,9 @@ import type { Trip, RiderProfile, Ride } from "@shared/schema";
 import { NotificationBell } from "@/components/notification-bell";
 import { SupportSection } from "@/components/support-section";
 import { RiderRideStatus } from "@/components/ride/rider-ride-status";
+import { SafetyCheckModal } from "@/components/ride/safety-check-modal";
 import { useRiderRide, type RideWithDetails } from "@/hooks/use-ride-lifecycle";
+import { useSafetyCheck } from "@/hooks/use-safety-check";
 
 const rideRequestSchema = z.object({
   pickupLocation: z.string().min(3, "Please enter a pickup location"),
@@ -82,6 +84,14 @@ export default function RiderDashboard() {
     cancelRide: cancelRideAction,
     respondSafetyCheck,
   } = useRiderRide();
+
+  // Phase 23 - Safety check modal
+  const {
+    showModal: showSafetyModal,
+    setShowModal: setShowSafetyModal,
+    handleSafe,
+    handleNeedHelp,
+  } = useSafetyCheck({ role: "rider", currentRideId: currentRide?.id });
 
   const buildTripQueryParams = () => {
     const params = new URLSearchParams();
@@ -642,6 +652,15 @@ export default function RiderDashboard() {
         open={tripDetailOpen}
         onOpenChange={setTripDetailOpen}
         userRole="rider"
+      />
+      
+      {/* Phase 23 - Safety Check Modal */}
+      <SafetyCheckModal
+        open={showSafetyModal}
+        onOpenChange={setShowSafetyModal}
+        onSafe={handleSafe}
+        onNeedHelp={handleNeedHelp}
+        role="rider"
       />
     </div>
   );

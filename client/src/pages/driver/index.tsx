@@ -46,8 +46,10 @@ import { DriverRideCard } from "@/components/ride/driver-ride-card";
 import { DriverRideActions } from "@/components/ride/driver-ride-actions";
 import { RideOfferCountdown } from "@/components/ride/ride-offer-countdown";
 import { VerificationPhotoSubmit } from "@/components/verification/verification-photo-submit";
+import { SafetyCheckModal } from "@/components/ride/safety-check-modal";
 import { useDriverRide, type RideWithDetails } from "@/hooks/use-ride-lifecycle";
 import { useRideOffers } from "@/hooks/use-ride-offers";
+import { useSafetyCheck } from "@/hooks/use-safety-check";
 
 type TripWithRider = Trip & { riderName?: string };
 
@@ -137,6 +139,14 @@ export default function DriverDashboard() {
     acceptOffer,
     declineOffer,
   } = useRideOffers();
+
+  // Phase 23 - Safety check modal
+  const {
+    showModal: showSafetyModal,
+    setShowModal: setShowSafetyModal,
+    handleSafe,
+    handleNeedHelp,
+  } = useSafetyCheck({ role: "driver", currentRideId: currentRide?.id });
 
   const buildTripQueryParams = () => {
     const params = new URLSearchParams();
@@ -887,6 +897,15 @@ export default function DriverDashboard() {
         open={tripDetailOpen}
         onOpenChange={setTripDetailOpen}
         userRole="driver"
+      />
+      
+      {/* Phase 23 - Safety Check Modal */}
+      <SafetyCheckModal
+        open={showSafetyModal}
+        onOpenChange={setShowSafetyModal}
+        onSafe={handleSafe}
+        onNeedHelp={handleNeedHelp}
+        role="driver"
       />
     </div>
   );
