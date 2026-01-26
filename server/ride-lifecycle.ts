@@ -206,3 +206,221 @@ export const ALL_RIDE_STATUSES: RideStatus[] = [
   "completed",
   "cancelled"
 ];
+
+// ========================
+// STEP B - Role-Based Action Permissions
+// ========================
+
+export type ActionRole = "rider" | "driver" | "system";
+
+export type RideAction = 
+  | "request_ride"        // Rider creates ride
+  | "accept_ride"         // Driver accepts matching ride
+  | "start_pickup"        // Driver starts navigation to rider
+  | "arrive"              // Driver arrives at pickup
+  | "start_waiting"       // System enters waiting mode
+  | "start_trip"          // Driver starts the trip
+  | "complete_trip"       // Driver completes the trip
+  | "cancel_ride";        // Rider or Driver cancels
+
+// Map actions to who can perform them
+const ACTION_PERMISSIONS: Record<RideAction, ActionRole[]> = {
+  request_ride: ["rider"],
+  accept_ride: ["driver"],
+  start_pickup: ["driver", "system"], // Driver tap or GPS detection
+  arrive: ["driver", "system"],        // Driver tap or arrival radius
+  start_waiting: ["system"],           // Automatic after arrival
+  start_trip: ["driver"],
+  complete_trip: ["driver"],
+  cancel_ride: ["rider", "driver"],    // Both can cancel with different rules
+};
+
+// Map actions to required current status
+const ACTION_REQUIRED_STATUS: Record<RideAction, RideStatus[]> = {
+  request_ride: [], // No prior status required
+  accept_ride: ["matching"],
+  start_pickup: ["accepted"],
+  arrive: ["driver_en_route"],
+  start_waiting: ["arrived"],
+  start_trip: ["waiting", "arrived"], // Can skip waiting if rider is ready
+  complete_trip: ["in_progress"],
+  cancel_ride: ["requested", "matching", "accepted", "driver_en_route", "arrived", "waiting", "in_progress"],
+};
+
+// Rider cancellation allowed statuses
+const RIDER_CAN_CANCEL: RideStatus[] = [
+  "requested",
+  "matching",
+  "accepted",
+  "driver_en_route"
+];
+
+// Driver cancellation allowed statuses
+const DRIVER_CAN_CANCEL: RideStatus[] = [
+  "arrived",
+  "waiting",
+  "in_progress"
+];
+
+export interface ActionValidationResult {
+  allowed: boolean;
+  error?: string;
+  requiresFee?: boolean;
+  requiresReason?: boolean;
+  compensationEligible?: boolean;
+}
+
+/**
+ * Validates if a role can perform an action on a ride
+ */
+export function validateAction(
+  action: RideAction,
+  role: ActionRole,
+  currentStatus: RideStatus | null,
+  options?: {
+    isAssignedDriver?: boolean;
+    matchingExpiresAt?: Date | null;
+    driverMovement?: { distanceKm: number; durationSec: number };
+  }
+): ActionValidationResult {
+  // Check role permission
+  const allowedRoles = ACTION_PERMISSIONS[action];
+  if (!allowedRoles.includes(role)) {
+    return {
+      allowed: false,
+      error: `${role} cannot perform action '${action}'`
+    };
+  }
+
+  // Check status requirement
+  const requiredStatuses = ACTION_REQUIRED_STATUS[action];
+  if (requiredStatuses.length > 0 && currentStatus && !requiredStatuses.includes(currentStatus)) {
+    return {
+      allowed: false,
+      error: `Cannot '${action}' when ride status is '${currentStatus}'. Required: ${requiredStatuses.join(", ")}`
+    };
+  }
+
+  // Special validations per action
+  switch (action) {
+    case "accept_ride":
+      // Check matching window
+      if (options?.matchingExpiresAt && isMatchingExpired(options.matchingExpiresAt)) {
+        return {
+          allowed: false,
+          error: "Matching window has expired. Cannot accept this ride."
+        };
+      }
+      break;
+
+    case "start_pickup":
+    case "arrive":
+    case "start_trip":
+    case "complete_trip":
+      // Only assigned driver can perform these
+      if (role === "driver" && !options?.isAssignedDriver) {
+        return {
+          allowed: false,
+          error: "Only the assigned driver can perform this action"
+        };
+      }
+      break;
+
+    case "cancel_ride":
+      return validateCancellation(role, currentStatus, options?.driverMovement);
+  }
+
+  return { allowed: true };
+}
+
+/**
+ * Validates cancellation based on role and status
+ */
+function validateCancellation(
+  role: ActionRole,
+  currentStatus: RideStatus | null,
+  driverMovement?: { distanceKm: number; durationSec: number }
+): ActionValidationResult {
+  if (!currentStatus) {
+    return { allowed: false, error: "No ride to cancel" };
+  }
+
+  if (role === "rider") {
+    if (!RIDER_CAN_CANCEL.includes(currentStatus)) {
+      return {
+        allowed: false,
+        error: `Rider cannot cancel when status is '${currentStatus}'. Trip is in progress.`
+      };
+    }
+
+    // Check if fees apply (driver moved)
+    if (currentStatus === "driver_en_route" && driverMovement) {
+      const compensation = isDriverEligibleForCompensation(
+        driverMovement.distanceKm,
+        driverMovement.durationSec
+      );
+      if (compensation.eligible) {
+        return {
+          allowed: true,
+          requiresFee: true,
+          compensationEligible: true
+        };
+      }
+    }
+
+    return { allowed: true };
+  }
+
+  if (role === "driver") {
+    if (!DRIVER_CAN_CANCEL.includes(currentStatus)) {
+      return {
+        allowed: false,
+        error: `Driver cannot cancel when status is '${currentStatus}'`
+      };
+    }
+
+    // Driver must provide reason for in_progress cancellation
+    if (currentStatus === "in_progress") {
+      return {
+        allowed: true,
+        requiresReason: true
+      };
+    }
+
+    return { allowed: true };
+  }
+
+  return { allowed: false, error: "Invalid role for cancellation" };
+}
+
+/**
+ * Gets the target status for an action
+ */
+export function getTargetStatus(action: RideAction): RideStatus | null {
+  const actionToStatus: Record<RideAction, RideStatus | null> = {
+    request_ride: "matching",
+    accept_ride: "accepted",
+    start_pickup: "driver_en_route",
+    arrive: "arrived",
+    start_waiting: "waiting",
+    start_trip: "in_progress",
+    complete_trip: "completed",
+    cancel_ride: "cancelled",
+  };
+  return actionToStatus[action];
+}
+
+/**
+ * Standard cancellation reasons for drivers
+ */
+export const DRIVER_CANCEL_REASONS = [
+  "rider_no_show",
+  "rider_changed_destination",
+  "rider_requested_cancellation",
+  "vehicle_issue",
+  "personal_emergency",
+  "unsafe_location",
+  "other"
+] as const;
+
+export type DriverCancelReason = typeof DRIVER_CANCEL_REASONS[number];

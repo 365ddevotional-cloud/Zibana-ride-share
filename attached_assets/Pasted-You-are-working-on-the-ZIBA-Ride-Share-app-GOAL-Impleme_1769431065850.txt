@@ -1,0 +1,178 @@
+You are working on the ZIBA Ride Share app.
+
+GOAL:
+Implement IMPLEMENTATION STEP B — map Driver and Rider actions
+to the RideStatus lifecycle defined in Step A.
+
+THIS STEP DEFINES:
+- Who can act (Driver / Rider / System)
+- When a status can change
+- What transitions are allowed
+- What actions are blocked
+
+STRICT RULES:
+- Do NOT change database schema from Step A
+- Do NOT add UI styling or animations
+- Do NOT implement pricing formulas yet
+- Do NOT bypass state validation
+- All transitions MUST be validated server-side
+
+========================
+STEP B — STATE TRANSITIONS
+========================
+
+1) MATCHING PHASE (10 seconds)
+
+Status: REQUESTED → MATCHING
+
+SYSTEM:
+- When rider creates a ride, set status = MATCHING
+- Set matchingExpiresAt = now + 10 seconds
+- Notify nearby drivers
+
+DRIVER ACTION:
+- Driver can ACCEPT only if:
+  - status === MATCHING
+  - matchingExpiresAt has not expired
+
+If accepted:
+- Assign driverId
+- Set acceptedAt
+- status → ACCEPTED
+
+If expired:
+- Reject acceptance
+- Reassign or notify rider
+
+2) ACCEPTED → DRIVER_EN_ROUTE
+
+DRIVER ACTION:
+- Driver taps “Navigate / Start Pickup”
+- OR system detects GPS movement toward pickup
+
+VALIDATION:
+- Only assigned driver may trigger
+- status must be ACCEPTED
+
+EFFECT:
+- status → DRIVER_EN_ROUTE
+- set enRouteAt
+- start tracking DriverMovement
+
+3) DRIVER_EN_ROUTE → ARRIVED
+
+DRIVER ACTION:
+- Driver taps “Arrived”
+- OR system detects arrival radius
+
+VALIDATION:
+- status must be DRIVER_EN_ROUTE
+
+EFFECT:
+- status → ARRIVED
+- set arrivedAt
+- notify rider
+- prepare waiting timers
+
+4) ARRIVED → WAITING
+
+SYSTEM ACTION:
+- Automatically enter WAITING
+- set waitingStartedAt
+
+WAITING LOGIC:
+- First 2 minutes = free
+- Next 5 minutes = paid
+- Additional 4 minutes = bonus paid
+
+DRIVER ACTION:
+- May cancel AFTER paid waiting with valid reason
+
+RIDER ACTION:
+- Limited cancellation (fees apply)
+
+5) WAITING → IN_PROGRESS
+
+DRIVER ACTION:
+- Driver taps “Start Trip”
+
+VALIDATION:
+- status must be WAITING or ARRIVED
+
+EFFECT:
+- status → IN_PROGRESS
+- set startedAt
+- lock rider cancellation
+- start live route tracking
+
+6) IN_PROGRESS → COMPLETED
+
+DRIVER ACTION:
+- Driver taps “Complete Trip”
+
+SYSTEM CHECK:
+- Prompt: “Is this the final destination?”
+  - YES → complete
+  - NO → continue trip
+
+EFFECT:
+- status → COMPLETED
+- set completedAt
+- calculate distance & time (no pricing yet)
+- unlock ratings
+
+7) CANCELLATION RULES
+
+RIDER CAN CANCEL:
+- REQUESTED
+- MATCHING
+- ACCEPTED
+- DRIVER_EN_ROUTE (fees apply if driver moved ≥ 1 km or ≥ 60 sec)
+
+DRIVER CAN CANCEL:
+- ARRIVED
+- WAITING
+- IN_PROGRESS (must select reason)
+
+CANCELLATION EFFECT:
+- status → CANCELLED
+- set cancelledAt
+- set cancelledBy
+- record cancelReason
+- trigger compensation eligibility flags (no payout yet)
+
+8) SAFETY STOP DETECTION
+
+SYSTEM:
+- If status === IN_PROGRESS
+- AND no movement ≥ 4 minutes
+
+EFFECT:
+- Trigger safety check
+- Notify rider & driver:
+  “Are you safe?”
+
+Responses logged to RideAuditLog.
+
+9) VALIDATION ENFORCEMENT
+
+Backend MUST:
+- Reject invalid transitions
+- Reject actions by wrong role
+- Log every transition in RideAuditLog
+- Never allow skipping states
+
+10) DO NOT:
+- Implement payment transfers
+- Implement UI animations
+- Modify roles or permissions
+- Add admin overrides
+
+FINAL REQUIREMENT:
+- Ride lifecycle now matches Uber/Lyft behavior
+- Actions are role-safe
+- State machine is enforced server-side
+- System is ready for UI wiring in Step C
+
+After completing Step B, STOP.
+Await instruction before Step C.

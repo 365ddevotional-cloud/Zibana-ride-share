@@ -4448,5 +4448,678 @@ export async function registerRoutes(
     }
   });
 
+  // ================================================
+  // Phase 22 - Enhanced Ride Lifecycle Routes
+  // ================================================
+
+  // Create a new ride request (Rider action)
+  app.post("/api/rides", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      
+      // Verify user is a rider
+      const role = await storage.getUserRole(userId);
+      if (role?.role !== "rider") {
+        return res.status(403).json({ message: "Only riders can request rides" });
+      }
+
+      const { pickupLat, pickupLng, pickupAddress, dropoffLat, dropoffLng, dropoffAddress, passengerCount } = req.body;
+
+      // Validate required fields
+      if (!pickupLat || !pickupLng || !dropoffLat || !dropoffLng) {
+        return res.status(400).json({ message: "Pickup and dropoff coordinates are required" });
+      }
+
+      const ride = await storage.createRide({
+        riderId: userId,
+        pickupLat: pickupLat.toString(),
+        pickupLng: pickupLng.toString(),
+        pickupAddress: pickupAddress || null,
+        dropoffLat: dropoffLat.toString(),
+        dropoffLng: dropoffLng.toString(),
+        dropoffAddress: dropoffAddress || null,
+        passengerCount: passengerCount || 1,
+      });
+
+      // Log the action
+      await storage.createRideAuditLog({
+        rideId: ride.id,
+        action: "ride_requested",
+        performedBy: userId,
+        performedByRole: "rider",
+        previousStatus: null,
+        newStatus: "matching",
+        metadata: JSON.stringify({ pickupAddress, dropoffAddress }),
+      });
+
+      return res.status(201).json(ride);
+    } catch (error) {
+      console.error("Error creating ride:", error);
+      return res.status(500).json({ message: "Failed to create ride" });
+    }
+  });
+
+  // Get available rides for drivers (matching status)
+  app.get("/api/rides/available", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      
+      // Verify user is a driver
+      const role = await storage.getUserRole(userId);
+      if (role?.role !== "driver") {
+        return res.status(403).json({ message: "Only drivers can view available rides" });
+      }
+
+      const rides = await storage.getRidesByStatus("matching");
+      
+      // Filter out expired matching windows
+      const now = new Date();
+      const activeRides = rides.filter(ride => 
+        !ride.matchingExpiresAt || new Date(ride.matchingExpiresAt) > now
+      );
+
+      return res.json(activeRides);
+    } catch (error) {
+      console.error("Error fetching available rides:", error);
+      return res.status(500).json({ message: "Failed to fetch available rides" });
+    }
+  });
+
+  // Get ride by ID
+  app.get("/api/rides/:rideId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { rideId } = req.params;
+
+      const ride = await storage.getRideById(rideId);
+      if (!ride) {
+        return res.status(404).json({ message: "Ride not found" });
+      }
+
+      // Only rider, assigned driver, or admin can view
+      const role = await storage.getUserRole(userId);
+      if (ride.riderId !== userId && ride.driverId !== userId && role?.role !== "admin") {
+        return res.status(403).json({ message: "Not authorized to view this ride" });
+      }
+
+      return res.json(ride);
+    } catch (error) {
+      console.error("Error fetching ride:", error);
+      return res.status(500).json({ message: "Failed to fetch ride" });
+    }
+  });
+
+  // Get rider's rides
+  app.get("/api/rides/rider/me", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const rides = await storage.getRiderRides(userId);
+      return res.json(rides);
+    } catch (error) {
+      console.error("Error fetching rider rides:", error);
+      return res.status(500).json({ message: "Failed to fetch rides" });
+    }
+  });
+
+  // Get driver's rides
+  app.get("/api/rides/driver/me", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const rides = await storage.getDriverRides(userId);
+      return res.json(rides);
+    } catch (error) {
+      console.error("Error fetching driver rides:", error);
+      return res.status(500).json({ message: "Failed to fetch rides" });
+    }
+  });
+
+  // Driver accepts a ride
+  app.post("/api/rides/:rideId/accept", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { rideId } = req.params;
+
+      // Verify user is a driver
+      const role = await storage.getUserRole(userId);
+      if (role?.role !== "driver") {
+        return res.status(403).json({ message: "Only drivers can accept rides" });
+      }
+
+      const ride = await storage.getRideById(rideId);
+      if (!ride) {
+        return res.status(404).json({ message: "Ride not found" });
+      }
+
+      // Validate action using lifecycle rules
+      const { validateAction } = await import("./ride-lifecycle.js");
+      const validation = validateAction("accept_ride", "driver", ride.status as any, {
+        matchingExpiresAt: ride.matchingExpiresAt,
+      });
+
+      if (!validation.allowed) {
+        return res.status(400).json({ message: validation.error });
+      }
+
+      const updatedRide = await storage.assignDriverToRide(rideId, userId);
+
+      // Log the action
+      await storage.createRideAuditLog({
+        rideId,
+        action: "ride_accepted",
+        performedBy: userId,
+        performedByRole: "driver",
+        previousStatus: ride.status,
+        newStatus: "accepted",
+      });
+
+      // Notify rider
+      await storage.createNotification({
+        userId: ride.riderId,
+        type: "ride_update",
+        message: "Your driver is on the way!",
+        metadata: JSON.stringify({ rideId, driverId: userId }),
+      });
+
+      return res.json(updatedRide);
+    } catch (error: any) {
+      console.error("Error accepting ride:", error);
+      return res.status(500).json({ message: error.message || "Failed to accept ride" });
+    }
+  });
+
+  // Driver starts pickup navigation
+  app.post("/api/rides/:rideId/start-pickup", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { rideId } = req.params;
+
+      const ride = await storage.getRideById(rideId);
+      if (!ride) {
+        return res.status(404).json({ message: "Ride not found" });
+      }
+
+      // Validate driver is assigned
+      if (ride.driverId !== userId) {
+        return res.status(403).json({ message: "Only the assigned driver can perform this action" });
+      }
+
+      const { validateAction, isValidTransition } = await import("./ride-lifecycle.js");
+      const validation = validateAction("start_pickup", "driver", ride.status as any, {
+        isAssignedDriver: true,
+      });
+
+      if (!validation.allowed) {
+        return res.status(400).json({ message: validation.error });
+      }
+
+      // Validate state transition
+      const transition = isValidTransition(ride.status as any, "driver_en_route");
+      if (!transition.valid) {
+        return res.status(400).json({ message: transition.error });
+      }
+
+      const updatedRide = await storage.updateRideStatus(rideId, "driver_en_route");
+
+      // Log the action
+      await storage.createRideAuditLog({
+        rideId,
+        action: "pickup_started",
+        performedBy: userId,
+        performedByRole: "driver",
+        previousStatus: ride.status,
+        newStatus: "driver_en_route",
+      });
+
+      return res.json(updatedRide);
+    } catch (error) {
+      console.error("Error starting pickup:", error);
+      return res.status(500).json({ message: "Failed to start pickup" });
+    }
+  });
+
+  // Driver arrives at pickup
+  app.post("/api/rides/:rideId/arrive", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { rideId } = req.params;
+
+      const ride = await storage.getRideById(rideId);
+      if (!ride) {
+        return res.status(404).json({ message: "Ride not found" });
+      }
+
+      if (ride.driverId !== userId) {
+        return res.status(403).json({ message: "Only the assigned driver can perform this action" });
+      }
+
+      const { validateAction, isValidTransition } = await import("./ride-lifecycle.js");
+      const validation = validateAction("arrive", "driver", ride.status as any, {
+        isAssignedDriver: true,
+      });
+
+      if (!validation.allowed) {
+        return res.status(400).json({ message: validation.error });
+      }
+
+      const transition = isValidTransition(ride.status as any, "arrived");
+      if (!transition.valid) {
+        return res.status(400).json({ message: transition.error });
+      }
+
+      const updatedRide = await storage.updateRideStatus(rideId, "arrived");
+
+      // Log the action
+      await storage.createRideAuditLog({
+        rideId,
+        action: "driver_arrived",
+        performedBy: userId,
+        performedByRole: "driver",
+        previousStatus: ride.status,
+        newStatus: "arrived",
+      });
+
+      // Notify rider
+      await storage.createNotification({
+        userId: ride.riderId,
+        type: "ride_update",
+        message: "Your driver has arrived!",
+        metadata: JSON.stringify({ rideId }),
+      });
+
+      return res.json(updatedRide);
+    } catch (error) {
+      console.error("Error marking arrival:", error);
+      return res.status(500).json({ message: "Failed to mark arrival" });
+    }
+  });
+
+  // System/Driver starts waiting period
+  app.post("/api/rides/:rideId/start-waiting", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { rideId } = req.params;
+
+      const ride = await storage.getRideById(rideId);
+      if (!ride) {
+        return res.status(404).json({ message: "Ride not found" });
+      }
+
+      if (ride.driverId !== userId) {
+        return res.status(403).json({ message: "Only the assigned driver can perform this action" });
+      }
+
+      const { isValidTransition } = await import("./ride-lifecycle.js");
+      const transition = isValidTransition(ride.status as any, "waiting");
+      if (!transition.valid) {
+        return res.status(400).json({ message: transition.error });
+      }
+
+      const updatedRide = await storage.updateRideStatus(rideId, "waiting");
+
+      // Log the action
+      await storage.createRideAuditLog({
+        rideId,
+        action: "waiting_started",
+        performedBy: userId,
+        performedByRole: "driver",
+        previousStatus: ride.status,
+        newStatus: "waiting",
+      });
+
+      return res.json(updatedRide);
+    } catch (error) {
+      console.error("Error starting waiting:", error);
+      return res.status(500).json({ message: "Failed to start waiting period" });
+    }
+  });
+
+  // Driver starts the trip
+  app.post("/api/rides/:rideId/start-trip", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { rideId } = req.params;
+
+      const ride = await storage.getRideById(rideId);
+      if (!ride) {
+        return res.status(404).json({ message: "Ride not found" });
+      }
+
+      if (ride.driverId !== userId) {
+        return res.status(403).json({ message: "Only the assigned driver can perform this action" });
+      }
+
+      const { validateAction, isValidTransition, calculateWaitingTime } = await import("./ride-lifecycle.js");
+      const validation = validateAction("start_trip", "driver", ride.status as any, {
+        isAssignedDriver: true,
+      });
+
+      if (!validation.allowed) {
+        return res.status(400).json({ message: validation.error });
+      }
+
+      const transition = isValidTransition(ride.status as any, "in_progress");
+      if (!transition.valid) {
+        return res.status(400).json({ message: transition.error });
+      }
+
+      // Calculate waiting time if applicable
+      let waitingData: any = {};
+      if (ride.waitingStartedAt) {
+        const waiting = calculateWaitingTime(ride.waitingStartedAt);
+        waitingData = {
+          waitingPaidMin: waiting.paidMinutes + waiting.bonusMinutes,
+        };
+      }
+
+      const updatedRide = await storage.updateRideStatus(rideId, "in_progress", {
+        ...waitingData,
+        lastMovementAt: new Date(),
+      });
+
+      // Log the action
+      await storage.createRideAuditLog({
+        rideId,
+        action: "trip_started",
+        performedBy: userId,
+        performedByRole: "driver",
+        previousStatus: ride.status,
+        newStatus: "in_progress",
+        metadata: JSON.stringify(waitingData),
+      });
+
+      return res.json(updatedRide);
+    } catch (error) {
+      console.error("Error starting trip:", error);
+      return res.status(500).json({ message: "Failed to start trip" });
+    }
+  });
+
+  // Driver completes the trip
+  app.post("/api/rides/:rideId/complete", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { rideId } = req.params;
+      const { confirmFinalDestination } = req.body;
+
+      const ride = await storage.getRideById(rideId);
+      if (!ride) {
+        return res.status(404).json({ message: "Ride not found" });
+      }
+
+      if (ride.driverId !== userId) {
+        return res.status(403).json({ message: "Only the assigned driver can perform this action" });
+      }
+
+      const { validateAction, isValidTransition } = await import("./ride-lifecycle.js");
+      const validation = validateAction("complete_trip", "driver", ride.status as any, {
+        isAssignedDriver: true,
+      });
+
+      if (!validation.allowed) {
+        return res.status(400).json({ message: validation.error });
+      }
+
+      // Require confirmation that this is the final destination
+      if (confirmFinalDestination !== true) {
+        return res.status(400).json({ 
+          message: "Please confirm this is the final destination",
+          requiresConfirmation: true 
+        });
+      }
+
+      const transition = isValidTransition(ride.status as any, "completed");
+      if (!transition.valid) {
+        return res.status(400).json({ message: transition.error });
+      }
+
+      // Calculate trip duration
+      const startedAt = ride.startedAt ? new Date(ride.startedAt) : new Date();
+      const completedAt = new Date();
+      const tripDurationMin = (completedAt.getTime() - startedAt.getTime()) / (1000 * 60);
+
+      const updatedRide = await storage.updateRideStatus(rideId, "completed", {
+        actualTripDurationMin: tripDurationMin,
+      });
+
+      // Log the action
+      await storage.createRideAuditLog({
+        rideId,
+        action: "trip_completed",
+        performedBy: userId,
+        performedByRole: "driver",
+        previousStatus: ride.status,
+        newStatus: "completed",
+        metadata: JSON.stringify({ tripDurationMin }),
+      });
+
+      // Notify rider
+      await storage.createNotification({
+        userId: ride.riderId,
+        type: "ride_update",
+        message: "Your trip is complete! Please rate your driver.",
+        metadata: JSON.stringify({ rideId }),
+      });
+
+      return res.json(updatedRide);
+    } catch (error) {
+      console.error("Error completing trip:", error);
+      return res.status(500).json({ message: "Failed to complete trip" });
+    }
+  });
+
+  // Cancel a ride (Rider or Driver)
+  app.post("/api/rides/:rideId/cancel", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { rideId } = req.params;
+      const { reason } = req.body;
+
+      const ride = await storage.getRideById(rideId);
+      if (!ride) {
+        return res.status(404).json({ message: "Ride not found" });
+      }
+
+      // Determine role
+      const isRider = ride.riderId === userId;
+      const isDriver = ride.driverId === userId;
+
+      if (!isRider && !isDriver) {
+        return res.status(403).json({ message: "Only the rider or assigned driver can cancel" });
+      }
+
+      const role = isRider ? "rider" : "driver";
+      const { validateAction, isDriverEligibleForCompensation } = await import("./ride-lifecycle.js");
+
+      // Get driver movement if applicable
+      let driverMovement = { distanceKm: 0, durationSec: 0 };
+      if (ride.driverId) {
+        driverMovement = await storage.getTotalDriverMovement(rideId);
+      }
+
+      const validation = validateAction("cancel_ride", role, ride.status as any, {
+        driverMovement,
+      });
+
+      if (!validation.allowed) {
+        return res.status(400).json({ message: validation.error });
+      }
+
+      // Check if reason is required (driver cancelling in_progress)
+      if (validation.requiresReason && !reason) {
+        return res.status(400).json({ 
+          message: "Cancellation reason is required",
+          requiresReason: true 
+        });
+      }
+
+      // Determine compensation eligibility
+      let compensationEligible = false;
+      if (isRider && ride.driverId && driverMovement.distanceKm > 0) {
+        const compensation = isDriverEligibleForCompensation(
+          driverMovement.distanceKm,
+          driverMovement.durationSec
+        );
+        compensationEligible = compensation.eligible;
+      }
+
+      const cancelledBy = isRider ? "rider" : "driver";
+      const updatedRide = await storage.cancelRide(rideId, cancelledBy, reason);
+
+      // Log the action
+      await storage.createRideAuditLog({
+        rideId,
+        action: "ride_cancelled",
+        performedBy: userId,
+        performedByRole: role,
+        previousStatus: ride.status,
+        newStatus: "cancelled",
+        metadata: JSON.stringify({ 
+          reason, 
+          cancelledBy,
+          compensationEligible,
+          driverMovement,
+          appliedFee: validation.requiresFee,
+        }),
+      });
+
+      // Notify the other party
+      if (isRider && ride.driverId) {
+        await storage.createNotification({
+          userId: ride.driverId,
+          type: "ride_update",
+          message: "The rider has cancelled the ride",
+          metadata: JSON.stringify({ rideId, reason }),
+        });
+      } else if (isDriver) {
+        await storage.createNotification({
+          userId: ride.riderId,
+          type: "ride_update",
+          message: "Your driver has cancelled the ride. We'll find you another driver.",
+          metadata: JSON.stringify({ rideId, reason }),
+        });
+      }
+
+      return res.json({
+        ...updatedRide,
+        compensationEligible,
+        feeApplied: validation.requiresFee,
+      });
+    } catch (error) {
+      console.error("Error cancelling ride:", error);
+      return res.status(500).json({ message: "Failed to cancel ride" });
+    }
+  });
+
+  // Record driver movement (for tracking en route)
+  app.post("/api/rides/:rideId/movement", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { rideId } = req.params;
+      const { lat, lng, distanceKm, durationSec } = req.body;
+
+      const ride = await storage.getRideById(rideId);
+      if (!ride) {
+        return res.status(404).json({ message: "Ride not found" });
+      }
+
+      if (ride.driverId !== userId) {
+        return res.status(403).json({ message: "Only the assigned driver can record movement" });
+      }
+
+      // Only track movement during en_route or in_progress
+      if (ride.status !== "driver_en_route" && ride.status !== "in_progress") {
+        return res.status(400).json({ message: "Movement tracking not active for current status" });
+      }
+
+      const movement = await storage.createDriverMovement({
+        rideId,
+        driverId: userId,
+        lat: lat?.toString(),
+        lng: lng?.toString(),
+        distanceKm: distanceKm?.toString(),
+        durationSec,
+      });
+
+      // Update last movement timestamp for safety detection
+      if (ride.status === "in_progress") {
+        await storage.updateRideStatus(rideId, ride.status, {
+          lastMovementAt: new Date(),
+        });
+      }
+
+      return res.json(movement);
+    } catch (error) {
+      console.error("Error recording movement:", error);
+      return res.status(500).json({ message: "Failed to record movement" });
+    }
+  });
+
+  // Safety check - report safe status
+  app.post("/api/rides/:rideId/safety-check", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { rideId } = req.params;
+      const { isSafe, message } = req.body;
+
+      const ride = await storage.getRideById(rideId);
+      if (!ride) {
+        return res.status(404).json({ message: "Ride not found" });
+      }
+
+      // Either rider or driver can respond
+      if (ride.riderId !== userId && ride.driverId !== userId) {
+        return res.status(403).json({ message: "Only ride participants can respond to safety check" });
+      }
+
+      const role = ride.riderId === userId ? "rider" : "driver";
+
+      // Log the safety response
+      await storage.createRideAuditLog({
+        rideId,
+        action: "safety_check_response",
+        performedBy: userId,
+        performedByRole: role,
+        previousStatus: ride.status,
+        newStatus: ride.status,
+        metadata: JSON.stringify({ isSafe, message, respondedBy: role }),
+      });
+
+      // Update safety check timestamp
+      await storage.updateRideStatus(rideId, ride.status, {
+        safetyCheckAt: new Date(),
+      });
+
+      return res.json({ success: true, message: "Safety response recorded" });
+    } catch (error) {
+      console.error("Error recording safety check:", error);
+      return res.status(500).json({ message: "Failed to record safety check" });
+    }
+  });
+
+  // Get ride audit logs
+  app.get("/api/rides/:rideId/audit-logs", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { rideId } = req.params;
+
+      const ride = await storage.getRideById(rideId);
+      if (!ride) {
+        return res.status(404).json({ message: "Ride not found" });
+      }
+
+      // Only rider, driver, or admin can view
+      const role = await storage.getUserRole(userId);
+      if (ride.riderId !== userId && ride.driverId !== userId && role?.role !== "admin") {
+        return res.status(403).json({ message: "Not authorized to view audit logs" });
+      }
+
+      const logs = await storage.getRideAuditLogs(rideId);
+      return res.json(logs);
+    } catch (error) {
+      console.error("Error fetching audit logs:", error);
+      return res.status(500).json({ message: "Failed to fetch audit logs" });
+    }
+  });
+
   return httpServer;
 }
