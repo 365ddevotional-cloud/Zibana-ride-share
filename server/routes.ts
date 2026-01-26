@@ -6536,5 +6536,182 @@ export async function registerRoutes(
     }
   });
 
+  // ==========================================
+  // PRODUCTION SWITCHES (Phase 26)
+  // SUPER_ADMIN ONLY - Server-side, Logged
+  // ==========================================
+
+  // Get all system configs (admin view)
+  app.get("/api/admin/system-config", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const configs = await storage.getAllSystemConfigs();
+      const launchMode = await storage.getSystemConfig("LAUNCH_MODE");
+      const explanationMode = await storage.getSystemConfig("EXPLANATION_MODE");
+      const inviteRequired = await storage.getSystemConfig("INVITE_REQUIRED");
+      const driverCap = await storage.getSystemConfig("DRIVER_ONBOARDING_CAP");
+      const dailyRideLimit = await storage.getSystemConfig("DAILY_RIDE_LIMIT");
+      
+      return res.json({
+        configs,
+        current: {
+          launchMode: launchMode || "soft_launch",
+          explanationMode: explanationMode === "true",
+          inviteRequired: inviteRequired !== "false",
+          driverOnboardingCap: parseInt(driverCap) || 50,
+          dailyRideLimit: parseInt(dailyRideLimit) || 100,
+        }
+      });
+    } catch (error) {
+      console.error("Error getting system config:", error);
+      return res.status(500).json({ message: "Failed to get config" });
+    }
+  });
+
+  // Update system config (SUPER_ADMIN ONLY)
+  app.patch("/api/admin/system-config/:key", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { key } = req.params;
+      const { value, reason } = req.body;
+      
+      if (!value) {
+        return res.status(400).json({ message: "Value is required" });
+      }
+
+      const validKeys = ["LAUNCH_MODE", "EXPLANATION_MODE", "INVITE_REQUIRED", "DRIVER_ONBOARDING_CAP", "DAILY_RIDE_LIMIT"];
+      if (!validKeys.includes(key)) {
+        return res.status(400).json({ message: "Invalid config key" });
+      }
+
+      if (key === "LAUNCH_MODE" && !["soft_launch", "full_launch"].includes(value)) {
+        return res.status(400).json({ message: "Invalid launch mode" });
+      }
+
+      const config = await storage.setSystemConfig(key, value, userId, reason);
+      console.log(`[SECURITY AUDIT] System config ${key} changed to "${value}" by ${userId}`);
+      
+      return res.json({ message: "Config updated", config });
+    } catch (error) {
+      console.error("Error updating system config:", error);
+      return res.status(500).json({ message: "Failed to update config" });
+    }
+  });
+
+  // Get countries with payment status
+  app.get("/api/admin/countries/payments", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const countries = await storage.getAllCountriesWithPaymentStatus();
+      return res.json(countries);
+    } catch (error) {
+      console.error("Error getting countries:", error);
+      return res.status(500).json({ message: "Failed to get countries" });
+    }
+  });
+
+  // Enable/Disable real payments for a country (SUPER_ADMIN ONLY)
+  app.patch("/api/admin/countries/:countryId/payments", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { countryId } = req.params;
+      const { paymentsEnabled, paymentProvider, confirmation } = req.body;
+
+      // Require explicit confirmation for enabling payments
+      if (paymentsEnabled === true && confirmation !== "ENABLE_REAL_PAYMENTS") {
+        return res.status(400).json({ 
+          message: "Enabling real payments requires explicit confirmation",
+          required: "Send confirmation: 'ENABLE_REAL_PAYMENTS'" 
+        });
+      }
+
+      const updated = await storage.setCountryPaymentSettings(
+        countryId, 
+        paymentsEnabled, 
+        paymentProvider || null, 
+        userId
+      );
+
+      if (!updated) {
+        return res.status(404).json({ message: "Country not found" });
+      }
+
+      console.log(`[SECURITY AUDIT] Country ${countryId} payments=${paymentsEnabled} provider=${paymentProvider} by ${userId}`);
+      
+      return res.json({ 
+        message: paymentsEnabled ? "Real payments ENABLED" : "Payments disabled (simulated mode)", 
+        country: updated 
+      });
+    } catch (error) {
+      console.error("Error updating country payments:", error);
+      return res.status(500).json({ message: "Failed to update" });
+    }
+  });
+
+  // Get config audit logs (SUPER_ADMIN ONLY)
+  app.get("/api/admin/config-audit-logs", isAuthenticated, requireRole(["super_admin"]), async (req, res) => {
+    try {
+      const logs = await storage.getConfigAuditLogs(100);
+      return res.json(logs);
+    } catch (error) {
+      console.error("Error getting audit logs:", error);
+      return res.status(500).json({ message: "Failed to get logs" });
+    }
+  });
+
+  // Get explanation mode content (for admin dashboard)
+  app.get("/api/admin/explanation-summary", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const explanationEnabled = await storage.getSystemConfig("EXPLANATION_MODE");
+      if (explanationEnabled !== "true") {
+        return res.json({ enabled: false, content: null });
+      }
+
+      return res.json({
+        enabled: true,
+        content: {
+          title: "ZIBA Platform - Operational Summary",
+          sections: [
+            {
+              heading: "Wallet-First Payment Model",
+              description: "All rides are prepaid from rider wallets. Funds are escrowed during the ride and released to drivers upon completion. This eliminates payment failures and disputes."
+            },
+            {
+              heading: "Escrow Handling",
+              description: "When a ride starts, the fare is locked in escrow. On completion, the driver receives their payout and ZIBA collects commission. On cancellation or dispute, funds are held pending resolution."
+            },
+            {
+              heading: "Navigation Approach",
+              description: "ZIBA does not embed map SDKs to reduce costs and complexity. Navigation is handled by opening the rider's/driver's native GPS apps (Google Maps, Apple Maps) via deep links."
+            },
+            {
+              heading: "Cost Control Decisions",
+              description: "No external routing APIs, no real-time map tiles, no third-party geolocation services. Distance is calculated using internal Haversine formula. This keeps operational costs near zero."
+            },
+            {
+              heading: "Driver Classification",
+              description: "Drivers are independent contractors, not employees. They set their own hours, accept or decline rides freely, and are responsible for their own vehicles and expenses."
+            },
+            {
+              heading: "Fraud Protections",
+              description: "Rule-based fraud detection flags suspicious patterns (excessive cancellations, fake movements, reservation abuse). All financial transactions are logged for audit."
+            }
+          ]
+        }
+      });
+    } catch (error) {
+      console.error("Error getting explanation:", error);
+      return res.status(500).json({ message: "Failed to get explanation" });
+    }
+  });
+
+  // Get current launch mode status for UI badge
+  app.get("/api/launch-mode", isAuthenticated, async (req, res) => {
+    try {
+      const launchMode = await storage.getSystemConfig("LAUNCH_MODE");
+      return res.json({ mode: launchMode || "soft_launch" });
+    } catch (error) {
+      return res.json({ mode: "soft_launch" });
+    }
+  });
+
   return httpServer;
 }
