@@ -34,13 +34,16 @@ import {
   CheckCircle,
   XCircle,
   Star,
-  User
+  User,
+  Calendar
 } from "lucide-react";
 import type { Trip, RiderProfile, Ride } from "@shared/schema";
 import { NotificationBell } from "@/components/notification-bell";
 import { SupportSection } from "@/components/support-section";
 import { RiderRideStatus } from "@/components/ride/rider-ride-status";
 import { SafetyCheckModal } from "@/components/ride/safety-check-modal";
+import { ReservationForm } from "@/components/ride/reservation-form";
+import { UpcomingReservations } from "@/components/ride/upcoming-reservations";
 import { useRiderRide, type RideWithDetails } from "@/hooks/use-ride-lifecycle";
 import { useSafetyCheck } from "@/hooks/use-safety-check";
 
@@ -59,6 +62,7 @@ export default function RiderDashboard() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [showRequestForm, setShowRequestForm] = useState(false);
+  const [showReservationForm, setShowReservationForm] = useState(false);
   
   const [tripStatusFilter, setTripStatusFilter] = useState("");
   const [tripStartDate, setTripStartDate] = useState("");
@@ -228,17 +232,30 @@ export default function RiderDashboard() {
             <h1 className="text-2xl font-bold">Welcome back!</h1>
             <p className="text-muted-foreground">Where would you like to go today?</p>
           </div>
-          {!hasActiveTrip && !hasActiveRide && !showRequestForm && (
-            <Button onClick={() => setShowRequestForm(true)} data-testid="button-request-ride">
-              <Plus className="h-4 w-4 mr-2" />
-              Request Ride
-            </Button>
+          {!hasActiveTrip && !hasActiveRide && !showRequestForm && !showReservationForm && (
+            <div className="flex gap-2">
+              <Button onClick={() => setShowRequestForm(true)} data-testid="button-request-ride">
+                <Plus className="h-4 w-4 mr-2" />
+                Request Ride
+              </Button>
+              <Button variant="outline" onClick={() => setShowReservationForm(true)} data-testid="button-schedule-ride">
+                <Calendar className="h-4 w-4 mr-2" />
+                Schedule
+              </Button>
+            </div>
           )}
         </div>
 
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
-            {showRequestForm && !hasActiveTrip && !hasActiveRide && (
+            {showReservationForm && !hasActiveTrip && !hasActiveRide && (
+              <ReservationForm 
+                onSuccess={() => setShowReservationForm(false)}
+                onCancel={() => setShowReservationForm(false)}
+              />
+            )}
+
+            {showRequestForm && !hasActiveTrip && !hasActiveRide && !showReservationForm && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -511,6 +528,8 @@ export default function RiderDashboard() {
           </div>
 
           <div className="space-y-6">
+            <UpcomingReservations />
+
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
