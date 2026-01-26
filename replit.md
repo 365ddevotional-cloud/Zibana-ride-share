@@ -42,6 +42,7 @@ Preferred communication style: Simple, everyday language.
 - **Enterprise Contracts & Billing**: Organization contract management with SLAs, multiple billing models, invoice generation, and payment tracking for institutional clients.
 - **Monitoring & KPIs**: Metrics aggregation for platform, rider, driver, organization, and financial performance, with threshold alerts and feature flag management.
 - **Growth & Marketing**: Referral codes, marketing campaigns, and partner lead tracking.
+- **Scheduled Reservations**: Uber/Lyft-style advance booking with $5.00 reservation premium, driver assignment, 30-min prep window, early arrival bonuses (up to $10), and cancellation fees (when cancelled within 1 hour of pickup).
 
 ## External Dependencies
 
