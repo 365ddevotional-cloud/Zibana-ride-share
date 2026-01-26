@@ -197,6 +197,96 @@ export const trips = pgTable("trips", {
   estimatedTaxAmount: decimal("estimated_tax_amount", { precision: 10, scale: 2 }),
 });
 
+// Phase 22 - Enhanced Rides table with full Uber/Lyft-style lifecycle
+export const rides = pgTable("rides", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  riderId: varchar("rider_id").notNull(),
+  driverId: varchar("driver_id"),
+  status: rideStatusEnum("status").notNull().default("requested"),
+  
+  // Location fields
+  pickupLat: decimal("pickup_lat", { precision: 10, scale: 7 }).notNull(),
+  pickupLng: decimal("pickup_lng", { precision: 10, scale: 7 }).notNull(),
+  dropoffLat: decimal("dropoff_lat", { precision: 10, scale: 7 }).notNull(),
+  dropoffLng: decimal("dropoff_lng", { precision: 10, scale: 7 }).notNull(),
+  pickupAddress: text("pickup_address"),
+  dropoffAddress: text("dropoff_address"),
+  
+  // Timestamps
+  requestedAt: timestamp("requested_at").defaultNow(),
+  matchingExpiresAt: timestamp("matching_expires_at"),
+  acceptedAt: timestamp("accepted_at"),
+  enRouteAt: timestamp("en_route_at"),
+  arrivedAt: timestamp("arrived_at"),
+  waitingStartedAt: timestamp("waiting_started_at"),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  cancelledAt: timestamp("cancelled_at"),
+  
+  // Estimates
+  estimatedDistanceKm: decimal("estimated_distance_km", { precision: 10, scale: 2 }),
+  estimatedDurationMin: decimal("estimated_duration_min", { precision: 10, scale: 2 }),
+  
+  // Actuals
+  actualDistanceKm: decimal("actual_distance_km", { precision: 10, scale: 2 }),
+  actualDurationMin: decimal("actual_duration_min", { precision: 10, scale: 2 }),
+  
+  // Fare breakdown
+  baseFare: decimal("base_fare", { precision: 10, scale: 2 }),
+  distanceFare: decimal("distance_fare", { precision: 10, scale: 2 }),
+  timeFare: decimal("time_fare", { precision: 10, scale: 2 }),
+  waitingFee: decimal("waiting_fee", { precision: 10, scale: 2 }),
+  trafficFee: decimal("traffic_fee", { precision: 10, scale: 2 }),
+  totalFare: decimal("total_fare", { precision: 10, scale: 2 }),
+  
+  // Payouts
+  driverEarning: decimal("driver_earning", { precision: 10, scale: 2 }),
+  platformFee: decimal("platform_fee", { precision: 10, scale: 2 }),
+  
+  // Waiting logic
+  waitingPaidMin: decimal("waiting_paid_min", { precision: 5, scale: 2 }).default("0"),
+  waitingFeePaid: decimal("waiting_fee_paid", { precision: 10, scale: 2 }).default("0"),
+  
+  // Cancellation
+  cancelReason: text("cancel_reason"),
+  cancelledBy: rideCancelledByEnum("cancelled_by"),
+  
+  // Safety & idle detection
+  lastMovementAt: timestamp("last_movement_at"),
+  idleAlertSentAt: timestamp("idle_alert_sent_at"),
+  safetyCheckAt: timestamp("safety_check_at"),
+  
+  // Multi-country support
+  countryId: varchar("country_id"),
+  currency: varchar("currency", { length: 3 }).default("USD"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Phase 22 - Driver Movement tracking (for compensation calculation)
+export const driverMovements = pgTable("driver_movements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  rideId: varchar("ride_id").notNull(),
+  driverId: varchar("driver_id").notNull(),
+  distanceKm: decimal("distance_km", { precision: 10, scale: 3 }).notNull().default("0"),
+  durationSec: integer("duration_sec").notNull().default(0),
+  recordedAt: timestamp("recorded_at").defaultNow(),
+});
+
+// Phase 22 - Ride Audit Log for tracking all actions
+export const rideAuditLogs = pgTable("ride_audit_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  rideId: varchar("ride_id").notNull(),
+  actorId: varchar("actor_id").notNull(),
+  actorRole: varchar("actor_role", { length: 50 }).notNull(),
+  action: rideAuditActionEnum("action").notNull(),
+  previousStatus: rideStatusEnum("previous_status"),
+  newStatus: rideStatusEnum("new_status"),
+  metadata: text("metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Payout transactions table - tracks driver earnings and payouts
 export const payoutTransactions = pgTable("payout_transactions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -568,6 +658,36 @@ export const insertTripSchema = createInsertSchema(trips).omit({
   status: true,
 });
 
+// Phase 22 - Enhanced Ride insert schemas
+export const insertRideSchema = createInsertSchema(rides).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  status: true,
+  driverId: true,
+  acceptedAt: true,
+  enRouteAt: true,
+  arrivedAt: true,
+  waitingStartedAt: true,
+  startedAt: true,
+  completedAt: true,
+  cancelledAt: true,
+  matchingExpiresAt: true,
+  lastMovementAt: true,
+  idleAlertSentAt: true,
+  safetyCheckAt: true,
+});
+
+export const insertDriverMovementSchema = createInsertSchema(driverMovements).omit({
+  id: true,
+  recordedAt: true,
+});
+
+export const insertRideAuditLogSchema = createInsertSchema(rideAuditLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertPayoutTransactionSchema = createInsertSchema(payoutTransactions).omit({
   id: true,
   createdAt: true,
@@ -669,6 +789,16 @@ export type TripCoordinatorWithUser = TripCoordinatorProfile & {
 
 export type InsertTrip = z.infer<typeof insertTripSchema>;
 export type Trip = typeof trips.$inferSelect;
+
+// Phase 22 - Enhanced Ride types
+export type InsertRide = z.infer<typeof insertRideSchema>;
+export type Ride = typeof rides.$inferSelect;
+
+export type InsertDriverMovement = z.infer<typeof insertDriverMovementSchema>;
+export type DriverMovement = typeof driverMovements.$inferSelect;
+
+export type InsertRideAuditLog = z.infer<typeof insertRideAuditLogSchema>;
+export type RideAuditLog = typeof rideAuditLogs.$inferSelect;
 
 export type InsertPayoutTransaction = z.infer<typeof insertPayoutTransactionSchema>;
 export type PayoutTransaction = typeof payoutTransactions.$inferSelect;
