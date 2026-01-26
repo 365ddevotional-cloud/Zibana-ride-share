@@ -45,6 +45,7 @@ import { SupportSection } from "@/components/support-section";
 import { DriverRideCard } from "@/components/ride/driver-ride-card";
 import { DriverRideActions } from "@/components/ride/driver-ride-actions";
 import { RideOfferCountdown } from "@/components/ride/ride-offer-countdown";
+import { VerificationPhotoSubmit } from "@/components/verification/verification-photo-submit";
 import { useDriverRide, type RideWithDetails } from "@/hooks/use-ride-lifecycle";
 import { useRideOffers } from "@/hooks/use-ride-offers";
 
@@ -395,6 +396,12 @@ export default function DriverDashboard() {
                 </Button>
               </CardContent>
             </Card>
+
+            {/* Phase 23 - Identity Verification */}
+            <VerificationPhotoSubmit
+              currentStatus={(profile as any).verificationStatus || "unverified"}
+              verificationPhoto={(profile as any).verificationPhoto}
+            />
 
             {isApproved && (
               <Card>
