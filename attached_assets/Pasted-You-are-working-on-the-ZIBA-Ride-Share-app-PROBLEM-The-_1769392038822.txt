@@ -1,0 +1,61 @@
+You are working on the ZIBA Ride Share app.
+
+PROBLEM:
+The "Pending Approval" card currently just sets a filter on the Drivers tab.
+It does NOT show a proper approval queue (no driver name visible, approve doesn’t visibly update).
+
+GOAL:
+When an ADMIN clicks the "Pending Approval" stat card, it must navigate to a dedicated page:
+  /admin/approvals
+This page must show a real list of pending items (Drivers and Riders) with names and actions.
+
+REQUIREMENTS (DO ALL):
+
+A) NAVIGATION
+1) Update the Admin Dashboard "Pending Approval" stat card click to navigate to:
+   /admin/approvals
+2) Add a Back button (top-left) on that page to return to /admin/dashboard
+
+B) APPROVAL QUEUE UI (NEW PAGE)
+Create /admin/approvals page (admin-only) with:
+1) Tabs: "Drivers Pending" and "Riders Pending"
+2) Each tab displays a table (or list cards) with at least:
+   - Full Name (or displayName)
+   - Email
+   - Phone (if available)
+   - Created date
+   - Status badge = Pending
+   - Actions: Approve, Reject
+3) If there are no pending items, show an empty state message.
+
+C) DATA + BACKEND (USE EXISTING STRUCTURE IF PRESENT)
+1) Confirm the database has:
+   - Driver status field (e.g. PENDING/APPROVED/SUSPENDED) OR isApproved boolean
+   - Rider status field (if riders require approval) OR omit riders tab if riders don’t have approval in the schema
+2) Build or reuse API endpoints (admin-only):
+   - GET /api/admin/approvals?type=driver|rider&status=pending
+   - POST /api/admin/approvals/approve  (body: { type, id })
+   - POST /api/admin/approvals/reject   (body: { type, id, reason? })
+3) These endpoints MUST enforce:
+   - user is authenticated
+   - user.role is ADMIN or SUPER_ADMIN
+   - otherwise return 401/403
+
+D) UX MUST FEEL REAL
+1) Approve/Reject must instantly update the page:
+   - Remove the approved/rejected user from the pending list (optimistic UI or refetch)
+   - Show a toast/snackbar: "Driver approved" / "Driver rejected"
+2) After any action, the Admin Dashboard "Pending Approval" count must reflect the new number.
+   - Either refetch dashboard metrics
+   - or ensure metrics endpoint uses live DB counts.
+
+E) DO NOT
+- Do not weaken RBAC
+- Do not auto-promote anyone
+- Do not approve without showing the user identity
+- Do not leave the UI with no visible status change after clicking approve
+
+FINAL RESULT:
+Clicking "Pending Approval" takes admin to /admin/approvals,
+where they can see each pending driver (name visible), approve/reject,
+and the list + counts update immediately.
