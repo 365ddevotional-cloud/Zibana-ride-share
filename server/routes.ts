@@ -6506,7 +6506,7 @@ export async function registerRoutes(
   app.post("/api/wallet/fund", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
-      const user = await storage.getUser(userId);
+      const userEmail = req.user?.claims?.email;
       const { amount, countryCode = "NG" } = req.body;
       
       if (!amount || amount < 100) {
@@ -6519,7 +6519,7 @@ export async function registerRoutes(
         amount,
         currency: countryCode === "NG" ? "NGN" : "USD",
         userId,
-        email: user?.email || undefined,
+        email: userEmail || undefined,
         description: "ZIBA Wallet Funding",
         callbackUrl: `${req.protocol}://${req.get("host")}/api/wallet/verify`,
       });
