@@ -79,12 +79,12 @@
   --chart-4: 27 87% 67%;
   --chart-5: 12 76% 61%;
 
-  /* Admin Navigation - Dark Amber / Burnt Gold */
-  --admin-nav: 30 70% 28%;
+  /* Admin Navigation - Vibrant Orange (Nintendo/Universal Studios style) */
+  --admin-nav: 27 91% 54%;
   --admin-nav-foreground: 0 0% 100%;
-  --admin-nav-border: 30 65% 22%;
-  --admin-nav-hover: 30 70% 32%;
-  --admin-nav-active: 30 75% 38%;
+  --admin-nav-border: 0 0% 0%;
+  --admin-nav-hover: 27 91% 48%;
+  --admin-nav-active: 27 95% 58%;
 
   --font-sans: 'Inter', sans-serif;
   --font-serif: 'Libre Baskerville', Georgia, serif;
@@ -208,12 +208,12 @@
   --chart-4: 27 87% 60%;
   --chart-5: 12 76% 55%;
 
-  /* Admin Navigation - Dark Amber / Burnt Gold (darker in dark mode) */
-  --admin-nav: 30 65% 22%;
+  /* Admin Navigation - Vibrant Orange (slightly deeper for dark mode) */
+  --admin-nav: 27 91% 50%;
   --admin-nav-foreground: 0 0% 100%;
-  --admin-nav-border: 30 60% 16%;
-  --admin-nav-hover: 30 65% 28%;
-  --admin-nav-active: 30 70% 35%;
+  --admin-nav-border: 0 0% 0%;
+  --admin-nav-hover: 27 91% 44%;
+  --admin-nav-active: 27 95% 55%;
 
   --shadow-2xs: 0px 1px 2px 0px rgba(0, 0, 0, 0.2);
   --shadow-xs: 0px 1px 3px 0px rgba(0, 0, 0, 0.25);
@@ -353,19 +353,20 @@
     inset: -1px;
   }
 
-  /* Admin Navigation Bar - Dark Amber Premium Styling */
+  /* Admin Navigation Bar - Vibrant Orange Premium Styling */
   .admin-nav-bar {
     background-color: hsl(var(--admin-nav));
-    border: 1px solid hsl(var(--admin-nav-border));
-    box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.15), 0 2px 6px -2px rgba(0, 0, 0, 0.1);
+    border: 2px solid hsl(var(--admin-nav-border) / 0.2);
+    box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.25), 0 2px 6px -2px rgba(0, 0, 0, 0.15);
   }
 
   .admin-nav-trigger {
     color: hsl(var(--admin-nav-foreground)) !important;
-    font-weight: 600 !important;
+    font-weight: 700 !important;
     transition: background-color 0.15s ease;
-    border-right: 1px solid hsl(var(--admin-nav-border) / 0.5);
+    border-right: 1px solid hsl(0 0% 0% / 0.15);
     padding: 0.75rem 1rem !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   }
 
   .admin-nav-trigger:last-child {
@@ -378,12 +379,13 @@
 
   .admin-nav-trigger[data-state="active"] {
     background-color: hsl(var(--admin-nav-active)) !important;
-    box-shadow: inset 0 -2px 0 0 hsl(0 0% 100% / 0.3);
+    box-shadow: inset 0 -3px 0 0 hsl(0 0% 100% / 0.4);
   }
 
   .admin-nav-trigger svg {
     color: hsl(var(--admin-nav-foreground)) !important;
-    opacity: 0.9;
+    opacity: 1;
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.15));
   }
 
   .admin-nav-trigger span {
