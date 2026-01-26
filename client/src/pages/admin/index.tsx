@@ -1627,10 +1627,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
           
           <Card 
             className="cursor-pointer hover-elevate transition-all" 
-            onClick={() => {
-              setDriverStatusFilter("pending");
-              setActiveTab("drivers");
-            }}
+            onClick={() => setLocation("/admin/approvals")}
             data-testid="kpi-pending-approval"
           >
             <CardContent className="flex items-center gap-4 pt-6">

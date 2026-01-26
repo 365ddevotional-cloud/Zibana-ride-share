@@ -844,20 +844,9 @@ export async function registerRoutes(
       const { type, status } = req.query;
       
       if (type === "driver") {
-        const drivers = await storage.getDrivers();
-        const filtered = drivers.filter(d => !status || d.status === status);
-        
-        const driversWithEmail = await Promise.all(
-          filtered.map(async (driver) => {
-            const user = await storage.getUser(driver.userId);
-            return {
-              ...driver,
-              email: user?.email || null,
-            };
-          })
-        );
-        
-        return res.json(driversWithEmail);
+        const drivers = await storage.getAllDriversWithDetails();
+        const filtered = status ? drivers.filter((d: any) => d.status === status) : drivers;
+        return res.json(filtered);
       }
       
       return res.json([]);
