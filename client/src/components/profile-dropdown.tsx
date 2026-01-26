@@ -6,6 +6,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
 import { UserAvatar } from "@/components/user-avatar";
 import { 
@@ -18,8 +21,14 @@ import {
   Building, 
   FileText, 
   CreditCard,
-  Ticket
+  Ticket,
+  Sun,
+  Moon,
+  Monitor,
+  Palette,
+  Check
 } from "lucide-react";
+import { useTheme } from "@/components/theme-provider";
 import type { User as UserType } from "@shared/models/auth";
 
 interface ProfileDropdownProps {
@@ -30,6 +39,7 @@ interface ProfileDropdownProps {
 
 export function ProfileDropdown({ user, role, onLogout }: ProfileDropdownProps) {
   const [, navigate] = useLocation();
+  const { theme, setTheme } = useTheme();
 
   const getMenuItems = () => {
     switch (role) {
@@ -191,6 +201,30 @@ export function ProfileDropdown({ user, role, onLogout }: ProfileDropdownProps) 
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {getMenuItems()}
+        <DropdownMenuSeparator />
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger data-testid="menu-appearance">
+            <Palette className="mr-2 h-4 w-4" />
+            Appearance
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            <DropdownMenuItem onClick={() => setTheme("light")} data-testid="menu-theme-light">
+              <Sun className="mr-2 h-4 w-4" />
+              Light
+              {theme === "light" && <Check className="ml-auto h-4 w-4" />}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setTheme("dark")} data-testid="menu-theme-dark">
+              <Moon className="mr-2 h-4 w-4" />
+              Dark
+              {theme === "dark" && <Check className="ml-auto h-4 w-4" />}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setTheme("system")} data-testid="menu-theme-system">
+              <Monitor className="mr-2 h-4 w-4" />
+              System (Auto)
+              {theme === "system" && <Check className="ml-auto h-4 w-4" />}
+            </DropdownMenuItem>
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={onLogout} className="text-destructive" data-testid="menu-logout">
           <LogOut className="mr-2 h-4 w-4" />

@@ -1,0 +1,130 @@
+You are working on the ZIBA Ride Share app.
+
+OBJECTIVE
+
+Implement a mature, eye-safe theme system with:
+
+Neutral Light mode (NOT pure white)
+
+Dark mode for night use
+
+Automatic switching based on system/time
+
+Manual override by the user (especially drivers)
+
+This must be production-safe, non-breaking, and future-proof.
+
+REQUIREMENTS (DO ALL)
+1️⃣ Create a centralized Theme System
+
+Define Light Theme and Dark Theme tokens
+
+Replace hardcoded white backgrounds
+
+Apply theme globally across:
+
+Admin Dashboard
+
+Driver views
+
+Rider views
+
+Cards remain slightly elevated from background
+
+Light Theme (Day):
+
+App background: soft neutral gray (NOT white)
+
+Card background: off-white
+
+Text: deep charcoal (not pure black)
+
+Dark Theme (Night):
+
+App background: deep slate / blue-charcoal
+
+Card background: slightly lighter dark panel
+
+Text: soft off-white
+
+Do NOT use pure black or pure white.
+
+2️⃣ Add Theme Preference to User Settings
+
+For Drivers (and other users) add:
+
+Profile → Settings → Appearance
+
+Theme Preference:
+
+☀️ Light
+
+🌙 Dark
+
+🕒 System (Auto)
+
+Store preference per user in the database.
+
+3️⃣ Implement Auto (System) Mode
+
+Default preference = System
+
+If System:
+
+Follow device / browser color scheme
+
+Respect night/day automatically
+
+If user selects Light or Dark:
+
+Override system behavior completely
+
+4️⃣ Persistence Rules
+
+Theme choice must persist across:
+
+Logout / login
+
+Page refresh
+
+Use existing auth/session system
+
+Do NOT introduce breaking changes
+
+5️⃣ UX & Safety Constraints (VERY IMPORTANT)
+
+DO NOT:
+
+Add new auth logic
+
+Break existing layouts
+
+Change role permissions
+
+Affect routing
+
+Introduce flashing or high-contrast colors
+
+Ensure:
+
+Smooth transitions
+
+Calm visuals
+
+Driver eye comfort for long usage
+
+FINAL RESULT (MUST VERIFY)
+
+App no longer uses white background
+
+Dark mode activates automatically at night
+
+Driver can override dark mode manually
+
+UI looks calm, professional, and enterprise-grade
+
+No regressions in Admin, Driver, or Rider flows
+
+Implement completely and safely.
+
+🔷 REPLIT PROMPT END 🔷

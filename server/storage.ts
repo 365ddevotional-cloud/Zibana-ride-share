@@ -159,6 +159,10 @@ export interface IStorage {
   promoteToAdmin(userId: string, promotedBy: string): Promise<UserRole>;
   demoteToRider(userId: string): Promise<UserRole | undefined>;
 
+  // Theme preferences
+  updateThemePreference(userId: string, preference: "light" | "dark" | "system"): Promise<void>;
+  getThemePreference(userId: string): Promise<"light" | "dark" | "system">;
+
   getDriverProfile(userId: string): Promise<DriverProfile | undefined>;
   createDriverProfile(data: InsertDriverProfile): Promise<DriverProfile>;
   updateDriverProfile(userId: string, data: Partial<InsertDriverProfile>): Promise<DriverProfile | undefined>;
@@ -680,6 +684,18 @@ export class DatabaseStorage implements IStorage {
       .where(eq(userRoles.userId, userId))
       .returning();
     return updated;
+  }
+
+  async updateThemePreference(userId: string, preference: "light" | "dark" | "system"): Promise<void> {
+    await db
+      .update(users)
+      .set({ themePreference: preference, updatedAt: new Date() })
+      .where(eq(users.id, userId));
+  }
+
+  async getThemePreference(userId: string): Promise<"light" | "dark" | "system"> {
+    const [user] = await db.select({ themePreference: users.themePreference }).from(users).where(eq(users.id, userId));
+    return user?.themePreference || "system";
   }
 
   async getDriverProfile(userId: string): Promise<DriverProfile | undefined> {

@@ -106,6 +106,35 @@ export async function registerRoutes(
     }
   });
 
+  // Theme preference routes
+  app.get("/api/user/theme-preference", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const preference = await storage.getThemePreference(userId);
+      return res.json({ themePreference: preference });
+    } catch (error) {
+      console.error("Error getting theme preference:", error);
+      return res.status(500).json({ message: "Failed to get theme preference" });
+    }
+  });
+
+  app.post("/api/user/theme-preference", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { themePreference } = req.body;
+
+      if (!["light", "dark", "system"].includes(themePreference)) {
+        return res.status(400).json({ message: "Invalid theme preference" });
+      }
+
+      await storage.updateThemePreference(userId, themePreference);
+      return res.json({ themePreference });
+    } catch (error) {
+      console.error("Error updating theme preference:", error);
+      return res.status(500).json({ message: "Failed to update theme preference" });
+    }
+  });
+
   app.get("/api/admin/exists", async (req: any, res) => {
     try {
       const existingAdmins = await storage.getAdminCount();
