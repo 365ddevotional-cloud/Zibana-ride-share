@@ -142,7 +142,35 @@ import {
   type OrganizationMetrics,
   type FinancialMetrics,
   type MetricsOverview,
-  type MetricAlert
+  type MetricAlert,
+  // Phase 25 - Monetization, Fraud & Country Rules
+  countryPricingRules,
+  riderWallets,
+  driverWallets,
+  zibaWallet,
+  escrows,
+  financialAuditLogs,
+  abuseFlags,
+  driverPayoutHistory,
+  riderTransactionHistory,
+  type CountryPricingRules,
+  type InsertCountryPricingRules,
+  type RiderWallet,
+  type InsertRiderWallet,
+  type DriverWallet,
+  type InsertDriverWallet,
+  type ZibaWallet,
+  type Escrow,
+  type InsertEscrow,
+  type FinancialAuditLog,
+  type InsertFinancialAuditLog,
+  type AbuseFlag,
+  type InsertAbuseFlag,
+  type AbuseFlagWithDetails,
+  type DriverPayoutHistory,
+  type InsertDriverPayoutHistory,
+  type RiderTransactionHistory,
+  type InsertRiderTransactionHistory
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull } from "drizzle-orm";
@@ -4550,6 +4578,262 @@ export class DatabaseStorage implements IStorage {
       .where(eq(rides.id, rideId))
       .returning();
     return ride || null;
+  }
+
+  // ========================
+  // Phase 25 - Monetization Methods
+  // ========================
+
+  // Country Pricing Rules
+  async getCountryPricingRules(countryId: string): Promise<CountryPricingRules | null> {
+    const [rules] = await db.select().from(countryPricingRules)
+      .where(eq(countryPricingRules.countryId, countryId))
+      .limit(1);
+    return rules || null;
+  }
+
+  async getAllCountryPricingRules(): Promise<CountryPricingRules[]> {
+    return db.select().from(countryPricingRules).orderBy(countryPricingRules.createdAt);
+  }
+
+  async createCountryPricingRules(data: InsertCountryPricingRules): Promise<CountryPricingRules> {
+    const [rules] = await db.insert(countryPricingRules).values(data).returning();
+    return rules;
+  }
+
+  async updateCountryPricingRules(countryId: string, data: Partial<InsertCountryPricingRules>): Promise<CountryPricingRules | null> {
+    const [rules] = await db.update(countryPricingRules)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(countryPricingRules.countryId, countryId))
+      .returning();
+    return rules || null;
+  }
+
+  // Rider Wallets
+  async getRiderWallet(userId: string): Promise<RiderWallet | null> {
+    const [wallet] = await db.select().from(riderWallets)
+      .where(eq(riderWallets.userId, userId))
+      .limit(1);
+    return wallet || null;
+  }
+
+  async createRiderWallet(data: InsertRiderWallet): Promise<RiderWallet> {
+    const [wallet] = await db.insert(riderWallets).values(data).returning();
+    return wallet;
+  }
+
+  async updateRiderWalletBalance(userId: string, amount: number, type: "credit" | "debit"): Promise<RiderWallet | null> {
+    const operator = type === "credit" ? sql`+ ${amount}` : sql`- ${amount}`;
+    const [wallet] = await db.update(riderWallets)
+      .set({
+        balance: sql`${riderWallets.balance} ${operator}`,
+        updatedAt: new Date(),
+      })
+      .where(eq(riderWallets.userId, userId))
+      .returning();
+    return wallet || null;
+  }
+
+  async getAllRiderWallets(): Promise<RiderWallet[]> {
+    return db.select().from(riderWallets).orderBy(desc(riderWallets.updatedAt));
+  }
+
+  // Driver Wallets
+  async getDriverWallet(userId: string): Promise<DriverWallet | null> {
+    const [wallet] = await db.select().from(driverWallets)
+      .where(eq(driverWallets.userId, userId))
+      .limit(1);
+    return wallet || null;
+  }
+
+  async createDriverWallet(data: InsertDriverWallet): Promise<DriverWallet> {
+    const [wallet] = await db.insert(driverWallets).values(data).returning();
+    return wallet;
+  }
+
+  async getAllDriverWalletsV2(): Promise<DriverWallet[]> {
+    return db.select().from(driverWallets).orderBy(desc(driverWallets.updatedAt));
+  }
+
+  async initiateDriverPayoutV2(driverId: string, amount: number, initiatedByUserId: string): Promise<DriverPayoutHistory | null> {
+    const wallet = await this.getDriverWallet(driverId);
+    if (!wallet || parseFloat(wallet.withdrawableBalance) < amount) {
+      return null;
+    }
+
+    await db.update(driverWallets)
+      .set({
+        withdrawableBalance: sql`${driverWallets.withdrawableBalance} - ${amount}`,
+        balance: sql`${driverWallets.balance} - ${amount}`,
+        updatedAt: new Date(),
+      })
+      .where(eq(driverWallets.userId, driverId));
+
+    const [payout] = await db.insert(driverPayoutHistory).values({
+      driverId,
+      amount: amount.toString(),
+      initiatedByUserId,
+    }).returning();
+
+    await db.insert(financialAuditLogs).values({
+      userId: driverId,
+      actorRole: "ADMIN",
+      eventType: "PAYOUT",
+      amount: amount.toString(),
+      description: `Payout initiated for driver`,
+    });
+
+    return payout;
+  }
+
+  async completeDriverPayout(payoutId: string, processedByUserId: string, transactionRef?: string): Promise<DriverPayoutHistory | null> {
+    const [payout] = await db.update(driverPayoutHistory)
+      .set({
+        status: "paid",
+        processedByUserId,
+        transactionRef,
+        processedAt: new Date(),
+      })
+      .where(eq(driverPayoutHistory.id, payoutId))
+      .returning();
+    return payout || null;
+  }
+
+  async failDriverPayout(payoutId: string, reason: string): Promise<DriverPayoutHistory | null> {
+    const [payout] = await db.select().from(driverPayoutHistory)
+      .where(eq(driverPayoutHistory.id, payoutId))
+      .limit(1);
+
+    if (payout) {
+      await db.update(driverWallets)
+        .set({
+          withdrawableBalance: sql`${driverWallets.withdrawableBalance} + ${parseFloat(payout.amount)}`,
+          balance: sql`${driverWallets.balance} + ${parseFloat(payout.amount)}`,
+          updatedAt: new Date(),
+        })
+        .where(eq(driverWallets.userId, payout.driverId));
+    }
+
+    const [updated] = await db.update(driverPayoutHistory)
+      .set({
+        status: "failed",
+        failureReason: reason,
+      })
+      .where(eq(driverPayoutHistory.id, payoutId))
+      .returning();
+    return updated || null;
+  }
+
+  async getDriverPayoutHistoryV2(driverId: string): Promise<DriverPayoutHistory[]> {
+    return db.select().from(driverPayoutHistory)
+      .where(eq(driverPayoutHistory.driverId, driverId))
+      .orderBy(desc(driverPayoutHistory.createdAt));
+  }
+
+  async getPendingPayoutsV2(): Promise<DriverPayoutHistory[]> {
+    return db.select().from(driverPayoutHistory)
+      .where(eq(driverPayoutHistory.status, "pending"))
+      .orderBy(driverPayoutHistory.createdAt);
+  }
+
+  // ZIBA Platform Wallet (Phase 25)
+  async getZibaPlatformWallet(): Promise<ZibaWallet | null> {
+    const [wallet] = await db.select().from(zibaWallet).limit(1);
+    if (!wallet) {
+      const [created] = await db.insert(zibaWallet).values({}).returning();
+      return created;
+    }
+    return wallet;
+  }
+
+  // Financial Audit Logs
+  async createFinancialAuditLog(data: InsertFinancialAuditLog): Promise<FinancialAuditLog> {
+    const [log] = await db.insert(financialAuditLogs).values(data).returning();
+    return log;
+  }
+
+  async getFinancialAuditLogs(filters?: { rideId?: string; userId?: string; eventType?: string }, limit = 100): Promise<FinancialAuditLog[]> {
+    let query = db.select().from(financialAuditLogs);
+
+    if (filters?.rideId) {
+      query = query.where(eq(financialAuditLogs.rideId, filters.rideId)) as any;
+    }
+    if (filters?.userId) {
+      query = query.where(eq(financialAuditLogs.userId, filters.userId)) as any;
+    }
+
+    return query.orderBy(desc(financialAuditLogs.createdAt)).limit(limit);
+  }
+
+  // Abuse Flags
+  async getAbuseFlags(status?: "pending" | "reviewed" | "resolved" | "dismissed"): Promise<AbuseFlagWithDetails[]> {
+    let query = db.select().from(abuseFlags);
+    if (status) {
+      query = query.where(eq(abuseFlags.status, status)) as any;
+    }
+    const flags = await query.orderBy(desc(abuseFlags.createdAt));
+    
+    const flagsWithDetails: AbuseFlagWithDetails[] = [];
+    for (const flag of flags) {
+      let userName: string | undefined;
+      if (flag.userRole === "rider") {
+        const profile = await this.getRiderProfile(flag.userId);
+        userName = profile?.fullName || undefined;
+      } else if (flag.userRole === "driver") {
+        const profile = await this.getDriverProfile(flag.userId);
+        userName = profile?.fullName || undefined;
+      }
+      
+      let reviewedByName: string | undefined;
+      if (flag.reviewedByUserId) {
+        const reviewer = await this.getDriverProfile(flag.reviewedByUserId);
+        reviewedByName = reviewer?.fullName || undefined;
+      }
+      
+      flagsWithDetails.push({ ...flag, userName, reviewedByName });
+    }
+    return flagsWithDetails;
+  }
+
+  async resolveAbuseFlag(
+    flagId: string,
+    reviewedByUserId: string,
+    status: "resolved" | "dismissed",
+    reviewNotes?: string,
+    penaltyApplied?: number
+  ): Promise<AbuseFlag | null> {
+    const [flag] = await db.update(abuseFlags)
+      .set({
+        status,
+        reviewedByUserId,
+        reviewNotes,
+        penaltyApplied: penaltyApplied?.toString(),
+        resolvedAt: new Date(),
+      })
+      .where(eq(abuseFlags.id, flagId))
+      .returning();
+    return flag || null;
+  }
+
+  // Escrows
+  async getEscrowsByStatus(status: "pending" | "locked" | "released" | "held" | "refunded"): Promise<Escrow[]> {
+    return db.select().from(escrows)
+      .where(eq(escrows.status, status))
+      .orderBy(desc(escrows.createdAt));
+  }
+
+  async getEscrowByRideId(rideId: string): Promise<Escrow | null> {
+    const [escrow] = await db.select().from(escrows)
+      .where(eq(escrows.rideId, rideId))
+      .limit(1);
+    return escrow || null;
+  }
+
+  // Rider Transaction History
+  async getRiderTransactionHistory(riderId: string): Promise<RiderTransactionHistory[]> {
+    return db.select().from(riderTransactionHistory)
+      .where(eq(riderTransactionHistory.riderId, riderId))
+      .orderBy(desc(riderTransactionHistory.createdAt));
   }
 }
 

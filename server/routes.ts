@@ -5908,5 +5908,319 @@ export async function registerRoutes(
     }
   });
 
+  // ==========================================
+  // PHASE 25 - MONETIZATION, FRAUD & PRICING
+  // ==========================================
+
+  // Country Pricing Rules
+  app.get("/api/country-pricing-rules", isAuthenticated, requireRole(["super_admin", "admin", "finance"]), async (req, res) => {
+    try {
+      const rules = await storage.getAllCountryPricingRules();
+      return res.json(rules);
+    } catch (error) {
+      console.error("Error fetching country pricing rules:", error);
+      return res.status(500).json({ message: "Failed to fetch pricing rules" });
+    }
+  });
+
+  app.get("/api/country-pricing-rules/:countryId", isAuthenticated, requireRole(["super_admin", "admin", "finance"]), async (req, res) => {
+    try {
+      const rules = await storage.getCountryPricingRules(req.params.countryId);
+      if (!rules) {
+        return res.status(404).json({ message: "Pricing rules not found" });
+      }
+      return res.json(rules);
+    } catch (error) {
+      console.error("Error fetching country pricing rules:", error);
+      return res.status(500).json({ message: "Failed to fetch pricing rules" });
+    }
+  });
+
+  app.post("/api/country-pricing-rules", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const rules = await storage.createCountryPricingRules(req.body);
+      return res.status(201).json(rules);
+    } catch (error) {
+      console.error("Error creating country pricing rules:", error);
+      return res.status(500).json({ message: "Failed to create pricing rules" });
+    }
+  });
+
+  app.patch("/api/country-pricing-rules/:countryId", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const rules = await storage.updateCountryPricingRules(req.params.countryId, req.body);
+      if (!rules) {
+        return res.status(404).json({ message: "Pricing rules not found" });
+      }
+      return res.json(rules);
+    } catch (error) {
+      console.error("Error updating country pricing rules:", error);
+      return res.status(500).json({ message: "Failed to update pricing rules" });
+    }
+  });
+
+  // Rider Wallets
+  app.get("/api/rider-wallets", isAuthenticated, requireRole(["super_admin", "admin", "finance"]), async (req, res) => {
+    try {
+      const wallets = await storage.getAllRiderWallets();
+      return res.json(wallets);
+    } catch (error) {
+      console.error("Error fetching rider wallets:", error);
+      return res.status(500).json({ message: "Failed to fetch wallets" });
+    }
+  });
+
+  app.get("/api/rider-wallets/:userId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const targetUserId = req.params.userId;
+      
+      // Allow users to see their own wallet, or admins to see any wallet
+      const userRole = await storage.getUserRole(userId);
+      if (userId !== targetUserId && !["super_admin", "admin", "finance"].includes(userRole?.role || "")) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      let wallet = await storage.getRiderWallet(targetUserId);
+      if (!wallet) {
+        wallet = await storage.createRiderWallet({ userId: targetUserId });
+      }
+      return res.json(wallet);
+    } catch (error) {
+      console.error("Error fetching rider wallet:", error);
+      return res.status(500).json({ message: "Failed to fetch wallet" });
+    }
+  });
+
+  // Driver Wallets (V2 - Phase 25)
+  app.get("/api/driver-wallets-v2", isAuthenticated, requireRole(["super_admin", "admin", "finance"]), async (req, res) => {
+    try {
+      const wallets = await storage.getAllDriverWalletsV2();
+      return res.json(wallets);
+    } catch (error) {
+      console.error("Error fetching driver wallets:", error);
+      return res.status(500).json({ message: "Failed to fetch wallets" });
+    }
+  });
+
+  app.get("/api/driver-wallets-v2/:userId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const targetUserId = req.params.userId;
+      
+      const userRole = await storage.getUserRole(userId);
+      if (userId !== targetUserId && !["super_admin", "admin", "finance"].includes(userRole?.role || "")) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      let wallet = await storage.getDriverWallet(targetUserId);
+      if (!wallet) {
+        wallet = await storage.createDriverWallet({ userId: targetUserId });
+      }
+      return res.json(wallet);
+    } catch (error) {
+      console.error("Error fetching driver wallet:", error);
+      return res.status(500).json({ message: "Failed to fetch wallet" });
+    }
+  });
+
+  // Driver Payouts
+  app.post("/api/driver-payouts", isAuthenticated, requireRole(["super_admin", "admin", "finance"]), async (req: any, res) => {
+    try {
+      const { driverId, amount } = req.body;
+      const userId = req.user?.claims?.sub;
+      
+      if (!driverId || !amount || amount <= 0) {
+        return res.status(400).json({ message: "Driver ID and positive amount required" });
+      }
+      
+      const payout = await storage.initiateDriverPayoutV2(driverId, amount, userId);
+      if (!payout) {
+        return res.status(400).json({ message: "Insufficient withdrawable balance" });
+      }
+      
+      return res.status(201).json(payout);
+    } catch (error) {
+      console.error("Error initiating payout:", error);
+      return res.status(500).json({ message: "Failed to initiate payout" });
+    }
+  });
+
+  app.get("/api/driver-payouts/pending", isAuthenticated, requireRole(["super_admin", "admin", "finance"]), async (req, res) => {
+    try {
+      const payouts = await storage.getPendingPayoutsV2();
+      return res.json(payouts);
+    } catch (error) {
+      console.error("Error fetching pending payouts:", error);
+      return res.status(500).json({ message: "Failed to fetch payouts" });
+    }
+  });
+
+  app.patch("/api/driver-payouts/:id/complete", isAuthenticated, requireRole(["super_admin", "admin", "finance"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { transactionRef } = req.body;
+      
+      const payout = await storage.completeDriverPayout(req.params.id, userId, transactionRef);
+      if (!payout) {
+        return res.status(404).json({ message: "Payout not found" });
+      }
+      
+      return res.json(payout);
+    } catch (error) {
+      console.error("Error completing payout:", error);
+      return res.status(500).json({ message: "Failed to complete payout" });
+    }
+  });
+
+  app.patch("/api/driver-payouts/:id/fail", isAuthenticated, requireRole(["super_admin", "admin", "finance"]), async (req, res) => {
+    try {
+      const { reason } = req.body;
+      
+      const payout = await storage.failDriverPayout(req.params.id, reason || "Unknown error");
+      if (!payout) {
+        return res.status(404).json({ message: "Payout not found" });
+      }
+      
+      return res.json(payout);
+    } catch (error) {
+      console.error("Error failing payout:", error);
+      return res.status(500).json({ message: "Failed to update payout" });
+    }
+  });
+
+  // ZIBA Platform Wallet
+  app.get("/api/ziba-wallet", isAuthenticated, requireRole(["super_admin", "admin", "finance", "director"]), async (req, res) => {
+    try {
+      const wallet = await storage.getZibaPlatformWallet();
+      return res.json(wallet);
+    } catch (error) {
+      console.error("Error fetching ZIBA wallet:", error);
+      return res.status(500).json({ message: "Failed to fetch platform wallet" });
+    }
+  });
+
+  // Financial Audit Logs
+  app.get("/api/financial-audit-logs", isAuthenticated, requireRole(["super_admin", "admin", "finance"]), async (req, res) => {
+    try {
+      const { rideId, userId, eventType, limit } = req.query;
+      const logs = await storage.getFinancialAuditLogs(
+        { 
+          rideId: rideId as string, 
+          userId: userId as string, 
+          eventType: eventType as string 
+        },
+        limit ? parseInt(limit as string) : 100
+      );
+      return res.json(logs);
+    } catch (error) {
+      console.error("Error fetching financial audit logs:", error);
+      return res.status(500).json({ message: "Failed to fetch logs" });
+    }
+  });
+
+  // Abuse Flags
+  app.get("/api/abuse-flags", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const { status } = req.query;
+      const flags = await storage.getAbuseFlags(status as any);
+      return res.json(flags);
+    } catch (error) {
+      console.error("Error fetching abuse flags:", error);
+      return res.status(500).json({ message: "Failed to fetch flags" });
+    }
+  });
+
+  app.patch("/api/abuse-flags/:id/resolve", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { status, reviewNotes, penaltyApplied } = req.body;
+      
+      if (!["resolved", "dismissed"].includes(status)) {
+        return res.status(400).json({ message: "Status must be 'resolved' or 'dismissed'" });
+      }
+      
+      const flag = await storage.resolveAbuseFlag(
+        req.params.id,
+        userId,
+        status,
+        reviewNotes,
+        penaltyApplied
+      );
+      
+      if (!flag) {
+        return res.status(404).json({ message: "Flag not found" });
+      }
+      
+      return res.json(flag);
+    } catch (error) {
+      console.error("Error resolving abuse flag:", error);
+      return res.status(500).json({ message: "Failed to resolve flag" });
+    }
+  });
+
+  // Escrows
+  app.get("/api/escrows", isAuthenticated, requireRole(["super_admin", "admin", "finance"]), async (req, res) => {
+    try {
+      const { status } = req.query;
+      const escrows = await storage.getEscrowsByStatus(status as any || "locked");
+      return res.json(escrows);
+    } catch (error) {
+      console.error("Error fetching escrows:", error);
+      return res.status(500).json({ message: "Failed to fetch escrows" });
+    }
+  });
+
+  app.get("/api/escrows/ride/:rideId", isAuthenticated, requireRole(["super_admin", "admin", "finance"]), async (req, res) => {
+    try {
+      const escrow = await storage.getEscrowByRideId(req.params.rideId);
+      if (!escrow) {
+        return res.status(404).json({ message: "Escrow not found" });
+      }
+      return res.json(escrow);
+    } catch (error) {
+      console.error("Error fetching escrow:", error);
+      return res.status(500).json({ message: "Failed to fetch escrow" });
+    }
+  });
+
+  // Rider Transaction History
+  app.get("/api/rider-transactions/:riderId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const targetRiderId = req.params.riderId;
+      
+      const userRole = await storage.getUserRole(userId);
+      if (userId !== targetRiderId && !["super_admin", "admin", "finance"].includes(userRole?.role || "")) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const transactions = await storage.getRiderTransactionHistory(targetRiderId);
+      return res.json(transactions);
+    } catch (error) {
+      console.error("Error fetching rider transactions:", error);
+      return res.status(500).json({ message: "Failed to fetch transactions" });
+    }
+  });
+
+  // Driver Payout History
+  app.get("/api/driver-payout-history/:driverId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const targetDriverId = req.params.driverId;
+      
+      const userRole = await storage.getUserRole(userId);
+      if (userId !== targetDriverId && !["super_admin", "admin", "finance"].includes(userRole?.role || "")) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const history = await storage.getDriverPayoutHistoryV2(targetDriverId);
+      return res.json(history);
+    } catch (error) {
+      console.error("Error fetching payout history:", error);
+      return res.status(500).json({ message: "Failed to fetch history" });
+    }
+  });
+
   return httpServer;
 }
