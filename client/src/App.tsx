@@ -24,6 +24,7 @@ const AdminApprovalsPage = lazy(() => import("@/pages/admin/approvals"));
 const AdminSetupPage = lazy(() => import("@/pages/admin-setup"));
 const CoordinatorDashboard = lazy(() => import("@/pages/coordinator/index"));
 const SupportDashboard = lazy(() => import("@/pages/support/index"));
+const UnauthorizedPage = lazy(() => import("@/pages/unauthorized"));
 
 function LazyComponent({ children }: { children: React.ReactNode }) {
   return (
@@ -118,13 +119,15 @@ function ProtectedRoute({
   allowedRoles,
   user,
   userRole,
-  isLoading
+  isLoading,
+  isAdminRoute = false
 }: { 
   children: React.ReactNode;
   allowedRoles: string[];
   user: any;
   userRole: { role: string } | null | undefined;
   isLoading: boolean;
+  isAdminRoute?: boolean;
 }) {
   if (!user) {
     return <Redirect to="/welcome" />;
@@ -134,7 +137,16 @@ function ProtectedRoute({
     return <FullPageLoading text="Verifying access..." />;
   }
   
-  if (!userRole?.role || !allowedRoles.includes(userRole.role)) {
+  // super_admin always has access to admin routes
+  const hasAccess = userRole?.role === "super_admin" || 
+    (userRole?.role && allowedRoles.includes(userRole.role));
+  
+  if (!hasAccess) {
+    // Admin routes redirect to /unauthorized with audit log
+    if (isAdminRoute) {
+      console.warn(`[SECURITY AUDIT] Unauthorized admin access attempt by role: ${userRole?.role || 'unknown'}`);
+      return <Redirect to="/unauthorized" />;
+    }
     return <Redirect to="/" />;
   }
   
@@ -185,22 +197,26 @@ function Router() {
         </ProtectedRoute>
       </Route>
       
+      <Route path="/unauthorized">
+        <LazyComponent><UnauthorizedPage /></LazyComponent>
+      </Route>
+      
       <Route path="/admin">
-        <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["admin", "director"]}>
+        <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["admin", "super_admin"]} isAdminRoute={true}>
           <LazyComponent>
-            <AdminDashboard userRole={(userRole?.role as "admin" | "director") || "admin"} />
+            <AdminDashboard userRole={(userRole?.role as "admin" | "director" | "super_admin") || "admin"} />
           </LazyComponent>
         </ProtectedRoute>
       </Route>
       
       <Route path="/admin/setup">
-        {user ? (
+        <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["admin", "super_admin"]} isAdminRoute={true}>
           <LazyComponent><AdminSetupPage /></LazyComponent>
-        ) : <Redirect to="/welcome" />}
+        </ProtectedRoute>
       </Route>
       
       <Route path="/admin/approvals">
-        <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["admin", "super_admin"]}>
+        <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["admin", "super_admin"]} isAdminRoute={true}>
           <LazyComponent><AdminApprovalsPage /></LazyComponent>
         </ProtectedRoute>
       </Route>

@@ -1,8 +1,20 @@
 /**
  * Payment Provider Abstraction Layer
  * ZIBA uses WALLET + ESCROW model
- * Supports: Paystack (Nigeria), Flutterwave (Nigeria), Manual, Placeholder (other countries)
+ * 
+ * ==============================
+ * GLOBAL TEST MODE - LOCKED
+ * ==============================
+ * ALL countries run in WALLET-SIMULATED mode:
+ * - No real payments processed
+ * - No external payment providers called
+ * - All charges, payouts, escrow, commissions are simulated internally
+ * - Wallet balances are virtual and resettable
+ * - All transactions are logged for audit
  */
+
+// GLOBAL TEST MODE FLAG - LOCKED FOR TESTING
+export const GLOBAL_TEST_MODE = true;
 
 export type PaymentProvider = "paystack" | "flutterwave" | "manual" | "placeholder";
 
@@ -141,26 +153,34 @@ class ManualAdapter implements PaymentProviderAdapter {
 
 class PlaceholderAdapter implements PaymentProviderAdapter {
   name: PaymentProvider = "placeholder";
-  enabled = false;
+  enabled = true; // Enabled for test mode simulation
   
-  async initializePayment(_request: PaymentRequest): Promise<PaymentResult> {
+  async initializePayment(request: PaymentRequest): Promise<PaymentResult> {
+    const transactionRef = `SIM_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    console.log(`[Simulated] Initialize payment: ${request.amount} ${request.currency} (TEST MODE)`);
     return {
-      success: false,
-      error: "Payment provider not available for this region",
+      success: true,
+      transactionRef,
+      message: "Payment initialized (SIMULATED - TEST MODE)",
     };
   }
   
-  async verifyPayment(_transactionRef: string): Promise<PaymentResult> {
+  async verifyPayment(transactionRef: string): Promise<PaymentResult> {
+    console.log(`[Simulated] Verify payment: ${transactionRef} (TEST MODE)`);
     return {
-      success: false,
-      error: "Payment provider not available for this region",
+      success: true,
+      transactionRef,
+      message: "Payment verified (SIMULATED - TEST MODE)",
     };
   }
   
-  async initiateWithdrawal(_request: WithdrawalRequest): Promise<PaymentResult> {
+  async initiateWithdrawal(request: WithdrawalRequest): Promise<PaymentResult> {
+    const transactionRef = `SIM_WD_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    console.log(`[Simulated] Initiate withdrawal: ${request.amount} ${request.currency} (TEST MODE)`);
     return {
-      success: false,
-      error: "Payment provider not available for this region",
+      success: true,
+      transactionRef,
+      message: "Withdrawal initiated (SIMULATED - TEST MODE)",
     };
   }
 }
@@ -177,6 +197,13 @@ export function getPaymentProvider(providerName: PaymentProvider): PaymentProvid
 }
 
 export function getProviderForCountry(countryCode: string): PaymentProvider {
+  // GLOBAL TEST MODE: ALL countries use simulated payments
+  if (GLOBAL_TEST_MODE) {
+    console.log(`[TEST MODE] Country ${countryCode} using simulated wallet payments`);
+    return "placeholder"; // Uses SimulatedAdapter in test mode
+  }
+  
+  // Production mode (currently disabled)
   const countryProviders: Record<string, PaymentProvider> = {
     NG: "paystack",
     GH: "placeholder",
@@ -190,6 +217,13 @@ export async function processPayment(
   provider: PaymentProvider,
   request: PaymentRequest
 ): Promise<PaymentResult> {
+  // GLOBAL TEST MODE: Force simulated payments
+  if (GLOBAL_TEST_MODE) {
+    const adapter = adapters.placeholder;
+    console.log(`[TEST MODE] Processing simulated payment for ${request.userId}`);
+    return adapter.initializePayment(request);
+  }
+  
   const adapter = getPaymentProvider(provider);
   if (!adapter.enabled) {
     return {
@@ -204,6 +238,13 @@ export async function processWithdrawal(
   provider: PaymentProvider,
   request: WithdrawalRequest
 ): Promise<PaymentResult> {
+  // GLOBAL TEST MODE: Force simulated withdrawals
+  if (GLOBAL_TEST_MODE) {
+    const adapter = adapters.placeholder;
+    console.log(`[TEST MODE] Processing simulated withdrawal for ${request.userId}`);
+    return adapter.initiateWithdrawal(request);
+  }
+  
   const adapter = getPaymentProvider(provider);
   if (!adapter.enabled) {
     return {

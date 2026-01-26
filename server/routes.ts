@@ -11,17 +11,21 @@ const requireRole = (allowedRoles: string[]): RequestHandler => {
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
+        console.warn(`[SECURITY AUDIT] Unauthenticated access attempt to ${req.path}`);
         return res.status(401).json({ message: "Unauthorized" });
       }
       
       const userRole = await storage.getUserRole(userId);
       if (!userRole) {
+        console.warn(`[SECURITY AUDIT] User ${userId} has no role, denied access to ${req.path}`);
         return res.status(403).json({ message: "Access denied" });
       }
       
       // super_admin always has access to all roles
       const hasAccess = userRole.role === "super_admin" || allowedRoles.includes(userRole.role);
       if (!hasAccess) {
+        // SECURITY AUDIT LOG: Log unauthorized admin access attempts
+        console.warn(`[SECURITY AUDIT] Unauthorized access attempt: User ${userId} (role: ${userRole.role}) tried to access ${req.path} - Required roles: ${allowedRoles.join(", ")}`);
         return res.status(403).json({ message: "Access denied" });
       }
       
@@ -29,6 +33,7 @@ const requireRole = (allowedRoles: string[]): RequestHandler => {
       if (userRole.role === "admin") {
         const { valid, reason } = await storage.isAdminValid(userId);
         if (!valid) {
+          console.warn(`[SECURITY AUDIT] Admin ${userId} access expired: ${reason}`);
           return res.status(403).json({ message: reason || "Admin access expired" });
         }
       }
