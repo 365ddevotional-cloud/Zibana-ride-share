@@ -44,7 +44,9 @@ import { NotificationBell } from "@/components/notification-bell";
 import { SupportSection } from "@/components/support-section";
 import { DriverRideCard } from "@/components/ride/driver-ride-card";
 import { DriverRideActions } from "@/components/ride/driver-ride-actions";
+import { RideOfferCountdown } from "@/components/ride/ride-offer-countdown";
 import { useDriverRide, type RideWithDetails } from "@/hooks/use-ride-lifecycle";
+import { useRideOffers } from "@/hooks/use-ride-offers";
 
 type TripWithRider = Trip & { riderName?: string };
 
@@ -125,6 +127,15 @@ export default function DriverDashboard() {
     cancelRide,
     respondSafetyCheck,
   } = useDriverRide();
+
+  // Phase 23 - Ride offers with countdown
+  const {
+    pendingOffer,
+    hasOffer,
+    offerExpiresAt,
+    acceptOffer,
+    declineOffer,
+  } = useRideOffers();
 
   const buildTripQueryParams = () => {
     const params = new URLSearchParams();
@@ -713,8 +724,23 @@ export default function DriverDashboard() {
                   />
                 ) : (
                   <div className="space-y-4">
+                    {/* Phase 23 - Ride offer with 10-second countdown */}
+                    {hasOffer && pendingOffer && offerExpiresAt && (
+                      <RideOfferCountdown
+                        offerId={pendingOffer.id}
+                        rideId={pendingOffer.rideId}
+                        pickupAddress={pendingOffer.ride?.pickupAddress || "Pickup location"}
+                        dropoffAddress={pendingOffer.ride?.dropoffAddress || "Dropoff location"}
+                        estimatedFare={pendingOffer.ride?.estimatedFare || undefined}
+                        expiresAt={offerExpiresAt}
+                        onAccept={(offerId) => acceptOffer.mutate(offerId)}
+                        onDecline={(offerId) => declineOffer.mutate(offerId)}
+                        isAccepting={acceptOffer.isPending}
+                      />
+                    )}
+
                     {/* Phase 22 - New ride lifecycle cards with 10-second countdown */}
-                    {lifecycleRides.map((ride) => (
+                    {!hasOffer && lifecycleRides.map((ride) => (
                       <DriverRideCard
                         key={ride.id}
                         ride={ride}
