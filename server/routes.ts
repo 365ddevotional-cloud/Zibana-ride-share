@@ -5280,13 +5280,14 @@ export async function registerRoutes(
       } = await import("./fare-calculation.js");
 
       // Calculate fare with all components
+      const currencyCode = ride.currencyCode || "NGN";
       const fareBreakdown = calculateCompleteFare({
         distanceKm: actualDistanceKm,
         durationMin: tripDurationMin,
         estimatedDurationMin: parseFloat(ride.estimatedDurationMin || "0"),
         waitingStartedAt: ride.waitingStartedAt ? new Date(ride.waitingStartedAt) : null,
         tripEndedAt: completedAt,
-        currency: ride.currency || "NGN"
+        currencyCode
       });
 
       // Handle early stop case
@@ -5298,7 +5299,8 @@ export async function registerRoutes(
           originalEstimatedMin: parseFloat(ride.estimatedDurationMin || "0"),
           actualDurationMin: tripDurationMin,
           waitingStartedAt: ride.waitingStartedAt ? new Date(ride.waitingStartedAt) : null,
-          tripEndedAt: completedAt
+          tripEndedAt: completedAt,
+          currencyCode
         });
       }
 
