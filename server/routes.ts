@@ -678,48 +678,13 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Already have an active trip" });
       }
 
-      // Check if user is a tester (testers always bypass real payment checks)
-      const isTester = await storage.isUserTester(userId);
-      
-      // TODO: Remove tester payment bypass before production launch
-      // TEMPORARY TESTER PAYMENT BYPASS - Skip all wallet checks for testers
-      if (isTester) {
-        console.log(`[TESTER BYPASS] User ${userId} is a tester - SKIPPING ALL PAYMENT VALIDATION`);
-        
-        // Create trip with TEST_BYPASS payment method and ₦0.00 cost
-        const testTripData = {
-          ...parsed.data,
-          fareAmount: "0",
-          estimatedFare: "0",
-          paymentMethod: "TEST_BYPASS",
-          isTestRide: true,
-        };
-        
-        const trip = await storage.createTrip(testTripData);
-        
-        console.log(`[TESTER BYPASS] Test ride created: tripId=${trip.id}, paymentMethod=TEST_BYPASS, fare=₦0.00`);
-        
-        await storage.notifyAllDrivers(
-          "New Ride Request",
-          `New ride from ${parsed.data.pickupLocation} to ${parsed.data.dropoffLocation}`,
-          "info"
-        );
-        
-        return res.json(trip);
-      }
-      
-      // REGULAR USER FLOW - Normal payment validation
-      // Get rider wallet
+      // Get or create rider wallet with user's country currency
       let riderWallet = await storage.getRiderWallet(userId);
       if (!riderWallet) {
-        // Auto-create wallet with user's country currency
         const currency = await getUserCurrency(userId);
         riderWallet = await storage.createRiderWallet({ userId, currency });
       }
-      
-      // Log ride request audit
-      console.log(`[RIDE AUDIT] userId=${userId}, isTester=${isTester}, walletBalance=${riderWallet.balance}`);
-      
+
       // Check if wallet is frozen
       if (riderWallet.isFrozen) {
         console.log(`[SECURITY AUDIT] Frozen wallet ride request attempt: userId=${userId}`);
@@ -729,19 +694,59 @@ export async function registerRoutes(
         });
       }
 
-      // Check minimum balance requirement - WALLET payment
-      const availableBalance = parseFloat(riderWallet.balance) - parseFloat(riderWallet.lockedBalance || "0");
-      const minimumRequiredBalance = 500; // ₦5.00 in kobo
+      // SERVER-SIDE WALLET RESOLUTION - Determine payment source based on tester status
+      const isTester = await storage.isUserTester(userId);
+      
+      // Resolve payment source: Testers use TEST_WALLET, non-testers use MAIN_WALLET
+      const resolvedPaymentSource = isTester ? "TEST_WALLET" : "MAIN_WALLET";
+      
+      // Get the correct balance based on resolved payment source
+      let availableBalance: number;
+      let walletType: string;
+      
+      if (resolvedPaymentSource === "TEST_WALLET") {
+        // TESTER: Use tester wallet balance
+        availableBalance = parseFloat(String(riderWallet.testerWalletBalance || "0"));
+        walletType = "TEST";
+        console.log(`[WALLET RESOLUTION] Tester user ${userId} - using TEST_WALLET, balance: ${availableBalance}`);
+      } else {
+        // NON-TESTER: Use main wallet balance
+        availableBalance = parseFloat(String(riderWallet.balance || "0")) - parseFloat(String(riderWallet.lockedBalance || "0"));
+        walletType = "MAIN";
+        console.log(`[WALLET RESOLUTION] Regular user ${userId} - using MAIN_WALLET, balance: ${availableBalance}`);
+      }
+      
+      // Minimum balance check - ₦5.00 (stored as 5.00, not kobo)
+      const minimumRequiredBalance = 5.00;
+      
       if (availableBalance < minimumRequiredBalance) {
+        console.log(`[BALANCE CHECK FAILED] userId=${userId}, paymentSource=${resolvedPaymentSource}, available=${availableBalance}, required=${minimumRequiredBalance}`);
         return res.status(400).json({ 
-          message: "Please add funds to your wallet to request a ride.",
+          message: `Please add funds to your ${walletType === "TEST" ? "test" : "main"} wallet to request a ride.`,
           code: "INSUFFICIENT_BALANCE",
+          paymentSource: resolvedPaymentSource,
           required: minimumRequiredBalance,
           available: availableBalance
         });
       }
 
-      const trip = await storage.createTrip(parsed.data);
+      // Update wallet's payment source if it doesn't match (auto-sync for testers)
+      if (isTester && riderWallet.paymentSource !== "TEST_WALLET") {
+        await storage.updateRiderWalletPaymentSource(userId, "TEST_WALLET");
+      } else if (!isTester && riderWallet.paymentSource !== "MAIN_WALLET") {
+        await storage.updateRiderWalletPaymentSource(userId, "MAIN_WALLET");
+      }
+
+      // Create the trip with payment source tracking
+      const tripData = {
+        ...parsed.data,
+        paymentMethod: resolvedPaymentSource,
+        isTestRide: isTester,
+      };
+      
+      const trip = await storage.createTrip(tripData);
+      
+      console.log(`[RIDE CREATED] tripId=${trip.id}, userId=${userId}, paymentSource=${resolvedPaymentSource}, isTester=${isTester}, walletBalance=${availableBalance}`);
       
       await storage.notifyAllDrivers(
         "New Ride Request",

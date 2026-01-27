@@ -4751,6 +4751,18 @@ export class DatabaseStorage implements IStorage {
     return wallet || null;
   }
 
+  async updateRiderWalletPaymentSource(userId: string, paymentSource: "TEST_WALLET" | "MAIN_WALLET" | "CARD" | "BANK"): Promise<RiderWallet | null> {
+    const [wallet] = await db.update(riderWallets)
+      .set({
+        paymentSource,
+        updatedAt: new Date(),
+      })
+      .where(eq(riderWallets.userId, userId))
+      .returning();
+    console.log(`[PAYMENT SOURCE UPDATE] userId=${userId}, newPaymentSource=${paymentSource}`);
+    return wallet || null;
+  }
+
   async getAllRiderWallets(): Promise<RiderWallet[]> {
     return db.select().from(riderWallets).orderBy(desc(riderWallets.updatedAt));
   }
