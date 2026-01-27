@@ -6909,14 +6909,14 @@ export async function registerRoutes(
         if (tester.testerType === "RIDER") {
           const wallet = await storage.getRiderWallet(tester.userId);
           if (wallet) {
-            testerWalletBalance = parseFloat(String(wallet.testerWalletBalance || 0)) * 100;
-            mainWalletBalance = parseFloat(String(wallet.balance || 0)) * 100;
+            testerWalletBalance = parseFloat(String(wallet.testerWalletBalance || 0));
+            mainWalletBalance = parseFloat(String(wallet.balance || 0));
           }
         } else if (tester.testerType === "DRIVER") {
           const wallet = await storage.getDriverWallet(tester.userId);
           if (wallet) {
-            testerWalletBalance = parseFloat(String(wallet.testerWalletBalance || 0)) * 100;
-            mainWalletBalance = parseFloat(String(wallet.balance || 0)) * 100;
+            testerWalletBalance = parseFloat(String(wallet.testerWalletBalance || 0));
+            mainWalletBalance = parseFloat(String(wallet.balance || 0));
           }
         }
         
@@ -6984,10 +6984,10 @@ export async function registerRoutes(
         }
 
         if (action === "REFUND") {
-          // Check TESTER wallet balance first
+          // Check TESTER wallet balance first (already in kobo)
           const currentTesterBalance = typeof wallet.testerWalletBalance === 'string' 
-            ? parseFloat(wallet.testerWalletBalance) * 100 
-            : Number(wallet.testerWalletBalance) * 100;
+            ? parseFloat(wallet.testerWalletBalance)
+            : Number(wallet.testerWalletBalance || 0);
           if (currentTesterBalance < amount) {
             return res.status(400).json({ message: "Insufficient tester wallet balance for refund. Cannot go below ₦0." });
           }
@@ -7004,10 +7004,10 @@ export async function registerRoutes(
         }
 
         if (action === "REFUND") {
-          // Check TESTER wallet balance first
+          // Check TESTER wallet balance first (already in kobo)
           const currentTesterBalance = typeof wallet.testerWalletBalance === 'string' 
-            ? parseFloat(wallet.testerWalletBalance) * 100 
-            : Number(wallet.testerWalletBalance) * 100;
+            ? parseFloat(wallet.testerWalletBalance)
+            : Number(wallet.testerWalletBalance || 0);
           if (currentTesterBalance < amount) {
             return res.status(400).json({ message: "Insufficient tester wallet balance for refund. Cannot go below ₦0." });
           }
