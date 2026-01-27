@@ -154,6 +154,7 @@ import {
   driverPayoutHistory,
   riderTransactionHistory,
   walletTopupLogs,
+  revenueSplitLedger,
   type CountryPricingRules,
   type InsertCountryPricingRules,
   type RiderWallet,
@@ -172,6 +173,8 @@ import {
   type InsertDriverPayoutHistory,
   type RiderTransactionHistory,
   type InsertRiderTransactionHistory,
+  type RevenueSplitLedger,
+  type InsertRevenueSplitLedger,
   systemConfig,
   configAuditLogs,
   type SystemConfig,
@@ -5229,6 +5232,140 @@ export class DatabaseStorage implements IStorage {
 
   async getWalletTopupLogs(): Promise<any[]> {
     return db.select().from(walletTopupLogs).orderBy(desc(walletTopupLogs.createdAt));
+  }
+
+  // Revenue Split Ledger - Append-only
+  async createRevenueSplitLedgerEntry(data: InsertRevenueSplitLedger): Promise<RevenueSplitLedger> {
+    const [entry] = await db.insert(revenueSplitLedger).values(data).returning();
+    return entry;
+  }
+
+  async getRevenueSplitLedgerByRide(rideId: string): Promise<RevenueSplitLedger | null> {
+    const [entry] = await db.select().from(revenueSplitLedger)
+      .where(eq(revenueSplitLedger.rideId, rideId))
+      .limit(1);
+    return entry || null;
+  }
+
+  async getRevenueSplitLedgerByDriver(driverId: string): Promise<RevenueSplitLedger[]> {
+    return db.select().from(revenueSplitLedger)
+      .where(eq(revenueSplitLedger.driverId, driverId))
+      .orderBy(desc(revenueSplitLedger.createdAt));
+  }
+
+  // Credit driver earnings wallet with 80% and update totalEarned
+  async creditDriverEarnings(driverId: string, amount: string, currencyCode: string, isTestRide: boolean): Promise<DriverWallet | null> {
+    let wallet = await this.getDriverWallet(driverId);
+    if (!wallet) {
+      wallet = await this.createDriverWallet({ userId: driverId, currency: currencyCode });
+    }
+    
+    if (wallet.currency !== currencyCode) {
+      throw new Error(`Currency mismatch: wallet=${wallet.currency}, ride=${currencyCode}`);
+    }
+
+    if (isTestRide) {
+      const [updated] = await db.update(driverWallets)
+        .set({
+          testerWalletBalance: sql`${driverWallets.testerWalletBalance} + ${amount}`,
+          totalEarned: sql`${driverWallets.totalEarned} + ${amount}`,
+          updatedAt: new Date(),
+        })
+        .where(eq(driverWallets.userId, driverId))
+        .returning();
+      return updated || null;
+    } else {
+      const [updated] = await db.update(driverWallets)
+        .set({
+          balance: sql`${driverWallets.balance} + ${amount}`,
+          totalEarned: sql`${driverWallets.totalEarned} + ${amount}`,
+          updatedAt: new Date(),
+        })
+        .where(eq(driverWallets.userId, driverId))
+        .returning();
+      return updated || null;
+    }
+  }
+
+  // Credit Ziba platform wallet with 20%
+  async creditZibaCommission(amount: string, currencyCode: string): Promise<ZibaWallet | null> {
+    let [wallet] = await db.select().from(zibaWallet).limit(1);
+    
+    if (!wallet) {
+      const [created] = await db.insert(zibaWallet).values({ currency: currencyCode }).returning();
+      wallet = created;
+    }
+
+    const [updated] = await db.update(zibaWallet)
+      .set({
+        commissionBalance: sql`${zibaWallet.commissionBalance} + ${amount}`,
+        updatedAt: new Date(),
+      })
+      .where(eq(zibaWallet.id, wallet.id))
+      .returning();
+    
+    return updated || null;
+  }
+
+  // Process complete ride revenue split - 80% driver, 20% platform
+  async processRevenueSplit(params: {
+    rideId: string;
+    riderId: string;
+    driverId: string;
+    totalFare: string;
+    currencyCode: string;
+    isTestRide: boolean;
+  }): Promise<RevenueSplitLedger> {
+    const { rideId, riderId, driverId, totalFare, currencyCode, isTestRide } = params;
+    
+    const fareAmount = parseFloat(totalFare);
+    const driverShare = Math.floor(fareAmount * 80) / 100;
+    const zibaShare = Math.floor(fareAmount * 20) / 100;
+    
+    await this.creditDriverEarnings(driverId, driverShare.toFixed(2), currencyCode, isTestRide);
+    
+    if (!isTestRide) {
+      await this.creditZibaCommission(zibaShare.toFixed(2), currencyCode);
+    }
+    
+    const ledgerEntry = await this.createRevenueSplitLedgerEntry({
+      rideId,
+      riderId,
+      driverId,
+      fareAmount: totalFare,
+      currencyCode,
+      driverShare: driverShare.toFixed(2),
+      zibaShare: zibaShare.toFixed(2),
+      driverSharePercent: 80,
+      zibaSharePercent: 20,
+      isTestRide,
+    });
+    
+    await db.insert(financialAuditLogs).values({
+      rideId,
+      userId: driverId,
+      actorRole: "DRIVER",
+      eventType: "COMMISSION",
+      amount: driverShare.toFixed(2),
+      currency: currencyCode,
+      description: `Driver earning (80%): ${currencyCode} ${driverShare.toFixed(2)} from ride ${rideId}`,
+      metadata: JSON.stringify({ ledgerEntryId: ledgerEntry.id, isTestRide }),
+    });
+    
+    if (!isTestRide) {
+      await db.insert(financialAuditLogs).values({
+        rideId,
+        userId: "ZIBA_PLATFORM",
+        actorRole: "SYSTEM",
+        eventType: "FEE",
+        amount: zibaShare.toFixed(2),
+        currency: currencyCode,
+        description: `Platform commission (20%): ${currencyCode} ${zibaShare.toFixed(2)} from ride ${rideId}`,
+        metadata: JSON.stringify({ ledgerEntryId: ledgerEntry.id }),
+      });
+    }
+    
+    return ledgerEntry;
   }
 }
 

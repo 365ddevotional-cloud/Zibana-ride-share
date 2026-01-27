@@ -765,6 +765,8 @@ export const driverWallets = pgTable("driver_wallets", {
   pendingBalance: decimal("pending_balance", { precision: 10, scale: 2 }).notNull().default("0.00"),
   withdrawableBalance: decimal("withdrawable_balance", { precision: 10, scale: 2 }).notNull().default("0.00"),
   testerWalletBalance: decimal("tester_wallet_balance", { precision: 10, scale: 2 }).notNull().default("0.00"),
+  totalEarned: decimal("total_earned", { precision: 12, scale: 2 }).notNull().default("0.00"),
+  totalWithdrawn: decimal("total_withdrawn", { precision: 12, scale: 2 }).notNull().default("0.00"),
   currency: varchar("currency", { length: 3 }).notNull().default("NGN"),
   isTestWallet: boolean("is_test_wallet").notNull().default(false),
   isFrozen: boolean("is_frozen").notNull().default(false),
@@ -878,6 +880,22 @@ export const riderTransactionHistory = pgTable("rider_transaction_history", {
   source: walletTransactionSourceEnum("source").notNull(),
   referenceId: varchar("reference_id"),
   description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Revenue Split Ledger - Append-only audit trail for 80/20 driver/platform split
+export const revenueSplitLedger = pgTable("revenue_split_ledger", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  rideId: varchar("ride_id").notNull(),
+  riderId: varchar("rider_id").notNull(),
+  driverId: varchar("driver_id").notNull(),
+  fareAmount: decimal("fare_amount", { precision: 12, scale: 2 }).notNull(),
+  currencyCode: varchar("currency_code", { length: 3 }).notNull(),
+  driverShare: decimal("driver_share", { precision: 12, scale: 2 }).notNull(),
+  zibaShare: decimal("ziba_share", { precision: 12, scale: 2 }).notNull(),
+  driverSharePercent: integer("driver_share_percent").notNull().default(80),
+  zibaSharePercent: integer("ziba_share_percent").notNull().default(20),
+  isTestRide: boolean("is_test_ride").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -1372,6 +1390,13 @@ export type DriverPayoutHistory = typeof driverPayoutHistory.$inferSelect;
 
 export type InsertRiderTransactionHistory = z.infer<typeof insertRiderTransactionHistorySchema>;
 export type RiderTransactionHistory = typeof riderTransactionHistory.$inferSelect;
+
+export const insertRevenueSplitLedgerSchema = createInsertSchema(revenueSplitLedger).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertRevenueSplitLedger = z.infer<typeof insertRevenueSplitLedgerSchema>;
+export type RevenueSplitLedger = typeof revenueSplitLedger.$inferSelect;
 
 export type AbuseFlagWithDetails = AbuseFlag & {
   userName?: string;

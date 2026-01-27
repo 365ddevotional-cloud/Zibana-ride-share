@@ -1,0 +1,125 @@
+You are upgrading the ZIBA Ride-Hailing backend to permanently fix currency inconsistency and revenue distribution.
+
+STRICT RULES
+- Do NOT ask questions
+- Do NOT explain decisions
+- Do NOT rely on UI state
+- Implement backend logic only
+- Do NOT break existing features
+- Changes must be deterministic and auditable
+
+GOAL
+Ensure that ALL rides, wallets, earnings, and revenue splits are:
+1) Currency-consistent
+2) Country-correct
+3) Mathematically exact
+4) Fully reconciled
+
+────────────────────────
+CURRENCY ARCHITECTURE (MANDATORY)
+────────────────────────
+
+1. Every ride MUST have a locked currencyCode at creation time.
+   - currencyCode is derived ONLY from rider.countryCode
+   - Nigeria → NGN
+   - USA → USD
+   - No IP, browser, or UI override allowed
+
+2. The ride.currencyCode MUST be used for:
+   - Fare calculation
+   - Wallet debits
+   - Driver earnings
+   - Ziba revenue
+   - Transaction logs
+
+3. REMOVE all mixed-currency behavior.
+   - No implicit conversion
+   - No hidden multiplication
+   - No fallback to USD
+   - Currency never changes mid-ride
+
+4. Wallets MUST match ride.currencyCode exactly.
+   - If mismatch → block booking with explicit error
+
+────────────────────────
+REVENUE SPLIT (HARD RULE)
+────────────────────────
+
+Apply the following split at trip completion:
+
+- Driver receives EXACTLY 80% of ride.fare
+- Ziba receives EXACTLY 20% of ride.fare
+
+NO rounding drift.
+NO floating ambiguity.
+Use integer-safe math (smallest currency unit).
+
+Example:
+Ride fare = ₦6,000
+Driver earns = ₦4,800
+Ziba earns = ₦1,200
+
+────────────────────────
+DRIVER EARNINGS WALLET (UPGRADE)
+────────────────────────
+
+1. Introduce a dedicated DriverEarningsWallet:
+   - Separate from rider wallets
+   - Separate from test wallets
+   - Currency locked to driver.countryCode
+
+2. On trip completion:
+   - Credit DriverEarningsWallet with 80%
+   - Credit ZibaRevenueLedger with 20%
+
+3. Earnings wallet properties:
+   - balance
+   - currencyCode
+   - totalEarned
+   - totalWithdrawn
+
+4. Prevent:
+   - Negative balances
+   - Cross-currency credits
+   - Manual mutation without ledger entry
+
+────────────────────────
+LEDGER & AUDITABILITY
+────────────────────────
+
+For EVERY completed ride, persist:
+- rideId
+- riderId
+- driverId
+- fareAmount
+- currencyCode
+- driverShare (80%)
+- zibaShare (20%)
+- timestamp
+
+Ledger must be append-only.
+
+────────────────────────
+TEST MODE SAFETY
+────────────────────────
+
+- Test rides use TEST_WALLET only
+- Test rides STILL obey:
+  - currency rules
+  - 80/20 split
+  - ledger recording
+- Main wallet balance MUST NOT affect test rides
+
+────────────────────────
+ACCEPTANCE CONDITIONS (MUST PASS)
+────────────────────────
+
+- Nigeria riders see ONLY NGN from booking → payout → history
+- Driver earnings always equal 80% of fare
+- Ziba earnings always equal 20% of fare
+- No USD values appear in NGN flows
+- No hidden conversion exists anywhere
+- One ride = one currency = one math path
+
+Implement cleanly.
+Checkpoint when complete.
