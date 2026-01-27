@@ -4803,6 +4803,10 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Pickup and dropoff coordinates are required" });
       }
 
+      // Get rider's wallet to determine currency
+      const riderWallet = await storage.getRiderWallet(userId);
+      const currencyCode = riderWallet?.currency || "NGN";
+
       const ride = await storage.createRide({
         riderId: userId,
         pickupLat: pickupLat.toString(),
@@ -4812,6 +4816,7 @@ export async function registerRoutes(
         dropoffLng: dropoffLng.toString(),
         dropoffAddress: dropoffAddress || null,
         passengerCount: passengerCount || 1,
+        currencyCode,
       });
 
       // Log the action
