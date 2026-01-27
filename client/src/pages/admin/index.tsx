@@ -64,7 +64,8 @@ import {
   Building,
   FileText,
   ChevronRight,
-  Settings
+  Settings,
+  TestTube
 } from "lucide-react";
 import type { DriverProfile, Trip, User } from "@shared/schema";
 import { NotificationBell } from "@/components/notification-bell";
@@ -6343,6 +6344,210 @@ const ADMIN_PERMISSION_OPTIONS = [
   { value: "FRAUD_DETECTION", label: "Fraud Detection" },
 ];
 
+function TesterManagementSection() {
+  const { toast } = useToast();
+  const [showAddTesterDialog, setShowAddTesterDialog] = useState(false);
+  const [testerUserId, setTesterUserId] = useState("");
+  const [testerType, setTesterType] = useState<"RIDER" | "DRIVER">("RIDER");
+
+  const { data: testers = [], isLoading, refetch } = useQuery<Array<{
+    id: string;
+    userId: string;
+    role: string;
+    isTester: boolean;
+    testerType: string | null;
+    createdAt: string;
+  }>>({
+    queryKey: ["/api/admin/testers"],
+  });
+
+  const { data: allUsers = [] } = useQuery<Array<{
+    id: string;
+    email: string;
+    firstName: string | null;
+    lastName: string | null;
+    role: string | null;
+  }>>({
+    queryKey: ["/api/admin/users/for-wallet-credit"],
+  });
+
+  const createRiderTesterMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const res = await apiRequest("POST", "/api/admin/testers/rider", { userId });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Rider Tester created with ₦45,000 credit" });
+      refetch();
+      setShowAddTesterDialog(false);
+      setTesterUserId("");
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to create tester", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const createDriverTesterMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const res = await apiRequest("POST", "/api/admin/testers/driver", { userId });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Driver Tester created with ₦45,000 credit" });
+      refetch();
+      setShowAddTesterDialog(false);
+      setTesterUserId("");
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to create tester", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const removeTesterMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const res = await apiRequest("DELETE", `/api/admin/testers/${userId}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Tester status removed" });
+      refetch();
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to remove tester", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleCreateTester = () => {
+    if (!testerUserId) return;
+    if (testerType === "RIDER") {
+      createRiderTesterMutation.mutate(testerUserId);
+    } else {
+      createDriverTesterMutation.mutate(testerUserId);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between gap-2">
+        <div>
+          <CardTitle className="flex items-center gap-2">
+            <TestTube className="h-5 w-5" />
+            Tester Management
+          </CardTitle>
+          <CardDescription>Add rider and driver testers with ₦45,000 test credit</CardDescription>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => {
+              setTesterType("RIDER");
+              setShowAddTesterDialog(true);
+            }}
+            data-testid="button-add-rider-tester"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Rider Tester
+          </Button>
+          <Button
+            onClick={() => {
+              setTesterType("DRIVER");
+              setShowAddTesterDialog(true);
+            }}
+            variant="outline"
+            data-testid="button-add-driver-tester"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Driver Tester
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="py-8 text-center text-muted-foreground">Loading testers...</div>
+        ) : testers.length === 0 ? (
+          <EmptyState
+            icon={TestTube}
+            title="No Testers Added"
+            description="Add testers to test the platform without real payments"
+          />
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>User ID</TableHead>
+                <TableHead>Tester Type</TableHead>
+                <TableHead>Created</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {testers.map((tester) => (
+                <TableRow key={tester.id}>
+                  <TableCell className="font-mono text-sm">{tester.userId}</TableCell>
+                  <TableCell>
+                    <Badge variant={tester.testerType === "RIDER" ? "default" : "secondary"}>
+                      {tester.testerType || "Unknown"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{new Date(tester.createdAt).toLocaleDateString()}</TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => removeTesterMutation.mutate(tester.userId)}
+                      disabled={removeTesterMutation.isPending}
+                      data-testid={`button-remove-tester-${tester.userId}`}
+                    >
+                      <XCircle className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+
+      <Dialog open={showAddTesterDialog} onOpenChange={setShowAddTesterDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add {testerType === "RIDER" ? "Rider" : "Driver"} Tester</DialogTitle>
+            <DialogDescription>
+              The user will receive ₦45,000 test wallet credit automatically
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Select User</label>
+              <Select value={testerUserId} onValueChange={setTesterUserId}>
+                <SelectTrigger data-testid="select-tester-user">
+                  <SelectValue placeholder="Select a user" />
+                </SelectTrigger>
+                <SelectContent>
+                  {allUsers.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.email} ({user.firstName} {user.lastName})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddTesterDialog(false)}>Cancel</Button>
+            <Button
+              onClick={handleCreateTester}
+              disabled={!testerUserId || createRiderTesterMutation.isPending || createDriverTesterMutation.isPending}
+              data-testid="button-submit-add-tester"
+            >
+              Add Tester
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+}
+
 function AdminManagementTab() {
   const { toast } = useToast();
   const [showAppointDialog, setShowAppointDialog] = useState(false);
@@ -6571,6 +6776,8 @@ function AdminManagementTab() {
           )}
         </CardContent>
       </Card>
+
+      <TesterManagementSection />
 
       <Dialog open={showAppointDialog} onOpenChange={setShowAppointDialog}>
         <DialogContent className="max-w-md">
