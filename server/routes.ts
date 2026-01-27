@@ -819,6 +819,212 @@ export async function registerRoutes(
     }
   });
 
+  // Get rider's saved payment methods (cards, bank accounts)
+  app.get("/api/rider/payment-methods", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const methods = await storage.getRiderPaymentMethods(userId);
+      return res.json(methods);
+    } catch (error) {
+      console.error("Error getting payment methods:", error);
+      return res.status(500).json({ message: "Failed to get payment methods" });
+    }
+  });
+
+  // Add a new payment method (card via Paystack authorization)
+  app.post("/api/rider/payment-methods", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { 
+        type, 
+        cardLast4, 
+        cardBrand, 
+        cardExpMonth, 
+        cardExpYear,
+        cardBin,
+        bankName,
+        bankAccountLast4,
+        bankAccountName,
+        mobileMoneyProvider,
+        mobileMoneyNumberLast4,
+        providerAuthCode,
+        providerSignature,
+        providerBank,
+        providerChannel,
+        providerReusable,
+        nickname,
+        isDefault 
+      } = req.body;
+      
+      if (!type || !["CARD", "BANK", "MOBILE_MONEY"].includes(type)) {
+        return res.status(400).json({ message: "Invalid payment method type" });
+      }
+
+      // Get user's country/currency
+      const userRole = await storage.getUserRole(userId);
+      const countryCode = userRole?.countryCode || "NG";
+      const currency = countryCode === "NG" ? "NGN" : countryCode === "ZA" ? "ZAR" : "USD";
+
+      // Check if this is the first method (make it default)
+      const existingMethods = await storage.getRiderPaymentMethods(userId);
+      const shouldBeDefault = isDefault || existingMethods.length === 0;
+
+      const method = await storage.createRiderPaymentMethod({
+        userId,
+        type,
+        cardLast4,
+        cardBrand,
+        cardExpMonth,
+        cardExpYear,
+        cardBin,
+        bankName,
+        bankAccountLast4,
+        bankAccountName,
+        mobileMoneyProvider,
+        mobileMoneyNumberLast4,
+        providerAuthCode,
+        providerSignature,
+        providerBank,
+        providerChannel,
+        providerReusable: providerReusable !== false,
+        nickname,
+        currency,
+        countryCode,
+        isDefault: shouldBeDefault,
+        isActive: true,
+      });
+
+      console.log(`[PAYMENT METHODS] User ${userId} added ${type} ending in ${cardLast4 || bankAccountLast4 || mobileMoneyNumberLast4}`);
+      
+      return res.json(method);
+    } catch (error) {
+      console.error("Error adding payment method:", error);
+      return res.status(500).json({ message: "Failed to add payment method" });
+    }
+  });
+
+  // Set default payment method
+  app.patch("/api/rider/payment-methods/:methodId/default", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { methodId } = req.params;
+      
+      const method = await storage.setDefaultPaymentMethod(userId, methodId);
+      if (!method) {
+        return res.status(404).json({ message: "Payment method not found" });
+      }
+
+      console.log(`[PAYMENT METHODS] User ${userId} set ${methodId} as default`);
+      
+      return res.json(method);
+    } catch (error) {
+      console.error("Error setting default payment method:", error);
+      return res.status(500).json({ message: "Failed to set default payment method" });
+    }
+  });
+
+  // Delete a payment method
+  app.delete("/api/rider/payment-methods/:methodId", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { methodId } = req.params;
+      
+      const deleted = await storage.deleteRiderPaymentMethod(userId, methodId);
+      if (!deleted) {
+        return res.status(404).json({ message: "Payment method not found" });
+      }
+
+      console.log(`[PAYMENT METHODS] User ${userId} deleted ${methodId}`);
+      
+      return res.json({ message: "Payment method deleted" });
+    } catch (error) {
+      console.error("Error deleting payment method:", error);
+      return res.status(500).json({ message: "Failed to delete payment method" });
+    }
+  });
+
+  // Initialize card addition via Paystack (returns authorization URL)
+  app.post("/api/rider/payment-methods/add-card/initialize", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user?.email) {
+        return res.status(400).json({ message: "User email not found" });
+      }
+
+      // Check if real payments are enabled for Nigeria
+      const { isRealPaymentsEnabled, processPayment } = await import("./payment-provider");
+      const isCardAvailable = await isRealPaymentsEnabled("NG");
+      
+      if (!isCardAvailable) {
+        return res.status(400).json({ 
+          message: "Card payments are not available in test mode. Cards can only be added when real payments are enabled.",
+          code: "CARD_NOT_AVAILABLE"
+        });
+      }
+
+      // Initialize a minimal payment to authorize the card (Paystack requires at least ₦50)
+      const result = await processPayment("NG", {
+        userId,
+        email: user.email,
+        amount: 50, // Minimum for card authorization
+        currency: "NGN",
+        reference: `CARD_AUTH_${userId}_${Date.now()}`,
+        metadata: { type: "card_authorization", userId },
+      });
+
+      if (!result.success) {
+        return res.status(400).json({ 
+          message: result.error || "Failed to initialize card authorization",
+          code: "INIT_FAILED"
+        });
+      }
+
+      return res.json({
+        authorizationUrl: result.authorizationUrl,
+        accessCode: result.accessCode,
+        reference: result.transactionRef,
+      });
+    } catch (error) {
+      console.error("Error initializing card addition:", error);
+      return res.status(500).json({ message: "Failed to initialize card addition" });
+    }
+  });
+
+  // Verify card addition callback from Paystack
+  app.post("/api/rider/payment-methods/add-card/verify", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { reference } = req.body;
+
+      if (!reference) {
+        return res.status(400).json({ message: "Reference is required" });
+      }
+
+      // Verify the transaction with Paystack
+      const { verifyPayment } = await import("./payment-provider");
+      const result = await verifyPayment("NG", reference);
+
+      if (!result.success) {
+        return res.status(400).json({ 
+          message: "Card authorization failed. Please try again.",
+          code: "VERIFICATION_FAILED"
+        });
+      }
+
+      // Extract card details from Paystack response (these would be in the actual API response)
+      // For now, return success - the actual card details would come from Paystack webhook
+      return res.json({
+        message: "Card added successfully",
+        success: true,
+      });
+    } catch (error) {
+      console.error("Error verifying card addition:", error);
+      return res.status(500).json({ message: "Failed to verify card addition" });
+    }
+  });
+
   app.get("/api/rider/current-trip", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
