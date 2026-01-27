@@ -674,15 +674,29 @@ export class DatabaseStorage implements IStorage {
 
   async isUserTester(userId: string): Promise<boolean> {
     // TODO: Remove tester payment bypass before production launch
-    // User is tester if: isTester === true OR testerType IN ('RIDER', 'DRIVER')
+    // User is tester if: isTester === true OR testerType IN ('RIDER', 'DRIVER') OR has tester wallet balance > 0
     const [role] = await db.select().from(userRoles).where(eq(userRoles.userId, userId));
     if (!role) return false;
     
     const isTesterFlag = role.isTester === true;
     const hasTesterType = role.testerType === 'RIDER' || role.testerType === 'DRIVER';
     
-    const result = isTesterFlag || hasTesterType;
-    console.log(`[TESTER CHECK] userId=${userId}, isTester=${role.isTester}, testerType=${role.testerType}, result=${result}`);
+    // Also check if user has tester wallet credits (fallback detection)
+    let hasTesterWalletBalance = false;
+    if (role.role === 'rider' || role.role === 'super_admin') {
+      const [wallet] = await db.select().from(riderWallets).where(eq(riderWallets.userId, userId));
+      if (wallet && parseFloat(String(wallet.testerWalletBalance || 0)) > 0) {
+        hasTesterWalletBalance = true;
+      }
+    } else if (role.role === 'driver') {
+      const [wallet] = await db.select().from(driverWallets).where(eq(driverWallets.userId, userId));
+      if (wallet && parseFloat(String(wallet.testerWalletBalance || 0)) > 0) {
+        hasTesterWalletBalance = true;
+      }
+    }
+    
+    const result = isTesterFlag || hasTesterType || hasTesterWalletBalance;
+    console.log(`[TESTER CHECK] userId=${userId}, isTester=${role.isTester}, testerType=${role.testerType}, hasTesterWallet=${hasTesterWalletBalance}, result=${result}`);
     return result;
   }
 
