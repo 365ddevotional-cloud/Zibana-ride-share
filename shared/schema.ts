@@ -298,7 +298,7 @@ export const trips = pgTable("trips", {
   notesForDriver: text("notes_for_driver"),
   // Phase 15 - Multi-Country fields
   countryId: varchar("country_id"),
-  currency: varchar("currency", { length: 3 }),
+  currencyCode: varchar("currency_code", { length: 3 }).notNull().default("NGN"),
   estimatedTaxAmount: decimal("estimated_tax_amount", { precision: 10, scale: 2 }),
 });
 
@@ -375,7 +375,7 @@ export const rides = pgTable("rides", {
   
   // Multi-country support
   countryId: varchar("country_id"),
-  currency: varchar("currency", { length: 3 }).default("USD"),
+  currencyCode: varchar("currency_code", { length: 3 }).notNull().default("NGN"),
   
   // Passenger info
   passengerCount: integer("passenger_count").default(1),

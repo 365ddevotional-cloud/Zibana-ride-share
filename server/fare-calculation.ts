@@ -58,7 +58,7 @@ export interface FareBreakdown {
   totalFare: number;
   driverEarning: number;
   platformFee: number;
-  currency: string;
+  currencyCode: string;
 }
 
 export interface WaitingFeeBreakdown {
@@ -125,7 +125,7 @@ export function calculateCompleteFare(params: {
   estimatedDurationMin?: number;
   waitingStartedAt?: Date | null;
   tripEndedAt?: Date;
-  currency?: string;
+  currencyCode: string;
 }): FareBreakdown {
   const {
     distanceKm,
@@ -133,7 +133,7 @@ export function calculateCompleteFare(params: {
     estimatedDurationMin = durationMin,
     waitingStartedAt = null,
     tripEndedAt = new Date(),
-    currency = "USD"
+    currencyCode
   } = params;
 
   // Base fare
@@ -169,7 +169,7 @@ export function calculateCompleteFare(params: {
     totalFare: round(totalFare),
     driverEarning: round(driverEarning),
     platformFee: round(platformFee),
-    currency
+    currencyCode
   };
 }
 
@@ -286,6 +286,7 @@ export function recalculateFareForEarlyStop(params: {
   actualDurationMin: number;
   waitingStartedAt?: Date | null;
   tripEndedAt?: Date;
+  currencyCode: string;
 }): EarlyStopRecalculation {
   const {
     originalEstimatedKm,
@@ -293,7 +294,8 @@ export function recalculateFareForEarlyStop(params: {
     originalEstimatedMin,
     actualDurationMin,
     waitingStartedAt,
-    tripEndedAt
+    tripEndedAt,
+    currencyCode
   } = params;
 
   // Calculate original estimated fare
@@ -305,7 +307,8 @@ export function recalculateFareForEarlyStop(params: {
     durationMin: actualDurationMin,
     estimatedDurationMin: originalEstimatedMin,
     waitingStartedAt,
-    tripEndedAt
+    tripEndedAt,
+    currencyCode
   });
 
   return {

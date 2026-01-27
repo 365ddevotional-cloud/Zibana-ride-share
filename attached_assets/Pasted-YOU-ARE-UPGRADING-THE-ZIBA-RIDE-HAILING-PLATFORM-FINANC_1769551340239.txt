@@ -1,0 +1,116 @@
+YOU ARE UPGRADING THE ZIBA RIDE-HAILING PLATFORM FINANCIAL ENGINE.
+THIS IS A PRODUCTION-CRITICAL CHANGE.
+
+GOAL
+1) Enforce currency consistency across the entire ride lifecycle
+2) Correct revenue split to DRIVER 80% / ZIBA 20%
+3) Eliminate ALL USD usage for Nigerian riders and drivers
+4) Make backend the single source of truth
+
+STRICT RULES
+- Do NOT ask questions
+- Do NOT add UI toggles for currency
+- Do NOT rely on frontend currency formatting
+- Do NOT hardcode FX conversion
+- Backend logic ONLY
+- Persist values atomically
+- Fix permanently
+
+────────────────────────
+CURRENCY NORMALIZATION (MANDATORY)
+────────────────────────
+1) Add `currencyCode` as REQUIRED on:
+   - Ride
+   - Payment
+   - WalletTransaction
+   - DriverEarning
+   - PlatformRevenue
+
+2) Currency resolution rules:
+   - If user.country == "NG" → currencyCode = "NGN"
+   - If user.country == "US" → currencyCode = "USD"
+   - Currency is derived ONCE at ride creation
+   - Currency MUST propagate unchanged through:
+     fare → payment → wallet debit → driver credit → platform credit
+
+3) Block mixed-currency transactions:
+   - A ride CANNOT debit NGN wallet and credit USD wallet
+   - Reject any mismatch at backend validation layer
+
+4) Remove all implicit USD defaults
+   - No fallback to USD anywhere
+   - No browser / locale influence
+   - No UI currency overrides
+
+────────────────────────
+FARE & PAYMENT LOGIC
+────────────────────────
+1) Store `fareAmount` as integer minor units (kobo for NGN)
+2) Store `currencyCode` alongside fare
+3) Payment authorization checks:
+   - Wallet.currencyCode MUST equal Ride.currencyCode
+   - Wallet.balance >= fareAmount
+
+────────────────────────
+REVENUE SPLIT (MANDATORY FIX)
+────────────────────────
+DEFINE CONSTANTS (backend):
+- DRIVER_SHARE = 0.80
+- PLATFORM_SHARE = 0.20
+
+ON RIDE COMPLETION:
+1) totalFare = ride.fareAmount
+2) driverEarning = totalFare * DRIVER_SHARE
+3) platformEarning = totalFare * PLATFORM_SHARE
+
+ENFORCE:
+- driverEarning + platformEarning == totalFare
+- No rounding loss
+- Use integer math
+
+────────────────────────
+WALLET APPLICATION
+────────────────────────
+1) Debit rider wallet:
+   - amount = totalFare
+   - currency = ride.currencyCode
+
+2) Credit driver earnings wallet:
+   - amount = driverEarning
+   - currency = ride.currencyCode
+
+3) Credit Ziba platform wallet:
+   - amount = platformEarning
+   - currency = ride.currencyCode
+
+4) All three operations MUST be atomic
+
+────────────────────────
+TEST WALLET COMPATIBILITY
+────────────────────────
+- Test wallet logic remains unchanged
+- Test wallet inherits SAME currency rules
+- Test wallet NEVER converts currency
+- Test wallet only switches wallet TYPE, not currency
+
+────────────────────────
+DATA INTEGRITY RULES
+────────────────────────
+- No FX conversion in MVP
+- No mixed currency ledgers
+- Every transaction row MUST include currencyCode
+- Historical USD rows for NG users remain read-only
+
+────────────────────────
+ACCEPTANCE CONDITIONS
+────────────────────────
+- Nigerian rider sees NGN everywhere
+- Fare, payout, earnings, and reports are ALL NGN
+- Driver receives EXACTLY 80%
+- Ziba receives EXACTLY 20%
+- No $ symbol appears for NG rides
+- No manual reconciliation required
+
+IMPLEMENT CLEANLY.
+DO NOT REMOVE EXISTING FEATURES.
+THIS IS FINAL.
