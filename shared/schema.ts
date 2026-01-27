@@ -198,6 +198,45 @@ export const testerTypeEnum = pgEnum("tester_type", ["RIDER", "DRIVER"]);
 // Supported country codes enum
 export const countryCodeEnum = pgEnum("country_code", ["NG", "US", "ZA"]);
 
+// Driver verification status enum (for withdrawal eligibility)
+export const driverVerificationStatusEnum = pgEnum("driver_verification_status", [
+  "pending_verification",
+  "verified",
+  "suspended"
+]);
+
+// Identity document types by country
+export const identityDocumentTypeEnum = pgEnum("identity_document_type", [
+  "DRIVER_LICENSE",
+  "NIN",
+  "SSN_LAST4",
+  "STATE_ID",
+  "NATIONAL_ID",
+  "PASSPORT"
+]);
+
+// Identity verification method enum
+export const identityVerificationMethodEnum = pgEnum("identity_verification_method", [
+  "manual",
+  "automated"
+]);
+
+// Driver withdrawal status enum
+export const driverWithdrawalStatusEnum = pgEnum("driver_withdrawal_status", [
+  "pending",
+  "processing",
+  "paid",
+  "failed",
+  "blocked"
+]);
+
+// Driver withdrawal payout method enum
+export const driverWithdrawalPayoutMethodEnum = pgEnum("driver_withdrawal_payout_method", [
+  "BANK",
+  "MOBILE_MONEY",
+  "CARD_FUTURE"
+]);
+
 // User roles table - maps users to their roles with admin governance
 export const userRoles = pgTable("user_roles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -212,6 +251,56 @@ export const userRoles = pgTable("user_roles", {
   appointedBy: varchar("appointed_by"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Identity profiles table - stores KYC information for all users
+export const identityProfiles = pgTable("identity_profiles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique(),
+  legalFirstName: varchar("legal_first_name", { length: 100 }),
+  legalLastName: varchar("legal_last_name", { length: 100 }),
+  dateOfBirth: timestamp("date_of_birth"),
+  countryCode: countryCodeEnum("country_code"),
+  residenceAddressLine1: varchar("residence_address_line1", { length: 255 }),
+  residenceCity: varchar("residence_city", { length: 100 }),
+  residenceState: varchar("residence_state", { length: 100 }),
+  residencePostalCode: varchar("residence_postal_code", { length: 20 }),
+  residenceCountryCode: countryCodeEnum("residence_country_code"),
+  addressVerified: boolean("address_verified").notNull().default(false),
+  identityVerified: boolean("identity_verified").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Identity documents table - stores identity verification documents
+export const identityDocuments = pgTable("identity_documents", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  countryCode: countryCodeEnum("country_code").notNull(),
+  documentType: identityDocumentTypeEnum("document_type").notNull(),
+  documentNumberHash: varchar("document_number_hash", { length: 128 }).notNull(), // SHA-256 hash
+  issuingAuthority: varchar("issuing_authority", { length: 200 }),
+  expiryDate: timestamp("expiry_date"),
+  verified: boolean("verified").notNull().default(false),
+  verificationMethod: identityVerificationMethodEnum("verification_method"),
+  rejectionReason: text("rejection_reason"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Driver withdrawals table - tracks all driver withdrawal requests
+export const driverWithdrawals = pgTable("driver_withdrawals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  driverId: varchar("driver_id").notNull(),
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  currencyCode: varchar("currency_code", { length: 3 }).notNull(),
+  payoutMethod: driverWithdrawalPayoutMethodEnum("payout_method").notNull(),
+  payoutReference: varchar("payout_reference", { length: 255 }),
+  status: driverWithdrawalStatusEnum("status").notNull().default("pending"),
+  blockReason: text("block_reason"),
+  processedAt: timestamp("processed_at"),
+  processedBy: varchar("processed_by"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Driver profiles table
@@ -237,6 +326,7 @@ export const driverProfiles = pgTable("driver_profiles", {
   navigationVerified: boolean("navigation_verified").notNull().default(false),
   locationPermissionStatus: locationPermissionStatusEnum("location_permission_status").notNull().default("not_requested"),
   lastGpsHeartbeat: timestamp("last_gps_heartbeat"),
+  withdrawalVerificationStatus: driverVerificationStatusEnum("withdrawal_verification_status").notNull().default("pending_verification"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -1024,6 +1114,33 @@ export const insertDriverProfileSchema = createInsertSchema(driverProfiles).omit
   isOnline: true,
 });
 
+// Identity profile schemas
+export const insertIdentityProfileSchema = createInsertSchema(identityProfiles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  addressVerified: true,
+  identityVerified: true,
+});
+
+export const insertIdentityDocumentSchema = createInsertSchema(identityDocuments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  verified: true,
+  verificationMethod: true,
+  rejectionReason: true,
+});
+
+export const insertDriverWithdrawalSchema = createInsertSchema(driverWithdrawals).omit({
+  id: true,
+  createdAt: true,
+  status: true,
+  processedAt: true,
+  processedBy: true,
+  blockReason: true,
+});
+
 export const insertRiderProfileSchema = createInsertSchema(riderProfiles).omit({
   id: true,
   createdAt: true,
@@ -1166,6 +1283,15 @@ export const updateDriverProfileSchema = createInsertSchema(driverProfiles).omit
 // Types
 export type InsertUserRole = z.infer<typeof insertUserRoleSchema>;
 export type UserRole = typeof userRoles.$inferSelect;
+
+export type InsertIdentityProfile = z.infer<typeof insertIdentityProfileSchema>;
+export type IdentityProfile = typeof identityProfiles.$inferSelect;
+
+export type InsertIdentityDocument = z.infer<typeof insertIdentityDocumentSchema>;
+export type IdentityDocument = typeof identityDocuments.$inferSelect;
+
+export type InsertDriverWithdrawal = z.infer<typeof insertDriverWithdrawalSchema>;
+export type DriverWithdrawal = typeof driverWithdrawals.$inferSelect;
 
 export type InsertDriverProfile = z.infer<typeof insertDriverProfileSchema>;
 export type DriverProfile = typeof driverProfiles.$inferSelect;
