@@ -54,6 +54,18 @@ Preferred communication style: Simple, everyday language.
 - **Country Pricing**: Dynamic pricing rules per country including base fare, per-km/minute rates, surge multipliers, and commission percentages
 - **Financial Audit**: All financial events logged in `financialAuditLogs` table for compliance
 
+### Multi-Country Currency Support
+- **Supported Countries**: Nigeria (NG), United States (US), South Africa (ZA)
+- **Currency Mapping**: NG → NGN (₦), US → USD ($), ZA → ZAR (R)
+- **User Country**: Stored in `userRoles.countryCode` (defaults to NG)
+- **Wallet Currency**: Automatically set based on user's country at wallet creation
+- **Dynamic Formatting**: Frontend uses `Intl.NumberFormat` with wallet's currency code
+- **Admin Top-up**: `POST /api/admin/wallet/topup` (SUPER_ADMIN only)
+  - Payload: `{ userId, amount, walletType: "TEST" | "MAIN", note? }`
+  - Currency automatically derived from user's country
+  - All top-ups logged in `wallet_topup_logs` table
+- **Backward Compatibility**: Existing wallets retain their currency, new wallets use user's country currency
+
 ## Production Switch System (Phase 26)
 ### Switch 1: Real Payments (Per Country)
 - **Default**: `paymentsEnabled = false`, `paymentProvider = null` for ALL countries
