@@ -1,0 +1,80 @@
+You are upgrading the ZIBA Ride-Hailing app to support multi-country testing, correct wallet currencies, and Super Admin wallet control.
+
+GOALS (DO NOT SKIP ANY):
+
+1) FIX CURRENCY MISMATCH ISSUE
+- Wallet balances must display in the correct currency based on the user’s country.
+- Remove any hardcoded USD formatting.
+- Currency must be dynamic and driven by user profile / wallet data.
+
+2) ENABLE MULTI-COUNTRY SUPPORT
+Enable and support these countries:
+- Nigeria (NG) → Currency: NGN (₦)
+- United States (US) → Currency: USD ($)
+- South Africa (ZA) → Currency: ZAR (R)
+
+Each user must have:
+- countryCode: "NG" | "US" | "ZA"
+- currencyCode: "NGN" | "USD" | "ZAR"
+
+3) WALLET DATA MODEL UPDATE
+Ensure wallet records store:
+- balance (number)
+- currencyCode (NGN | USD | ZAR)
+- isTestWallet (boolean)
+
+When a wallet is created:
+- currencyCode MUST be derived from user.countryCode
+- Test wallets and main wallets must both follow this rule
+
+4) ADMIN / SUPER ADMIN WALLET TOP-UP
+Grant SUPER_ADMIN the ability to:
+- Search any user (rider, driver, tester)
+- Top up ANY user’s wallet (test wallet or main wallet)
+- Select currency automatically based on the user’s country
+- Enter amount (number)
+- Add optional note (reason for top-up)
+- Persist transaction safely
+
+Add an Admin API endpoint:
+POST /api/admin/wallet/topup
+Payload:
+{
+  userId,
+  amount,
+  walletType: "TEST" | "MAIN",
+  note?
+}
+
+Security rules:
+- Only SUPER_ADMIN can access this endpoint
+- Log all top-ups (who topped up, who received, amount, currency, timestamp)
+
+5) FRONTEND WALLET DISPLAY FIX
+Update wallet UI to:
+- Display currency symbol dynamically using wallet.currencyCode
+- Use Intl.NumberFormat with wallet.currencyCode
+- Never infer currency from browser location or IP
+
+6) SIGNUP & PROFILE ALIGNMENT
+- Ensure country selection at signup (or default + editable)
+- Changing country should NOT auto-convert balances
+- Country determines currency for NEW transactions only
+
+7) BACKWARD COMPATIBILITY
+- Existing wallets without currencyCode should be migrated safely:
+  - If user.countryCode = NG → set currencyCode = NGN
+  - If US → USD
+  - If ZA → ZAR
+
+8) TESTING REQUIREMENTS
+Confirm the following scenarios work:
+- Nigerian rider sees ₦ wallet
+- US rider sees $ wallet
+- South African rider sees R wallet
+- Super Admin can top up any user correctly
+- Test wallet and main wallet behave independently
+
+IMPLEMENT ALL CHANGES CLEANLY.
+DO NOT REMOVE EXISTING FEATURES.
+DO NOT HARD-CODE CURRENCIES ANYWHERE.

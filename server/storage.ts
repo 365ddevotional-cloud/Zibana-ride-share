@@ -153,6 +153,7 @@ import {
   abuseFlags,
   driverPayoutHistory,
   riderTransactionHistory,
+  walletTopupLogs,
   type CountryPricingRules,
   type InsertCountryPricingRules,
   type RiderWallet,
@@ -5186,6 +5187,22 @@ export class DatabaseStorage implements IStorage {
 
   async getAllCountriesWithPaymentStatus(): Promise<Country[]> {
     return db.select().from(countries).orderBy(countries.name);
+  }
+
+  // Wallet Top-up Logs (SUPER_ADMIN only)
+  async createWalletTopupLog(data: { userId: string; adminId: string; walletType: string; amount: string; currency: string; note?: string | null }): Promise<void> {
+    await db.insert(walletTopupLogs).values({
+      userId: data.userId,
+      adminId: data.adminId,
+      walletType: data.walletType,
+      amount: data.amount,
+      currency: data.currency,
+      note: data.note || null,
+    });
+  }
+
+  async getWalletTopupLogs(): Promise<any[]> {
+    return db.select().from(walletTopupLogs).orderBy(desc(walletTopupLogs.createdAt));
   }
 }
 

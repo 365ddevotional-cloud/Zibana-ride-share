@@ -185,11 +185,15 @@ export const verificationStatusEnum = pgEnum("verification_status", [
 // Tester type enum
 export const testerTypeEnum = pgEnum("tester_type", ["RIDER", "DRIVER"]);
 
+// Supported country codes enum
+export const countryCodeEnum = pgEnum("country_code", ["NG", "US", "ZA"]);
+
 // User roles table - maps users to their roles with admin governance
 export const userRoles = pgTable("user_roles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
   role: userRoleEnum("role").notNull().default("rider"),
+  countryCode: countryCodeEnum("country_code").notNull().default("NG"),
   isTester: boolean("is_tester").notNull().default(false),
   testerType: testerTypeEnum("tester_type"),
   adminStartAt: timestamp("admin_start_at"),
@@ -731,7 +735,8 @@ export const riderWallets = pgTable("rider_wallets", {
   balance: decimal("balance", { precision: 10, scale: 2 }).notNull().default("0.00"),
   lockedBalance: decimal("locked_balance", { precision: 10, scale: 2 }).notNull().default("0.00"),
   testerWalletBalance: decimal("tester_wallet_balance", { precision: 10, scale: 2 }).notNull().default("0.00"),
-  currency: varchar("currency", { length: 3 }).notNull().default("USD"),
+  currency: varchar("currency", { length: 3 }).notNull().default("NGN"),
+  isTestWallet: boolean("is_test_wallet").notNull().default(false),
   isFrozen: boolean("is_frozen").notNull().default(false),
   frozenAt: timestamp("frozen_at"),
   frozenReason: text("frozen_reason"),
@@ -748,7 +753,8 @@ export const driverWallets = pgTable("driver_wallets", {
   pendingBalance: decimal("pending_balance", { precision: 10, scale: 2 }).notNull().default("0.00"),
   withdrawableBalance: decimal("withdrawable_balance", { precision: 10, scale: 2 }).notNull().default("0.00"),
   testerWalletBalance: decimal("tester_wallet_balance", { precision: 10, scale: 2 }).notNull().default("0.00"),
-  currency: varchar("currency", { length: 3 }).notNull().default("USD"),
+  currency: varchar("currency", { length: 3 }).notNull().default("NGN"),
+  isTestWallet: boolean("is_test_wallet").notNull().default(false),
   isFrozen: boolean("is_frozen").notNull().default(false),
   frozenAt: timestamp("frozen_at"),
   frozenReason: text("frozen_reason"),
@@ -761,6 +767,18 @@ export const driverWallets = pgTable("driver_wallets", {
   preferredPayoutMethod: varchar("preferred_payout_method"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Wallet Top-up Audit Log table (for SUPER_ADMIN wallet top-ups)
+export const walletTopupLogs = pgTable("wallet_topup_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  adminId: varchar("admin_id").notNull(),
+  walletType: varchar("wallet_type", { length: 10 }).notNull(), // TEST or MAIN
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 3 }).notNull(),
+  note: text("note"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Phase 25 - ZIBA Platform Wallet table

@@ -6671,6 +6671,114 @@ export async function registerRoutes(
   });
 
   // ==========================================
+  // WALLET TOP-UP (SUPER_ADMIN ONLY)
+  // ==========================================
+  // POST /api/admin/wallet/topup - Top up any user's wallet
+  app.post("/api/admin/wallet/topup", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const adminEmail = req.user.claims.email;
+      const { userId, amount, walletType, note } = req.body;
+      
+      if (!userId || !amount || !walletType) {
+        return res.status(400).json({ message: "userId, amount, and walletType (TEST or MAIN) are required" });
+      }
+      
+      if (!["TEST", "MAIN"].includes(walletType)) {
+        return res.status(400).json({ message: "walletType must be TEST or MAIN" });
+      }
+      
+      const topupAmount = parseFloat(amount);
+      if (isNaN(topupAmount) || topupAmount <= 0) {
+        return res.status(400).json({ message: "Amount must be a positive number" });
+      }
+      
+      // Get user's country and currency
+      const userRole = await storage.getUserRole(userId);
+      const countryCode = userRole?.countryCode || "NG";
+      const currencyMap: Record<string, string> = { NG: "NGN", US: "USD", ZA: "ZAR" };
+      const currency = currencyMap[countryCode] || "NGN";
+      
+      // Find which wallet type the user has (rider or driver)
+      let riderWallet = await storage.getRiderWallet(userId);
+      let driverWallet = await storage.getDriverWallet(userId);
+      
+      let walletUpdated = false;
+      let walletData: any = null;
+      
+      if (walletType === "TEST") {
+        // Credit tester wallet balance
+        if (riderWallet) {
+          walletData = await storage.adjustRiderTesterWalletBalance(userId, topupAmount, "ADMIN_TOPUP", adminId);
+          walletUpdated = true;
+        } else if (driverWallet) {
+          walletData = await storage.adjustDriverTesterWalletBalance(userId, topupAmount, "ADMIN_TOPUP", adminId);
+          walletUpdated = true;
+        }
+      } else {
+        // Credit main wallet balance
+        if (riderWallet) {
+          walletData = await storage.adjustRiderWalletBalance(userId, topupAmount, "ADMIN_TOPUP", adminId);
+          walletUpdated = true;
+        } else if (driverWallet) {
+          walletData = await storage.adjustDriverWalletBalance(userId, topupAmount, "ADMIN_TOPUP", adminId);
+          walletUpdated = true;
+        }
+      }
+      
+      if (!walletUpdated) {
+        return res.status(404).json({ message: "No wallet found for this user. Create a wallet first." });
+      }
+      
+      // Log to wallet_topup_logs
+      await storage.createWalletTopupLog({
+        userId,
+        adminId,
+        walletType,
+        amount: String(topupAmount),
+        currency,
+        note: note || null,
+      });
+      
+      // Log for audit trail
+      console.log(`[WALLET_TOPUP AUDIT] adminId=${adminId}, adminEmail=${adminEmail}, userId=${userId}, walletType=${walletType}, amount=${topupAmount}, currency=${currency}, note=${note || "none"}, timestamp=${new Date().toISOString()}`);
+      
+      // Also log to financial audit
+      await storage.createFinancialAuditLog({
+        eventType: "ADJUSTMENT",
+        userId,
+        amount: String(topupAmount),
+        actorRole: "ADMIN",
+        currency,
+        description: `ADMIN_TOPUP (${walletType}) by SUPER_ADMIN (${adminEmail})${note ? `: ${note}` : ""}`,
+        metadata: JSON.stringify({ adminId, adminEmail, walletType, note }),
+      });
+      
+      return res.json({ 
+        message: `Successfully topped up ${walletType} wallet with ${currency} ${topupAmount}`,
+        wallet: walletData,
+        topupAmount,
+        walletType,
+        currency,
+      });
+    } catch (error) {
+      console.error("Error topping up wallet:", error);
+      return res.status(500).json({ message: "Failed to top up wallet" });
+    }
+  });
+
+  // GET /api/admin/wallet/topup-logs - Get all top-up logs
+  app.get("/api/admin/wallet/topup-logs", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const logs = await storage.getWalletTopupLogs();
+      return res.json(logs);
+    } catch (error) {
+      console.error("Error fetching top-up logs:", error);
+      return res.status(500).json({ message: "Failed to fetch top-up logs" });
+    }
+  });
+
+  // ==========================================
   // TESTER MANAGEMENT - SUPER ADMIN ONLY
   // ==========================================
 
