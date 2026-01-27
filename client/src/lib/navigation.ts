@@ -111,3 +111,101 @@ export function isAndroidDevice(): boolean {
   if (typeof navigator === "undefined") return false;
   return /Android/i.test(navigator.userAgent);
 }
+
+// Navigation provider types for driver setup
+export type NavigationProvider = "google_maps" | "apple_maps" | "waze" | "other";
+
+export interface NavigationDeepLink {
+  provider: NavigationProvider;
+  url: string;
+  fallbackUrl: string;
+}
+
+export function getNavigationDeepLink(
+  provider: NavigationProvider,
+  lat: number,
+  lng: number,
+  label?: string
+): NavigationDeepLink {
+  const encodedLabel = label ? encodeURIComponent(label) : "";
+  
+  switch (provider) {
+    case "google_maps":
+      return {
+        provider,
+        url: `google.navigation:q=${lat},${lng}`,
+        fallbackUrl: `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`,
+      };
+    case "apple_maps":
+      return {
+        provider,
+        url: `maps://maps.apple.com/?daddr=${lat},${lng}&dirflg=d`,
+        fallbackUrl: `https://maps.apple.com/?daddr=${lat},${lng}&dirflg=d`,
+      };
+    case "waze":
+      return {
+        provider,
+        url: `waze://?ll=${lat},${lng}&navigate=yes`,
+        fallbackUrl: `https://www.waze.com/ul?ll=${lat},${lng}&navigate=yes`,
+      };
+    case "other":
+    default:
+      return {
+        provider,
+        url: `geo:${lat},${lng}?q=${lat},${lng}`,
+        fallbackUrl: `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`,
+      };
+  }
+}
+
+export function openNavigationWithProvider(
+  provider: NavigationProvider,
+  lat: number,
+  lng: number,
+  label?: string
+): void {
+  const deepLink = getNavigationDeepLink(provider, lat, lng, label);
+  
+  const isIOS = isIOSDevice();
+  const isAndroid = isAndroidDevice();
+  
+  if (isAndroid || isIOS) {
+    const link = document.createElement("a");
+    link.href = deepLink.url;
+    link.click();
+    
+    setTimeout(() => {
+      window.open(deepLink.fallbackUrl, "_blank");
+    }, 1000);
+  } else {
+    window.open(deepLink.fallbackUrl, "_blank");
+  }
+}
+
+export function getTestNavigationUrl(provider: NavigationProvider): string {
+  const testLat = 6.5244;
+  const testLng = 3.3792;
+  const deepLink = getNavigationDeepLink(provider, testLat, testLng, "Test Location");
+  
+  const isIOS = isIOSDevice();
+  const isAndroid = isAndroidDevice();
+  
+  if (isAndroid || isIOS) {
+    return deepLink.url;
+  }
+  return deepLink.fallbackUrl;
+}
+
+export function getNavigationProviderName(provider: NavigationProvider): string {
+  switch (provider) {
+    case "google_maps":
+      return "Google Maps";
+    case "apple_maps":
+      return "Apple Maps";
+    case "waze":
+      return "Waze";
+    case "other":
+    default:
+      return "Default GPS";
+  }
+}

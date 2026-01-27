@@ -52,6 +52,7 @@ import { ReservationOffers } from "@/components/ride/reservation-offers";
 import { useDriverRide, type RideWithDetails } from "@/hooks/use-ride-lifecycle";
 import { useRideOffers } from "@/hooks/use-ride-offers";
 import { useSafetyCheck } from "@/hooks/use-safety-check";
+import { DriverNavigationSetup } from "@/components/driver-navigation-setup";
 
 type TripWithRider = Trip & { riderName?: string };
 
@@ -105,6 +106,21 @@ export default function DriverDashboard() {
     queryKey: ["/api/driver/profile"],
     enabled: !!user,
   });
+
+  interface SetupStatus {
+    setupCompleted: boolean;
+    locationPermissionStatus: string;
+    navigationProvider: string | null;
+    navigationVerified: boolean;
+    missingFields: string[];
+  }
+
+  const { data: setupStatus, refetch: refetchSetupStatus } = useQuery<SetupStatus>({
+    queryKey: ["/api/driver/setup-status"],
+    enabled: !!user && profile?.status === "approved",
+  });
+
+  const [showSetupWarning, setShowSetupWarning] = useState(false);
 
   const { data: availableRides = [], isLoading: ridesLoading } = useQuery<TripWithRider[]>({
     queryKey: ["/api/driver/available-rides"],
@@ -211,6 +227,15 @@ export default function DriverDashboard() {
   const toggleOnlineMutation = useMutation({
     mutationFn: async (isOnline: boolean) => {
       const response = await apiRequest("POST", "/api/driver/toggle-online", { isOnline });
+      if (!response.ok) {
+        const errorData = await response.json();
+        if (errorData.error === "DRIVER_SETUP_INCOMPLETE") {
+          setShowSetupWarning(true);
+          refetchSetupStatus();
+          throw new Error("Complete GPS & Navigation setup to go online");
+        }
+        throw new Error(errorData.message || "Failed to toggle online status");
+      }
       return response.json();
     },
     onSuccess: () => {
@@ -228,7 +253,7 @@ export default function DriverDashboard() {
         setTimeout(() => { window.location.href = "/api/login"; }, 500);
         return;
       }
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Setup Required", description: error.message, variant: "destructive" });
     },
   });
 
@@ -415,6 +440,16 @@ export default function DriverDashboard() {
               verificationPhoto={(profile as any).verificationPhoto}
             />
 
+            {isApproved && (setupStatus && !setupStatus.setupCompleted || showSetupWarning) && (
+              <DriverNavigationSetup 
+                onComplete={() => {
+                  setShowSetupWarning(false);
+                  refetchSetupStatus();
+                  queryClient.invalidateQueries({ queryKey: ["/api/driver/profile"] });
+                }} 
+              />
+            )}
+
             {isApproved && (
               <Card>
                 <CardHeader>
@@ -423,7 +458,10 @@ export default function DriverDashboard() {
                     Availability
                   </CardTitle>
                   <CardDescription>
-                    Toggle to start receiving ride requests
+                    {setupStatus?.setupCompleted 
+                      ? "Toggle to start receiving ride requests"
+                      : "Complete GPS & Navigation setup first"
+                    }
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -435,7 +473,7 @@ export default function DriverDashboard() {
                       id="online-toggle"
                       checked={profile.isOnline}
                       onCheckedChange={(checked) => toggleOnlineMutation.mutate(checked)}
-                      disabled={toggleOnlineMutation.isPending}
+                      disabled={toggleOnlineMutation.isPending || !setupStatus?.setupCompleted}
                       data-testid="switch-availability"
                     />
                   </div>

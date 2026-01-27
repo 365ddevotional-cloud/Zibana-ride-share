@@ -339,8 +339,7 @@ export async function registerRoutes(
       }
 
       const profile = await storage.updateDriverProfile(userId, { 
-        locationPermissionStatus: status,
-        updatedAt: new Date()
+        locationPermissionStatus: status
       });
       
       if (!profile) {
@@ -367,8 +366,7 @@ export async function registerRoutes(
 
       const profile = await storage.updateDriverProfile(userId, { 
         navigationProvider: provider,
-        navigationVerified: false,
-        updatedAt: new Date()
+        navigationVerified: false
       });
       
       if (!profile) {
@@ -401,8 +399,7 @@ export async function registerRoutes(
       }
 
       const profile = await storage.updateDriverProfile(userId, { 
-        navigationVerified: true,
-        updatedAt: new Date()
+        navigationVerified: true
       });
       
       return res.json({ 
