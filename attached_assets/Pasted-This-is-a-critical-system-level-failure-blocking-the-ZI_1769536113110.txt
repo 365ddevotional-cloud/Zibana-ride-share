@@ -1,0 +1,64 @@
+This is a critical system-level failure blocking the ZIBA project and must be fixed decisively.
+
+Here is the situation, based strictly on live behavior and screenshots:
+
+1) TEST CREDITS INFLATION BUG (ADMIN SIDE)
+When a Rider Tester is added, the system is supposed to assign ₦45,000 test credits.
+Instead, the Admin → Tester Management screen is displaying massively inflated values (e.g. ₦4,500,000 or ₦13,530,000).
+This inflation does NOT match the actual rider wallet balance.
+This is incorrect and must be fixed at the source.
+
+2) RIDER WALLET IS CORRECT BUT IGNORED
+On the Rider Wallet page:
+- Test Wallet shows ₦45,000 or ₦90,000 correctly
+- Main Wallet shows ₦0.00 (expected for testers)
+So the test wallet balance itself is correct.
+
+However, when the rider clicks “Request Ride”, the backend responds:
+INSUFFICIENT_BALANCE
+
+This means the ride-booking logic is NOT using the test wallet at all.
+
+3) WRONG WALLET USED FOR RIDE BOOKING
+The system is clearly validating ride payments against the MAIN WALLET,
+even when:
+- The user is a tester
+- Test Wallet is active
+- Test credits exist
+
+This is the core functional failure.
+
+4) TEST MODE UI IS MISLEADING OR NON-FUNCTIONAL
+There is a “Test Mode” indicator at the top right of the Wallet page.
+It looks interactive but is NOT clickable and has no observable effect.
+If Test Mode is supposed to control which wallet is used, it is either:
+- Not wired to logic, OR
+- Purely visual, OR
+- Broken
+
+This ambiguity must be resolved at the system level.
+
+5) SUPER ADMIN CANNOT TOP UP MAIN WALLET
+There is currently no reliable way for Super Admin to top up a user’s MAIN wallet.
+This makes it impossible to bypass the issue or verify wallet selection behavior.
+
+6) EXPECTED SYSTEM BEHAVIOR (HIGH LEVEL)
+- Tester rides MUST be payable using Test Wallet by default
+- Main Wallet should NEVER be required for testers
+- Wallet selection must be deterministic and enforced server-side
+- If wallet selection logic does not exist, the system must define one internally
+- Test Mode must not rely on UI clicks to function correctly
+
+IMPORTANT CONSTRAINTS:
+- Do NOT return code
+- Do NOT explain how you fixed it
+- Do NOT provide testing instructions
+- Do NOT ask the user to try anything
+
+JUST FIX THE SYSTEM SO THAT:
+- Test credits are displayed correctly
+- Test credits are actually used for ride booking
+- INS UFFICIENT_BALANCE no longer occurs when valid test credits exist
+- Wallet selection logic is unambiguous and enforced
+
+This issue is blocking the entire project and must be resolved decisively.
