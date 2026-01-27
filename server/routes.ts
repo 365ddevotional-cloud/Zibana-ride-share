@@ -294,6 +294,151 @@ export async function registerRoutes(
     }
   });
 
+  // Get driver setup status
+  app.get("/api/driver/setup-status", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const profile = await storage.getDriverProfile(userId);
+      
+      if (!profile) {
+        return res.status(404).json({ message: "Profile not found" });
+      }
+
+      const setupCompleted = 
+        profile.locationPermissionStatus === "granted" &&
+        profile.navigationProvider !== null &&
+        profile.navigationVerified === true;
+
+      return res.json({
+        setupCompleted,
+        locationPermissionStatus: profile.locationPermissionStatus,
+        navigationProvider: profile.navigationProvider,
+        navigationVerified: profile.navigationVerified,
+        lastGpsHeartbeat: profile.lastGpsHeartbeat,
+        missingFields: [
+          ...(profile.locationPermissionStatus !== "granted" ? ["locationPermission"] : []),
+          ...(!profile.navigationProvider ? ["navigationProvider"] : []),
+          ...(!profile.navigationVerified ? ["navigationVerified"] : []),
+        ]
+      });
+    } catch (error) {
+      console.error("Error getting setup status:", error);
+      return res.status(500).json({ message: "Failed to get setup status" });
+    }
+  });
+
+  // Update location permission status
+  app.patch("/api/driver/setup/location-permission", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { status } = req.body;
+      
+      const validStatuses = ["not_requested", "denied", "foreground_only", "granted"];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ message: "Invalid permission status" });
+      }
+
+      const profile = await storage.updateDriverProfile(userId, { 
+        locationPermissionStatus: status,
+        updatedAt: new Date()
+      });
+      
+      if (!profile) {
+        return res.status(404).json({ message: "Profile not found" });
+      }
+      
+      return res.json({ success: true, locationPermissionStatus: status });
+    } catch (error) {
+      console.error("Error updating location permission:", error);
+      return res.status(500).json({ message: "Failed to update location permission" });
+    }
+  });
+
+  // Update navigation provider selection
+  app.patch("/api/driver/setup/navigation-provider", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { provider } = req.body;
+      
+      const validProviders = ["google_maps", "apple_maps", "waze", "other"];
+      if (!validProviders.includes(provider)) {
+        return res.status(400).json({ message: "Invalid navigation provider" });
+      }
+
+      const profile = await storage.updateDriverProfile(userId, { 
+        navigationProvider: provider,
+        navigationVerified: false,
+        updatedAt: new Date()
+      });
+      
+      if (!profile) {
+        return res.status(404).json({ message: "Profile not found" });
+      }
+      
+      return res.json({ 
+        success: true, 
+        navigationProvider: provider,
+        navigationVerified: false
+      });
+    } catch (error) {
+      console.error("Error updating navigation provider:", error);
+      return res.status(500).json({ message: "Failed to update navigation provider" });
+    }
+  });
+
+  // Verify navigation app works (after deep-link test)
+  app.post("/api/driver/setup/verify-navigation", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      const currentProfile = await storage.getDriverProfile(userId);
+      if (!currentProfile) {
+        return res.status(404).json({ message: "Profile not found" });
+      }
+      
+      if (!currentProfile.navigationProvider) {
+        return res.status(400).json({ message: "Navigation provider must be selected first" });
+      }
+
+      const profile = await storage.updateDriverProfile(userId, { 
+        navigationVerified: true,
+        updatedAt: new Date()
+      });
+      
+      return res.json({ 
+        success: true, 
+        navigationVerified: true,
+        setupCompleted: 
+          currentProfile.locationPermissionStatus === "granted" &&
+          currentProfile.navigationProvider !== null
+      });
+    } catch (error) {
+      console.error("Error verifying navigation:", error);
+      return res.status(500).json({ message: "Failed to verify navigation" });
+    }
+  });
+
+  // GPS heartbeat endpoint
+  app.post("/api/driver/gps-heartbeat", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { lat, lng } = req.body;
+      
+      const profile = await storage.updateDriverProfile(userId, { 
+        lastGpsHeartbeat: new Date()
+      });
+      
+      if (!profile) {
+        return res.status(404).json({ message: "Profile not found" });
+      }
+      
+      return res.json({ success: true, timestamp: new Date().toISOString() });
+    } catch (error) {
+      console.error("Error updating GPS heartbeat:", error);
+      return res.status(500).json({ message: "Failed to update GPS heartbeat" });
+    }
+  });
+
   app.get("/api/driver/available-rides", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
