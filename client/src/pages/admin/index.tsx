@@ -6361,7 +6361,11 @@ function TesterManagementSection() {
     isTester: boolean;
     testerType: string | null;
     createdAt: string;
-    email?: string;
+    email: string | null;
+    firstName: string | null;
+    lastName: string | null;
+    testerWalletBalance: number;
+    mainWalletBalance: number;
   }>>({
     queryKey: ["/api/admin/testers"],
   });
@@ -6516,8 +6520,10 @@ function TesterManagementSection() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>User ID</TableHead>
+                <TableHead>Email</TableHead>
                 <TableHead>Tester Type</TableHead>
+                <TableHead>Test Credits</TableHead>
+                <TableHead>Main Wallet</TableHead>
                 <TableHead>Created</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -6525,11 +6531,26 @@ function TesterManagementSection() {
             <TableBody>
               {testers.map((tester) => (
                 <TableRow key={tester.id}>
-                  <TableCell className="font-mono text-sm">{tester.userId}</TableCell>
+                  <TableCell>
+                    <div>
+                      <div className="font-medium">{tester.email || "Unknown"}</div>
+                      {(tester.firstName || tester.lastName) && (
+                        <div className="text-sm text-muted-foreground">
+                          {[tester.firstName, tester.lastName].filter(Boolean).join(" ")}
+                        </div>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <Badge variant={tester.testerType === "RIDER" ? "default" : "secondary"}>
                       {tester.testerType || "Unknown"}
                     </Badge>
+                  </TableCell>
+                  <TableCell className="font-medium text-green-600 dark:text-green-400">
+                    ₦{((tester.testerWalletBalance || 0) / 100).toLocaleString("en-NG", { minimumFractionDigits: 2 })}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    ₦{((tester.mainWalletBalance || 0) / 100).toLocaleString("en-NG", { minimumFractionDigits: 2 })}
                   </TableCell>
                   <TableCell>{new Date(tester.createdAt).toLocaleDateString()}</TableCell>
                   <TableCell className="text-right">
@@ -6539,6 +6560,7 @@ function TesterManagementSection() {
                         variant="outline"
                         onClick={() => openAdjustDialog(tester.userId, "TOP_UP")}
                         data-testid={`button-topup-tester-${tester.userId}`}
+                        title="Top up test credits"
                       >
                         <Plus className="h-4 w-4" />
                       </Button>
@@ -6547,6 +6569,7 @@ function TesterManagementSection() {
                         variant="outline"
                         onClick={() => openAdjustDialog(tester.userId, "REFUND")}
                         data-testid={`button-refund-tester-${tester.userId}`}
+                        title="Refund test credits"
                       >
                         <ArrowLeft className="h-4 w-4" />
                       </Button>
@@ -6556,6 +6579,7 @@ function TesterManagementSection() {
                         onClick={() => removeTesterMutation.mutate(tester.userId)}
                         disabled={removeTesterMutation.isPending}
                         data-testid={`button-remove-tester-${tester.userId}`}
+                        title="Remove tester"
                       >
                         <XCircle className="h-4 w-4" />
                       </Button>

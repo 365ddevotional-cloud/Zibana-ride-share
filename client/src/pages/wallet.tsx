@@ -12,6 +12,7 @@ interface WalletData {
   balance: string | number;
   currency: string;
   lockedBalance?: string | number;
+  testerWalletBalance?: string | number;
 }
 
 interface TesterStatus {
@@ -71,6 +72,9 @@ export default function WalletPage() {
   const walletData = isRider ? riderWallet : driverWallet;
   const isTester = testerStatus?.isTester || false;
 
+  const mainBalance = walletData?.balance || 0;
+  const testerBalance = walletData?.testerWalletBalance || 0;
+
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -96,27 +100,50 @@ export default function WalletPage() {
               <span className="font-medium">Test Wallet Active</span>
             </div>
             <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
-              You are using a test wallet. No real money is involved.
+              You are using a test wallet. Test credits are separate from your main wallet. No real money is involved in test transactions.
             </p>
           </div>
+        )}
+
+        {isTester && (
+          <Card className="border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/30">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-green-700 dark:text-green-400">
+                <TestTube className="h-5 w-5" />
+                Test Credits
+              </CardTitle>
+              <CardDescription className="text-green-600 dark:text-green-500">
+                Credits for testing rides (not real money)
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {walletLoading ? (
+                <div className="h-16 animate-pulse bg-muted rounded" />
+              ) : (
+                <div className="text-3xl font-bold text-green-700 dark:text-green-400" data-testid="text-tester-wallet-balance">
+                  {formatCurrency(testerBalance, walletData?.currency || "NGN")}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         )}
 
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Wallet className="h-5 w-5" />
-              {isTester ? "Test Wallet Balance" : "Wallet Balance"}
+              {isTester ? "Main Wallet" : "Wallet Balance"}
             </CardTitle>
             <CardDescription>
-              {isTester ? "Your test wallet balance (no real money)" : "Your current wallet balance"}
+              {isTester ? "Your real wallet balance (₦0.00 for testers)" : "Your current wallet balance"}
             </CardDescription>
           </CardHeader>
           <CardContent>
             {walletLoading ? (
               <div className="h-16 animate-pulse bg-muted rounded" />
             ) : (
-              <div className="text-3xl font-bold">
-                {formatCurrency(walletData?.balance || 0, walletData?.currency || "NGN")}
+              <div className="text-3xl font-bold" data-testid="text-main-wallet-balance">
+                {formatCurrency(mainBalance, walletData?.currency || "NGN")}
               </div>
             )}
           </CardContent>
