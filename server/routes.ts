@@ -947,9 +947,9 @@ export async function registerRoutes(
   app.post("/api/rider/payment-methods/add-card/initialize", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const userEmail = req.user.claims.email;
       
-      if (!user?.email) {
+      if (!userEmail) {
         return res.status(400).json({ message: "User email not found" });
       }
 
@@ -967,11 +967,10 @@ export async function registerRoutes(
       // Initialize a minimal payment to authorize the card (Paystack requires at least ₦50)
       const result = await processPayment("NG", {
         userId,
-        email: user.email,
+        email: userEmail,
         amount: 50, // Minimum for card authorization
         currency: "NGN",
-        reference: `CARD_AUTH_${userId}_${Date.now()}`,
-        metadata: { type: "card_authorization", userId },
+        description: `Card authorization for user ${userId}`,
       });
 
       if (!result.success) {
