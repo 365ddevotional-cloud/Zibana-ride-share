@@ -146,12 +146,33 @@ Preferred communication style: Simple, everyday language.
 - **Audit Logging**: All payout info updates are logged
 
 ## Financial Engine (Updated Jan 2026)
-### Currency Consistency
-- **currencyCode**: All rides and trips store `currencyCode` field for currency tracking
-- **Default Currency**: NGN (Nigerian Naira) is the default currency
-- **Currency Source**: Derived from rider's wallet currency at ride creation time
+### Currency Architecture (MANDATORY)
+- **Currency Lock**: Every ride has `currencyCode` locked at creation from rider's `countryCode`
+- **Country-Currency Map**: Nigeria (NG) → NGN, USA (US) → USD, South Africa (ZA) → ZAR
+- **No Override**: IP, browser, or UI cannot override currency - server-side only
+- **Wallet Validation**: Booking blocked if rider's wallet currency doesn't match country currency
 - **No Mixed Currency**: Rides cannot mix currencies - all financial values use the same currencyCode
-- **Revenue Split**: 80% driver / 20% platform (PLATFORM_COMMISSION_PERCENT = 20)
+- **No Hidden Conversion**: No implicit conversion, no multiplication, no USD fallback
+
+### Revenue Split (HARD RULE)
+- **Driver Share**: EXACTLY 80% of `ride.totalFare`
+- **Platform Share**: EXACTLY 20% of `ride.totalFare`
+- **Integer-Safe Math**: Uses smallest currency unit to prevent rounding drift
+- **Ledger Entry**: Every completed ride creates append-only entry in `revenue_split_ledger` table
+- **Audit Fields**: rideId, riderId, driverId, fareAmount, currencyCode, driverShare, zibaShare, isTestRide
+
+### Driver Earnings Wallet
+- **Separate from Rider Wallets**: Uses `driverWallets` table
+- **Earnings Fields**: `totalEarned`, `totalWithdrawn` for lifetime tracking
+- **Currency Lock**: Wallet currency locked to driver's countryCode
+- **Test Ride Support**: Test rides credit `testerWalletBalance`, non-test credit `balance`
+- **Negative Balance Prevention**: Credits only, no debits without ledger entry
+
+### Financial Audit Trail
+- All completed rides logged to `financialAuditLogs` with:
+  - Driver earning entry (COMMISSION event type)
+  - Platform fee entry (FEE event type)
+  - Full metadata including ledger entry ID
 
 ### Fare Calculation
 - **Base Fare**: Calculated based on country pricing rules
