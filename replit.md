@@ -145,6 +145,22 @@ Preferred communication style: Simple, everyday language.
 - **No Auto-Payouts**: All payouts require manual admin processing in test mode
 - **Audit Logging**: All payout info updates are logged
 
+## Financial Engine (Updated Jan 2026)
+### Currency Consistency
+- **currencyCode**: All rides and trips store `currencyCode` field for currency tracking
+- **Default Currency**: NGN (Nigerian Naira) is the default currency
+- **Currency Source**: Derived from rider's wallet currency at ride creation time
+- **No Mixed Currency**: Rides cannot mix currencies - all financial values use the same currencyCode
+- **Revenue Split**: 80% driver / 20% platform (PLATFORM_COMMISSION_PERCENT = 20)
+
+### Fare Calculation
+- **Base Fare**: Calculated based on country pricing rules
+- **Distance Fare**: Per-km rate from country pricing
+- **Time Fare**: Per-minute rate from country pricing
+- **Waiting Fee**: Charged when driver waits beyond expected time
+- **Traffic Fee**: Applied when actual duration exceeds estimated duration
+- **All calculations**: Use `currencyCode` parameter, no USD fallback
+
 ## External Dependencies
 
 ### Third-Party Services
