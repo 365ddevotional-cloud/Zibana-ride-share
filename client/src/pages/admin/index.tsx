@@ -6347,7 +6347,11 @@ const ADMIN_PERMISSION_OPTIONS = [
 function TesterManagementSection() {
   const { toast } = useToast();
   const [showAddTesterDialog, setShowAddTesterDialog] = useState(false);
-  const [testerUserId, setTesterUserId] = useState("");
+  const [showAdjustDialog, setShowAdjustDialog] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [selectedTesterForAdjust, setSelectedTesterForAdjust] = useState<string | null>(null);
+  const [adjustAmount, setAdjustAmount] = useState("");
+  const [adjustAction, setAdjustAction] = useState<"TOP_UP" | "REFUND">("TOP_UP");
   const [testerType, setTesterType] = useState<"RIDER" | "DRIVER">("RIDER");
 
   const { data: testers = [], isLoading, refetch } = useQuery<Array<{
@@ -6357,6 +6361,7 @@ function TesterManagementSection() {
     isTester: boolean;
     testerType: string | null;
     createdAt: string;
+    email?: string;
   }>>({
     queryKey: ["/api/admin/testers"],
   });
@@ -6380,7 +6385,7 @@ function TesterManagementSection() {
       toast({ title: "Rider Tester created with ₦45,000 credit" });
       refetch();
       setShowAddTesterDialog(false);
-      setTesterUserId("");
+      setSelectedUserId(null);
     },
     onError: (error: Error) => {
       toast({ title: "Failed to create tester", description: error.message, variant: "destructive" });
@@ -6396,7 +6401,7 @@ function TesterManagementSection() {
       toast({ title: "Driver Tester created with ₦45,000 credit" });
       refetch();
       setShowAddTesterDialog(false);
-      setTesterUserId("");
+      setSelectedUserId(null);
     },
     onError: (error: Error) => {
       toast({ title: "Failed to create tester", description: error.message, variant: "destructive" });
@@ -6417,13 +6422,57 @@ function TesterManagementSection() {
     },
   });
 
+  const adjustCreditMutation = useMutation({
+    mutationFn: async (data: { userId: string; amount: number; action: "TOP_UP" | "REFUND" }) => {
+      const res = await apiRequest("POST", "/api/admin/testers/adjust-credit", data);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({ title: data.message || "Credit adjusted successfully" });
+      refetch();
+      setShowAdjustDialog(false);
+      setSelectedTesterForAdjust(null);
+      setAdjustAmount("");
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to adjust credit", description: error.message, variant: "destructive" });
+    },
+  });
+
   const handleCreateTester = () => {
-    if (!testerUserId) return;
+    if (!selectedUserId) return;
     if (testerType === "RIDER") {
-      createRiderTesterMutation.mutate(testerUserId);
+      createRiderTesterMutation.mutate(selectedUserId);
     } else {
-      createDriverTesterMutation.mutate(testerUserId);
+      createDriverTesterMutation.mutate(selectedUserId);
     }
+  };
+
+  const handleAdjustCredit = () => {
+    if (!selectedTesterForAdjust || !adjustAmount) return;
+    const amount = parseFloat(adjustAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast({ title: "Invalid amount", variant: "destructive" });
+      return;
+    }
+    adjustCreditMutation.mutate({
+      userId: selectedTesterForAdjust,
+      amount: Math.round(amount * 100),
+      action: adjustAction,
+    });
+  };
+
+  const openAddDialog = (type: "RIDER" | "DRIVER") => {
+    setSelectedUserId(null);
+    setTesterType(type);
+    setShowAddTesterDialog(true);
+  };
+
+  const openAdjustDialog = (userId: string, action: "TOP_UP" | "REFUND") => {
+    setSelectedTesterForAdjust(userId);
+    setAdjustAction(action);
+    setAdjustAmount("");
+    setShowAdjustDialog(true);
   };
 
   return (
@@ -6438,20 +6487,14 @@ function TesterManagementSection() {
         </div>
         <div className="flex gap-2">
           <Button
-            onClick={() => {
-              setTesterType("RIDER");
-              setShowAddTesterDialog(true);
-            }}
+            onClick={() => openAddDialog("RIDER")}
             data-testid="button-add-rider-tester"
           >
             <Plus className="h-4 w-4 mr-2" />
             Add Rider Tester
           </Button>
           <Button
-            onClick={() => {
-              setTesterType("DRIVER");
-              setShowAddTesterDialog(true);
-            }}
+            onClick={() => openAddDialog("DRIVER")}
             variant="outline"
             data-testid="button-add-driver-tester"
           >
@@ -6490,15 +6533,33 @@ function TesterManagementSection() {
                   </TableCell>
                   <TableCell>{new Date(tester.createdAt).toLocaleDateString()}</TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => removeTesterMutation.mutate(tester.userId)}
-                      disabled={removeTesterMutation.isPending}
-                      data-testid={`button-remove-tester-${tester.userId}`}
-                    >
-                      <XCircle className="h-4 w-4" />
-                    </Button>
+                    <div className="flex justify-end gap-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openAdjustDialog(tester.userId, "TOP_UP")}
+                        data-testid={`button-topup-tester-${tester.userId}`}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openAdjustDialog(tester.userId, "REFUND")}
+                        data-testid={`button-refund-tester-${tester.userId}`}
+                      >
+                        <ArrowLeft className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => removeTesterMutation.mutate(tester.userId)}
+                        disabled={removeTesterMutation.isPending}
+                        data-testid={`button-remove-tester-${tester.userId}`}
+                      >
+                        <XCircle className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -6507,7 +6568,10 @@ function TesterManagementSection() {
         )}
       </CardContent>
 
-      <Dialog open={showAddTesterDialog} onOpenChange={setShowAddTesterDialog}>
+      <Dialog open={showAddTesterDialog} onOpenChange={(open) => {
+        setShowAddTesterDialog(open);
+        if (!open) setSelectedUserId(null);
+      }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Add {testerType === "RIDER" ? "Rider" : "Driver"} Tester</DialogTitle>
@@ -6518,14 +6582,14 @@ function TesterManagementSection() {
           <div className="space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Select User</label>
-              <Select value={testerUserId} onValueChange={setTesterUserId}>
+              <Select value={selectedUserId || ""} onValueChange={(val) => setSelectedUserId(val || null)}>
                 <SelectTrigger data-testid="select-tester-user">
                   <SelectValue placeholder="Select a user" />
                 </SelectTrigger>
                 <SelectContent>
                   {allUsers.map((user) => (
                     <SelectItem key={user.id} value={user.id}>
-                      {user.email} ({user.firstName} {user.lastName})
+                      {user.email} ({user.firstName || ""} {user.lastName || ""})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -6536,10 +6600,53 @@ function TesterManagementSection() {
             <Button variant="outline" onClick={() => setShowAddTesterDialog(false)}>Cancel</Button>
             <Button
               onClick={handleCreateTester}
-              disabled={!testerUserId || createRiderTesterMutation.isPending || createDriverTesterMutation.isPending}
+              disabled={!selectedUserId || createRiderTesterMutation.isPending || createDriverTesterMutation.isPending}
               data-testid="button-submit-add-tester"
             >
               Add Tester
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showAdjustDialog} onOpenChange={(open) => {
+        setShowAdjustDialog(open);
+        if (!open) {
+          setSelectedTesterForAdjust(null);
+          setAdjustAmount("");
+        }
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{adjustAction === "TOP_UP" ? "Top Up" : "Refund"} Tester Credit</DialogTitle>
+            <DialogDescription>
+              {adjustAction === "TOP_UP" 
+                ? "Add test credits to this tester's wallet" 
+                : "Remove test credits from this tester's wallet"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Amount (₦)</label>
+              <Input
+                type="number"
+                value={adjustAmount}
+                onChange={(e) => setAdjustAmount(e.target.value)}
+                placeholder="Enter amount in Naira"
+                min="0"
+                step="100"
+                data-testid="input-adjust-amount"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAdjustDialog(false)}>Cancel</Button>
+            <Button
+              onClick={handleAdjustCredit}
+              disabled={!adjustAmount || adjustCreditMutation.isPending}
+              data-testid="button-submit-adjust-credit"
+            >
+              {adjustAction === "TOP_UP" ? "Top Up" : "Refund"}
             </Button>
           </DialogFooter>
         </DialogContent>

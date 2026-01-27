@@ -6772,6 +6772,85 @@ export async function registerRoutes(
     }
   });
 
+  // Adjust tester credit (TOP_UP or REFUND) - SUPER_ADMIN only
+  app.post("/api/admin/testers/adjust-credit", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const adminEmail = req.user.claims.email;
+      const { userId, amount, action } = req.body;
+
+      if (!userId || !amount || !action) {
+        return res.status(400).json({ message: "userId, amount, and action are required" });
+      }
+
+      if (!["TOP_UP", "REFUND"].includes(action)) {
+        return res.status(400).json({ message: "Action must be TOP_UP or REFUND" });
+      }
+
+      if (typeof amount !== "number" || amount <= 0) {
+        return res.status(400).json({ message: "Amount must be a positive number" });
+      }
+
+      // Check if user is a tester
+      const testerStatus = await storage.getUserTesterStatus(userId);
+      if (!testerStatus?.isTester) {
+        return res.status(400).json({ message: "User is not a tester. Can only adjust tester wallets." });
+      }
+
+      // Get the appropriate wallet based on tester type
+      if (testerStatus.testerType === "RIDER") {
+        const wallet = await storage.getRiderWallet(userId);
+        if (!wallet) {
+          return res.status(404).json({ message: "Rider wallet not found" });
+        }
+
+        if (action === "REFUND") {
+          // Check balance first - balance is in kobo (stored as number)
+          const currentBalance = typeof wallet.balance === 'string' ? parseFloat(wallet.balance) : wallet.balance;
+          if (currentBalance < amount) {
+            return res.status(400).json({ message: "Insufficient balance for refund. Cannot go below ₦0." });
+          }
+          // Refund means subtracting, so use negative amount
+          await storage.adjustRiderWalletBalance(userId, -amount, `TESTER_REFUND by ${adminEmail}`, adminId);
+        } else {
+          // TOP_UP - add to balance
+          await storage.adjustRiderWalletBalance(userId, amount, `TESTER_TOPUP by ${adminEmail}`, adminId);
+        }
+      } else if (testerStatus.testerType === "DRIVER") {
+        const wallet = await storage.getDriverWallet(userId);
+        if (!wallet) {
+          return res.status(404).json({ message: "Driver wallet not found" });
+        }
+
+        if (action === "REFUND") {
+          // Check balance first - balance is in kobo (stored as number)
+          const currentBalance = typeof wallet.balance === 'string' ? parseFloat(wallet.balance) : wallet.balance;
+          if (currentBalance < amount) {
+            return res.status(400).json({ message: "Insufficient balance for refund. Cannot go below ₦0." });
+          }
+          // Refund means subtracting, so use negative amount
+          await storage.adjustDriverWalletBalance(userId, -amount, `TESTER_REFUND by ${adminEmail}`, adminId);
+        } else {
+          // TOP_UP - add to balance
+          await storage.adjustDriverWalletBalance(userId, amount, `TESTER_TOPUP by ${adminEmail}`, adminId);
+        }
+      } else {
+        return res.status(400).json({ message: "Unknown tester type" });
+      }
+
+      const nairaAmount = (amount / 100).toFixed(2);
+      console.log(`[TESTER ${action}] userId=${userId}, amount=₦${nairaAmount}, by=${adminEmail}`);
+
+      return res.json({
+        success: true,
+        message: `${action === "TOP_UP" ? "Topped up" : "Refunded"} ₦${nairaAmount} ${action === "TOP_UP" ? "to" : "from"} tester wallet`,
+      });
+    } catch (error) {
+      console.error("Error adjusting tester credit:", error);
+      return res.status(500).json({ message: "Failed to adjust tester credit" });
+    }
+  });
+
   // Check if user is a tester
   app.get("/api/user/tester-status", isAuthenticated, async (req: any, res) => {
     try {
