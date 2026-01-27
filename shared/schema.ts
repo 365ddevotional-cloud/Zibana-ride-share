@@ -219,6 +219,9 @@ export const driverProfiles = pgTable("driver_profiles", {
 });
 
 // Rider profiles table
+// Payment method enum for riders
+export const paymentMethodEnum = pgEnum("payment_method", ["WALLET", "TEST_WALLET", "CARD"]);
+
 export const riderProfiles = pgTable("rider_profiles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().unique(),
@@ -231,6 +234,7 @@ export const riderProfiles = pgTable("rider_profiles", {
   verificationStatus: verificationStatusEnum("verification_status").notNull().default("unverified"),
   verificationTimestamp: timestamp("verification_timestamp"),
   verificationSessionId: varchar("verification_session_id"),
+  paymentMethod: paymentMethodEnum("payment_method").notNull().default("WALLET"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

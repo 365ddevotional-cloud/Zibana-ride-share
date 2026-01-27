@@ -1,0 +1,108 @@
+YOU ARE WORKING ON THE ZIBA RIDE SHARE APPLICATION.
+
+THIS PROMPT IS AUTHORITATIVE.
+FOLLOW IT EXACTLY.
+DO NOT PROPOSE ALTERNATIVES.
+
+====================================================
+GOAL
+====================================================
+
+Fix the “Insufficient wallet balance” blocker during testing by:
+
+1) Adding a PAYMENT METHOD selection for riders
+2) Allowing TEST WALLET rides when in SIMULATED MODE
+3) Keeping REAL PAYMENTS rules intact for Nigeria (Paystack)
+4) Preventing accidental real charges during testing
+
+====================================================
+PART A — ADD PAYMENT METHOD SELECTION (RIDER)
+====================================================
+
+In the Rider Payments section:
+
+Add a visible “Payment Method” selector with options:
+
+• Wallet (Default)
+• Test Wallet (Testing only)
+• Card (Nigeria only, Paystack — disabled unless enabled)
+
+Rules:
+• Default = Wallet
+• Test Wallet ONLY appears when walletMode = SIMULATED
+• Card ONLY appears when country = NG AND paymentsEnabled = true
+
+Store selected method as:
+- rider.paymentMethod
+
+====================================================
+PART B — TEST WALLET LOGIC (CRITICAL)
+====================================================
+
+When:
+• walletMode = SIMULATED
+• AND rider.paymentMethod = TEST_WALLET
+
+Then:
+• BYPASS wallet balance checks
+• Allow ride request to proceed
+• Do NOT deduct real wallet balance
+• Tag ride as: paymentSource = TEST_WALLET
+• Log clearly as test-only
+
+This must be enforced server-side.
+
+====================================================
+PART C — WALLET RULES (UNCHANGED)
+====================================================
+
+When rider selects:
+• Wallet → enforce balance check
+• Card → require Paystack (Nigeria only)
+
+If balance < minimum AND paymentMethod ≠ TEST_WALLET:
+→ Block with “Insufficient balance”
+
+====================================================
+PART D — UI FIXES
+====================================================
+
+• Update error message:
+  “Insufficient wallet balance. Please choose a payment method or fund your wallet.”
+
+• Add Payment Method selector to:
+  - Rider Payments page
+  - Request Ride screen (summary)
+
+====================================================
+PART E — ADMIN SAFETY
+====================================================
+
+• Test Wallet credits can ONLY be enabled when:
+  walletMode = SIMULATED
+
+• SUPER_ADMIN only can toggle:
+  - walletMode
+  - payment providers
+
+====================================================
+PART F — AUDIT LOGGING
+====================================================
+
+Log for every ride:
+• paymentMethod
+• walletMode
+• isTestRide (true/false)
+
+====================================================
+FINAL REQUIREMENT
+====================================================
+
+After implementation confirm:
+
+1) Riders can test rides without funding wallets
+2) Real payments remain disabled unless explicitly enabled
+3) No accidental Paystack charges during testing
+4) Insufficient balance error no longer blocks test rides
+
+IMPLEMENT NOW.

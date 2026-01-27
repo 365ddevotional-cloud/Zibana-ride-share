@@ -223,6 +223,7 @@ export interface IStorage {
 
   createRiderProfile(data: InsertRiderProfile): Promise<RiderProfile>;
   getRiderProfile(userId: string): Promise<RiderProfile | undefined>;
+  updateRiderPaymentMethod(userId: string, paymentMethod: "WALLET" | "TEST_WALLET" | "CARD"): Promise<RiderProfile | undefined>;
   getAllRidersWithDetails(): Promise<any[]>;
 
   createTrip(data: InsertTrip): Promise<Trip>;
@@ -866,6 +867,15 @@ export class DatabaseStorage implements IStorage {
   async getRiderProfile(userId: string): Promise<RiderProfile | undefined> {
     const [profile] = await db.select().from(riderProfiles).where(eq(riderProfiles.userId, userId));
     return profile;
+  }
+
+  async updateRiderPaymentMethod(userId: string, paymentMethod: "WALLET" | "TEST_WALLET" | "CARD"): Promise<RiderProfile | undefined> {
+    const [updated] = await db
+      .update(riderProfiles)
+      .set({ paymentMethod })
+      .where(eq(riderProfiles.userId, userId))
+      .returning();
+    return updated;
   }
 
   async getAllRidersWithDetails(): Promise<any[]> {

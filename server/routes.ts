@@ -489,6 +489,109 @@ export async function registerRoutes(
     }
   });
 
+  // Get payment settings for rider (available methods based on mode)
+  app.get("/api/rider/payment-settings", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const profile = await storage.getRiderProfile(userId);
+      
+      // Check if payments are in simulated mode
+      const { isPaymentsReallyEnabled } = await import("./payment-provider");
+      const isNigeriaPaymentsEnabled = await isPaymentsReallyEnabled("NG");
+      const isSimulatedMode = !isNigeriaPaymentsEnabled;
+      
+      // Build available payment methods
+      const availableMethods: { id: string; name: string; description: string; enabled: boolean }[] = [
+        { id: "WALLET", name: "Wallet", description: "Pay from your ZIBA wallet balance", enabled: true },
+      ];
+      
+      // Test Wallet only available in simulated mode
+      if (isSimulatedMode) {
+        availableMethods.push({
+          id: "TEST_WALLET",
+          name: "Test Wallet",
+          description: "Testing only - No real charges (Simulated Mode)",
+          enabled: true,
+        });
+      }
+      
+      // Card only available for Nigeria with Paystack enabled
+      if (isNigeriaPaymentsEnabled) {
+        availableMethods.push({
+          id: "CARD",
+          name: "Card (Paystack)",
+          description: "Pay with debit/credit card via Paystack",
+          enabled: true,
+        });
+      }
+      
+      return res.json({
+        currentMethod: profile?.paymentMethod || "WALLET",
+        availableMethods,
+        walletMode: isSimulatedMode ? "SIMULATED" : "REAL",
+        isTestWalletAvailable: isSimulatedMode,
+        isCardAvailable: isNigeriaPaymentsEnabled,
+      });
+    } catch (error) {
+      console.error("Error getting payment settings:", error);
+      return res.status(500).json({ message: "Failed to get payment settings" });
+    }
+  });
+
+  // Update rider payment method
+  app.patch("/api/rider/payment-method", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { paymentMethod } = req.body;
+      
+      if (!paymentMethod || !["WALLET", "TEST_WALLET", "CARD"].includes(paymentMethod)) {
+        return res.status(400).json({ message: "Invalid payment method" });
+      }
+      
+      // Validate TEST_WALLET is only available in simulated mode
+      if (paymentMethod === "TEST_WALLET") {
+        const { isPaymentsReallyEnabled } = await import("./payment-provider");
+        const isSimulatedMode = !(await isPaymentsReallyEnabled("NG"));
+        if (!isSimulatedMode) {
+          return res.status(400).json({ 
+            message: "Test Wallet is only available in testing mode",
+            code: "TEST_WALLET_NOT_AVAILABLE"
+          });
+        }
+      }
+      
+      // Validate CARD is only available for Nigeria with Paystack enabled
+      if (paymentMethod === "CARD") {
+        const { isPaymentsReallyEnabled } = await import("./payment-provider");
+        const isCardAvailable = await isPaymentsReallyEnabled("NG");
+        if (!isCardAvailable) {
+          return res.status(400).json({ 
+            message: "Card payments are not yet available in your region",
+            code: "CARD_NOT_AVAILABLE"
+          });
+        }
+      }
+      
+      // Check if rider profile exists, create if not
+      let profile = await storage.getRiderProfile(userId);
+      if (!profile) {
+        profile = await storage.createRiderProfile({ userId, paymentMethod });
+      } else {
+        profile = await storage.updateRiderPaymentMethod(userId, paymentMethod);
+      }
+      
+      console.log(`[PAYMENT METHOD] User ${userId} changed to ${paymentMethod}`);
+      
+      return res.json({
+        message: "Payment method updated",
+        paymentMethod: profile?.paymentMethod,
+      });
+    } catch (error) {
+      console.error("Error updating payment method:", error);
+      return res.status(500).json({ message: "Failed to update payment method" });
+    }
+  });
+
   app.get("/api/rider/current-trip", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -534,36 +637,57 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Already have an active trip" });
       }
 
-      // WALLET-FIRST: Check rider wallet balance before allowing ride request
-      const riderWallet = await storage.getRiderWallet(userId);
-      if (!riderWallet) {
-        // Auto-create wallet with zero balance
-        await storage.createRiderWallet({ userId, currency: "USD" });
-        return res.status(400).json({ 
-          message: "Insufficient wallet balance. Please top up your wallet to request a ride.",
-          code: "INSUFFICIENT_BALANCE"
-        });
-      }
+      // Get rider profile to check payment method
+      const riderProfile = await storage.getRiderProfile(userId);
+      const paymentMethod = riderProfile?.paymentMethod || "WALLET";
+      
+      // Check if we're in simulated mode (no real payments enabled globally)
+      const { isPaymentsReallyEnabled } = await import("./payment-provider");
+      const isSimulatedMode = !(await isPaymentsReallyEnabled("NG")); // Default check against NG
+      
+      // Determine if this is a test ride
+      const isTestRide = paymentMethod === "TEST_WALLET" && isSimulatedMode;
+      
+      // Log ride request audit
+      console.log(`[RIDE AUDIT] userId=${userId}, paymentMethod=${paymentMethod}, walletMode=${isSimulatedMode ? "SIMULATED" : "REAL"}, isTestRide=${isTestRide}`);
+      
+      // TEST_WALLET: Bypass wallet balance checks in simulated mode
+      if (isTestRide) {
+        console.log(`[TEST_RIDE] Bypassing wallet check for user ${userId} - TEST_WALLET in SIMULATED mode`);
+      } else {
+        // WALLET-FIRST: Check rider wallet balance before allowing ride request
+        const riderWallet = await storage.getRiderWallet(userId);
+        if (!riderWallet) {
+          // Auto-create wallet with zero balance
+          await storage.createRiderWallet({ userId, currency: "USD" });
+          return res.status(400).json({ 
+            message: "Insufficient wallet balance. Please choose a payment method or fund your wallet.",
+            code: "INSUFFICIENT_BALANCE"
+          });
+        }
 
-      // Check if wallet is frozen
-      if (riderWallet.isFrozen) {
-        console.log(`[SECURITY AUDIT] Frozen wallet ride request attempt: userId=${userId}`);
-        return res.status(403).json({ 
-          message: "Your wallet is frozen. Please contact support.",
-          code: "WALLET_FROZEN"
-        });
-      }
+        // Check if wallet is frozen
+        if (riderWallet.isFrozen) {
+          console.log(`[SECURITY AUDIT] Frozen wallet ride request attempt: userId=${userId}`);
+          return res.status(403).json({ 
+            message: "Your wallet is frozen. Please contact support.",
+            code: "WALLET_FROZEN"
+          });
+        }
 
-      // Check minimum balance requirement (at least $5 for any ride)
-      const availableBalance = parseFloat(riderWallet.balance) - parseFloat(riderWallet.lockedBalance);
-      const minimumRequiredBalance = 5.00;
-      if (availableBalance < minimumRequiredBalance) {
-        return res.status(400).json({ 
-          message: `Insufficient wallet balance. You need at least $${minimumRequiredBalance.toFixed(2)} to request a ride. Current available: $${availableBalance.toFixed(2)}`,
-          code: "INSUFFICIENT_BALANCE",
-          required: minimumRequiredBalance,
-          available: availableBalance
-        });
+        // Check minimum balance requirement (at least $5 for any ride) - ONLY for WALLET payment method
+        if (paymentMethod === "WALLET") {
+          const availableBalance = parseFloat(riderWallet.balance) - parseFloat(riderWallet.lockedBalance);
+          const minimumRequiredBalance = 5.00;
+          if (availableBalance < minimumRequiredBalance) {
+            return res.status(400).json({ 
+              message: `Insufficient wallet balance. You need at least $${minimumRequiredBalance.toFixed(2)} to request a ride. Please choose a payment method or fund your wallet.`,
+              code: "INSUFFICIENT_BALANCE",
+              required: minimumRequiredBalance,
+              available: availableBalance
+            });
+          }
+        }
       }
 
       const trip = await storage.createTrip(parsed.data);
