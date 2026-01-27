@@ -496,8 +496,8 @@ export async function registerRoutes(
       const profile = await storage.getRiderProfile(userId);
       
       // Check if payments are in simulated mode
-      const { isPaymentsReallyEnabled } = await import("./payment-provider");
-      const isNigeriaPaymentsEnabled = await isPaymentsReallyEnabled("NG");
+      const { isRealPaymentsEnabled } = await import("./payment-provider");
+      const isNigeriaPaymentsEnabled = await isRealPaymentsEnabled("NG");
       const isSimulatedMode = !isNigeriaPaymentsEnabled;
       
       // Build available payment methods
@@ -550,8 +550,8 @@ export async function registerRoutes(
       
       // Validate TEST_WALLET is only available in simulated mode
       if (paymentMethod === "TEST_WALLET") {
-        const { isPaymentsReallyEnabled } = await import("./payment-provider");
-        const isSimulatedMode = !(await isPaymentsReallyEnabled("NG"));
+        const { isRealPaymentsEnabled } = await import("./payment-provider");
+        const isSimulatedMode = !(await isRealPaymentsEnabled("NG"));
         if (!isSimulatedMode) {
           return res.status(400).json({ 
             message: "Test Wallet is only available in testing mode",
@@ -562,8 +562,8 @@ export async function registerRoutes(
       
       // Validate CARD is only available for Nigeria with Paystack enabled
       if (paymentMethod === "CARD") {
-        const { isPaymentsReallyEnabled } = await import("./payment-provider");
-        const isCardAvailable = await isPaymentsReallyEnabled("NG");
+        const { isRealPaymentsEnabled } = await import("./payment-provider");
+        const isCardAvailable = await isRealPaymentsEnabled("NG");
         if (!isCardAvailable) {
           return res.status(400).json({ 
             message: "Card payments are not yet available in your region",
@@ -642,8 +642,8 @@ export async function registerRoutes(
       const paymentMethod = riderProfile?.paymentMethod || "WALLET";
       
       // Check if we're in simulated mode (no real payments enabled globally)
-      const { isPaymentsReallyEnabled } = await import("./payment-provider");
-      const isSimulatedMode = !(await isPaymentsReallyEnabled("NG")); // Default check against NG
+      const { isRealPaymentsEnabled } = await import("./payment-provider");
+      const isSimulatedMode = !(await isRealPaymentsEnabled("NG")); // Default check against NG
       
       // Determine if this is a test ride
       const isTestRide = paymentMethod === "TEST_WALLET" && isSimulatedMode;
