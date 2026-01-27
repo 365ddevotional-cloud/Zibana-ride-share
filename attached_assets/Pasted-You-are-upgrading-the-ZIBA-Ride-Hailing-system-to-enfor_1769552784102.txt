@@ -1,0 +1,110 @@
+You are upgrading the ZIBA Ride-Hailing system to enforce mandatory GPS and navigation setup for ALL drivers (including test drivers) before they can go online or accept rides.
+
+THIS IS A HARD BLOCKING REQUIREMENT.
+
+STRICT RULES
+- Do NOT ask questions
+- Do NOT give explanations
+- Do NOT rely on UI text alone
+- Do NOT allow drivers online without completion
+- Implement backend-enforced logic with frontend guidance
+- This must work for ALL drivers (test and non-test)
+
+CORE REQUIREMENT (MANDATORY)
+
+A driver CANNOT:
+- Go online
+- Accept a ride
+- Start a trip
+
+UNLESS ALL of the following are completed and stored:
+
+1. LOCATION PERMISSIONS
+- Foreground GPS permission = GRANTED
+- Background GPS permission = GRANTED
+- Persist permission status in driver profile
+- Backend must verify permissions before allowing online status
+
+2. NAVIGATION APP SELECTION (REQUIRED)
+During driver signup AND anytime setup is incomplete:
+Prompt driver to SELECT ONE navigation provider:
+- Google Maps
+- Apple Maps
+- Waze
+- Other (deep-link capable)
+
+Persist selection as:
+driver.navigationProvider
+
+3. NAVIGATION DEEP-LINK VALIDATION
+- On first selection, perform a deep-link test
+- Confirm app opens successfully
+- Persist:
+driver.navigationVerified = true
+
+BLOCK ONLINE STATUS UNTIL:
+- navigationProvider exists
+- navigationVerified = true
+- location permissions verified
+
+ONLINE STATUS LOGIC (BACKEND ONLY)
+
+If driver attempts to go online:
+IF any requirement is missing:
+- Reject request
+- Return error code: DRIVER_SETUP_INCOMPLETE
+- Include missing fields list
+
+AUTO-NAVIGATION BEHAVIOR
+
+When a ride is:
+- Accepted → Auto-open navigation to pickup
+- Trip started → Auto-open navigation to dropoff
+
+Use selected navigation provider deep-link.
+Do NOT ask user again.
+
+APP CONTINUITY REQUIREMENT
+
+While driver is:
+- Online
+- On a trip
+
+Ensure:
+- ZIBA app remains active in foreground
+- Navigation runs alongside without interrupting ZIBA
+- Block OS sleep/background suspension where allowed
+- Monitor GPS heartbeat from backend
+
+If GPS heartbeat stops:
+- Warn driver
+- Auto-pause availability
+- Log event
+
+DATA MODEL UPDATES (MANDATORY)
+
+Update driver schema to include:
+- navigationProvider (enum)
+- navigationVerified (boolean)
+- locationPermissionStatus (enum)
+- setupCompleted (boolean, derived)
+
+SETUP COMPLETION RULE
+
+driver.setupCompleted = true ONLY IF:
+- All required fields exist
+- Permissions verified
+- Navigation verified
+
+FINAL ENFORCEMENT RULE
+
+NO driver may be online unless:
+driver.setupCompleted === true
+
+No overrides.
+No manual bypass.
+Apply to ALL drivers.
+
+Implement cleanly.
+Do NOT remove existing features.
+Fix permanently.

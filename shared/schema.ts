@@ -23,6 +23,10 @@ export const adminPermissionScopeEnum = pgEnum("admin_permission_scope", [
 ]);
 export const directorStatusEnum = pgEnum("director_status", ["active", "inactive"]);
 export const driverStatusEnum = pgEnum("driver_status", ["pending", "approved", "suspended"]);
+
+// Navigation and GPS setup enums for driver mandatory setup
+export const navigationProviderEnum = pgEnum("navigation_provider", ["google_maps", "apple_maps", "waze", "other"]);
+export const locationPermissionStatusEnum = pgEnum("location_permission_status", ["not_requested", "denied", "foreground_only", "granted"]);
 export const tripStatusEnum = pgEnum("trip_status", ["requested", "accepted", "in_progress", "completed", "cancelled"]);
 export const cancelledByEnum = pgEnum("cancelled_by", ["rider", "driver", "admin"]);
 export const payoutStatusEnum = pgEnum("payout_status", ["pending", "paid"]);
@@ -226,6 +230,10 @@ export const driverProfiles = pgTable("driver_profiles", {
   verificationStatus: verificationStatusEnum("verification_status").notNull().default("unverified"),
   verificationTimestamp: timestamp("verification_timestamp"),
   verificationSessionId: varchar("verification_session_id"),
+  navigationProvider: navigationProviderEnum("navigation_provider"),
+  navigationVerified: boolean("navigation_verified").notNull().default(false),
+  locationPermissionStatus: locationPermissionStatusEnum("location_permission_status").notNull().default("not_requested"),
+  lastGpsHeartbeat: timestamp("last_gps_heartbeat"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
