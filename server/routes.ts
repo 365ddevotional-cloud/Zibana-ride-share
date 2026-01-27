@@ -4989,9 +4989,20 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Pickup and dropoff coordinates are required" });
       }
 
-      // Get rider's wallet to determine currency
+      // CURRENCY LOCK: Get currency from rider's country (MANDATORY)
+      const { getCurrencyFromCountry } = await import("@shared/currency");
+      const userRole = await storage.getUserRole(userId);
+      const riderCountryCode = userRole?.countryCode || "NG";
+      const currencyCode = getCurrencyFromCountry(riderCountryCode);
+
+      // Validate rider's wallet currency matches country currency
       const riderWallet = await storage.getRiderWallet(userId);
-      const currencyCode = riderWallet?.currency || "NGN";
+      if (riderWallet && riderWallet.currency !== currencyCode) {
+        return res.status(400).json({ 
+          message: `Currency mismatch: Your wallet (${riderWallet.currency}) does not match your country currency (${currencyCode})`,
+          error: "CURRENCY_MISMATCH"
+        });
+      }
 
       const ride = await storage.createRide({
         riderId: userId,
@@ -5560,20 +5571,40 @@ export async function registerRoutes(
         }),
       });
 
-      // Notify rider with receipt info
+      // REVENUE SPLIT: 80% driver, 20% platform (MANDATORY)
+      // Check if this is a test ride by checking rider's tester status
+      const riderRole = await storage.getUserRole(ride.riderId);
+      const isTestRide = Boolean(riderRole?.isTester);
+      
+      const revenueSplit = await storage.processRevenueSplit({
+        rideId,
+        riderId: ride.riderId,
+        driverId: userId,
+        totalFare: fareBreakdown.totalFare.toString(),
+        currencyCode,
+        isTestRide,
+      });
+
+      // Notify rider with receipt info (using correct currency)
+      const { formatCurrency } = await import("@shared/currency");
       await storage.createNotification({
         userId: ride.riderId,
         role: "rider",
         title: "Trip Complete",
         type: "ride_update",
-        message: `Your trip is complete! Total fare: ₦${(fareBreakdown.totalFare / 100).toFixed(2)}. Please rate your driver.`,
+        message: `Your trip is complete! Total fare: ${formatCurrency(fareBreakdown.totalFare, currencyCode)}. Please rate your driver.`,
       });
 
       return res.json({
         ...updatedRide,
         fareBreakdown,
         receipt,
-        earlyStopData
+        earlyStopData,
+        revenueSplit: {
+          driverEarning: revenueSplit.driverShare,
+          platformFee: revenueSplit.zibaShare,
+          currencyCode: revenueSplit.currencyCode,
+        }
       });
     } catch (error) {
       console.error("Error completing trip:", error);
