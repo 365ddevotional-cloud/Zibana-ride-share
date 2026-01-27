@@ -100,6 +100,23 @@ Preferred communication style: Simple, everyday language.
 - **Full Logic Execution**: Fare, cancellation, reservation, and compensation logic runs fully
 - **Audit Logging**: All transactions are logged for audit
 
+## Tester Payment System (Fixed Jan 2026)
+### Payment Source Architecture
+- **paymentSource field**: Stored in `rider_wallets.payment_source` (TEST_WALLET | MAIN_WALLET | CARD | BANK)
+- **Server-Side Resolution**: Wallet type resolved automatically based on tester status
+- **No UI Interaction Required**: Payment source is determined server-side, not by manual toggle
+
+### Wallet Resolution Rules
+- **Testers**: `isTester=true` → paymentSource=TEST_WALLET → uses `testerWalletBalance`
+- **Non-Testers**: `isTester=false` → paymentSource=MAIN_WALLET → uses `balance`
+- **Tester Detection**: Checked via `is_tester` flag, `tester_type`, or `testerWalletBalance > 0`
+
+### Ride Booking Authorization
+- Ride proceeds ONLY if resolved wallet has sufficient balance (≥ ₦5.00)
+- Testers NEVER blocked by main wallet balance (main wallet is ignored)
+- Non-testers NEVER can use test wallet (server enforced)
+- All rides logged with paymentSource for audit
+
 ## Security Configuration (LOCKED)
 ### Role-Based Access Control (RBAC)
 - **Roles**: RIDER, DRIVER, ADMIN, SUPER_ADMIN
