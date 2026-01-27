@@ -1,0 +1,154 @@
+You are upgrading the ZIBA Ride-Hailing system to permanently fix the tester ride booking failure and wallet confusion.
+This issue is blocking the entire project and must be resolved decisively.
+
+STRICT RULES
+
+Do NOT ask questions
+
+Do NOT provide explanations
+
+Do NOT give testing instructions
+
+Do NOT hardcode currencies
+
+Do NOT rely on UI indicators
+
+Implement backend-level logic only
+
+CORE FIX (MANDATORY)
+
+Implement server-side wallet resolution during ride booking:
+
+If user.isTester === true
+
+ALWAYS charge Test Wallet
+
+IGNORE Main Wallet completely
+
+If user.isTester === false
+
+ALWAYS charge Main Wallet
+
+Frontend display must never influence booking authorization.
+
+PAYMENT SOURCE ARCHITECTURE
+
+Introduce a persistent paymentSource for every rider:
+
+Allowed values:
+
+TEST_WALLET
+
+MAIN_WALLET
+
+CARD (future)
+
+BANK (future)
+
+Rules:
+
+Testers default to TEST_WALLET
+
+Non-testers default to MAIN_WALLET
+
+Ride booking MUST resolve wallet strictly from paymentSource
+
+Booking fails ONLY if resolved source has insufficient balance
+
+TEST MODE BEHAVIOR
+
+The Test Mode indicator must not be cosmetic.
+
+Enforce ONE behavior automatically:
+
+Either bind Test Mode to paymentSource = TEST_WALLET
+
+Or make Test Mode read-only and irrelevant to logic
+
+There must be no manual clicking required.
+
+WALLET MODEL ENFORCEMENT
+
+All wallets MUST store:
+
+balance
+
+currencyCode (NGN | USD | ZAR)
+
+walletType (TEST | MAIN)
+
+Rules:
+
+Currency derived from user.countryCode
+
+No frontend conversion or multiplication
+
+No duplicate kobo/naira inflation
+
+Existing wallets must be migrated safely
+
+MULTI-COUNTRY SUPPORT
+
+Enable simultaneous testing in:
+
+Nigeria → NGN
+
+United States → USD
+
+South Africa → ZAR
+
+User location, IP, or browser must NEVER override wallet currency.
+
+SUPER ADMIN WALLET CONTROL
+
+Grant SUPER_ADMIN authority to:
+
+Top up ANY user
+
+Choose wallet type (TEST or MAIN)
+
+Auto-derive currency from user country
+
+Persist audit logs:
+
+adminId
+
+userId
+
+walletType
+
+amount
+
+currency
+
+timestamp
+
+optional note
+
+FINAL RIDE AUTHORIZATION RULE
+
+A ride may proceed only if:
+
+Wallet resolved via paymentSource
+
+Wallet balance ≥ fare
+
+Wallet type matches authorization logic
+
+No other checks may override this.
+
+ACCEPTANCE CONDITIONS (MUST PASS)
+
+Tester with test credits can book rides
+
+Main wallet balance does NOT block testers
+
+Non-testers cannot use test wallet
+
+No “INSUFFICIENT_BALANCE” when test credits exist
+
+No UI interaction required to switch wallets
+
+Implement all changes cleanly.
+Do NOT remove existing features.
+Fix this permanently.

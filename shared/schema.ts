@@ -120,6 +120,9 @@ export const abuseTypeEnum = pgEnum("abuse_type", [
 ]);
 export const abuseFlagStatusEnum = pgEnum("abuse_flag_status", ["pending", "reviewed", "resolved", "dismissed"]);
 
+// Payment Source enum - determines which wallet to charge for rides
+export const paymentSourceEnum = pgEnum("payment_source", ["TEST_WALLET", "MAIN_WALLET", "CARD", "BANK"]);
+
 // Phase 22 - Enhanced Ride Lifecycle enums
 export const rideStatusEnum = pgEnum("ride_status", [
   "requested",
@@ -736,6 +739,7 @@ export const riderWallets = pgTable("rider_wallets", {
   lockedBalance: decimal("locked_balance", { precision: 10, scale: 2 }).notNull().default("0.00"),
   testerWalletBalance: decimal("tester_wallet_balance", { precision: 10, scale: 2 }).notNull().default("0.00"),
   currency: varchar("currency", { length: 3 }).notNull().default("NGN"),
+  paymentSource: paymentSourceEnum("payment_source").notNull().default("MAIN_WALLET"),
   isTestWallet: boolean("is_test_wallet").notNull().default(false),
   isFrozen: boolean("is_frozen").notNull().default(false),
   frozenAt: timestamp("frozen_at"),
