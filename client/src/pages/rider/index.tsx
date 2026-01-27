@@ -44,6 +44,7 @@ import { RiderRideStatus } from "@/components/ride/rider-ride-status";
 import { SafetyCheckModal } from "@/components/ride/safety-check-modal";
 import { ReservationForm } from "@/components/ride/reservation-form";
 import { UpcomingReservations } from "@/components/ride/upcoming-reservations";
+import { RiderPaymentMethods } from "@/components/rider-payment-methods";
 import { useRiderRide, type RideWithDetails } from "@/hooks/use-ride-lifecycle";
 import { useSafetyCheck } from "@/hooks/use-safety-check";
 
@@ -528,6 +529,8 @@ export default function RiderDashboard() {
           </div>
 
           <div className="space-y-6">
+            <RiderPaymentMethods />
+
             <UpcomingReservations />
 
             <Card>
