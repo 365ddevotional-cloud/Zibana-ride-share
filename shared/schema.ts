@@ -182,11 +182,16 @@ export const verificationStatusEnum = pgEnum("verification_status", [
   "rejected"
 ]);
 
+// Tester type enum
+export const testerTypeEnum = pgEnum("tester_type", ["RIDER", "DRIVER"]);
+
 // User roles table - maps users to their roles with admin governance
 export const userRoles = pgTable("user_roles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
   role: userRoleEnum("role").notNull().default("rider"),
+  isTester: boolean("is_tester").notNull().default(false),
+  testerType: testerTypeEnum("tester_type"),
   adminStartAt: timestamp("admin_start_at"),
   adminEndAt: timestamp("admin_end_at"),
   adminPermissions: text("admin_permissions").array(),

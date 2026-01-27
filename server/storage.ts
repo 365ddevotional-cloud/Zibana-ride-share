@@ -600,6 +600,71 @@ export class DatabaseStorage implements IStorage {
     return result?.count || 0;
   }
 
+  // Tester management methods (SUPER_ADMIN only)
+  async setUserAsTester(userId: string, testerType: "RIDER" | "DRIVER", appointedBy: string): Promise<UserRole> {
+    const role = testerType === "RIDER" ? "rider" : "driver";
+    const existingRole = await this.getUserRole(userId);
+    
+    if (existingRole) {
+      const [updated] = await db
+        .update(userRoles)
+        .set({
+          role: role as any,
+          isTester: true,
+          testerType: testerType,
+          appointedBy,
+          updatedAt: new Date()
+        })
+        .where(eq(userRoles.userId, userId))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db
+        .insert(userRoles)
+        .values({
+          userId,
+          role: role as any,
+          isTester: true,
+          testerType: testerType,
+          appointedBy,
+        })
+        .returning();
+      return created;
+    }
+  }
+
+  async removeTesterStatus(userId: string): Promise<void> {
+    await db
+      .update(userRoles)
+      .set({
+        isTester: false,
+        testerType: null,
+        updatedAt: new Date()
+      })
+      .where(eq(userRoles.userId, userId));
+  }
+
+  async getAllTesters(): Promise<any[]> {
+    const testers = await db
+      .select()
+      .from(userRoles)
+      .where(eq(userRoles.isTester, true));
+    return testers;
+  }
+
+  async getUserTesterStatus(userId: string): Promise<{ isTester: boolean; testerType: string | null }> {
+    const [role] = await db.select().from(userRoles).where(eq(userRoles.userId, userId));
+    return {
+      isTester: role?.isTester || false,
+      testerType: role?.testerType || null,
+    };
+  }
+
+  async isUserTester(userId: string): Promise<boolean> {
+    const [role] = await db.select().from(userRoles).where(eq(userRoles.userId, userId));
+    return role?.isTester || false;
+  }
+
   // Admin appointment methods (SUPER_ADMIN only)
   async appointAdmin(
     userId: string, 

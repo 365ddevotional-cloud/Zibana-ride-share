@@ -2,7 +2,8 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Wallet, Clock, Plus, Loader2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { ArrowLeft, Wallet, Clock, TestTube } from "lucide-react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -11,6 +12,11 @@ interface WalletData {
   balance: string | number;
   currency: string;
   lockedBalance?: string | number;
+}
+
+interface TesterStatus {
+  isTester: boolean;
+  testerType: string | null;
 }
 
 export default function WalletPage() {
@@ -23,6 +29,11 @@ export default function WalletPage() {
     enabled: !!user,
   });
 
+  const { data: testerStatus } = useQuery<TesterStatus>({
+    queryKey: ["/api/user/tester-status"],
+    enabled: !!user,
+  });
+
   const { data: riderWallet, isLoading: walletLoading, refetch: refetchWallet } = useQuery<WalletData | null>({
     queryKey: ["/api/rider/wallet"],
     enabled: !!user && userRole?.role === "rider",
@@ -31,29 +42,6 @@ export default function WalletPage() {
   const { data: driverWallet } = useQuery<WalletData | null>({
     queryKey: ["/api/driver/wallet"],
     enabled: !!user && userRole?.role === "driver",
-  });
-
-  const addTestCredit = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/wallet/test-credit", {});
-      return response.json();
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/rider/wallet"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/wallets/me"] });
-      refetchWallet();
-      toast({
-        title: "Test Credit Added",
-        description: `₦5,000.00 has been added to your wallet.`,
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Failed to add credit",
-        description: error.message || "Could not add test credit. Please try again.",
-        variant: "destructive",
-      });
-    },
   });
 
   const getDashboardPath = () => {
@@ -81,6 +69,7 @@ export default function WalletPage() {
   const isRider = userRole?.role === "rider";
   const isDriver = userRole?.role === "driver";
   const walletData = isRider ? riderWallet : driverWallet;
+  const isTester = testerStatus?.isTester || false;
 
   return (
     <div className="min-h-screen bg-background">
@@ -90,17 +79,37 @@ export default function WalletPage() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="font-semibold">Wallet</h1>
+          {isTester && (
+            <Badge variant="outline" className="ml-auto">
+              <TestTube className="h-3 w-3 mr-1" />
+              Test Mode
+            </Badge>
+          )}
         </div>
       </header>
 
       <main className="container py-6 max-w-2xl space-y-6">
+        {isTester && (
+          <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+            <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
+              <TestTube className="h-5 w-5" />
+              <span className="font-medium">Test Wallet Active</span>
+            </div>
+            <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+              You are using a test wallet. No real money is involved.
+            </p>
+          </div>
+        )}
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Wallet className="h-5 w-5" />
-              Wallet Balance
+              {isTester ? "Test Wallet Balance" : "Wallet Balance"}
             </CardTitle>
-            <CardDescription>Your current wallet balance</CardDescription>
+            <CardDescription>
+              {isTester ? "Your test wallet balance (no real money)" : "Your current wallet balance"}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {walletLoading ? (
@@ -112,39 +121,6 @@ export default function WalletPage() {
             )}
           </CardContent>
         </Card>
-
-        {isRider && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Add Funds</CardTitle>
-              <CardDescription>Add test credit to your wallet for testing rides</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button 
-                onClick={() => addTestCredit.mutate()}
-                disabled={addTestCredit.isPending}
-                className="w-full"
-                size="lg"
-                data-testid="button-add-test-credit"
-              >
-                {addTestCredit.isPending ? (
-                  <>
-                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                    Adding Credit...
-                  </>
-                ) : (
-                  <>
-                    <Plus className="h-5 w-5 mr-2" />
-                    Add Test Credit (₦5,000)
-                  </>
-                )}
-              </Button>
-              <p className="text-sm text-muted-foreground text-center mt-3">
-                Test mode - no real money is charged
-              </p>
-            </CardContent>
-          </Card>
-        )}
 
         <Card>
           <CardHeader>

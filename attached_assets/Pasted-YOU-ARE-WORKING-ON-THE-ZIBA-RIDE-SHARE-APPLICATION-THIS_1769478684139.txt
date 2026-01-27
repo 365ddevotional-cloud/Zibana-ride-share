@@ -1,0 +1,131 @@
+YOU ARE WORKING ON THE ZIBA RIDE SHARE APPLICATION.
+THIS PROMPT OVERRIDES ALL PREVIOUS WALLET / TESTER LOGIC.
+FOLLOW IT EXACTLY.
+DO NOT ASK QUESTIONS.
+DO NOT ADD EXTRA FEATURES.
+
+====================================================
+GOAL
+====================================================
+
+• Tester wallets must NEVER block testing
+• ONLY Super Admin controls testers
+• Separate Rider Tester and Driver Tester controls
+• Automatic ₦45,000 test credit
+• NO real payments
+
+====================================================
+STEP 1 — TESTER FLAG
+====================================================
+
+Add user fields:
+
+• user.isTester = boolean
+• user.testerType = "RIDER" | "DRIVER" | null
+
+====================================================
+STEP 2 — AUTO TEST WALLET CREATION
+====================================================
+
+On user creation OR tester assignment:
+
+IF user.isTester === true:
+  • Create wallet if missing
+  • wallet.mode = "TEST"
+  • wallet.currency = "NGN"
+
+IF wallet.balance === 0:
+  • Credit ₦45,000
+  • Log transaction:
+      type = TEST_CREDIT
+      amount = 45000
+      source = SYSTEM
+      note = "Initial tester credit"
+
+====================================================
+STEP 3 — SUPER ADMIN MANAGEMENT CENTER CONTROLS
+====================================================
+
+ONLY IN:
+Admin Dashboard → Management Center
+SUPER_ADMIN ONLY
+
+Add TWO buttons:
+
+1️⃣ “Add Rider Tester”
+2️⃣ “Add Driver Tester”
+
+----------------------------------------------------
+
+🟣 Add Rider Tester:
+• Creates user with:
+   role = RIDER
+   isTester = true
+   testerType = RIDER
+• Auto-create + credit wallet ₦45,000
+
+🟣 Add Driver Tester:
+• Creates user with:
+   role = DRIVER
+   isTester = true
+   testerType = DRIVER
+• Auto-create + credit wallet ₦45,000
+
+====================================================
+STEP 4 — ADMIN TEST WALLET CREDIT TOOL
+====================================================
+
+In Management Center → Riders → View Rider
+AND
+In Management Center → Drivers → View Driver
+
+Add button:
+“Credit Test Wallet”
+
+Rules:
+• Visible ONLY if user.isTester === true
+• Input amount
+• Adds test credit
+• Logs transaction:
+   type = TEST_CREDIT
+   source = ADMIN
+
+====================================================
+STEP 5 — RIDE & DRIVE TEST LOGIC
+====================================================
+
+IF rider.isTester === true:
+• Ignore payment gateway
+• Allow ride if wallet.balance >= fare
+• Deduct TEST balance only
+
+IF driver.isTester === true:
+• Credit TEST earnings
+• No payouts
+• Earnings marked TEST_ONLY
+
+====================================================
+STEP 6 — HARD SAFETY RULES
+====================================================
+
+• Test wallets:
+   - Cannot withdraw
+   - Cannot connect Paystack
+   - Cannot convert to real money
+
+• ONLY Super Admin can:
+   - Create testers
+   - Credit tester wallets
+   - Change tester status
+
+====================================================
+FINAL VALIDATION
+====================================================
+
+✔ Rider Tester button exists ONLY in Super Admin Management Center  
+✔ Driver Tester button exists ONLY in Super Admin Management Center  
+✔ All testers start with ₦45,000  
+✔ No tester sees “Insufficient balance”  
+✔ No real money involved  
+
+END.

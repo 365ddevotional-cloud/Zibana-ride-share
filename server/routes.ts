@@ -655,35 +655,32 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Already have an active trip" });
       }
 
-      // Get rider profile to check payment method
-      const riderProfile = await storage.getRiderProfile(userId);
-      const paymentMethod = riderProfile?.paymentMethod || "WALLET";
+      // Check if user is a tester (testers always bypass real payment checks)
+      const isTester = await storage.isUserTester(userId);
       
-      // Check if we're in simulated mode (no real payments enabled globally)
-      const { isRealPaymentsEnabled } = await import("./payment-provider");
-      const isSimulatedMode = !(await isRealPaymentsEnabled("NG")); // Default check against NG
-      
-      // Determine if this is a test ride
-      const isTestRide = paymentMethod === "TEST_WALLET" && isSimulatedMode;
+      // Get rider wallet
+      let riderWallet = await storage.getRiderWallet(userId);
+      if (!riderWallet) {
+        // Auto-create wallet
+        riderWallet = await storage.createRiderWallet({ userId, currency: "NGN" });
+      }
       
       // Log ride request audit
-      console.log(`[RIDE AUDIT] userId=${userId}, paymentMethod=${paymentMethod}, walletMode=${isSimulatedMode ? "SIMULATED" : "REAL"}, isTestRide=${isTestRide}`);
+      console.log(`[RIDE AUDIT] userId=${userId}, isTester=${isTester}, walletBalance=${riderWallet.balance}`);
       
-      // TEST_WALLET: Bypass wallet balance checks in simulated mode
-      if (isTestRide) {
-        console.log(`[TEST_RIDE] Bypassing wallet check for user ${userId} - TEST_WALLET in SIMULATED mode`);
-      } else {
-        // WALLET-FIRST: Check rider wallet balance before allowing ride request
-        const riderWallet = await storage.getRiderWallet(userId);
-        if (!riderWallet) {
-          // Auto-create wallet with zero balance
-          await storage.createRiderWallet({ userId, currency: "NGN" });
+      // TESTER: Check wallet balance but use TEST funds
+      if (isTester) {
+        console.log(`[TESTER RIDE] User ${userId} is a tester - using TEST wallet`);
+        const availableBalance = parseFloat(riderWallet.balance) - parseFloat(riderWallet.lockedBalance || "0");
+        const minimumRequiredBalance = 500; // ₦5.00 in kobo
+        if (availableBalance < minimumRequiredBalance) {
           return res.status(400).json({ 
             message: "Please add funds to your wallet to request a ride.",
             code: "INSUFFICIENT_BALANCE"
           });
         }
-
+      } else {
+        // REGULAR USER: Check wallet balance
         // Check if wallet is frozen
         if (riderWallet.isFrozen) {
           console.log(`[SECURITY AUDIT] Frozen wallet ride request attempt: userId=${userId}`);
@@ -694,7 +691,7 @@ export async function registerRoutes(
         }
 
         // Check minimum balance requirement - WALLET payment
-        const availableBalance = parseFloat(riderWallet.balance) - parseFloat(riderWallet.lockedBalance);
+        const availableBalance = parseFloat(riderWallet.balance) - parseFloat(riderWallet.lockedBalance || "0");
         const minimumRequiredBalance = 500; // ₦5.00 in kobo
         if (availableBalance < minimumRequiredBalance) {
           return res.status(400).json({ 
@@ -6642,6 +6639,148 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error applying test credit:", error);
       return res.status(500).json({ message: "Failed to apply test credit" });
+    }
+  });
+
+  // ==========================================
+  // TESTER MANAGEMENT - SUPER ADMIN ONLY
+  // ==========================================
+
+  // Create Rider Tester
+  app.post("/api/admin/testers/rider", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const adminEmail = req.user.claims.email;
+      const { userId, email } = req.body;
+      
+      if (!userId) {
+        return res.status(400).json({ message: "userId is required" });
+      }
+      
+      // Update user role to rider with tester flag
+      await storage.setUserAsTester(userId, "RIDER", adminId);
+      
+      // Create wallet with ₦45,000 credit (4500000 kobo)
+      let wallet = await storage.getRiderWallet(userId);
+      if (!wallet) {
+        wallet = await storage.createRiderWallet({ userId, currency: "NGN" });
+      }
+      
+      // Credit ₦45,000 (4500000 kobo)
+      const creditAmount = 4500000;
+      await storage.adjustRiderWalletBalance(userId, creditAmount, "TEST_CREDIT", adminId);
+      
+      console.log(`[TESTER CREATED] type=RIDER, userId=${userId}, adminId=${adminId}, adminEmail=${adminEmail}, credit=₦45,000`);
+      
+      await storage.createFinancialAuditLog({
+        eventType: "ADJUSTMENT",
+        userId,
+        amount: String(creditAmount),
+        actorRole: "ADMIN",
+        currency: "NGN",
+        description: `Initial tester credit - Rider Tester created by ${adminEmail}`,
+        metadata: JSON.stringify({ testerType: "RIDER", adminId, source: "SYSTEM" }),
+      });
+      
+      return res.json({ 
+        success: true,
+        message: "Rider tester created with ₦45,000 credit",
+        userId,
+        testerType: "RIDER",
+        walletBalance: creditAmount,
+      });
+    } catch (error) {
+      console.error("Error creating rider tester:", error);
+      return res.status(500).json({ message: "Failed to create rider tester" });
+    }
+  });
+
+  // Create Driver Tester
+  app.post("/api/admin/testers/driver", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const adminEmail = req.user.claims.email;
+      const { userId } = req.body;
+      
+      if (!userId) {
+        return res.status(400).json({ message: "userId is required" });
+      }
+      
+      // Update user role to driver with tester flag
+      await storage.setUserAsTester(userId, "DRIVER", adminId);
+      
+      // Create driver wallet with ₦45,000 credit (4500000 kobo)
+      let wallet = await storage.getDriverWallet(userId);
+      if (!wallet) {
+        wallet = await storage.createDriverWallet({ userId, currency: "NGN" });
+      }
+      
+      // Credit ₦45,000 (4500000 kobo)
+      const creditAmount = 4500000;
+      await storage.adjustDriverWalletBalance(userId, creditAmount, "TEST_CREDIT", adminId);
+      
+      console.log(`[TESTER CREATED] type=DRIVER, userId=${userId}, adminId=${adminId}, adminEmail=${adminEmail}, credit=₦45,000`);
+      
+      await storage.createFinancialAuditLog({
+        eventType: "ADJUSTMENT",
+        userId,
+        amount: String(creditAmount),
+        actorRole: "ADMIN",
+        currency: "NGN",
+        description: `Initial tester credit - Driver Tester created by ${adminEmail}`,
+        metadata: JSON.stringify({ testerType: "DRIVER", adminId, source: "SYSTEM" }),
+      });
+      
+      return res.json({ 
+        success: true,
+        message: "Driver tester created with ₦45,000 credit",
+        userId,
+        testerType: "DRIVER",
+        walletBalance: creditAmount,
+      });
+    } catch (error) {
+      console.error("Error creating driver tester:", error);
+      return res.status(500).json({ message: "Failed to create driver tester" });
+    }
+  });
+
+  // Get all testers
+  app.get("/api/admin/testers", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const testers = await storage.getAllTesters();
+      return res.json(testers);
+    } catch (error) {
+      console.error("Error fetching testers:", error);
+      return res.status(500).json({ message: "Failed to fetch testers" });
+    }
+  });
+
+  // Remove tester status
+  app.delete("/api/admin/testers/:userId", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const { userId } = req.params;
+      
+      await storage.removeTesterStatus(userId);
+      
+      console.log(`[TESTER REMOVED] userId=${userId}, removedBy=${adminId}`);
+      
+      return res.json({ success: true, message: "Tester status removed" });
+    } catch (error) {
+      console.error("Error removing tester:", error);
+      return res.status(500).json({ message: "Failed to remove tester" });
+    }
+  });
+
+  // Check if user is a tester
+  app.get("/api/user/tester-status", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const testerStatus = await storage.getUserTesterStatus(userId);
+      return res.json(testerStatus);
+    } catch (error) {
+      console.error("Error getting tester status:", error);
+      return res.status(500).json({ message: "Failed to get tester status" });
     }
   });
 
