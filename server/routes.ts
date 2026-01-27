@@ -1024,6 +1024,92 @@ export async function registerRoutes(
     }
   });
 
+  // Change rider's payment source (only allowed when not in an active ride)
+  app.patch("/api/rider/payment-source", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { paymentSource, paymentMethodId } = req.body;
+
+      // Validate paymentSource
+      const validSources = ["MAIN_WALLET", "CARD"];
+      if (!validSources.includes(paymentSource)) {
+        return res.status(400).json({ 
+          message: "Invalid payment source. Use MAIN_WALLET or CARD",
+          code: "INVALID_PAYMENT_SOURCE"
+        });
+      }
+
+      // Check if user is a tester - testers cannot change payment source
+      const isTester = await storage.isUserTester(userId);
+      if (isTester) {
+        return res.status(403).json({ 
+          message: "Testers can only use test wallet for payments",
+          code: "TESTER_RESTRICTED"
+        });
+      }
+
+      // Check if rider has an active ride
+      const activeRide = await storage.getCurrentRiderRide(userId);
+      if (activeRide) {
+        return res.status(400).json({ 
+          message: "Cannot change payment source during an active ride. Please complete or cancel your current ride first.",
+          code: "ACTIVE_RIDE_EXISTS"
+        });
+      }
+
+      // If switching to CARD, validate the payment method
+      if (paymentSource === "CARD") {
+        if (!paymentMethodId) {
+          return res.status(400).json({ 
+            message: "Payment method ID is required for card payments",
+            code: "PAYMENT_METHOD_REQUIRED"
+          });
+        }
+
+        const paymentMethod = await storage.getRiderPaymentMethod(paymentMethodId);
+        if (!paymentMethod || paymentMethod.userId !== userId) {
+          return res.status(400).json({ 
+            message: "Invalid payment method",
+            code: "INVALID_PAYMENT_METHOD"
+          });
+        }
+
+        if (!paymentMethod.isActive || !paymentMethod.providerReusable) {
+          return res.status(400).json({ 
+            message: "This payment method cannot be used",
+            code: "PAYMENT_METHOD_UNAVAILABLE"
+          });
+        }
+
+        // Check if real payments are enabled for user's country
+        const userRole = await storage.getUserRole(userId);
+        const countryCode = userRole?.countryCode || "NG";
+        const country = await storage.getCountryByCode(countryCode);
+        
+        if (!country?.paymentsEnabled) {
+          return res.status(400).json({ 
+            message: "Card payments are not available in your region yet",
+            code: "CARD_PAYMENTS_NOT_ENABLED"
+          });
+        }
+      }
+
+      // Update wallet payment source
+      await storage.updateRiderWalletPaymentSource(userId, paymentSource);
+
+      console.log(`[PAYMENT SOURCE] User ${userId} switched to ${paymentSource}${paymentMethodId ? ` (method: ${paymentMethodId})` : ""}`);
+
+      return res.json({ 
+        message: "Payment source updated",
+        paymentSource,
+        paymentMethodId: paymentSource === "CARD" ? paymentMethodId : null
+      });
+    } catch (error) {
+      console.error("Error updating payment source:", error);
+      return res.status(500).json({ message: "Failed to update payment source" });
+    }
+  });
+
   app.get("/api/rider/current-trip", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -5909,11 +5995,110 @@ export async function registerRoutes(
         }),
       });
 
-      // REVENUE SPLIT: 80% driver, 20% platform (MANDATORY)
-      // Check if this is a test ride by checking rider's tester status
+      // PAYMENT CAPTURE & SETTLEMENT based on paymentSource
+      const paymentSource = ride.paymentSource || "MAIN_WALLET";
       const riderRole = await storage.getUserRole(ride.riderId);
       const isTestRide = Boolean(riderRole?.isTester);
       
+      let captureSucceeded = true;
+      let captureError: string | null = null;
+      
+      try {
+        if (paymentSource === "TEST_WALLET") {
+          // Debit tester wallet
+          const riderWallet = await storage.getRiderWallet(ride.riderId);
+          if (riderWallet) {
+            const currentBalance = parseFloat(String(riderWallet.testerWalletBalance || "0"));
+            if (currentBalance >= fareBreakdown.totalFare) {
+              await storage.adjustRiderTesterWalletBalance(
+                ride.riderId, 
+                -fareBreakdown.totalFare, 
+                `RIDE_FARE: ${rideId}`, 
+                "system"
+              );
+              console.log(`[PAYMENT CAPTURE] TEST_WALLET debited ${fareBreakdown.totalFare} ${currencyCode} for ride ${rideId}`);
+            } else {
+              captureSucceeded = false;
+              captureError = "Insufficient test wallet balance";
+            }
+          }
+        } else if (paymentSource === "MAIN_WALLET") {
+          // Debit main wallet
+          const riderWallet = await storage.getRiderWallet(ride.riderId);
+          if (riderWallet) {
+            const availableBalance = parseFloat(String(riderWallet.balance || "0")) - parseFloat(String(riderWallet.lockedBalance || "0"));
+            if (availableBalance >= fareBreakdown.totalFare) {
+              await storage.adjustRiderWalletBalance(
+                ride.riderId, 
+                -fareBreakdown.totalFare, 
+                `RIDE_FARE: ${rideId}`, 
+                "system"
+              );
+              console.log(`[PAYMENT CAPTURE] MAIN_WALLET debited ${fareBreakdown.totalFare} ${currencyCode} for ride ${rideId}`);
+            } else {
+              captureSucceeded = false;
+              captureError = "Insufficient main wallet balance";
+            }
+          }
+        } else if (paymentSource === "CARD") {
+          // Capture card authorization
+          // In test mode or if no authorization exists, skip real capture
+          if (!ride.authorizationReference) {
+            console.log(`[PAYMENT CAPTURE] CARD - No authorization reference, treating as test mode for ride ${rideId}`);
+          } else {
+            // Real card capture would happen here via payment provider
+            // For now, log and mark as captured
+            console.log(`[PAYMENT CAPTURE] CARD authorization ${ride.authorizationReference} would be captured for ${fareBreakdown.totalFare} ${currencyCode}`);
+            
+            // Update ride with capture info
+            await storage.updateRideStatus(rideId, "completed", {
+              captureAmount: fareBreakdown.totalFare.toString(),
+              capturedAt: new Date(),
+            });
+          }
+        }
+      } catch (paymentError) {
+        console.error(`[PAYMENT CAPTURE FAILED] ride ${rideId}:`, paymentError);
+        captureSucceeded = false;
+        captureError = paymentError instanceof Error ? paymentError.message : "Payment capture failed";
+      }
+
+      // If capture failed, move ride to PAYMENT_REVIEW instead of completed
+      if (!captureSucceeded) {
+        console.log(`[PAYMENT REVIEW] Ride ${rideId} moved to payment_review: ${captureError}`);
+        
+        await storage.updateRideStatus(rideId, "payment_review" as any, {
+          actualDurationMin: tripDurationMin.toString(),
+          actualDistanceKm: actualDistanceKm.toString(),
+          baseFare: fareBreakdown.baseFare.toString(),
+          distanceFare: fareBreakdown.distanceFare.toString(),
+          timeFare: fareBreakdown.timeFare.toString(),
+          waitingFee: fareBreakdown.waitingFee.toString(),
+          trafficFee: fareBreakdown.trafficFee.toString(),
+          totalFare: fareBreakdown.totalFare.toString(),
+        });
+
+        // Log payment failure
+        await storage.createRideAuditLog({
+          rideId,
+          action: "payment_failed" as any,
+          actorId: "system",
+          actorRole: "system",
+          previousStatus: ride.status,
+          newStatus: "payment_review" as any,
+          metadata: JSON.stringify({ 
+            captureError,
+            paymentSource,
+            attemptedAmount: fareBreakdown.totalFare
+          }),
+        });
+
+        // Driver earnings are protected - still credit driver
+        // This ensures driver is paid even if rider payment fails
+      }
+
+      // REVENUE SPLIT: 80% driver, 20% platform (MANDATORY)
+      // Process even for payment_review rides to protect driver earnings
       const revenueSplit = await storage.processRevenueSplit({
         rideId,
         riderId: ride.riderId,

@@ -179,7 +179,9 @@ export const rideAuditActionEnum = pgEnum("ride_audit_action", [
   "ride_offer_sent",
   "ride_offer_expired",
   "idle_stop_alert",
-  "reservation_accepted"
+  "reservation_accepted",
+  "payment_failed",
+  "payment_captured"
 ]);
 
 // Phase 23 - Identity Verification enums
