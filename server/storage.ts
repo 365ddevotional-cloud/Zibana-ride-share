@@ -672,8 +672,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async isUserTester(userId: string): Promise<boolean> {
+    // TODO: Remove tester payment bypass before production launch
+    // User is tester if: isTester === true OR testerType IN ('RIDER', 'DRIVER')
     const [role] = await db.select().from(userRoles).where(eq(userRoles.userId, userId));
-    return role?.isTester || false;
+    if (!role) return false;
+    
+    const isTesterFlag = role.isTester === true;
+    const hasTesterType = role.testerType === 'RIDER' || role.testerType === 'DRIVER';
+    
+    const result = isTesterFlag || hasTesterType;
+    console.log(`[TESTER CHECK] userId=${userId}, isTester=${role.isTester}, testerType=${role.testerType}, result=${result}`);
+    return result;
   }
 
   // Admin appointment methods (SUPER_ADMIN only)
