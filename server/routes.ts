@@ -258,6 +258,14 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Driver must be approved to go online" });
       }
 
+      // DRIVER VERIFICATION CHECK - Block going online if not verified for operations
+      if (profile.withdrawalVerificationStatus === "suspended") {
+        return res.status(403).json({ 
+          message: "Your account is suspended. Contact support for assistance.",
+          code: "DRIVER_SUSPENDED"
+        });
+      }
+
       // MANDATORY SETUP CHECK - Block going online if setup incomplete
       if (isOnline === true) {
         const missingFields: string[] = [];
@@ -473,6 +481,14 @@ export async function registerRoutes(
       const profile = await storage.getDriverProfile(userId);
       if (!profile || profile.status !== "approved") {
         return res.status(403).json({ message: "Driver not approved" });
+      }
+
+      // Check if driver is suspended
+      if (profile.withdrawalVerificationStatus === "suspended") {
+        return res.status(403).json({ 
+          message: "Your account is suspended. Contact support for assistance.",
+          code: "DRIVER_SUSPENDED"
+        });
       }
 
       // MANDATORY SETUP CHECK - Block ride acceptance if setup incomplete
@@ -6920,6 +6936,14 @@ export async function registerRoutes(
       // MANDATORY SETUP CHECK - Block ride acceptance if setup incomplete
       const driverProfile = await storage.getDriverProfile(userId);
       if (driverProfile) {
+        // Check if driver is suspended
+        if (driverProfile.withdrawalVerificationStatus === "suspended") {
+          return res.status(403).json({ 
+            message: "Your account is suspended. Contact support for assistance.",
+            code: "DRIVER_SUSPENDED"
+          });
+        }
+
         const missingFields: string[] = [];
         if (driverProfile.locationPermissionStatus !== "granted") missingFields.push("locationPermission");
         if (!driverProfile.navigationProvider) missingFields.push("navigationProvider");
