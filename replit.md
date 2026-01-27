@@ -100,22 +100,41 @@ Preferred communication style: Simple, everyday language.
 - **Full Logic Execution**: Fare, cancellation, reservation, and compensation logic runs fully
 - **Audit Logging**: All transactions are logged for audit
 
-## Tester Payment System (Fixed Jan 2026)
-### Payment Source Architecture
-- **paymentSource field**: Stored in `rider_wallets.payment_source` (TEST_WALLET | MAIN_WALLET | CARD | BANK)
-- **Server-Side Resolution**: Wallet type resolved automatically based on tester status
-- **No UI Interaction Required**: Payment source is determined server-side, not by manual toggle
+## Payment Source Architecture (Updated Jan 2026)
+### Payment Source Types
+- **paymentSource field**: Stored in `rider_wallets.payment_source` AND snapshotted per ride in `rides.payment_source`
+- **Allowed values**: TEST_WALLET | MAIN_WALLET | CARD | BANK (BANK is future-only)
+- **Server-Side Resolution**: Payment source resolved automatically based on tester status and selected payment method
+- **No UI-Only Authorization**: Frontend selection MUST NEVER authorize a ride
 
 ### Wallet Resolution Rules
-- **Testers**: `isTester=true` → paymentSource=TEST_WALLET → uses `testerWalletBalance`
-- **Non-Testers**: `isTester=false` → paymentSource=MAIN_WALLET → uses `balance`
+- **Testers**: `isTester=true` → FORCE paymentSource=TEST_WALLET → uses `testerWalletBalance`
+- **Non-Testers**: `isTester=false` → DEFAULT paymentSource=MAIN_WALLET or CARD if selected
 - **Tester Detection**: Checked via `is_tester` flag, `tester_type`, or `testerWalletBalance > 0`
+- **Card Selection**: Non-testers can switch to CARD if real payments are enabled for their country
 
 ### Ride Booking Authorization
-- Ride proceeds ONLY if resolved wallet has sufficient balance (≥ ₦5.00)
-- Testers NEVER blocked by main wallet balance (main wallet is ignored)
-- Non-testers NEVER can use test wallet (server enforced)
-- All rides logged with paymentSource for audit
+- **TEST_WALLET**: Check testerWalletBalance >= estimatedFare
+- **MAIN_WALLET**: Check balance - lockedBalance >= estimatedFare
+- **CARD**: Create payment authorization hold (capture on completion)
+- **BANK**: Reject booking (future-only)
+- Testers CANNOT use CARD or MAIN_WALLET (server enforced)
+- Non-testers CANNOT use TEST_WALLET (server enforced)
+- Payment source change only allowed when rider has no active ride
+- All rides snapshot paymentSource for audit
+
+### Payment Capture & Settlement
+- **On ride completion**:
+  - TEST_WALLET/MAIN_WALLET: Debit wallet by finalFare
+  - CARD: Capture authorization with finalFare
+- **Revenue split**: 80% driver / 20% platform (after capture)
+- **Capture failure**: Ride enters PAYMENT_REVIEW state, driver earnings still credited
+
+### Safety Rules
+- Never charge twice
+- Never mix currencies (ride.currencyCode must match payment method currency)
+- Never fallback to another paymentSource silently
+- Driver earnings protected until capture succeeds
 
 ## Security Configuration (LOCKED)
 ### Role-Based Access Control (RBAC)
