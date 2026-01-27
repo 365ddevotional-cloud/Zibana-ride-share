@@ -19,6 +19,29 @@ interface WalletData {
 interface TesterStatus {
   isTester: boolean;
   testerType: string | null;
+  countryCode?: string;
+}
+
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  NGN: "₦",
+  USD: "$",
+  ZAR: "R",
+};
+
+function formatCurrency(amount: number | string, currencyCode: string = "NGN") {
+  const numAmount = typeof amount === "string" ? parseFloat(amount) : amount;
+  const symbol = CURRENCY_SYMBOLS[currencyCode] || currencyCode;
+  
+  try {
+    const formatted = new Intl.NumberFormat("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(numAmount);
+    
+    return `${symbol}${formatted}`;
+  } catch {
+    return `${symbol}${numAmount.toFixed(2)}`;
+  }
 }
 
 export default function WalletPage() {
@@ -59,13 +82,6 @@ export default function WalletPage() {
     }
   };
 
-  // Force NGN formatting with ₦ symbol
-  const formatNGN = (amount: number | string) => {
-    const numAmount = typeof amount === "string" ? parseFloat(amount) : amount;
-    const valueInNaira = numAmount / 100; // Convert from kobo to naira
-    return `₦${valueInNaira.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  };
-
   const isRider = userRole?.role === "rider";
   const isDriver = userRole?.role === "driver";
   const walletData = isRider ? riderWallet : driverWallet;
@@ -73,6 +89,10 @@ export default function WalletPage() {
   
   // Check tester status from both wallet response and tester status endpoint
   const isTester = walletData?.isTester || testerStatus?.isTester || false;
+
+  // Get currency from wallet data (dynamic based on user's country)
+  const currency = walletData?.currency || "NGN";
+  const currencySymbol = CURRENCY_SYMBOLS[currency] || currency;
 
   const mainBalance = walletData?.balance || 0;
   const testerBalance = walletData?.testerWalletBalance || 0;
@@ -123,7 +143,7 @@ export default function WalletPage() {
                 <div className="h-16 animate-pulse bg-muted rounded" />
               ) : (
                 <div className="text-3xl font-bold text-green-700 dark:text-green-400" data-testid="text-tester-wallet-balance">
-                  {formatNGN(testerBalance)}
+                  {formatCurrency(testerBalance, currency)}
                 </div>
               )}
             </CardContent>
@@ -138,7 +158,7 @@ export default function WalletPage() {
             </CardTitle>
             <CardDescription>
               {isTester 
-                ? "Your real wallet balance - stays at ₦0.00 during testing" 
+                ? `Your real wallet balance - stays at ${currencySymbol}0.00 during testing` 
                 : "Your current wallet balance"}
             </CardDescription>
           </CardHeader>
@@ -147,7 +167,7 @@ export default function WalletPage() {
               <div className="h-16 animate-pulse bg-muted rounded" />
             ) : (
               <div className="text-3xl font-bold" data-testid="text-main-wallet-balance">
-                {formatNGN(mainBalance)}
+                {formatCurrency(mainBalance, currency)}
               </div>
             )}
           </CardContent>

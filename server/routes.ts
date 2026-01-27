@@ -5,6 +5,14 @@ import { storage } from "./storage";
 import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema } from "@shared/schema";
 import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, evaluateAllDrivers } from "./incentives";
 import { notificationService } from "./notification-service";
+import { getCurrencyFromCountry } from "@shared/currency";
+
+// Helper function to get user's currency based on their country
+async function getUserCurrency(userId: string): Promise<string> {
+  const userRole = await storage.getUserRole(userId);
+  const countryCode = userRole?.countryCode || "NG";
+  return getCurrencyFromCountry(countryCode);
+}
 
 const requireRole = (allowedRoles: string[]): RequestHandler => {
   return async (req: any, res, next) => {
@@ -457,7 +465,8 @@ export async function registerRoutes(
       
       let wallet = await storage.getDriverWallet(userId);
       if (!wallet) {
-        wallet = await storage.createDriverWallet({ userId, currency: "NGN" });
+        const currency = await getUserCurrency(userId);
+        wallet = await storage.createDriverWallet({ userId, currency });
       }
       
       const updated = await storage.updateDriverPayoutInfo(userId, {
@@ -501,7 +510,8 @@ export async function registerRoutes(
       
       // Auto-create wallet if doesn't exist
       if (!wallet) {
-        wallet = await storage.createRiderWallet({ userId, currency: "NGN" });
+        const currency = await getUserCurrency(userId);
+        wallet = await storage.createRiderWallet({ userId, currency });
       }
       
       // Check if user is a tester to include tester wallet info
@@ -702,8 +712,9 @@ export async function registerRoutes(
       // Get rider wallet
       let riderWallet = await storage.getRiderWallet(userId);
       if (!riderWallet) {
-        // Auto-create wallet
-        riderWallet = await storage.createRiderWallet({ userId, currency: "NGN" });
+        // Auto-create wallet with user's country currency
+        const currency = await getUserCurrency(userId);
+        riderWallet = await storage.createRiderWallet({ userId, currency });
       }
       
       // Log ride request audit
@@ -2103,7 +2114,8 @@ export async function registerRoutes(
       // Get or create rider wallet
       let riderWallet = await storage.getRiderWallet(userId);
       if (!riderWallet) {
-        riderWallet = await storage.createRiderWallet({ userId, currency: "NGN" });
+        const currency = await getUserCurrency(userId);
+        riderWallet = await storage.createRiderWallet({ userId, currency });
       }
       
       // Credit the wallet
@@ -6301,7 +6313,8 @@ export async function registerRoutes(
       
       let wallet = await storage.getRiderWallet(targetUserId);
       if (!wallet) {
-        wallet = await storage.createRiderWallet({ userId: targetUserId });
+        const currency = await getUserCurrency(targetUserId);
+        wallet = await storage.createRiderWallet({ userId: targetUserId, currency });
       }
       return res.json(wallet);
     } catch (error) {
@@ -6333,7 +6346,8 @@ export async function registerRoutes(
       
       let wallet = await storage.getDriverWallet(targetUserId);
       if (!wallet) {
-        wallet = await storage.createDriverWallet({ userId: targetUserId });
+        const currency = await getUserCurrency(targetUserId);
+        wallet = await storage.createDriverWallet({ userId: targetUserId, currency });
       }
       return res.json(wallet);
     } catch (error) {
@@ -6799,10 +6813,11 @@ export async function registerRoutes(
       // Create wallet with ₦45,000 credit (4500000 kobo)
       let wallet = await storage.getRiderWallet(userId);
       if (!wallet) {
-        wallet = await storage.createRiderWallet({ userId, currency: "NGN" });
+        const currency = await getUserCurrency(userId);
+        wallet = await storage.createRiderWallet({ userId, currency });
       }
       
-      // Credit ₦45,000 (4500000 kobo) to TESTER WALLET (separate from main wallet)
+      // Credit test credits to TESTER WALLET (separate from main wallet)
       const creditAmount = 4500000;
       await storage.adjustRiderTesterWalletBalance(userId, creditAmount, "INITIAL_TEST_CREDIT", adminId);
       
@@ -6845,13 +6860,14 @@ export async function registerRoutes(
       // Update user role to driver with tester flag
       await storage.setUserAsTester(userId, "DRIVER", adminId);
       
-      // Create driver wallet (main balance stays at ₦0.00)
+      // Create driver wallet (main balance stays at 0)
       let wallet = await storage.getDriverWallet(userId);
       if (!wallet) {
-        wallet = await storage.createDriverWallet({ userId, currency: "NGN" });
+        const currency = await getUserCurrency(userId);
+        wallet = await storage.createDriverWallet({ userId, currency });
       }
       
-      // Credit ₦45,000 (4500000 kobo) to TESTER WALLET (separate from main wallet)
+      // Credit test credits to TESTER WALLET (separate from main wallet)
       const creditAmount = 4500000;
       await storage.adjustDriverTesterWalletBalance(userId, creditAmount, "INITIAL_TEST_CREDIT", adminId);
       
