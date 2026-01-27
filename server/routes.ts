@@ -344,17 +344,21 @@ export async function registerRoutes(
           type: "info",
         });
       } else if (status === "completed") {
+        // Format fare in NGN
+        const fareInNaira = (parseFloat(String(trip.fareAmount)) / 100).toFixed(2);
+        const commissionInNaira = (parseFloat(String(trip.commissionAmount || 0)) / 100).toFixed(2);
+        
         await storage.createNotification({
           userId: trip.riderId,
           role: "rider",
           title: "Trip Completed",
-          message: `Your trip has been completed. Fare: $${trip.fareAmount}`,
+          message: `Your trip has been completed. Fare: ₦${fareInNaira}`,
           type: "success",
         });
         
         await storage.notifyAdminsAndDirectors(
           "Trip Completed",
-          `Trip completed. Fare: $${trip.fareAmount}, Commission: $${trip.commissionAmount}`,
+          `Trip completed. Fare: ₦${fareInNaira}, Commission: ₦${commissionInNaira}`,
           "success"
         );
 
@@ -453,7 +457,7 @@ export async function registerRoutes(
       
       let wallet = await storage.getDriverWallet(userId);
       if (!wallet) {
-        wallet = await storage.createDriverWallet({ userId, currency: "USD" });
+        wallet = await storage.createDriverWallet({ userId, currency: "NGN" });
       }
       
       const updated = await storage.updateDriverPayoutInfo(userId, {
@@ -500,7 +504,16 @@ export async function registerRoutes(
         wallet = await storage.createRiderWallet({ userId, currency: "NGN" });
       }
       
-      return res.json(wallet);
+      // Check if user is a tester to include tester wallet info
+      const isTester = await storage.isUserTester(userId);
+      
+      // Return wallet with currency forced to NGN and tester info
+      return res.json({
+        ...wallet,
+        currency: "NGN", // Force NGN currency
+        isTester,
+        testerWalletBalance: wallet.testerWalletBalance || "0",
+      });
     } catch (error) {
       console.error("Error getting rider wallet:", error);
       return res.status(500).json({ message: "Failed to get wallet" });
@@ -668,15 +681,17 @@ export async function registerRoutes(
       // Log ride request audit
       console.log(`[RIDE AUDIT] userId=${userId}, isTester=${isTester}, walletBalance=${riderWallet.balance}`);
       
-      // TESTER: Check wallet balance but use TEST funds
+      // TESTER: Check TESTER WALLET balance (not main wallet)
       if (isTester) {
-        console.log(`[TESTER RIDE] User ${userId} is a tester - using TEST wallet`);
-        const availableBalance = parseFloat(riderWallet.balance) - parseFloat(riderWallet.lockedBalance || "0");
+        const testerBalance = parseFloat(String(riderWallet.testerWalletBalance || "0"));
+        console.log(`[TESTER RIDE] User ${userId} is a tester - testerWalletBalance=${testerBalance}`);
         const minimumRequiredBalance = 500; // ₦5.00 in kobo
-        if (availableBalance < minimumRequiredBalance) {
+        if (testerBalance < minimumRequiredBalance) {
           return res.status(400).json({ 
-            message: "Please add funds to your wallet to request a ride.",
-            code: "INSUFFICIENT_BALANCE"
+            message: "Please add Test Credits to your wallet to request a ride.",
+            code: "INSUFFICIENT_BALANCE",
+            required: minimumRequiredBalance,
+            available: testerBalance
           });
         }
       } else {
@@ -1225,7 +1240,7 @@ export async function registerRoutes(
         userId: payout.driverId,
         role: "driver",
         title: "Payout Processed",
-        message: `Your payout of $${payout.amount} has been marked as paid.`,
+        message: `Your payout of ₦${(parseFloat(String(payout.amount)) / 100).toFixed(2)} has been marked as paid.`,
         type: "success",
       });
 
@@ -1866,7 +1881,7 @@ export async function registerRoutes(
         paymentProvider,
         externalReference,
         amount: String(amount),
-        currency: currency || "USD",
+        currency: currency || "NGN",
         reason,
         status: "reported",
         reportedAt: new Date(),
@@ -2338,7 +2353,7 @@ export async function registerRoutes(
           userId: wallet.userId,
           role: "driver",
           title: "Payout Processed",
-          message: `Your payout of $${payout.amount} has been processed successfully.`,
+          message: `Your payout of ₦${(parseFloat(String(payout.amount)) / 100).toFixed(2)} has been processed successfully.`,
           type: "success",
         });
       }
@@ -2388,7 +2403,7 @@ export async function registerRoutes(
           userId: wallet.userId,
           role: "driver",
           title: "Payout Reversed",
-          message: `Your payout of $${payout.amount} has been reversed. Reason: ${reason}`,
+          message: `Your payout of ₦${(parseFloat(String(payout.amount)) / 100).toFixed(2)} has been reversed. Reason: ${reason}`,
           type: "warning",
         });
       }
@@ -4077,7 +4092,7 @@ export async function registerRoutes(
         startDate: new Date(startDate),
         endDate: new Date(endDate),
         billingModel: billingModel || "MONTHLY_INVOICE",
-        currency: currency || "USD",
+        currency: currency || "NGN",
         status: "ACTIVE"
       });
 
@@ -5242,7 +5257,7 @@ export async function registerRoutes(
         estimatedDurationMin: parseFloat(ride.estimatedDurationMin || "0"),
         waitingStartedAt: ride.waitingStartedAt ? new Date(ride.waitingStartedAt) : null,
         tripEndedAt: completedAt,
-        currency: ride.currency || "USD"
+        currency: ride.currency || "NGN"
       });
 
       // Handle early stop case
@@ -5311,7 +5326,7 @@ export async function registerRoutes(
         role: "rider",
         title: "Trip Complete",
         type: "ride_update",
-        message: `Your trip is complete! Total fare: $${fareBreakdown.totalFare.toFixed(2)}. Please rate your driver.`,
+        message: `Your trip is complete! Total fare: ₦${(fareBreakdown.totalFare / 100).toFixed(2)}. Please rate your driver.`,
       });
 
       return res.json({
@@ -5452,7 +5467,7 @@ export async function registerRoutes(
       // Notify the other party
       if (isRider && ride.driverId) {
         const compensationMsg = compensationEligible 
-          ? ` You will receive a compensation of $${compensationData?.driverCompensation?.toFixed(2)}.`
+          ? ` You will receive a compensation of ₦${((compensationData?.driverCompensation || 0) / 100).toFixed(2)}.`
           : "";
         await storage.createNotification({
           userId: ride.driverId,
@@ -6061,7 +6076,8 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Driver did not arrive early" });
       }
 
-      const bonusAmount = Math.min(minutesEarly * 0.50, 10.00).toFixed(2);
+      const bonusAmountNum = Math.min(minutesEarly * 0.50, 10.00);
+      const bonusAmount = bonusAmountNum.toFixed(2);
       const updated = await storage.applyEarlyArrivalBonus(id, bonusAmount);
 
       if (updated && reservation.driverId) {
@@ -6081,7 +6097,7 @@ export async function registerRoutes(
           reservation.driverId,
           "ride_completed",
           "Early Arrival Bonus",
-          `You earned $${bonusAmount} for arriving ${Math.round(minutesEarly)} minutes early`,
+          `You earned ₦${(bonusAmountNum / 100).toFixed(2)} for arriving ${Math.round(minutesEarly)} minutes early`,
           id
         );
       }
@@ -7035,7 +7051,7 @@ export async function registerRoutes(
       
       const result = await processPayment(countryCode, {
         amount,
-        currency: countryCode === "NG" ? "NGN" : "USD",
+        currency: "NGN",
         userId,
         email: userEmail || undefined,
         description: "ZIBA Wallet Funding",

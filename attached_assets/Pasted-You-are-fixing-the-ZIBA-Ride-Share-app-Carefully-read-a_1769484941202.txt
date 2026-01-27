@@ -1,0 +1,101 @@
+You are fixing the ZIBA Ride Share app. Carefully read and fix ONLY what is described below. Do not guess. Do not invent new logic.
+
+CURRENT STATE (from screenshots & live behavior):
+
+1) Tester Management (Admin side)
+- Tester Management now shows Email correctly (good)
+- Tester has:
+  - Test Credits (₦)
+  - Main Wallet (₦)
+- Admin can Add Rider Tester / Add Driver Tester
+- Admin can Top-Up Tester Credit
+- Admin can Refund Tester Credit
+→ Admin side is mostly working
+
+BUT THERE ARE CRITICAL ISSUES ON THE USER (RIDER TESTER) SIDE.
+
+---
+
+2) CRITICAL ISSUE #1 — Tester wallet credit NOT usable
+- Admin tops up Test Credits successfully
+- Tester Management shows large Test Credit balance (₦)
+- BUT when the Rider Tester logs in and tries to request a ride:
+  → App throws INSUFFICIENT_BALANCE error
+- Ride request logic is checking ONLY the Main Wallet
+- Test Credits are being completely ignored in ride payment validation
+
+✅ REQUIRED FIX:
+- Ride payment validation MUST check:
+  - Test Wallet first (for testers)
+  - Then Main Wallet (fallback)
+- If user is a tester, Test Wallet balance MUST be allowed to pay for rides
+- Do NOT block rides if Test Wallet has sufficient balance
+
+---
+
+3) CRITICAL ISSUE #2 — Wallet UI is wrong for Testers
+- Rider Tester "Wallet / Payments" screen shows ONLY:
+  - "Wallet Balance"
+- Tester Wallet (Test Credits) is NOT visible
+- This causes confusion and makes testing impossible
+
+✅ REQUIRED FIX:
+- Tester users MUST see TWO payment balances:
+  1) Main Wallet Balance
+  2) Tester Wallet Balance (Test Credits)
+- Both balances must be visible in:
+  - Wallet screen
+  - Payments selection logic
+- Tester must be able to choose which wallet to pay from (default to Test Wallet)
+
+---
+
+4) CRITICAL ISSUE #3 — Currency changed incorrectly
+- App suddenly shows balances as USD ($)
+- System is configured for NGN (₦)
+- Tester credits and wallets are ₦-based
+
+✅ REQUIRED FIX:
+- Force currency to NGN (₦) everywhere:
+  - Wallet UI
+  - Tester Wallet
+  - Ride pricing
+  - Admin views
+- Remove USD formatting entirely unless explicitly configured per country
+
+---
+
+5) CRITICAL ISSUE #4 — Payment method logic incomplete
+- Tester Wallet exists in admin logic
+- But NOT wired into:
+  - Ride cost deduction
+  - Wallet transaction history
+  - Payment method selection
+
+✅ REQUIRED FIX:
+- Treat Tester Wallet as a FIRST-CLASS payment method:
+  - Deduct from Tester Wallet when used
+  - Log transactions properly
+  - Show transaction history for Tester Wallet
+- Tester Wallet is NOT the same as Main Wallet
+
+---
+
+6) IMPORTANT RULES
+- Do NOT remove Main Wallet
+- Do NOT merge wallets
+- Do NOT auto-convert currencies
+- Do NOT guess business logic
+- Do NOT break non-tester users
+
+---
+
+FINAL EXPECTED RESULT:
+- Admin can add testers, top up, refund (already working)
+- Rider Tester sees BOTH wallets clearly
+- Ride requests succeed when Test Wallet has balance
+- No INSUFFICIENT_BALANCE error if Test Wallet covers ride
+- Currency stays ₦ consistently
+- System behaves predictably without hidden logic
+
+Proceed step-by-step and fix the root cause properly.

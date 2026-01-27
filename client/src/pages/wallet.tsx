@@ -13,6 +13,7 @@ interface WalletData {
   currency: string;
   lockedBalance?: string | number;
   testerWalletBalance?: string | number;
+  isTester?: boolean;
 }
 
 interface TesterStatus {
@@ -35,12 +36,12 @@ export default function WalletPage() {
     enabled: !!user,
   });
 
-  const { data: riderWallet, isLoading: walletLoading, refetch: refetchWallet } = useQuery<WalletData | null>({
+  const { data: riderWallet, isLoading: riderWalletLoading } = useQuery<WalletData | null>({
     queryKey: ["/api/rider/wallet"],
     enabled: !!user && userRole?.role === "rider",
   });
 
-  const { data: driverWallet } = useQuery<WalletData | null>({
+  const { data: driverWallet, isLoading: driverWalletLoading } = useQuery<WalletData | null>({
     queryKey: ["/api/driver/wallet"],
     enabled: !!user && userRole?.role === "driver",
   });
@@ -58,19 +59,20 @@ export default function WalletPage() {
     }
   };
 
-  const formatCurrency = (amount: number | string, currency = "NGN") => {
+  // Force NGN formatting with ₦ symbol
+  const formatNGN = (amount: number | string) => {
     const numAmount = typeof amount === "string" ? parseFloat(amount) : amount;
-    return new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency,
-      minimumFractionDigits: 2,
-    }).format(numAmount / 100);
+    const valueInNaira = numAmount / 100; // Convert from kobo to naira
+    return `₦${valueInNaira.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
   const isRider = userRole?.role === "rider";
   const isDriver = userRole?.role === "driver";
   const walletData = isRider ? riderWallet : driverWallet;
-  const isTester = testerStatus?.isTester || false;
+  const walletLoading = isRider ? riderWalletLoading : driverWalletLoading;
+  
+  // Check tester status from both wallet response and tester status endpoint
+  const isTester = walletData?.isTester || testerStatus?.isTester || false;
 
   const mainBalance = walletData?.balance || 0;
   const testerBalance = walletData?.testerWalletBalance || 0;
@@ -110,10 +112,10 @@ export default function WalletPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-green-700 dark:text-green-400">
                 <TestTube className="h-5 w-5" />
-                Test Credits
+                Test Credits (Tester Wallet)
               </CardTitle>
               <CardDescription className="text-green-600 dark:text-green-500">
-                Credits for testing rides (not real money)
+                Credits for testing rides - this is used for ride payments in test mode
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -121,7 +123,7 @@ export default function WalletPage() {
                 <div className="h-16 animate-pulse bg-muted rounded" />
               ) : (
                 <div className="text-3xl font-bold text-green-700 dark:text-green-400" data-testid="text-tester-wallet-balance">
-                  {formatCurrency(testerBalance, walletData?.currency || "NGN")}
+                  {formatNGN(testerBalance)}
                 </div>
               )}
             </CardContent>
@@ -132,10 +134,12 @@ export default function WalletPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Wallet className="h-5 w-5" />
-              {isTester ? "Main Wallet" : "Wallet Balance"}
+              {isTester ? "Main Wallet (Real Money)" : "Wallet Balance"}
             </CardTitle>
             <CardDescription>
-              {isTester ? "Your real wallet balance (₦0.00 for testers)" : "Your current wallet balance"}
+              {isTester 
+                ? "Your real wallet balance - stays at ₦0.00 during testing" 
+                : "Your current wallet balance"}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -143,7 +147,7 @@ export default function WalletPage() {
               <div className="h-16 animate-pulse bg-muted rounded" />
             ) : (
               <div className="text-3xl font-bold" data-testid="text-main-wallet-balance">
-                {formatCurrency(mainBalance, walletData?.currency || "NGN")}
+                {formatNGN(mainBalance)}
               </div>
             )}
           </CardContent>

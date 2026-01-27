@@ -5,7 +5,7 @@
  */
 
 import { db } from "./db";
-import { escrows, riderWallets, driverWallets, zibaWallet, financialAuditLogs, riderTransactionHistory } from "@shared/schema";
+import { escrows, riderWallets, driverWallets, zibaWallet, financialAuditLogs, riderTransactionHistory, userRoles } from "@shared/schema";
 import { eq, and, sql } from "drizzle-orm";
 
 export interface LockEscrowParams {
@@ -29,9 +29,13 @@ export interface HoldEscrowParams {
 
 export const escrowService = {
   async lockFunds(params: LockEscrowParams): Promise<{ success: boolean; escrowId?: string; error?: string }> {
-    const { rideId, riderId, amount, currency = "USD" } = params;
+    const { rideId, riderId, amount, currency = "NGN" } = params;
     
     try {
+      // Check if rider is a tester
+      const [riderRole] = await db.select().from(userRoles).where(eq(userRoles.userId, riderId));
+      const isTester = riderRole?.isTester || false;
+      
       const riderWallet = await db
         .select()
         .from(riderWallets)
@@ -51,9 +55,17 @@ export const escrowService = {
       
       const wallet = riderWallet[0] || (await db.select().from(riderWallets).where(eq(riderWallets.userId, riderId)).limit(1))[0];
       
-      const availableBalance = parseFloat(wallet.balance) - parseFloat(wallet.lockedBalance);
+      // For testers, check testerWalletBalance; for regular users, check main balance
+      let availableBalance: number;
+      if (isTester) {
+        availableBalance = parseFloat(String(wallet.testerWalletBalance || "0"));
+        console.log(`[ESCROW] Tester ${riderId} - checking testerWalletBalance: ${availableBalance}`);
+      } else {
+        availableBalance = parseFloat(wallet.balance) - parseFloat(wallet.lockedBalance);
+      }
+      
       if (availableBalance < amount) {
-        return { success: false, error: "Insufficient funds in wallet" };
+        return { success: false, error: isTester ? "Insufficient test credits" : "Insufficient funds in wallet" };
       }
       
       await db
@@ -79,7 +91,7 @@ export const escrowService = {
         eventType: "ESCROW_LOCK",
         amount: amount.toString(),
         currency,
-        description: `Escrow locked for ride ${rideId}`,
+        description: `Escrow locked for ride ${rideId}${isTester ? " (TESTER)" : ""}`,
       });
       
       await db.insert(riderTransactionHistory).values({
@@ -88,7 +100,7 @@ export const escrowService = {
         amount: amount.toString(),
         source: "trip",
         referenceId: rideId,
-        description: `Escrow locked for ride`,
+        description: `Escrow locked for ride${isTester ? " (Test Credits)" : ""}`,
       });
       
       return { success: true, escrowId: escrow.id };
@@ -114,14 +126,32 @@ export const escrowService = {
       
       const driverEarning = finalFare - platformCommission;
       
-      await db
-        .update(riderWallets)
-        .set({
-          balance: sql`${riderWallets.balance} - ${finalFare}`,
-          lockedBalance: sql`${riderWallets.lockedBalance} - ${parseFloat(escrow.amount)}`,
-          updatedAt: new Date(),
-        })
-        .where(eq(riderWallets.userId, escrow.riderId));
+      // Check if rider is a tester - deduct from tester wallet if so
+      const [riderRole] = await db.select().from(userRoles).where(eq(userRoles.userId, escrow.riderId));
+      const isTester = riderRole?.isTester || false;
+      
+      if (isTester) {
+        // Deduct from tester wallet balance instead of main balance
+        console.log(`[ESCROW] Tester ${escrow.riderId} - deducting from testerWalletBalance`);
+        await db
+          .update(riderWallets)
+          .set({
+            testerWalletBalance: sql`${riderWallets.testerWalletBalance} - ${finalFare}`,
+            lockedBalance: sql`${riderWallets.lockedBalance} - ${parseFloat(escrow.amount)}`,
+            updatedAt: new Date(),
+          })
+          .where(eq(riderWallets.userId, escrow.riderId));
+      } else {
+        // Regular user - deduct from main balance
+        await db
+          .update(riderWallets)
+          .set({
+            balance: sql`${riderWallets.balance} - ${finalFare}`,
+            lockedBalance: sql`${riderWallets.lockedBalance} - ${parseFloat(escrow.amount)}`,
+            updatedAt: new Date(),
+          })
+          .where(eq(riderWallets.userId, escrow.riderId));
+      }
       
       const existingDriverWallet = await db
         .select()
