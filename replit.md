@@ -1,7 +1,7 @@
 # ZIBA - Ride Hailing Platform
 
 ## Overview
-ZIBA is a ride-hailing web application for emerging markets, connecting riders with trusted drivers for safe and reliable transportation. It supports seven user roles (riders, drivers, administrators, directors, finance, trip coordinators, and support agents) to manage the platform, coordinate trips, track finances, and provide customer support. The project aims to offer a scalable and reliable ride-hailing solution, enhancing mobility and economic opportunities.
+ZIBA is a ride-hailing web application designed for emerging markets, aiming to connect riders with trusted drivers for safe and reliable transportation. It supports seven distinct user roles to manage platform operations, coordinate trips, oversee finances, and provide customer support. The project's vision is to deliver a scalable and reliable ride-hailing solution, thereby enhancing mobility and creating economic opportunities.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -13,7 +13,7 @@ Preferred communication style: Simple, everyday language.
 - **Routing**: Wouter
 - **State Management**: TanStack React Query for server state, React hooks for local state
 - **Styling**: Tailwind CSS with shadcn/ui components
-- **UI/UX**: Role-based dashboards (admin, driver, rider) and a public landing page. Supports dark/light mode with system preference detection and eye-safe color palettes. Performance is optimized with lazy loading, error boundaries, and loading skeletons.
+- **UI/UX**: Role-based dashboards for administrators, drivers, and riders, alongside a public landing page. Features include dark/light mode with system preference detection and eye-safe color palettes. Performance is optimized through lazy loading, error boundaries, and loading skeletons.
 
 ### Backend
 - **Runtime**: Node.js with Express.js
@@ -21,185 +21,36 @@ Preferred communication style: Simple, everyday language.
 - **API Pattern**: RESTful JSON APIs (`/api/*`)
 - **Authentication**: Replit Auth (OpenID Connect) via Passport.js
 - **Session Management**: Express sessions stored in PostgreSQL
-- **Design**: Clean separation of concerns (routes, storage, authentication) with role-based middleware for endpoint protection.
+- **Design**: Employs a clean separation of concerns for routes, storage, and authentication, with role-based middleware securing endpoints.
 
 ### Data Storage
 - **Database**: PostgreSQL
-- **ORM**: Drizzle ORM with Zod schema validation
-- **Schema**: Defined in `shared/schema.ts` for entities like `users`, `trips`, `wallets`, `notifications`, `disputes`, `fraud_risk_profiles`, `incentive_programs`, `countries`, `support_tickets`, `organization_contracts`, `service_level_agreements`, `enterprise_invoices`, `referral_codes`, `marketing_campaigns`, `partner_leads`, and `feature_flags`.
+- **ORM**: Drizzle ORM with Zod for schema validation
+- **Schema**: Defined in `shared/schema.ts`, encompassing entities such as `users`, `trips`, `wallets`, `notifications`, `disputes`, `fraud_risk_profiles`, `incentive_programs`, `countries`, `support_tickets`, `organization_contracts`, `service_level_agreements`, `enterprise_invoices`, `referral_codes`, `marketing_campaigns`, `partner_leads`, and `feature_flags`.
 
 ### Core Features
-- **Authentication & Authorization**: Replit Auth integration with comprehensive Role-Based Access Control (RBAC) and a hierarchical `super_admin` role for governance.
-- **User & Trip Management**: Full lifecycle management of users and trips, including approval, suspension, and cancellation. Includes profile photos and live camera identity verification with admin review workflow.
-- **Financial Operations**: Fare calculation, commission management, driver payouts, simulated payment system with virtual wallets, and payout cycles. Includes refunds, adjustments, and chargebacks.
-- **Notifications**: In-app notifications for real-time updates, ride offer alerts with 10-second countdown and sound, status notifications for all ride state changes, and safety check alerts with 4-minute idle detection.
-- **Ratings & Moderation**: Mutual rating system and dispute management with admin moderation.
+- **Authentication & Authorization**: Integration with Replit Auth and comprehensive Role-Based Access Control (RBAC), including a hierarchical `super_admin` role.
+- **User & Trip Management**: Full lifecycle management for users and trips, covering approval, suspension, and cancellation. Includes identity verification with live camera and admin review.
+- **Financial Operations**: Fare calculation, commission management, driver payouts, a simulated payment system with virtual wallets, and payout cycles. Includes refunds, adjustments, and chargebacks.
+- **Notifications**: In-app notifications for real-time updates, ride offers with countdowns, status changes, and safety checks.
+- **Ratings & Moderation**: Mutual rating system and dispute resolution with admin oversight.
 - **Fraud Detection**: Real-time engine with configurable signals, risk scoring, and resolution workflows.
-- **Driver Incentives**: Management of various incentive programs (e.g., trip, streak, peak, quality, promo bonuses) integrated with driver wallets, with fraud prevention.
-- **Trip Coordinator Module**: Functionality for institutional users to book trips, manage organization profiles, and handle support.
-- **Multi-Country Support**: Management of countries, tax rules, exchange rates, and compliance profiles.
+- **Driver Incentives**: Management of various incentive programs integrated with driver wallets, with fraud prevention.
+- **Trip Coordinator Module**: Functionality for institutional users to book trips and manage organizational profiles.
+- **Multi-Country Support**: Management of countries, tax rules, exchange rates, and compliance profiles for Nigeria, United States, and South Africa.
 - **Customer Support System**: Dedicated `support_agent` role, ticket lifecycle management, and a messaging interface.
-- **Enterprise Contracts & Billing**: Organization contract management with SLAs, multiple billing models, invoice generation, and payment tracking for institutional clients.
-- **Monitoring & KPIs**: Metrics aggregation for platform, rider, driver, organization, and financial performance, with threshold alerts and feature flag management.
+- **Enterprise Contracts & Billing**: Management of organization contracts, SLAs, multiple billing models, invoice generation, and payment tracking.
+- **Monitoring & KPIs**: Aggregation of metrics for platform, rider, driver, organization, and financial performance, with threshold alerts and feature flag management.
 - **Growth & Marketing**: Referral codes, marketing campaigns, and partner lead tracking.
-- **Scheduled Reservations**: Uber/Lyft-style advance booking with $5.00 reservation premium, driver assignment, 30-min prep window, early arrival bonuses (up to $10), and cancellation fees (when cancelled within 1 hour of pickup).
-- **Monetization System (Phase 25)**: Wallet-based escrow flow, dynamic country-specific pricing, payment provider abstraction (Paystack/Flutterwave for Nigeria), fraud detection with rule-based abuse flagging, and comprehensive financial audit logging.
-
-### Monetization Architecture
-- **Wallet System**: Separate tables for `riderWallets`, `driverWallets`, and `zibaWallet` (platform wallet)
-- **Driver Wallet**: Three-tier balance (balance, pendingBalance, withdrawableBalance) with payout cycle
-- **Escrow Flow**: Funds locked when ride starts → released to driver/platform on completion → held on dispute
-- **Payment Providers**: Abstracted interface supporting Paystack, Flutterwave, manual, and placeholder providers
-- **Fraud Detection**: Low-cost rule-based system with configurable thresholds (excessive cancellations, reservation abuse, fake movement)
-- **Country Pricing**: Dynamic pricing rules per country including base fare, per-km/minute rates, surge multipliers, and commission percentages
-- **Financial Audit**: All financial events logged in `financialAuditLogs` table for compliance
-
-### Multi-Country Currency Support
-- **Supported Countries**: Nigeria (NG), United States (US), South Africa (ZA)
-- **Currency Mapping**: NG → NGN (₦), US → USD ($), ZA → ZAR (R)
-- **User Country**: Stored in `userRoles.countryCode` (defaults to NG)
-- **Wallet Currency**: Automatically set based on user's country at wallet creation
-- **Dynamic Formatting**: Frontend uses `Intl.NumberFormat` with wallet's currency code
-- **Admin Top-up**: `POST /api/admin/wallet/topup` (SUPER_ADMIN only)
-  - Payload: `{ userId, amount, walletType: "TEST" | "MAIN", note? }`
-  - Currency automatically derived from user's country
-  - All top-ups logged in `wallet_topup_logs` table
-- **Backward Compatibility**: Existing wallets retain their currency, new wallets use user's country currency
-
-## Production Switch System (Phase 26)
-### Switch 1: Real Payments (Per Country)
-- **Default**: `paymentsEnabled = false`, `paymentProvider = null` for ALL countries
-- **Activation**: SUPER_ADMIN only, requires explicit confirmation "ENABLE_REAL_PAYMENTS"
-- **When Disabled**: Wallet operates in SIMULATED mode, no real money charged
-- **When Enabled**: Real payment provider processes transactions, escrow logic unchanged
-- **API**: `PATCH /api/admin/countries/:countryId/payments`
-
-### Switch 2: Launch Mode (Global)
-- **Default**: `SOFT_LAUNCH` - invite codes required, driver onboarding capped, daily ride limits
-- **Options**: `soft_launch` | `full_launch`
-- **FULL_LAUNCH**: Open signups, no invite required, normal ride limits
-- **API**: `PATCH /api/admin/system-config/LAUNCH_MODE`
-
-### Switch 3: Explanation Mode (Admin Only)
-- **Default**: `false` (disabled)
-- **Purpose**: Read-only summary for investors/regulators/partners
-- **Content**: Wallet-first model, escrow handling, navigation approach, cost controls, driver classification, fraud protections
-- **API**: `GET /api/admin/explanation-summary`
-
-### Switch Safety Requirements
-- All switches are **server-side only**
-- All switches are **SUPER_ADMIN protected**
-- All changes are **logged to config_audit_logs table**
-- All switches are **instantly reversible**
-- No testers can enable production features
-
-## Test Mode Configuration (LOCKED)
-- **GLOBAL_TEST_MODE**: Enabled - ALL countries run wallet-simulated payments
-- **No Real Payments**: All charges, payouts, escrow, and commissions are simulated internally
-- **Virtual Wallets**: Wallet balances are virtual and resettable
-- **Full Logic Execution**: Fare, cancellation, reservation, and compensation logic runs fully
-- **Audit Logging**: All transactions are logged for audit
-
-## Payment Source Architecture (Updated Jan 2026)
-### Payment Source Types
-- **paymentSource field**: Stored in `rider_wallets.payment_source` AND snapshotted per ride in `rides.payment_source`
-- **Allowed values**: TEST_WALLET | MAIN_WALLET | CARD | BANK (BANK is future-only)
-- **Server-Side Resolution**: Payment source resolved automatically based on tester status and selected payment method
-- **No UI-Only Authorization**: Frontend selection MUST NEVER authorize a ride
-
-### Wallet Resolution Rules
-- **Testers**: `isTester=true` → FORCE paymentSource=TEST_WALLET → uses `testerWalletBalance`
-- **Non-Testers**: `isTester=false` → DEFAULT paymentSource=MAIN_WALLET or CARD if selected
-- **Tester Detection**: Checked via `is_tester` flag, `tester_type`, or `testerWalletBalance > 0`
-- **Card Selection**: Non-testers can switch to CARD if real payments are enabled for their country
-
-### Ride Booking Authorization
-- **TEST_WALLET**: Check testerWalletBalance >= estimatedFare
-- **MAIN_WALLET**: Check balance - lockedBalance >= estimatedFare
-- **CARD**: Create payment authorization hold (capture on completion)
-- **BANK**: Reject booking (future-only)
-- Testers CANNOT use CARD or MAIN_WALLET (server enforced)
-- Non-testers CANNOT use TEST_WALLET (server enforced)
-- Payment source change only allowed when rider has no active ride
-- All rides snapshot paymentSource for audit
-
-### Payment Capture & Settlement
-- **On ride completion**:
-  - TEST_WALLET/MAIN_WALLET: Debit wallet by finalFare
-  - CARD: Capture authorization with finalFare
-- **Revenue split**: 80% driver / 20% platform (after capture)
-- **Capture failure**: Ride enters PAYMENT_REVIEW state, driver earnings still credited
-
-### Safety Rules
-- Never charge twice
-- Never mix currencies (ride.currencyCode must match payment method currency)
-- Never fallback to another paymentSource silently
-- Driver earnings protected until capture succeeds
-
-## Security Configuration (LOCKED)
-### Role-Based Access Control (RBAC)
-- **Roles**: RIDER, DRIVER, ADMIN, SUPER_ADMIN
-- **Admin Dashboard Access**: ONLY ADMIN or SUPER_ADMIN roles
-- **No Auto-Promotion**: Users cannot gain admin access via signup, email, or country
-- **Unauthorized Redirect**: Non-admin users accessing /admin/* are redirected to /unauthorized
-- **Security Audit Logging**: All unauthorized access attempts are logged
-
-### Admin Role Assignment
-- **Super Admin Only**: Admin roles can ONLY be assigned by SUPER_ADMIN
-- **Assignment Methods**: Role Appointments UI or direct database update
-- **Session Refresh**: Changes require logout + login to take effect
-- **Primary Owner**: 365ddevotional@gmail.com is permanently assigned SUPER_ADMIN
-
-## Navigation Architecture (LOCKED)
-- **NO external map SDKs** (Google Maps SDK, Mapbox, HERE, etc.)
-- **NO external routing APIs** (OSRM, OpenRouteService, etc.)
-- **Navigation**: Opens native GPS apps via deep links only (Google Maps on Android, Apple Maps on iOS)
-- **Distance Calculation**: Internal Haversine formula from GPS coordinates
-- **Duration Calculation**: Timestamp differences from GPS sampling
-- **Fare Calculation**: Based on internally computed distance, time, and waiting periods
-
-## Driver Payout Management
-- **Payout Info Storage**: Bank/mobile money details stored in driverWallets table
-- **APIs**: GET/PATCH `/api/driver/payout-info` for drivers to manage payout details
-- **No Auto-Payouts**: All payouts require manual admin processing in test mode
-- **Audit Logging**: All payout info updates are logged
-
-## Financial Engine (Updated Jan 2026)
-### Currency Architecture (MANDATORY)
-- **Currency Lock**: Every ride has `currencyCode` locked at creation from rider's `countryCode`
-- **Country-Currency Map**: Nigeria (NG) → NGN, USA (US) → USD, South Africa (ZA) → ZAR
-- **No Override**: IP, browser, or UI cannot override currency - server-side only
-- **Wallet Validation**: Booking blocked if rider's wallet currency doesn't match country currency
-- **No Mixed Currency**: Rides cannot mix currencies - all financial values use the same currencyCode
-- **No Hidden Conversion**: No implicit conversion, no multiplication, no USD fallback
-
-### Revenue Split (HARD RULE)
-- **Driver Share**: EXACTLY 80% of `ride.totalFare`
-- **Platform Share**: EXACTLY 20% of `ride.totalFare`
-- **Integer-Safe Math**: Uses smallest currency unit to prevent rounding drift
-- **Ledger Entry**: Every completed ride creates append-only entry in `revenue_split_ledger` table
-- **Audit Fields**: rideId, riderId, driverId, fareAmount, currencyCode, driverShare, zibaShare, isTestRide
-
-### Driver Earnings Wallet
-- **Separate from Rider Wallets**: Uses `driverWallets` table
-- **Earnings Fields**: `totalEarned`, `totalWithdrawn` for lifetime tracking
-- **Currency Lock**: Wallet currency locked to driver's countryCode
-- **Test Ride Support**: Test rides credit `testerWalletBalance`, non-test credit `balance`
-- **Negative Balance Prevention**: Credits only, no debits without ledger entry
-
-### Financial Audit Trail
-- All completed rides logged to `financialAuditLogs` with:
-  - Driver earning entry (COMMISSION event type)
-  - Platform fee entry (FEE event type)
-  - Full metadata including ledger entry ID
-
-### Fare Calculation
-- **Base Fare**: Calculated based on country pricing rules
-- **Distance Fare**: Per-km rate from country pricing
-- **Time Fare**: Per-minute rate from country pricing
-- **Waiting Fee**: Charged when driver waits beyond expected time
-- **Traffic Fee**: Applied when actual duration exceeds estimated duration
-- **All calculations**: Use `currencyCode` parameter, no USD fallback
+- **Scheduled Reservations**: Advance booking functionality with reservation premiums, driver assignment, preparation windows, early arrival bonuses, and cancellation fees.
+- **Monetization System**: Wallet-based escrow flow, dynamic country-specific pricing, payment provider abstraction, rule-based fraud detection, and comprehensive financial audit logging.
+- **Production Switches**: Server-side, SUPER_ADMIN-protected switches for enabling real payments per country, setting launch mode (soft/full), and an explanation mode for stakeholders. All changes are logged and instantly reversible.
+- **Test Mode Configuration**: Global test mode enables simulated wallet payments, virtual wallets, and full logic execution without real monetary transactions.
+- **Payment Source Architecture**: `paymentSource` field (TEST_WALLET, MAIN_WALLET, CARD, BANK) resolved server-side. Testers use `TEST_WALLET` and non-testers use `MAIN_WALLET` or `CARD`.
+- **Driver Payout Management**: Drivers can manage bank/mobile money details. Payouts require manual admin processing in test mode and are logged.
+- **Driver Identity & Withdrawal Verification**: Drivers require verified identity profiles and country-specific documents (e.g., DRIVER_LICENSE + NIN for Nigeria) to withdraw funds. Verification status (`pending_verification`, `verified`, `suspended`) governs withdrawal eligibility. Anti-fraud safeguards include hashing document numbers, preventing multiple accounts per document/bank, and review triggers for mismatches or rapid withdrawals. Minimum withdrawal amounts are set per country.
+- **Financial Engine**: Rides are locked to a `currencyCode` based on the rider's country. Revenue split is strictly 80% driver / 20% platform, using integer-safe math and append-only ledger entries. Driver earnings are managed in separate `driverWallets`. A comprehensive audit trail is maintained for all financial transactions. Fare calculation uses country-specific rules for base, distance, time, waiting, and traffic fees, all within the ride's `currencyCode`.
+- **Navigation Architecture**: No external map SDKs or routing APIs are used. Navigation relies on opening native GPS apps via deep links. Distance and duration calculations are internal, based on GPS coordinates and timestamps. Fare calculation uses internally computed distance, time, and waiting periods.
 
 ## External Dependencies
 
