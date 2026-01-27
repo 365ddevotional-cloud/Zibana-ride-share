@@ -1,0 +1,135 @@
+You are upgrading the ZIBA Ride-Hailing backend to add Rider Payment Methods
+WITHOUT breaking existing wallet, currency, or revenue logic.
+
+STRICT RULES
+- Do NOT ask questions
+- Do NOT explain decisions
+- Do NOT rely on frontend state
+- Backend logic only
+- Do NOT remove or weaken existing wallet rules
+- All payment authorization is server-side
+- Changes must be additive and backward compatible
+
+────────────────────────
+PAYMENT SOURCE ARCHITECTURE
+────────────────────────
+
+Introduce a persistent paymentSource for every rider.
+
+Allowed paymentSource values:
+- TEST_WALLET
+- MAIN_WALLET
+- CARD
+- BANK_TRANSFER (future-safe, not yet active)
+
+Store paymentSource at rider profile level AND snapshot it per ride.
+
+paymentSource selection rules:
+- If rider.isTester === true → FORCE paymentSource = TEST_WALLET
+- If rider.isTester === false → DEFAULT paymentSource = MAIN_WALLET
+- Rider may switch paymentSource ONLY if not currently in a ride
+
+Frontend selection MUST NEVER authorize a ride.
+
+────────────────────────
+PAYMENT METHOD ENTITIES
+────────────────────────
+
+Add rider_payment_methods table:
+
+Fields:
+- id
+- riderId
+- type (CARD | BANK_TRANSFER)
+- provider (e.g. Paystack, Stripe)
+- maskedReference
+- currencyCode
+- isDefault
+- isActive
+- createdAt
+
+Rules:
+- Multiple methods allowed
+- Only ONE default method per currency
+- Method currency MUST match rider country currency
+- Cross-currency methods are rejected
+
+────────────────────────
+RIDE PAYMENT AUTHORIZATION FLOW
+────────────────────────
+
+At ride request time:
+
+1. Resolve paymentSource server-side
+2. Resolve ride.currencyCode from rider.countryCode
+3. Apply authorization rules:
+
+IF paymentSource === TEST_WALLET
+- Check testerWallet.balance >= estimatedFare
+
+IF paymentSource === MAIN_WALLET
+- Check mainWallet.balance >= estimatedFare
+
+IF paymentSource === CARD
+- Create payment authorization hold (NO capture yet)
+- Amount = estimatedFare
+- Currency = ride.currencyCode
+
+IF paymentSource === BANK_TRANSFER
+- Reject booking (future-only)
+
+If authorization fails → block booking with explicit error
+
+────────────────────────
+CAPTURE & SETTLEMENT
+────────────────────────
+
+On trip completion:
+
+- If TEST_WALLET or MAIN_WALLET:
+  → Debit wallet by finalFare
+
+- If CARD:
+  → Capture authorization with finalFare
+  → Release unused amount if fare reduced
+
+Then apply revenue split:
+- Driver → 80%
+- Ziba → 20%
+
+Ledger everything.
+
+────────────────────────
+FAILURE & SAFETY RULES
+────────────────────────
+
+- Never charge twice
+- Never mix currencies
+- Never fallback to another paymentSource silently
+- If capture fails → ride enters PAYMENT_REVIEW state
+- Driver earnings are protected until capture succeeds
+
+────────────────────────
+TEST MODE GUARANTEES
+────────────────────────
+
+- Test riders CANNOT use CARD or MAIN_WALLET
+- Test rides NEVER touch real money
+- Test rides STILL obey:
+  - currency rules
+  - ledger recording
+  - 80/20 split
+
+────────────────────────
+ACCEPTANCE CONDITIONS (MUST PASS)
+────────────────────────
+
+- Nigeria riders see only NGN options
+- US riders see only USD options
+- Wallet, card, and ride currency always match
+- Rider can change payment method when offline only
+- No UI-only authorization exists
+- One ride = one paymentSource = one currency
+
+Implement cleanly.
+Checkpoint when complete.

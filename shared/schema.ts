@@ -137,7 +137,8 @@ export const rideStatusEnum = pgEnum("ride_status", [
   "waiting",
   "in_progress",
   "completed",
-  "cancelled"
+  "cancelled",
+  "payment_review"
 ]);
 export const rideCancelledByEnum = pgEnum("ride_cancelled_by", ["rider", "driver", "system"]);
 export const driverCancelReasonEnum = pgEnum("driver_cancel_reason", [
@@ -384,6 +385,18 @@ export const rides = pgTable("rides", {
   // Multi-country support
   countryId: varchar("country_id"),
   currencyCode: varchar("currency_code", { length: 3 }).notNull().default("NGN"),
+  
+  // Payment source snapshot (locked at ride creation)
+  paymentSource: paymentSourceEnum("payment_source").notNull().default("MAIN_WALLET"),
+  paymentMethodId: varchar("payment_method_id"),
+  
+  // Card authorization fields (for CARD payment source)
+  authorizationReference: varchar("authorization_reference"),
+  authorizationAmount: decimal("authorization_amount", { precision: 10, scale: 2 }),
+  authorizationStatus: varchar("authorization_status", { length: 20 }),
+  captureReference: varchar("capture_reference"),
+  captureAmount: decimal("capture_amount", { precision: 10, scale: 2 }),
+  capturedAt: timestamp("captured_at"),
   
   // Passenger info
   passengerCount: integer("passenger_count").default(1),
@@ -788,6 +801,8 @@ export const riderPaymentMethods = pgTable("rider_payment_methods", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
   type: varchar("type", { length: 20 }).notNull(), // CARD, BANK, MOBILE_MONEY
+  provider: varchar("provider", { length: 30 }), // Paystack, Flutterwave, Stripe
+  maskedReference: varchar("masked_reference", { length: 50 }),
   isDefault: boolean("is_default").notNull().default(false),
   // Card details (masked)
   cardLast4: varchar("card_last_4", { length: 4 }),
