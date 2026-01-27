@@ -1,0 +1,125 @@
+STOP EVERYTHING ELSE.
+
+THIS PROMPT IS AUTHORITATIVE.
+
+OBJECTIVE:
+Fix the user-selection bug AND extend Tester Management so the SUPER ADMIN can:
+- Add Rider Testers
+- Add Driver Testers
+- Top up tester credits
+- Refund (reduce) tester credits
+ALL without real payments.
+
+APPLIES TO:
+- Rider Tester
+- Driver Tester
+(Same logic, same fix)
+
+==================================================
+PART 1 — FIX SELECTION BUG (MANDATORY)
+==================================================
+
+CURRENT PROBLEM:
+Selecting a user (e.g. smefas37@gmail.com) does not persist.
+The dropdown resets to the admin email.
+
+ROOT CAUSE:
+The Select component is uncontrolled or overridden by a default value.
+
+FIX (APPLY TO BOTH MODALS):
+
+1. Introduce controlled state:
+   - selectedUserId (or selectedUserEmail)
+
+2. Bind Select properly:
+   - value={selectedUserId}
+   - onChange={(value) => setSelectedUserId(value)}
+
+3. Remove ALL default selections.
+   - Do NOT auto-select admin
+   - Initial state MUST be null
+
+4. Disable “Add Tester” button until a user is selected.
+
+5. On submit:
+   - Use ONLY selectedUserId
+   - If null → block with simple message
+
+Apply this IDENTICALLY to:
+- Add Rider Tester modal
+- Add Driver Tester modal
+
+==================================================
+PART 2 — TESTER CREATION (UNCHANGED LOGIC)
+==================================================
+
+When a tester is added:
+- Assign role: RIDER_TESTER or DRIVER_TESTER
+- Wallet mode: TEST
+- Initial credit: ₦45,000 (config constant)
+- Currency: NGN
+- No Paystack
+- No real charges
+
+==================================================
+PART 3 — ADMIN TESTER TOP-UP & REFUND (NEW)
+==================================================
+
+Add TWO actions inside Super Admin → Tester Management:
+
+A) “Top Up Tester Credit”
+B) “Refund Tester Credit”
+
+RULES:
+- SUPER_ADMIN ONLY
+- TEST wallets ONLY
+- No Paystack
+- No real money
+- Ledger-based (adjust balance safely)
+
+UI:
+- Simple modal:
+  - Select Tester
+  - Amount (number)
+  - Action: TOP_UP or REFUND
+  - Confirm button
+
+LOGIC:
+- TOP_UP → increase tester wallet balance
+- REFUND → decrease tester wallet balance (cannot go below ₦0)
+- Record transaction as:
+  - type: ADMIN_ADJUSTMENT
+  - reason: TESTER_TOPUP or TESTER_REFUND
+  - performedBy: adminId
+  - timestamp
+
+DO NOT:
+- Add new payment providers
+- Touch Paystack
+- Enable payouts
+- Add Director testers
+- Change production wallet logic
+
+==================================================
+PART 4 — SAFETY
+==================================================
+
+- Block adjustments on REAL wallets
+- Block negative balances
+- Show simple success toast
+- Refresh tester list after action
+
+==================================================
+EXPECTED RESULT
+==================================================
+
+✔ User selection persists correctly  
+✔ Rider Tester works  
+✔ Driver Tester works  
+✔ Super Admin can top up tester credits  
+✔ Super Admin can refund tester credits  
+✔ No money spent  
+✔ Safe to publish  
+
+IMPLEMENT NOW.
+SHOW ONLY FILES THAT CHANGED.

@@ -6869,10 +6869,10 @@ export async function registerRoutes(
       const users = await storage.getAllUsersWithRoles();
       const usersWithWallets = await Promise.all(
         users.map(async (user: any) => {
-          const riderWallet = await storage.getRiderWallet(user.id);
-          const driverWallet = await storage.getDriverWallet(user.id);
+          const riderWallet = await storage.getRiderWallet(user.userId);
+          const driverWallet = await storage.getDriverWallet(user.userId);
           return {
-            id: user.id,
+            id: user.userId,
             email: user.email,
             firstName: user.firstName,
             lastName: user.lastName,
