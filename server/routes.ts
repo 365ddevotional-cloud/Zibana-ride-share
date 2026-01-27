@@ -5187,7 +5187,7 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Only riders can request rides" });
       }
 
-      const { pickupLat, pickupLng, pickupAddress, dropoffLat, dropoffLng, dropoffAddress, passengerCount } = req.body;
+      const { pickupLat, pickupLng, pickupAddress, dropoffLat, dropoffLng, dropoffAddress, passengerCount, paymentMethodId } = req.body;
 
       // Validate required fields
       if (!pickupLat || !pickupLng || !dropoffLat || !dropoffLng) {
@@ -5200,15 +5200,144 @@ export async function registerRoutes(
       const riderCountryCode = userRole?.countryCode || "NG";
       const currencyCode = getCurrencyFromCountry(riderCountryCode);
 
+      // Get or create rider wallet with user's country currency
+      let riderWallet = await storage.getRiderWallet(userId);
+      if (!riderWallet) {
+        riderWallet = await storage.createRiderWallet({ userId, currency: currencyCode });
+      }
+
       // Validate rider's wallet currency matches country currency
-      const riderWallet = await storage.getRiderWallet(userId);
-      if (riderWallet && riderWallet.currency !== currencyCode) {
+      if (riderWallet.currency !== currencyCode) {
         return res.status(400).json({ 
           message: `Currency mismatch: Your wallet (${riderWallet.currency}) does not match your country currency (${currencyCode})`,
           error: "CURRENCY_MISMATCH"
         });
       }
 
+      // Check if wallet is frozen
+      if (riderWallet.isFrozen) {
+        console.log(`[SECURITY AUDIT] Frozen wallet ride request attempt: userId=${userId}`);
+        return res.status(403).json({ 
+          message: "Your wallet is frozen. Please contact support.",
+          code: "WALLET_FROZEN"
+        });
+      }
+
+      // SERVER-SIDE PAYMENT SOURCE RESOLUTION
+      const isTester = await storage.isUserTester(userId);
+      
+      // Resolve payment source based on tester status and requested payment method
+      let resolvedPaymentSource: "TEST_WALLET" | "MAIN_WALLET" | "CARD" | "BANK";
+      let paymentMethod = null;
+      
+      if (isTester) {
+        // RULE: Testers MUST use TEST_WALLET only - no exceptions
+        resolvedPaymentSource = "TEST_WALLET";
+        console.log(`[PAYMENT SOURCE] Tester user ${userId} - forcing TEST_WALLET`);
+      } else if (paymentMethodId) {
+        // Non-tester with saved payment method - validate and use CARD
+        paymentMethod = await storage.getRiderPaymentMethod(paymentMethodId);
+        
+        if (!paymentMethod || paymentMethod.userId !== userId) {
+          return res.status(400).json({ 
+            message: "Invalid payment method",
+            code: "INVALID_PAYMENT_METHOD"
+          });
+        }
+        
+        if (!paymentMethod.isActive) {
+          return res.status(400).json({ 
+            message: "This payment method is no longer active",
+            code: "PAYMENT_METHOD_INACTIVE"
+          });
+        }
+        
+        // RULE: Payment method currency MUST match ride currency
+        if (paymentMethod.currency !== currencyCode) {
+          return res.status(400).json({ 
+            message: `Payment method currency (${paymentMethod.currency}) does not match ride currency (${currencyCode})`,
+            code: "PAYMENT_CURRENCY_MISMATCH"
+          });
+        }
+        
+        if (paymentMethod.type === "CARD") {
+          resolvedPaymentSource = "CARD";
+        } else if (paymentMethod.type === "BANK_TRANSFER") {
+          // RULE: BANK_TRANSFER is future-only, not active
+          return res.status(400).json({ 
+            message: "Bank transfer payments are not yet available",
+            code: "BANK_TRANSFER_NOT_AVAILABLE"
+          });
+        } else {
+          resolvedPaymentSource = "MAIN_WALLET";
+        }
+      } else {
+        // Non-tester without payment method - use MAIN_WALLET
+        resolvedPaymentSource = "MAIN_WALLET";
+      }
+
+      // AUTHORIZATION LOGIC based on payment source
+      let availableBalance: number;
+      let walletType: string;
+      const minimumRequiredBalance = 5.00; // Minimum ₦5.00
+
+      if (resolvedPaymentSource === "TEST_WALLET") {
+        availableBalance = parseFloat(String(riderWallet.testerWalletBalance || "0"));
+        walletType = "TEST";
+        console.log(`[WALLET AUTH] Tester ${userId} - TEST_WALLET balance: ${availableBalance}`);
+        
+        if (availableBalance < minimumRequiredBalance) {
+          return res.status(400).json({ 
+            message: "Insufficient test wallet balance. Please contact support for test credit.",
+            code: "INSUFFICIENT_BALANCE",
+            paymentSource: resolvedPaymentSource,
+            required: minimumRequiredBalance,
+            available: availableBalance
+          });
+        }
+      } else if (resolvedPaymentSource === "MAIN_WALLET") {
+        availableBalance = parseFloat(String(riderWallet.balance || "0")) - parseFloat(String(riderWallet.lockedBalance || "0"));
+        walletType = "MAIN";
+        console.log(`[WALLET AUTH] User ${userId} - MAIN_WALLET balance: ${availableBalance}`);
+        
+        if (availableBalance < minimumRequiredBalance) {
+          return res.status(400).json({ 
+            message: "Insufficient wallet balance. Please add funds to continue.",
+            code: "INSUFFICIENT_BALANCE",
+            paymentSource: resolvedPaymentSource,
+            required: minimumRequiredBalance,
+            available: availableBalance
+          });
+        }
+      } else if (resolvedPaymentSource === "CARD") {
+        // CARD: Check country has real payments enabled
+        const country = await storage.getCountryByCode(riderCountryCode);
+        if (!country?.paymentsEnabled) {
+          return res.status(400).json({ 
+            message: "Card payments are not available in your region yet",
+            code: "CARD_PAYMENTS_NOT_ENABLED"
+          });
+        }
+        
+        // Card authorization happens at ride start, not request
+        // For now, we validate the card is reusable
+        if (!paymentMethod?.providerReusable) {
+          return res.status(400).json({ 
+            message: "This card cannot be used for payments",
+            code: "CARD_NOT_REUSABLE"
+          });
+        }
+        
+        walletType = "CARD";
+        console.log(`[CARD AUTH] User ${userId} - CARD payment method validated`);
+      }
+
+      // Update wallet's payment source to match resolved source
+      if (riderWallet.paymentSource !== resolvedPaymentSource) {
+        await storage.updateRiderWalletPaymentSource(userId, resolvedPaymentSource);
+      }
+
+      // Create the ride with payment source snapshot
       const ride = await storage.createRide({
         riderId: userId,
         pickupLat: pickupLat.toString(),
@@ -5219,7 +5348,11 @@ export async function registerRoutes(
         dropoffAddress: dropoffAddress || null,
         passengerCount: passengerCount || 1,
         currencyCode,
+        paymentSource: resolvedPaymentSource,
+        paymentMethodId: paymentMethod?.id || null,
       });
+
+      console.log(`[RIDE CREATED] rideId=${ride.id}, userId=${userId}, paymentSource=${resolvedPaymentSource}, currency=${currencyCode}, isTester=${isTester}`);
 
       // Log the action
       await storage.createRideAuditLog({
@@ -5229,7 +5362,7 @@ export async function registerRoutes(
         actorRole: "rider",
         previousStatus: null,
         newStatus: "matching",
-        metadata: JSON.stringify({ pickupAddress, dropoffAddress }),
+        metadata: JSON.stringify({ pickupAddress, dropoffAddress, paymentSource: resolvedPaymentSource }),
       });
 
       return res.status(201).json(ride);
