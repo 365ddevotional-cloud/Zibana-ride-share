@@ -257,6 +257,35 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Driver must be approved to go online" });
       }
 
+      // MANDATORY SETUP CHECK - Block going online if setup incomplete
+      if (isOnline === true) {
+        const missingFields: string[] = [];
+        
+        // Check location permissions
+        if (profile.locationPermissionStatus !== "granted") {
+          missingFields.push("locationPermission");
+        }
+        
+        // Check navigation provider selection
+        if (!profile.navigationProvider) {
+          missingFields.push("navigationProvider");
+        }
+        
+        // Check navigation verification
+        if (!profile.navigationVerified) {
+          missingFields.push("navigationVerified");
+        }
+        
+        if (missingFields.length > 0) {
+          return res.status(403).json({ 
+            message: "Driver setup incomplete",
+            error: "DRIVER_SETUP_INCOMPLETE",
+            missingFields,
+            setupCompleted: false
+          });
+        }
+      }
+
       const updated = await storage.updateDriverOnlineStatus(userId, isOnline);
       return res.json(updated);
     } catch (error) {
@@ -301,6 +330,21 @@ export async function registerRoutes(
       const profile = await storage.getDriverProfile(userId);
       if (!profile || profile.status !== "approved") {
         return res.status(403).json({ message: "Driver not approved" });
+      }
+
+      // MANDATORY SETUP CHECK - Block ride acceptance if setup incomplete
+      const missingFields: string[] = [];
+      if (profile.locationPermissionStatus !== "granted") missingFields.push("locationPermission");
+      if (!profile.navigationProvider) missingFields.push("navigationProvider");
+      if (!profile.navigationVerified) missingFields.push("navigationVerified");
+      
+      if (missingFields.length > 0) {
+        return res.status(403).json({ 
+          message: "Driver setup incomplete",
+          error: "DRIVER_SETUP_INCOMPLETE",
+          missingFields,
+          setupCompleted: false
+        });
       }
 
       const currentTrip = await storage.getDriverCurrentTrip(userId);
@@ -4979,6 +5023,24 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Only drivers can accept rides" });
       }
 
+      // MANDATORY SETUP CHECK - Block ride acceptance if setup incomplete
+      const driverProfile = await storage.getDriverProfile(userId);
+      if (driverProfile) {
+        const missingFields: string[] = [];
+        if (driverProfile.locationPermissionStatus !== "granted") missingFields.push("locationPermission");
+        if (!driverProfile.navigationProvider) missingFields.push("navigationProvider");
+        if (!driverProfile.navigationVerified) missingFields.push("navigationVerified");
+        
+        if (missingFields.length > 0) {
+          return res.status(403).json({ 
+            message: "Driver setup incomplete",
+            error: "DRIVER_SETUP_INCOMPLETE",
+            missingFields,
+            setupCompleted: false
+          });
+        }
+      }
+
       const ride = await storage.getRideById(rideId);
       if (!ride) {
         return res.status(404).json({ message: "Ride not found" });
@@ -5687,6 +5749,24 @@ export async function registerRoutes(
     try {
       const userId = req.user?.claims?.sub;
       const { offerId } = req.params;
+
+      // MANDATORY SETUP CHECK - Block ride acceptance if setup incomplete
+      const driverProfile = await storage.getDriverProfile(userId);
+      if (driverProfile) {
+        const missingFields: string[] = [];
+        if (driverProfile.locationPermissionStatus !== "granted") missingFields.push("locationPermission");
+        if (!driverProfile.navigationProvider) missingFields.push("navigationProvider");
+        if (!driverProfile.navigationVerified) missingFields.push("navigationVerified");
+        
+        if (missingFields.length > 0) {
+          return res.status(403).json({ 
+            message: "Driver setup incomplete",
+            error: "DRIVER_SETUP_INCOMPLETE",
+            missingFields,
+            setupCompleted: false
+          });
+        }
+      }
 
       const offer = await storage.getPendingRideOfferForDriver(userId);
       if (!offer || offer.id !== offerId) {
