@@ -783,6 +783,40 @@ export const driverWallets = pgTable("driver_wallets", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Rider Saved Payment Methods table (cards, bank accounts, mobile money)
+export const riderPaymentMethods = pgTable("rider_payment_methods", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  type: varchar("type", { length: 20 }).notNull(), // CARD, BANK, MOBILE_MONEY
+  isDefault: boolean("is_default").notNull().default(false),
+  // Card details (masked)
+  cardLast4: varchar("card_last_4", { length: 4 }),
+  cardBrand: varchar("card_brand", { length: 20 }), // visa, mastercard, verve
+  cardExpMonth: integer("card_exp_month"),
+  cardExpYear: integer("card_exp_year"),
+  cardBin: varchar("card_bin", { length: 6 }),
+  // Bank details
+  bankName: varchar("bank_name"),
+  bankAccountLast4: varchar("bank_account_last_4", { length: 4 }),
+  bankAccountName: varchar("bank_account_name"),
+  // Mobile money details
+  mobileMoneyProvider: varchar("mobile_money_provider"),
+  mobileMoneyNumberLast4: varchar("mobile_money_number_last_4", { length: 4 }),
+  // Provider authorization (for tokenized payments)
+  providerAuthCode: varchar("provider_auth_code"), // Paystack authorization_code
+  providerSignature: varchar("provider_signature"), // For verification
+  providerBank: varchar("provider_bank"),
+  providerChannel: varchar("provider_channel"),
+  providerReusable: boolean("provider_reusable").default(true),
+  // Metadata
+  nickname: varchar("nickname", { length: 50 }),
+  currency: varchar("currency", { length: 3 }).notNull().default("NGN"),
+  countryCode: varchar("country_code", { length: 2 }).notNull().default("NG"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Wallet Top-up Audit Log table (for SUPER_ADMIN wallet top-ups)
 export const walletTopupLogs = pgTable("wallet_topup_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -1370,6 +1404,14 @@ export type CountryPricingRules = typeof countryPricingRules.$inferSelect;
 
 export type InsertRiderWallet = z.infer<typeof insertRiderWalletSchema>;
 export type RiderWallet = typeof riderWallets.$inferSelect;
+
+export const insertRiderPaymentMethodSchema = createInsertSchema(riderPaymentMethods).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertRiderPaymentMethod = z.infer<typeof insertRiderPaymentMethodSchema>;
+export type RiderPaymentMethod = typeof riderPaymentMethods.$inferSelect;
 
 export type InsertDriverWallet = z.infer<typeof insertDriverWalletSchema>;
 export type DriverWallet = typeof driverWallets.$inferSelect;

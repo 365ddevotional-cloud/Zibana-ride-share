@@ -146,6 +146,7 @@ import {
   // Phase 25 - Monetization, Fraud & Country Rules
   countryPricingRules,
   riderWallets,
+  riderPaymentMethods,
   driverWallets,
   zibaWallet,
   escrows,
@@ -159,6 +160,8 @@ import {
   type InsertCountryPricingRules,
   type RiderWallet,
   type InsertRiderWallet,
+  type RiderPaymentMethod,
+  type InsertRiderPaymentMethod,
   type DriverWallet,
   type InsertDriverWallet,
   type ZibaWallet,
@@ -4838,6 +4841,73 @@ export class DatabaseStorage implements IStorage {
       });
     }
     return wallet || null;
+  }
+
+  // Rider Payment Methods
+  async getRiderPaymentMethods(userId: string): Promise<RiderPaymentMethod[]> {
+    return db.select().from(riderPaymentMethods)
+      .where(and(
+        eq(riderPaymentMethods.userId, userId),
+        eq(riderPaymentMethods.isActive, true)
+      ))
+      .orderBy(desc(riderPaymentMethods.isDefault), desc(riderPaymentMethods.createdAt));
+  }
+
+  async getRiderPaymentMethod(id: string): Promise<RiderPaymentMethod | null> {
+    const [method] = await db.select().from(riderPaymentMethods)
+      .where(eq(riderPaymentMethods.id, id))
+      .limit(1);
+    return method || null;
+  }
+
+  async createRiderPaymentMethod(data: InsertRiderPaymentMethod): Promise<RiderPaymentMethod> {
+    // If this is the first method or marked as default, ensure only one default
+    if (data.isDefault) {
+      await db.update(riderPaymentMethods)
+        .set({ isDefault: false, updatedAt: new Date() })
+        .where(eq(riderPaymentMethods.userId, data.userId));
+    }
+    const [method] = await db.insert(riderPaymentMethods).values(data).returning();
+    return method;
+  }
+
+  async setDefaultPaymentMethod(userId: string, methodId: string): Promise<RiderPaymentMethod | null> {
+    // First, unset all defaults for this user
+    await db.update(riderPaymentMethods)
+      .set({ isDefault: false, updatedAt: new Date() })
+      .where(eq(riderPaymentMethods.userId, userId));
+    // Then set the new default
+    const [method] = await db.update(riderPaymentMethods)
+      .set({ isDefault: true, updatedAt: new Date() })
+      .where(and(
+        eq(riderPaymentMethods.id, methodId),
+        eq(riderPaymentMethods.userId, userId)
+      ))
+      .returning();
+    return method || null;
+  }
+
+  async deleteRiderPaymentMethod(userId: string, methodId: string): Promise<boolean> {
+    // Soft delete by setting isActive to false
+    const [method] = await db.update(riderPaymentMethods)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(and(
+        eq(riderPaymentMethods.id, methodId),
+        eq(riderPaymentMethods.userId, userId)
+      ))
+      .returning();
+    return !!method;
+  }
+
+  async getDefaultPaymentMethod(userId: string): Promise<RiderPaymentMethod | null> {
+    const [method] = await db.select().from(riderPaymentMethods)
+      .where(and(
+        eq(riderPaymentMethods.userId, userId),
+        eq(riderPaymentMethods.isDefault, true),
+        eq(riderPaymentMethods.isActive, true)
+      ))
+      .limit(1);
+    return method || null;
   }
 
   // Driver Wallets
