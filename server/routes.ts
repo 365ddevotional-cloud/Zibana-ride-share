@@ -489,6 +489,24 @@ export async function registerRoutes(
     }
   });
 
+  // Get rider wallet
+  app.get("/api/rider/wallet", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      let wallet = await storage.getRiderWallet(userId);
+      
+      // Auto-create wallet if doesn't exist
+      if (!wallet) {
+        wallet = await storage.createRiderWallet({ userId, currency: "NGN" });
+      }
+      
+      return res.json(wallet);
+    } catch (error) {
+      console.error("Error getting rider wallet:", error);
+      return res.status(500).json({ message: "Failed to get wallet" });
+    }
+  });
+
   // Get payment settings for rider (available methods based on mode)
   app.get("/api/rider/payment-settings", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
     try {
@@ -659,9 +677,9 @@ export async function registerRoutes(
         const riderWallet = await storage.getRiderWallet(userId);
         if (!riderWallet) {
           // Auto-create wallet with zero balance
-          await storage.createRiderWallet({ userId, currency: "USD" });
+          await storage.createRiderWallet({ userId, currency: "NGN" });
           return res.status(400).json({ 
-            message: "Insufficient wallet balance. Please choose a payment method or fund your wallet.",
+            message: "Please add funds to your wallet to request a ride.",
             code: "INSUFFICIENT_BALANCE"
           });
         }
@@ -675,18 +693,16 @@ export async function registerRoutes(
           });
         }
 
-        // Check minimum balance requirement (at least $5 for any ride) - ONLY for WALLET payment method
-        if (paymentMethod === "WALLET") {
-          const availableBalance = parseFloat(riderWallet.balance) - parseFloat(riderWallet.lockedBalance);
-          const minimumRequiredBalance = 5.00;
-          if (availableBalance < minimumRequiredBalance) {
-            return res.status(400).json({ 
-              message: `Insufficient wallet balance. You need at least $${minimumRequiredBalance.toFixed(2)} to request a ride. Please choose a payment method or fund your wallet.`,
-              code: "INSUFFICIENT_BALANCE",
-              required: minimumRequiredBalance,
-              available: availableBalance
-            });
-          }
+        // Check minimum balance requirement - WALLET payment
+        const availableBalance = parseFloat(riderWallet.balance) - parseFloat(riderWallet.lockedBalance);
+        const minimumRequiredBalance = 500; // ₦5.00 in kobo
+        if (availableBalance < minimumRequiredBalance) {
+          return res.status(400).json({ 
+            message: "Please add funds to your wallet to request a ride.",
+            code: "INSUFFICIENT_BALANCE",
+            required: minimumRequiredBalance,
+            available: availableBalance
+          });
         }
       }
 
@@ -2049,6 +2065,51 @@ export async function registerRoutes(
   });
 
   // ========== PHASE 11 - WALLET ENDPOINTS ==========
+
+  // Test Credit for Testers - Add funds to wallet (NO REAL PAYMENTS)
+  app.post("/api/wallet/test-credit", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const userEmail = req.user.claims.email;
+      const { amount } = req.body;
+      
+      // Default to 5000 NGN (stored as cents = 500000)
+      const creditAmount = amount ? parseFloat(amount) : 500000;
+      
+      // Get or create rider wallet
+      let riderWallet = await storage.getRiderWallet(userId);
+      if (!riderWallet) {
+        riderWallet = await storage.createRiderWallet({ userId, currency: "NGN" });
+      }
+      
+      // Credit the wallet
+      const updatedWallet = await storage.adjustRiderWalletBalance(userId, creditAmount, "TEST_CREDIT", userId);
+      
+      // Audit log
+      console.log(`[TEST_CREDIT] userId=${userId}, email=${userEmail}, amount=${creditAmount}, timestamp=${new Date().toISOString()}`);
+      
+      // Log to financial audit
+      await storage.createFinancialAuditLog({
+        eventType: "ADJUSTMENT",
+        userId: userId,
+        actorRole: "RIDER",
+        amount: creditAmount.toString(),
+        currency: "NGN",
+        description: `Test wallet credit for ${userEmail}`,
+        metadata: JSON.stringify({ creditedBy: "SELF", reason: "TEST_CREDIT" }),
+      });
+      
+      return res.json({
+        success: true,
+        message: "Test credit added successfully",
+        balance: updatedWallet?.balance || creditAmount,
+        currency: "NGN",
+      });
+    } catch (error) {
+      console.error("Error adding test credit:", error);
+      return res.status(500).json({ message: "Failed to add test credit" });
+    }
+  });
 
   // Get current user's wallet
   app.get("/api/wallets/me", isAuthenticated, async (req: any, res) => {

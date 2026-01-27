@@ -2,26 +2,15 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Wallet, Clock, CreditCard, TestTube, Check } from "lucide-react";
+import { ArrowLeft, Wallet, Clock, Plus, Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { cn } from "@/lib/utils";
 
-interface PaymentMethod {
-  id: string;
-  name: string;
-  description: string;
-  enabled: boolean;
-}
-
-interface PaymentSettings {
-  currentMethod: string;
-  availableMethods: PaymentMethod[];
-  walletMode: "SIMULATED" | "REAL";
-  isTestWalletAvailable: boolean;
-  isCardAvailable: boolean;
+interface WalletData {
+  balance: string | number;
+  currency: string;
+  lockedBalance?: string | number;
 }
 
 export default function WalletPage() {
@@ -34,32 +23,34 @@ export default function WalletPage() {
     enabled: !!user,
   });
 
-  const { data: walletData, isLoading: walletLoading } = useQuery<{ balance: number; currency: string }>({
-    queryKey: ["/api/wallet"],
-    enabled: !!user,
-  });
-
-  const { data: paymentSettings, isLoading: settingsLoading } = useQuery<PaymentSettings>({
-    queryKey: ["/api/rider/payment-settings"],
+  const { data: riderWallet, isLoading: walletLoading, refetch: refetchWallet } = useQuery<WalletData | null>({
+    queryKey: ["/api/rider/wallet"],
     enabled: !!user && userRole?.role === "rider",
   });
 
-  const updatePaymentMethod = useMutation({
-    mutationFn: async (paymentMethod: string) => {
-      const response = await apiRequest("PATCH", "/api/rider/payment-method", { paymentMethod });
+  const { data: driverWallet } = useQuery<WalletData | null>({
+    queryKey: ["/api/driver/wallet"],
+    enabled: !!user && userRole?.role === "driver",
+  });
+
+  const addTestCredit = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/wallet/test-credit", {});
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/rider/payment-settings"] });
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/rider/wallet"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/wallets/me"] });
+      refetchWallet();
       toast({
-        title: "Payment method updated",
-        description: "Your payment preference has been saved.",
+        title: "Test Credit Added",
+        description: `₦5,000.00 has been added to your wallet.`,
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Failed to update",
-        description: error.message || "Could not update payment method",
+        title: "Failed to add credit",
+        description: error.message || "Could not add test credit. Please try again.",
         variant: "destructive",
       });
     },
@@ -78,24 +69,18 @@ export default function WalletPage() {
     }
   };
 
-  const formatCurrency = (amount: number, currency = "NGN") => {
+  const formatCurrency = (amount: number | string, currency = "NGN") => {
+    const numAmount = typeof amount === "string" ? parseFloat(amount) : amount;
     return new Intl.NumberFormat("en-NG", {
       style: "currency",
       currency,
       minimumFractionDigits: 2,
-    }).format(amount / 100);
-  };
-
-  const getMethodIcon = (methodId: string) => {
-    switch (methodId) {
-      case "WALLET": return <Wallet className="h-5 w-5" />;
-      case "TEST_WALLET": return <TestTube className="h-5 w-5" />;
-      case "CARD": return <CreditCard className="h-5 w-5" />;
-      default: return <Wallet className="h-5 w-5" />;
-    }
+    }).format(numAmount / 100);
   };
 
   const isRider = userRole?.role === "rider";
+  const isDriver = userRole?.role === "driver";
+  const walletData = isRider ? riderWallet : driverWallet;
 
   return (
     <div className="min-h-screen bg-background">
@@ -104,37 +89,25 @@ export default function WalletPage() {
           <Button variant="ghost" size="icon" onClick={() => navigate(getDashboardPath())} data-testid="button-back">
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="font-semibold">Payments & Wallet</h1>
+          <h1 className="font-semibold">Wallet</h1>
         </div>
       </header>
 
       <main className="container py-6 max-w-2xl space-y-6">
-        {paymentSettings?.walletMode === "SIMULATED" && (
-          <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
-            <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
-              <TestTube className="h-5 w-5" />
-              <span className="font-medium">Testing Mode Active</span>
-            </div>
-            <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
-              All payments are simulated. No real charges will be made.
-            </p>
-          </div>
-        )}
-
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Wallet className="h-5 w-5" />
               Wallet Balance
             </CardTitle>
-            <CardDescription>Your current balance</CardDescription>
+            <CardDescription>Your current wallet balance</CardDescription>
           </CardHeader>
           <CardContent>
             {walletLoading ? (
               <div className="h-16 animate-pulse bg-muted rounded" />
             ) : (
               <div className="text-3xl font-bold">
-                {formatCurrency(walletData?.balance || 0, walletData?.currency)}
+                {formatCurrency(walletData?.balance || 0, walletData?.currency || "NGN")}
               </div>
             )}
           </CardContent>
@@ -143,53 +116,32 @@ export default function WalletPage() {
         {isRider && (
           <Card>
             <CardHeader>
-              <CardTitle>Payment Method</CardTitle>
-              <CardDescription>Choose how you want to pay for rides</CardDescription>
+              <CardTitle>Add Funds</CardTitle>
+              <CardDescription>Add test credit to your wallet for testing rides</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
-              {settingsLoading ? (
-                <div className="space-y-3">
-                  {[1, 2].map((i) => (
-                    <div key={i} className="h-20 animate-pulse bg-muted rounded-lg" />
-                  ))}
-                </div>
-              ) : (
-                paymentSettings?.availableMethods.map((method) => {
-                  const isSelected = paymentSettings.currentMethod === method.id;
-                  return (
-                    <button
-                      key={method.id}
-                      onClick={() => updatePaymentMethod.mutate(method.id)}
-                      disabled={updatePaymentMethod.isPending || !method.enabled}
-                      className={cn(
-                        "w-full flex items-center gap-4 p-4 rounded-lg border transition-colors text-left",
-                        isSelected 
-                          ? "border-primary bg-primary/5" 
-                          : "border-border hover-elevate",
-                        !method.enabled && "opacity-50 cursor-not-allowed"
-                      )}
-                      data-testid={`button-payment-method-${method.id.toLowerCase()}`}
-                    >
-                      <div className={cn(
-                        "p-2 rounded-full",
-                        isSelected ? "bg-primary text-primary-foreground" : "bg-muted"
-                      )}>
-                        {getMethodIcon(method.id)}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium">{method.name}</p>
-                          {method.id === "TEST_WALLET" && (
-                            <Badge variant="outline" className="text-xs">Testing</Badge>
-                          )}
-                        </div>
-                        <p className="text-sm text-muted-foreground">{method.description}</p>
-                      </div>
-                      {isSelected && <Check className="h-5 w-5 text-primary" />}
-                    </button>
-                  );
-                })
-              )}
+            <CardContent>
+              <Button 
+                onClick={() => addTestCredit.mutate()}
+                disabled={addTestCredit.isPending}
+                className="w-full"
+                size="lg"
+                data-testid="button-add-test-credit"
+              >
+                {addTestCredit.isPending ? (
+                  <>
+                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                    Adding Credit...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-5 w-5 mr-2" />
+                    Add Test Credit (₦5,000)
+                  </>
+                )}
+              </Button>
+              <p className="text-sm text-muted-foreground text-center mt-3">
+                Test mode - no real money is charged
+              </p>
             </CardContent>
           </Card>
         )}

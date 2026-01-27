@@ -1,0 +1,94 @@
+YOU ARE WORKING ON THE ZIBA RIDE SHARE APPLICATION.
+
+THIS PROMPT IS AUTHORITATIVE.
+DO NOT SUGGEST ALTERNATIVES.
+IMPLEMENT EXACTLY AS SPECIFIED.
+
+====================================================
+OBJECTIVE
+====================================================
+
+Fix the “Insufficient Wallet Balance” issue for testers by:
+1) Enabling TEST WALLET FUNDING
+2) Making WALLET the active payment method
+3) Allowing ride requests once test balance exists
+
+NO REAL PAYMENTS.
+NO PAYSTACK.
+NO DRIVER PAYOUTS.
+
+====================================================
+STEP 1 — WALLET AS DEFAULT PAYMENT METHOD
+====================================================
+
+• Set WALLET as the ONLY active payment method
+• Remove or hide any card / external payment options
+• Rider must pay from wallet only
+
+====================================================
+STEP 2 — TEST WALLET CREDIT (CRITICAL)
+====================================================
+
+Create a server-side TEST WALLET FUNDING feature:
+
+• On first login, if wallet does not exist → auto-create it
+• Wallet starts at ₦0.00
+
+Add a protected endpoint:
+
+POST /api/wallet/test-credit
+
+Rules:
+• Only SUPER_ADMIN or TESTER role can trigger this
+• Amount is configurable (default ₦5,000)
+• Credit is labeled as TEST_CREDIT
+• Log:
+  - userId
+  - amount
+  - creditedBy
+  - timestamp
+
+====================================================
+STEP 3 — RIDER PAYMENTS PAGE UPDATE
+====================================================
+
+On /wallet page:
+• Show current wallet balance
+• Add button:
+  “Add Test Credit”
+
+When clicked:
+• Call /api/wallet/test-credit
+• Refresh wallet balance instantly
+
+====================================================
+STEP 4 — RIDE REQUEST LOGIC FIX
+====================================================
+
+Before creating a ride:
+• Check wallet balance
+• If balance >= minimum fare → ALLOW ride
+• Deduct estimated fare into escrow
+• If balance < fare → show friendly error:
+  “Please add funds to your wallet to request a ride”
+
+====================================================
+STEP 5 — UI FEEDBACK (IMPORTANT)
+====================================================
+
+• Remove raw JSON error messages
+• Show clean toast / alert messages
+• After funding, user can retry immediately
+
+====================================================
+FINAL VERIFICATION
+====================================================
+
+Confirm the following:
+• Testers can add wallet balance
+• Wallet balance updates correctly
+• Ride request succeeds with sufficient balance
+• No real money is charged
+• Paystack is NOT used
+
+END.
