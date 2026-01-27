@@ -32,9 +32,34 @@ export const escrowService = {
     const { rideId, riderId, amount, currency = "NGN" } = params;
     
     try {
-      // Check if rider is a tester
+      // TODO: Remove tester payment bypass before production launch
+      // Check if rider is a tester - BYPASS ALL ESCROW FOR TESTERS
       const [riderRole] = await db.select().from(userRoles).where(eq(userRoles.userId, riderId));
       const isTester = riderRole?.isTester || false;
+      
+      if (isTester) {
+        console.log(`[TESTER BYPASS] Skipping escrow lock for tester ${riderId} - no funds locked`);
+        // Return success without actually locking funds
+        const [escrow] = await db.insert(escrows).values({
+          rideId,
+          riderId,
+          amount: "0", // Zero amount for testers
+          status: "locked",
+          lockedAt: new Date(),
+        }).returning();
+        
+        await db.insert(financialAuditLogs).values({
+          rideId,
+          userId: riderId,
+          actorRole: "RIDER",
+          eventType: "ESCROW_LOCK",
+          amount: "0",
+          currency,
+          description: `TEST BYPASS: Escrow created for tester ride ${rideId} (no actual funds locked)`,
+        });
+        
+        return { success: true, escrowId: escrow.id };
+      }
       
       const riderWallet = await db
         .select()
@@ -126,21 +151,15 @@ export const escrowService = {
       
       const driverEarning = finalFare - platformCommission;
       
-      // Check if rider is a tester - deduct from tester wallet if so
+      // TODO: Remove tester payment bypass before production launch
+      // Check if rider is a tester - BYPASS ALL WALLET DEDUCTIONS FOR TESTERS
       const [riderRole] = await db.select().from(userRoles).where(eq(userRoles.userId, escrow.riderId));
       const isTester = riderRole?.isTester || false;
       
       if (isTester) {
-        // Deduct from tester wallet balance instead of main balance
-        console.log(`[ESCROW] Tester ${escrow.riderId} - deducting from testerWalletBalance`);
-        await db
-          .update(riderWallets)
-          .set({
-            testerWalletBalance: sql`${riderWallets.testerWalletBalance} - ${finalFare}`,
-            lockedBalance: sql`${riderWallets.lockedBalance} - ${parseFloat(escrow.amount)}`,
-            updatedAt: new Date(),
-          })
-          .where(eq(riderWallets.userId, escrow.riderId));
+        // TESTER BYPASS: Do NOT deduct from any wallet
+        console.log(`[TESTER BYPASS] Skipping wallet deduction for tester ${escrow.riderId} - no funds deducted`);
+        // Just release the escrow without wallet changes
       } else {
         // Regular user - deduct from main balance
         await db

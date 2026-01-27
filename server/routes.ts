@@ -671,6 +671,34 @@ export async function registerRoutes(
       // Check if user is a tester (testers always bypass real payment checks)
       const isTester = await storage.isUserTester(userId);
       
+      // TODO: Remove tester payment bypass before production launch
+      // TEMPORARY TESTER PAYMENT BYPASS - Skip all wallet checks for testers
+      if (isTester) {
+        console.log(`[TESTER BYPASS] User ${userId} is a tester - SKIPPING ALL PAYMENT VALIDATION`);
+        
+        // Create trip with TEST_BYPASS payment method and ₦0.00 cost
+        const testTripData = {
+          ...parsed.data,
+          fareAmount: "0",
+          estimatedFare: "0",
+          paymentMethod: "TEST_BYPASS",
+          isTestRide: true,
+        };
+        
+        const trip = await storage.createTrip(testTripData);
+        
+        console.log(`[TESTER BYPASS] Test ride created: tripId=${trip.id}, paymentMethod=TEST_BYPASS, fare=₦0.00`);
+        
+        await storage.notifyAllDrivers(
+          "New Ride Request",
+          `New ride from ${parsed.data.pickupLocation} to ${parsed.data.dropoffLocation}`,
+          "info"
+        );
+        
+        return res.json(trip);
+      }
+      
+      // REGULAR USER FLOW - Normal payment validation
       // Get rider wallet
       let riderWallet = await storage.getRiderWallet(userId);
       if (!riderWallet) {
@@ -681,41 +709,25 @@ export async function registerRoutes(
       // Log ride request audit
       console.log(`[RIDE AUDIT] userId=${userId}, isTester=${isTester}, walletBalance=${riderWallet.balance}`);
       
-      // TESTER: Check TESTER WALLET balance (not main wallet)
-      if (isTester) {
-        const testerBalance = parseFloat(String(riderWallet.testerWalletBalance || "0"));
-        console.log(`[TESTER RIDE] User ${userId} is a tester - testerWalletBalance=${testerBalance}`);
-        const minimumRequiredBalance = 500; // ₦5.00 in kobo
-        if (testerBalance < minimumRequiredBalance) {
-          return res.status(400).json({ 
-            message: "Please add Test Credits to your wallet to request a ride.",
-            code: "INSUFFICIENT_BALANCE",
-            required: minimumRequiredBalance,
-            available: testerBalance
-          });
-        }
-      } else {
-        // REGULAR USER: Check wallet balance
-        // Check if wallet is frozen
-        if (riderWallet.isFrozen) {
-          console.log(`[SECURITY AUDIT] Frozen wallet ride request attempt: userId=${userId}`);
-          return res.status(403).json({ 
-            message: "Your wallet is frozen. Please contact support.",
-            code: "WALLET_FROZEN"
-          });
-        }
+      // Check if wallet is frozen
+      if (riderWallet.isFrozen) {
+        console.log(`[SECURITY AUDIT] Frozen wallet ride request attempt: userId=${userId}`);
+        return res.status(403).json({ 
+          message: "Your wallet is frozen. Please contact support.",
+          code: "WALLET_FROZEN"
+        });
+      }
 
-        // Check minimum balance requirement - WALLET payment
-        const availableBalance = parseFloat(riderWallet.balance) - parseFloat(riderWallet.lockedBalance || "0");
-        const minimumRequiredBalance = 500; // ₦5.00 in kobo
-        if (availableBalance < minimumRequiredBalance) {
-          return res.status(400).json({ 
-            message: "Please add funds to your wallet to request a ride.",
-            code: "INSUFFICIENT_BALANCE",
-            required: minimumRequiredBalance,
-            available: availableBalance
-          });
-        }
+      // Check minimum balance requirement - WALLET payment
+      const availableBalance = parseFloat(riderWallet.balance) - parseFloat(riderWallet.lockedBalance || "0");
+      const minimumRequiredBalance = 500; // ₦5.00 in kobo
+      if (availableBalance < minimumRequiredBalance) {
+        return res.status(400).json({ 
+          message: "Please add funds to your wallet to request a ride.",
+          code: "INSUFFICIENT_BALANCE",
+          required: minimumRequiredBalance,
+          available: availableBalance
+        });
       }
 
       const trip = await storage.createTrip(parsed.data);
