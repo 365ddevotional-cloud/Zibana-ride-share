@@ -184,7 +184,17 @@ import {
   type InsertSystemConfig,
   type ConfigAuditLog,
   type InsertConfigAuditLog,
-  PRODUCTION_SWITCH_DEFAULTS
+  PRODUCTION_SWITCH_DEFAULTS,
+  // Identity & Withdrawal verification
+  identityProfiles,
+  identityDocuments,
+  driverWithdrawals,
+  type IdentityProfile,
+  type InsertIdentityProfile,
+  type IdentityDocument,
+  type InsertIdentityDocument,
+  type DriverWithdrawal,
+  type InsertDriverWithdrawal
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull } from "drizzle-orm";
@@ -268,6 +278,31 @@ export interface IStorage {
   markPayoutAsPaid(transactionId: string, adminId: string): Promise<PayoutTransaction | null>;
   creditDriverWallet(driverId: string, amount: string, tripId: string): Promise<void>;
   getDriverWalletBalance(driverId: string): Promise<string>;
+
+  // Identity Profile & Verification methods
+  getIdentityProfile(userId: string): Promise<IdentityProfile | null>;
+  createIdentityProfile(data: InsertIdentityProfile): Promise<IdentityProfile>;
+  updateIdentityProfile(userId: string, data: Partial<IdentityProfile>): Promise<IdentityProfile | null>;
+  verifyIdentityProfile(userId: string, addressVerified: boolean, identityVerified: boolean): Promise<IdentityProfile | null>;
+  
+  // Identity Documents methods
+  getIdentityDocuments(userId: string): Promise<IdentityDocument[]>;
+  getIdentityDocumentByType(userId: string, documentType: string): Promise<IdentityDocument | null>;
+  createIdentityDocument(data: InsertIdentityDocument): Promise<IdentityDocument>;
+  verifyIdentityDocument(documentId: string, verified: boolean, method: string, rejectionReason?: string): Promise<IdentityDocument | null>;
+  checkDocumentHashExists(documentHash: string, excludeUserId?: string): Promise<boolean>;
+  
+  // Driver Withdrawal methods
+  createDriverWithdrawal(data: InsertDriverWithdrawal): Promise<DriverWithdrawal>;
+  getDriverWithdrawals(driverId: string): Promise<DriverWithdrawal[]>;
+  getPendingDriverWithdrawals(): Promise<DriverWithdrawal[]>;
+  updateDriverWithdrawalStatus(withdrawalId: string, status: string, processedBy?: string, blockReason?: string): Promise<DriverWithdrawal | null>;
+  
+  // Driver verification status
+  updateDriverWithdrawalVerificationStatus(userId: string, status: string): Promise<DriverProfile | null>;
+  
+  // Bank account uniqueness check
+  checkBankAccountLinked(bankName: string, accountNumber: string, excludeUserId?: string): Promise<boolean>;
 
   getDirectorProfile(userId: string): Promise<DirectorProfile | undefined>;
   createDirectorProfile(data: InsertDirectorProfile): Promise<DirectorProfile>;
@@ -5436,6 +5471,142 @@ export class DatabaseStorage implements IStorage {
     }
     
     return ledgerEntry;
+  }
+
+  // Identity Profile methods
+  async getIdentityProfile(userId: string): Promise<IdentityProfile | null> {
+    const [profile] = await db.select().from(identityProfiles)
+      .where(eq(identityProfiles.userId, userId))
+      .limit(1);
+    return profile || null;
+  }
+
+  async createIdentityProfile(data: InsertIdentityProfile): Promise<IdentityProfile> {
+    const [profile] = await db.insert(identityProfiles).values(data).returning();
+    return profile;
+  }
+
+  async updateIdentityProfile(userId: string, data: Partial<IdentityProfile>): Promise<IdentityProfile | null> {
+    const [profile] = await db.update(identityProfiles)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(identityProfiles.userId, userId))
+      .returning();
+    return profile || null;
+  }
+
+  async verifyIdentityProfile(userId: string, addressVerified: boolean, identityVerified: boolean): Promise<IdentityProfile | null> {
+    const [profile] = await db.update(identityProfiles)
+      .set({ addressVerified, identityVerified, updatedAt: new Date() })
+      .where(eq(identityProfiles.userId, userId))
+      .returning();
+    return profile || null;
+  }
+
+  // Identity Documents methods
+  async getIdentityDocuments(userId: string): Promise<IdentityDocument[]> {
+    return db.select().from(identityDocuments)
+      .where(eq(identityDocuments.userId, userId))
+      .orderBy(desc(identityDocuments.createdAt));
+  }
+
+  async getIdentityDocumentByType(userId: string, documentType: string): Promise<IdentityDocument | null> {
+    const [doc] = await db.select().from(identityDocuments)
+      .where(and(
+        eq(identityDocuments.userId, userId),
+        eq(identityDocuments.documentType, documentType as any)
+      ))
+      .limit(1);
+    return doc || null;
+  }
+
+  async createIdentityDocument(data: InsertIdentityDocument): Promise<IdentityDocument> {
+    const [doc] = await db.insert(identityDocuments).values(data).returning();
+    return doc;
+  }
+
+  async verifyIdentityDocument(documentId: string, verified: boolean, method: string, rejectionReason?: string): Promise<IdentityDocument | null> {
+    const [doc] = await db.update(identityDocuments)
+      .set({
+        verified,
+        verificationMethod: method as any,
+        rejectionReason: rejectionReason || null,
+        updatedAt: new Date(),
+      })
+      .where(eq(identityDocuments.id, documentId))
+      .returning();
+    return doc || null;
+  }
+
+  async checkDocumentHashExists(documentHash: string, excludeUserId?: string): Promise<boolean> {
+    const conditions = [eq(identityDocuments.documentNumberHash, documentHash)];
+    if (excludeUserId) {
+      conditions.push(sql`${identityDocuments.userId} != ${excludeUserId}` as any);
+    }
+    const [result] = await db.select({ count: count() })
+      .from(identityDocuments)
+      .where(and(...conditions));
+    return (result?.count || 0) > 0;
+  }
+
+  // Driver Withdrawal methods
+  async createDriverWithdrawal(data: InsertDriverWithdrawal): Promise<DriverWithdrawal> {
+    const [withdrawal] = await db.insert(driverWithdrawals).values(data).returning();
+    return withdrawal;
+  }
+
+  async getDriverWithdrawals(driverId: string): Promise<DriverWithdrawal[]> {
+    return db.select().from(driverWithdrawals)
+      .where(eq(driverWithdrawals.driverId, driverId))
+      .orderBy(desc(driverWithdrawals.createdAt));
+  }
+
+  async getPendingDriverWithdrawals(): Promise<DriverWithdrawal[]> {
+    return db.select().from(driverWithdrawals)
+      .where(eq(driverWithdrawals.status, "pending"))
+      .orderBy(desc(driverWithdrawals.createdAt));
+  }
+
+  async updateDriverWithdrawalStatus(withdrawalId: string, status: string, processedBy?: string, blockReason?: string): Promise<DriverWithdrawal | null> {
+    const updates: any = { status: status as any };
+    if (processedBy) {
+      updates.processedBy = processedBy;
+      updates.processedAt = new Date();
+    }
+    if (blockReason) {
+      updates.blockReason = blockReason;
+    }
+    const [withdrawal] = await db.update(driverWithdrawals)
+      .set(updates)
+      .where(eq(driverWithdrawals.id, withdrawalId))
+      .returning();
+    return withdrawal || null;
+  }
+
+  // Driver verification status
+  async updateDriverWithdrawalVerificationStatus(userId: string, status: string): Promise<DriverProfile | null> {
+    const [profile] = await db.update(driverProfiles)
+      .set({
+        withdrawalVerificationStatus: status as any,
+        updatedAt: new Date(),
+      })
+      .where(eq(driverProfiles.userId, userId))
+      .returning();
+    return profile || null;
+  }
+
+  // Bank account uniqueness check
+  async checkBankAccountLinked(bankName: string, accountNumber: string, excludeUserId?: string): Promise<boolean> {
+    const conditions = [
+      eq(driverWallets.bankName, bankName),
+      eq(driverWallets.accountNumber, accountNumber)
+    ];
+    if (excludeUserId) {
+      conditions.push(sql`${driverWallets.userId} != ${excludeUserId}` as any);
+    }
+    const [result] = await db.select({ count: count() })
+      .from(driverWallets)
+      .where(and(...conditions));
+    return (result?.count || 0) > 0;
   }
 }
 

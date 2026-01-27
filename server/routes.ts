@@ -1,5 +1,6 @@
 import type { Express, RequestHandler } from "express";
 import { createServer, type Server } from "http";
+import { createHash } from "crypto";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { storage } from "./storage";
 import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema } from "@shared/schema";
@@ -2749,6 +2750,476 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error getting driver payouts:", error);
       return res.status(500).json({ message: "Failed to get payout history" });
+    }
+  });
+
+  // =====================================
+  // DRIVER WITHDRAWAL & IDENTITY VERIFICATION ROUTES
+  // =====================================
+
+  // Get driver's identity profile
+  app.get("/api/driver/identity-profile", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const profile = await storage.getIdentityProfile(userId);
+      const documents = await storage.getIdentityDocuments(userId);
+      return res.json({ profile, documents });
+    } catch (error) {
+      console.error("Error getting identity profile:", error);
+      return res.status(500).json({ message: "Failed to get identity profile" });
+    }
+  });
+
+  // Create or update identity profile
+  app.post("/api/driver/identity-profile", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const userRole = await storage.getUserRole(userId);
+      const { legalFirstName, legalLastName, dateOfBirth, residenceAddressLine1, residenceCity, residenceState, residencePostalCode } = req.body;
+
+      if (!legalFirstName || !legalLastName || !dateOfBirth) {
+        return res.status(400).json({ message: "Legal first name, last name, and date of birth are required" });
+      }
+
+      const existingProfile = await storage.getIdentityProfile(userId);
+      
+      const profileData = {
+        legalFirstName,
+        legalLastName,
+        dateOfBirth: new Date(dateOfBirth),
+        countryCode: userRole?.countryCode || "NG",
+        residenceAddressLine1,
+        residenceCity,
+        residenceState,
+        residencePostalCode,
+        residenceCountryCode: userRole?.countryCode || "NG",
+      };
+
+      let profile;
+      if (existingProfile) {
+        profile = await storage.updateIdentityProfile(userId, profileData);
+      } else {
+        profile = await storage.createIdentityProfile({ userId, ...profileData });
+      }
+
+      return res.json(profile);
+    } catch (error) {
+      console.error("Error updating identity profile:", error);
+      return res.status(500).json({ message: "Failed to update identity profile" });
+    }
+  });
+
+  // Submit identity document
+  app.post("/api/driver/identity-document", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const userRole = await storage.getUserRole(userId);
+      const { documentType, documentNumber, issuingAuthority, expiryDate } = req.body;
+
+      if (!documentType || !documentNumber) {
+        return res.status(400).json({ message: "Document type and number are required" });
+      }
+
+      // Hash the document number for secure storage
+      const documentNumberHash = createHash("sha256").update(documentNumber.trim().toUpperCase()).digest("hex");
+
+      // Check for document reuse across users (anti-fraud)
+      const documentExists = await storage.checkDocumentHashExists(documentNumberHash, userId);
+      if (documentExists) {
+        console.warn(`[FRAUD ALERT] Document hash reuse attempt by user ${userId}`);
+        return res.status(400).json({ 
+          message: "This document is already registered to another user",
+          code: "DOCUMENT_ALREADY_REGISTERED"
+        });
+      }
+
+      // Check if document of this type already exists for user
+      const existingDoc = await storage.getIdentityDocumentByType(userId, documentType);
+      if (existingDoc) {
+        return res.status(400).json({ 
+          message: "You have already submitted a document of this type",
+          code: "DOCUMENT_TYPE_EXISTS"
+        });
+      }
+
+      const document = await storage.createIdentityDocument({
+        userId,
+        countryCode: userRole?.countryCode || "NG",
+        documentType,
+        documentNumberHash,
+        issuingAuthority,
+        expiryDate: expiryDate ? new Date(expiryDate) : undefined,
+      });
+
+      return res.json({ message: "Document submitted for verification", document });
+    } catch (error) {
+      console.error("Error submitting identity document:", error);
+      return res.status(500).json({ message: "Failed to submit identity document" });
+    }
+  });
+
+  // Get driver's withdrawal history
+  app.get("/api/driver/withdrawals", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const withdrawals = await storage.getDriverWithdrawals(userId);
+      return res.json(withdrawals);
+    } catch (error) {
+      console.error("Error getting driver withdrawals:", error);
+      return res.status(500).json({ message: "Failed to get withdrawal history" });
+    }
+  });
+
+  // Request withdrawal - with full identity verification
+  app.post("/api/driver/withdraw", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const userRole = await storage.getUserRole(userId);
+      const { amount, payoutMethod } = req.body;
+
+      if (!amount || amount <= 0) {
+        return res.status(400).json({ message: "Invalid withdrawal amount" });
+      }
+
+      if (!payoutMethod || !["BANK", "MOBILE_MONEY"].includes(payoutMethod)) {
+        return res.status(400).json({ message: "Invalid payout method. Use BANK or MOBILE_MONEY" });
+      }
+
+      // Get driver profile
+      const driverProfile = await storage.getDriverProfile(userId);
+      if (!driverProfile) {
+        return res.status(400).json({ message: "Driver profile not found" });
+      }
+
+      // Check driver verification status
+      if (driverProfile.withdrawalVerificationStatus !== "verified") {
+        return res.status(403).json({ 
+          message: "Your identity is not verified for withdrawals",
+          code: "IDENTITY_NOT_VERIFIED",
+          currentStatus: driverProfile.withdrawalVerificationStatus
+        });
+      }
+
+      // Get identity profile
+      const identityProfile = await storage.getIdentityProfile(userId);
+      if (!identityProfile) {
+        return res.status(403).json({ 
+          message: "Identity profile required for withdrawal",
+          code: "IDENTITY_PROFILE_MISSING"
+        });
+      }
+
+      // Check identity verification
+      if (!identityProfile.identityVerified) {
+        return res.status(403).json({ 
+          message: "Identity verification required for withdrawal",
+          code: "IDENTITY_NOT_VERIFIED"
+        });
+      }
+
+      // Check address verification
+      if (!identityProfile.addressVerified) {
+        return res.status(403).json({ 
+          message: "Address verification required for withdrawal",
+          code: "ADDRESS_NOT_VERIFIED"
+        });
+      }
+
+      // Get driver wallet
+      const wallet = await storage.getDriverWallet(userId);
+      if (!wallet) {
+        return res.status(400).json({ message: "Driver wallet not found" });
+      }
+
+      // Check if tester - testers cannot withdraw real money
+      if (userRole?.isTester) {
+        return res.status(403).json({ 
+          message: "Test drivers cannot withdraw real funds",
+          code: "TESTER_WITHDRAWAL_BLOCKED"
+        });
+      }
+
+      // Get currency from country
+      const currencyCode = getCurrencyFromCountry(userRole?.countryCode || "NG");
+
+      // Validate currency matches wallet
+      if (wallet.currency !== currencyCode) {
+        return res.status(400).json({ 
+          message: "Currency mismatch between wallet and country",
+          code: "CURRENCY_MISMATCH"
+        });
+      }
+
+      // Check balance
+      const withdrawableBalance = parseFloat(wallet.withdrawableBalance);
+      if (amount > withdrawableBalance) {
+        return res.status(400).json({ 
+          message: `Insufficient withdrawable balance. Available: ${currencyCode} ${withdrawableBalance.toFixed(2)}`,
+          code: "INSUFFICIENT_BALANCE"
+        });
+      }
+
+      // Minimum withdrawal amounts by country
+      const minWithdrawals: Record<string, number> = {
+        NG: 1000, // 1000 NGN
+        US: 10,   // $10 USD
+        ZA: 100,  // 100 ZAR
+      };
+      const minAmount = minWithdrawals[userRole?.countryCode || "NG"] || 1000;
+      if (amount < minAmount) {
+        return res.status(400).json({ 
+          message: `Minimum withdrawal is ${currencyCode} ${minAmount}`,
+          code: "BELOW_MINIMUM"
+        });
+      }
+
+      // Check payout method is configured
+      if (payoutMethod === "BANK") {
+        if (!wallet.bankName || !wallet.accountNumber) {
+          return res.status(400).json({ 
+            message: "Bank account details not configured",
+            code: "PAYOUT_METHOD_NOT_CONFIGURED"
+          });
+        }
+      } else if (payoutMethod === "MOBILE_MONEY") {
+        if (!wallet.mobileMoneyProvider || !wallet.mobileMoneyNumber) {
+          return res.status(400).json({ 
+            message: "Mobile money details not configured",
+            code: "PAYOUT_METHOD_NOT_CONFIGURED"
+          });
+        }
+      }
+
+      // Country-specific document requirements
+      const countryCode = userRole?.countryCode || "NG";
+      const documents = await storage.getIdentityDocuments(userId);
+      const verifiedDocs = documents.filter(d => d.verified);
+
+      if (countryCode === "NG") {
+        // Nigeria requires NIN and Driver License
+        const hasNIN = verifiedDocs.some(d => d.documentType === "NIN");
+        const hasDriverLicense = verifiedDocs.some(d => d.documentType === "DRIVER_LICENSE");
+        if (!hasNIN || !hasDriverLicense) {
+          return res.status(403).json({ 
+            message: "Nigerian drivers require verified NIN and Driver License for withdrawals",
+            code: "DOCUMENTS_INCOMPLETE",
+            required: ["NIN", "DRIVER_LICENSE"],
+            verified: verifiedDocs.map(d => d.documentType)
+          });
+        }
+      } else if (countryCode === "US") {
+        // US requires Driver License
+        const hasDriverLicense = verifiedDocs.some(d => d.documentType === "DRIVER_LICENSE");
+        if (!hasDriverLicense) {
+          return res.status(403).json({ 
+            message: "US drivers require verified Driver License for withdrawals",
+            code: "DOCUMENTS_INCOMPLETE",
+            required: ["DRIVER_LICENSE"],
+            verified: verifiedDocs.map(d => d.documentType)
+          });
+        }
+      } else {
+        // Other countries require at least one verified ID
+        if (verifiedDocs.length === 0) {
+          return res.status(403).json({ 
+            message: "At least one verified identity document required for withdrawals",
+            code: "DOCUMENTS_INCOMPLETE"
+          });
+        }
+      }
+
+      // Create withdrawal request
+      const withdrawal = await storage.createDriverWithdrawal({
+        driverId: userId,
+        amount: amount.toString(),
+        currencyCode,
+        payoutMethod,
+      });
+
+      // Log the withdrawal request
+      await storage.createAuditLog({
+        action: "withdrawal_requested",
+        entityType: "driver_withdrawal",
+        entityId: withdrawal.id,
+        performedByUserId: userId,
+        performedByRole: "driver",
+        metadata: JSON.stringify({ amount, currencyCode, payoutMethod }),
+      });
+
+      return res.json({ 
+        message: "Withdrawal request submitted for processing",
+        withdrawal 
+      });
+    } catch (error) {
+      console.error("Error processing withdrawal request:", error);
+      return res.status(500).json({ message: "Failed to process withdrawal request" });
+    }
+  });
+
+  // Admin: Get all pending withdrawals
+  app.get("/api/admin/withdrawals/pending", isAuthenticated, requireRole(["admin", "super_admin", "finance"]), async (req: any, res) => {
+    try {
+      const withdrawals = await storage.getPendingDriverWithdrawals();
+      return res.json(withdrawals);
+    } catch (error) {
+      console.error("Error getting pending withdrawals:", error);
+      return res.status(500).json({ message: "Failed to get pending withdrawals" });
+    }
+  });
+
+  // Admin: Process withdrawal
+  app.post("/api/admin/withdrawals/:withdrawalId/process", isAuthenticated, requireRole(["admin", "super_admin", "finance"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const { withdrawalId } = req.params;
+      const { action, transactionRef, blockReason } = req.body;
+
+      if (!action || !["approve", "reject", "block"].includes(action)) {
+        return res.status(400).json({ message: "Invalid action. Use approve, reject, or block" });
+      }
+
+      let status: string;
+      if (action === "approve") {
+        status = "processing";
+        // In test mode, mark as paid immediately (simulated)
+        status = "paid";
+      } else if (action === "reject") {
+        status = "failed";
+      } else {
+        status = "blocked";
+      }
+
+      const withdrawal = await storage.updateDriverWithdrawalStatus(
+        withdrawalId,
+        status,
+        adminId,
+        action === "block" ? blockReason : undefined
+      );
+
+      if (!withdrawal) {
+        return res.status(404).json({ message: "Withdrawal not found" });
+      }
+
+      // Log the action
+      await storage.createAuditLog({
+        action: `withdrawal_${action}ed`,
+        entityType: "driver_withdrawal",
+        entityId: withdrawalId,
+        performedByUserId: adminId,
+        performedByRole: req.userRole?.role || "admin",
+        metadata: JSON.stringify({ action, transactionRef, blockReason }),
+      });
+
+      return res.json({ message: `Withdrawal ${action}ed`, withdrawal });
+    } catch (error) {
+      console.error("Error processing withdrawal:", error);
+      return res.status(500).json({ message: "Failed to process withdrawal" });
+    }
+  });
+
+  // Admin: Verify driver identity document
+  app.post("/api/admin/identity-documents/:documentId/verify", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const { documentId } = req.params;
+      const { verified, rejectionReason } = req.body;
+
+      if (typeof verified !== "boolean") {
+        return res.status(400).json({ message: "verified must be a boolean" });
+      }
+
+      const document = await storage.verifyIdentityDocument(
+        documentId,
+        verified,
+        "manual",
+        !verified ? rejectionReason : undefined
+      );
+
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      // Log the verification
+      await storage.createAuditLog({
+        action: verified ? "document_verified" : "document_rejected",
+        entityType: "identity_document",
+        entityId: documentId,
+        performedByUserId: adminId,
+        performedByRole: req.userRole?.role || "admin",
+        metadata: JSON.stringify({ verified, rejectionReason, documentType: document.documentType }),
+      });
+
+      return res.json({ message: verified ? "Document verified" : "Document rejected", document });
+    } catch (error) {
+      console.error("Error verifying document:", error);
+      return res.status(500).json({ message: "Failed to verify document" });
+    }
+  });
+
+  // Admin: Verify driver identity profile (address + identity)
+  app.post("/api/admin/identity-profiles/:userId/verify", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const { userId } = req.params;
+      const { addressVerified, identityVerified } = req.body;
+
+      const profile = await storage.verifyIdentityProfile(userId, addressVerified, identityVerified);
+      if (!profile) {
+        return res.status(404).json({ message: "Identity profile not found" });
+      }
+
+      // If both verified, update driver withdrawal verification status
+      if (addressVerified && identityVerified) {
+        await storage.updateDriverWithdrawalVerificationStatus(userId, "verified");
+      }
+
+      // Log the verification
+      await storage.createAuditLog({
+        action: "identity_profile_verified",
+        entityType: "identity_profile",
+        entityId: profile.id,
+        performedByUserId: adminId,
+        performedByRole: req.userRole?.role || "admin",
+        metadata: JSON.stringify({ addressVerified, identityVerified }),
+      });
+
+      return res.json({ message: "Identity profile updated", profile });
+    } catch (error) {
+      console.error("Error verifying identity profile:", error);
+      return res.status(500).json({ message: "Failed to verify identity profile" });
+    }
+  });
+
+  // Admin: Update driver withdrawal verification status
+  app.patch("/api/admin/drivers/:userId/withdrawal-status", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const { userId } = req.params;
+      const { status } = req.body;
+
+      if (!status || !["pending_verification", "verified", "suspended"].includes(status)) {
+        return res.status(400).json({ message: "Invalid status. Use pending_verification, verified, or suspended" });
+      }
+
+      const profile = await storage.updateDriverWithdrawalVerificationStatus(userId, status);
+      if (!profile) {
+        return res.status(404).json({ message: "Driver profile not found" });
+      }
+
+      // Log the status change
+      await storage.createAuditLog({
+        action: "driver_withdrawal_status_changed",
+        entityType: "driver_profile",
+        entityId: profile.id,
+        performedByUserId: adminId,
+        performedByRole: req.userRole?.role || "admin",
+        metadata: JSON.stringify({ newStatus: status }),
+      });
+
+      return res.json({ message: "Driver withdrawal status updated", profile });
+    } catch (error) {
+      console.error("Error updating driver withdrawal status:", error);
+      return res.status(500).json({ message: "Failed to update driver withdrawal status" });
     }
   });
 
