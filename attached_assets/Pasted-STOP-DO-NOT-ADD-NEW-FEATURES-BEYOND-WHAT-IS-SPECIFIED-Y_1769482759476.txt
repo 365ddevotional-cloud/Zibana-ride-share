@@ -1,0 +1,88 @@
+STOP. DO NOT ADD NEW FEATURES BEYOND WHAT IS SPECIFIED.
+
+You are fixing the existing Tester Management system in the ZIBA Ride Share app.
+
+GOALS (ALL MUST BE COMPLETED):
+
+1) FIX USER SELECTION BUG (CRITICAL)
+- In both “Add Rider Tester” and “Add Driver Tester” modals:
+  - Selecting a user MUST correctly update the selected value.
+  - The dropdown must be a fully controlled component.
+  - The selected user must be stored as `selectedUserId`.
+  - The “Add Tester” button MUST remain disabled until a valid user is selected.
+  - Clicking any email MUST persist and not revert to the default user.
+
+2) DISPLAY EMAIL INSTEAD OF NUMERIC USER ID
+- In Tester Management table:
+  - Replace numeric `userId` display with:
+    - User email (primary)
+    - User full name (secondary, if available)
+  - Numeric IDs may remain internally but must NEVER be shown in UI.
+
+3) SEPARATE WALLETS (IMPORTANT)
+Each tester must have:
+- Main Wallet (real wallet – ₦0.00 for testers)
+- Tester Wallet (test credits only)
+
+Rules:
+- Tester Wallet is used ONLY for test rides.
+- Main Wallet remains unchanged.
+- Payment checks must prioritize Tester Wallet when `isTester = true`.
+
+4) FIX TEST CREDIT TOP-UP NOT REFLECTING
+- Ensure tester wallet balance updates immediately:
+  - Backend: persist to `testerWalletBalance`
+  - Frontend: refetch wallet after top-up
+- The rider’s Payments & Wallet page MUST show:
+  - Main Wallet
+  - Tester Wallet
+  - Clear labels (e.g. “Test Credits”)
+
+5) SUPER ADMIN CONTROLS ONLY
+Only Super Admin can:
+- Add Rider Tester
+- Add Driver Tester
+- Top up tester credits
+- Refund tester credits
+
+Refund rules:
+- Refunds affect ONLY Tester Wallet
+- No interaction with real wallet or payments
+- Log all actions (top-up & refund) as TEST transactions
+
+6) DEFAULT TESTER CREDIT
+- When a tester is added:
+  - Automatically credit ₦45,000 to Tester Wallet
+  - Log transaction as “INITIAL_TEST_CREDIT”
+
+7) ADD DRIVER TESTER = SAME FIX
+- Apply ALL above fixes identically to:
+  - Add Driver Tester
+  - Driver Tester Wallet
+  - Driver Tester top-ups & refunds
+
+8) DO NOT ADD DIRECTOR TESTER
+- Explicitly DO NOT create Director Tester.
+- Directors do not require wallets or ride simulation.
+- This avoids unnecessary complexity and cost.
+
+9) COST CONTROL (IMPORTANT)
+- Reuse existing tables where possible.
+- If needed, add ONLY:
+  - `testerWalletBalance`
+  - `isTester`
+  - `testerType` (RIDER | DRIVER)
+- No new payment gateways.
+- No background jobs.
+- No external services.
+
+10) FINAL VERIFICATION
+After implementation, confirm:
+- Selecting smefas37@gmail.com works
+- “Add Tester” becomes clickable
+- ₦45,000 appears in Tester Wallet
+- Top-ups reflect instantly on rider/driver device
+- Email is shown everywhere instead of numeric ID
+
+DO NOT ASK QUESTIONS.
+IMPLEMENT DIRECTLY.

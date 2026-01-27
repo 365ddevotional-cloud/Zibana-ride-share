@@ -6666,11 +6666,11 @@ export async function registerRoutes(
         wallet = await storage.createRiderWallet({ userId, currency: "NGN" });
       }
       
-      // Credit ₦45,000 (4500000 kobo)
+      // Credit ₦45,000 (4500000 kobo) to TESTER WALLET (separate from main wallet)
       const creditAmount = 4500000;
-      await storage.adjustRiderWalletBalance(userId, creditAmount, "TEST_CREDIT", adminId);
+      await storage.adjustRiderTesterWalletBalance(userId, creditAmount, "INITIAL_TEST_CREDIT", adminId);
       
-      console.log(`[TESTER CREATED] type=RIDER, userId=${userId}, adminId=${adminId}, adminEmail=${adminEmail}, credit=₦45,000`);
+      console.log(`[TESTER CREATED] type=RIDER, userId=${userId}, adminId=${adminId}, adminEmail=${adminEmail}, testerCredit=₦45,000`);
       
       await storage.createFinancialAuditLog({
         eventType: "ADJUSTMENT",
@@ -6678,16 +6678,16 @@ export async function registerRoutes(
         amount: String(creditAmount),
         actorRole: "ADMIN",
         currency: "NGN",
-        description: `Initial tester credit - Rider Tester created by ${adminEmail}`,
-        metadata: JSON.stringify({ testerType: "RIDER", adminId, source: "SYSTEM" }),
+        description: `INITIAL_TEST_CREDIT - Rider Tester created by ${adminEmail}`,
+        metadata: JSON.stringify({ testerType: "RIDER", adminId, source: "TESTER_SYSTEM", walletType: "TESTER" }),
       });
       
       return res.json({ 
         success: true,
-        message: "Rider tester created with ₦45,000 credit",
+        message: "Rider tester created with ₦45,000 test credit",
         userId,
         testerType: "RIDER",
-        walletBalance: creditAmount,
+        testerWalletBalance: creditAmount,
       });
     } catch (error) {
       console.error("Error creating rider tester:", error);
@@ -6709,17 +6709,17 @@ export async function registerRoutes(
       // Update user role to driver with tester flag
       await storage.setUserAsTester(userId, "DRIVER", adminId);
       
-      // Create driver wallet with ₦45,000 credit (4500000 kobo)
+      // Create driver wallet (main balance stays at ₦0.00)
       let wallet = await storage.getDriverWallet(userId);
       if (!wallet) {
         wallet = await storage.createDriverWallet({ userId, currency: "NGN" });
       }
       
-      // Credit ₦45,000 (4500000 kobo)
+      // Credit ₦45,000 (4500000 kobo) to TESTER WALLET (separate from main wallet)
       const creditAmount = 4500000;
-      await storage.adjustDriverWalletBalance(userId, creditAmount, "TEST_CREDIT", adminId);
+      await storage.adjustDriverTesterWalletBalance(userId, creditAmount, "INITIAL_TEST_CREDIT", adminId);
       
-      console.log(`[TESTER CREATED] type=DRIVER, userId=${userId}, adminId=${adminId}, adminEmail=${adminEmail}, credit=₦45,000`);
+      console.log(`[TESTER CREATED] type=DRIVER, userId=${userId}, adminId=${adminId}, adminEmail=${adminEmail}, testerCredit=₦45,000`);
       
       await storage.createFinancialAuditLog({
         eventType: "ADJUSTMENT",
@@ -6727,16 +6727,16 @@ export async function registerRoutes(
         amount: String(creditAmount),
         actorRole: "ADMIN",
         currency: "NGN",
-        description: `Initial tester credit - Driver Tester created by ${adminEmail}`,
-        metadata: JSON.stringify({ testerType: "DRIVER", adminId, source: "SYSTEM" }),
+        description: `INITIAL_TEST_CREDIT - Driver Tester created by ${adminEmail}`,
+        metadata: JSON.stringify({ testerType: "DRIVER", adminId, source: "TESTER_SYSTEM", walletType: "TESTER" }),
       });
       
       return res.json({ 
         success: true,
-        message: "Driver tester created with ₦45,000 credit",
+        message: "Driver tester created with ₦45,000 test credit",
         userId,
         testerType: "DRIVER",
-        walletBalance: creditAmount,
+        testerWalletBalance: creditAmount,
       });
     } catch (error) {
       console.error("Error creating driver tester:", error);
@@ -6744,11 +6744,38 @@ export async function registerRoutes(
     }
   });
 
-  // Get all testers
+  // Get all testers with wallet balances
   app.get("/api/admin/testers", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
     try {
       const testers = await storage.getAllTesters();
-      return res.json(testers);
+      
+      // Enrich with wallet info
+      const testersWithWallets = await Promise.all(testers.map(async (tester: any) => {
+        let testerWalletBalance = 0;
+        let mainWalletBalance = 0;
+        
+        if (tester.testerType === "RIDER") {
+          const wallet = await storage.getRiderWallet(tester.userId);
+          if (wallet) {
+            testerWalletBalance = parseFloat(String(wallet.testerWalletBalance || 0)) * 100;
+            mainWalletBalance = parseFloat(String(wallet.balance || 0)) * 100;
+          }
+        } else if (tester.testerType === "DRIVER") {
+          const wallet = await storage.getDriverWallet(tester.userId);
+          if (wallet) {
+            testerWalletBalance = parseFloat(String(wallet.testerWalletBalance || 0)) * 100;
+            mainWalletBalance = parseFloat(String(wallet.balance || 0)) * 100;
+          }
+        }
+        
+        return {
+          ...tester,
+          testerWalletBalance,
+          mainWalletBalance,
+        };
+      }));
+      
+      return res.json(testersWithWallets);
     } catch (error) {
       console.error("Error fetching testers:", error);
       return res.status(500).json({ message: "Failed to fetch testers" });
@@ -6797,7 +6824,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "User is not a tester. Can only adjust tester wallets." });
       }
 
-      // Get the appropriate wallet based on tester type
+      // Get the appropriate wallet and adjust TESTER WALLET BALANCE (separate from main wallet)
       if (testerStatus.testerType === "RIDER") {
         const wallet = await storage.getRiderWallet(userId);
         if (!wallet) {
@@ -6805,16 +6832,18 @@ export async function registerRoutes(
         }
 
         if (action === "REFUND") {
-          // Check balance first - balance is in kobo (stored as number)
-          const currentBalance = typeof wallet.balance === 'string' ? parseFloat(wallet.balance) : wallet.balance;
-          if (currentBalance < amount) {
-            return res.status(400).json({ message: "Insufficient balance for refund. Cannot go below ₦0." });
+          // Check TESTER wallet balance first
+          const currentTesterBalance = typeof wallet.testerWalletBalance === 'string' 
+            ? parseFloat(wallet.testerWalletBalance) * 100 
+            : Number(wallet.testerWalletBalance) * 100;
+          if (currentTesterBalance < amount) {
+            return res.status(400).json({ message: "Insufficient tester wallet balance for refund. Cannot go below ₦0." });
           }
-          // Refund means subtracting, so use negative amount
-          await storage.adjustRiderWalletBalance(userId, -amount, `TESTER_REFUND by ${adminEmail}`, adminId);
+          // Refund from TESTER WALLET
+          await storage.adjustRiderTesterWalletBalance(userId, -amount, `TESTER_REFUND by ${adminEmail}`, adminId);
         } else {
-          // TOP_UP - add to balance
-          await storage.adjustRiderWalletBalance(userId, amount, `TESTER_TOPUP by ${adminEmail}`, adminId);
+          // TOP_UP - add to TESTER WALLET
+          await storage.adjustRiderTesterWalletBalance(userId, amount, `TESTER_TOPUP by ${adminEmail}`, adminId);
         }
       } else if (testerStatus.testerType === "DRIVER") {
         const wallet = await storage.getDriverWallet(userId);
@@ -6823,16 +6852,18 @@ export async function registerRoutes(
         }
 
         if (action === "REFUND") {
-          // Check balance first - balance is in kobo (stored as number)
-          const currentBalance = typeof wallet.balance === 'string' ? parseFloat(wallet.balance) : wallet.balance;
-          if (currentBalance < amount) {
-            return res.status(400).json({ message: "Insufficient balance for refund. Cannot go below ₦0." });
+          // Check TESTER wallet balance first
+          const currentTesterBalance = typeof wallet.testerWalletBalance === 'string' 
+            ? parseFloat(wallet.testerWalletBalance) * 100 
+            : Number(wallet.testerWalletBalance) * 100;
+          if (currentTesterBalance < amount) {
+            return res.status(400).json({ message: "Insufficient tester wallet balance for refund. Cannot go below ₦0." });
           }
-          // Refund means subtracting, so use negative amount
-          await storage.adjustDriverWalletBalance(userId, -amount, `TESTER_REFUND by ${adminEmail}`, adminId);
+          // Refund from TESTER WALLET
+          await storage.adjustDriverTesterWalletBalance(userId, -amount, `TESTER_REFUND by ${adminEmail}`, adminId);
         } else {
-          // TOP_UP - add to balance
-          await storage.adjustDriverWalletBalance(userId, amount, `TESTER_TOPUP by ${adminEmail}`, adminId);
+          // TOP_UP - add to TESTER WALLET
+          await storage.adjustDriverTesterWalletBalance(userId, amount, `TESTER_TOPUP by ${adminEmail}`, adminId);
         }
       } else {
         return res.status(400).json({ message: "Unknown tester type" });

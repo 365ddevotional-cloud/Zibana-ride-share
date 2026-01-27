@@ -646,8 +646,19 @@ export class DatabaseStorage implements IStorage {
 
   async getAllTesters(): Promise<any[]> {
     const testers = await db
-      .select()
+      .select({
+        id: userRoles.id,
+        userId: userRoles.userId,
+        role: userRoles.role,
+        isTester: userRoles.isTester,
+        testerType: userRoles.testerType,
+        createdAt: userRoles.createdAt,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+      })
       .from(userRoles)
+      .leftJoin(users, eq(userRoles.userId, users.id))
       .where(eq(userRoles.isTester, true));
     return testers;
   }
@@ -4769,6 +4780,27 @@ export class DatabaseStorage implements IStorage {
     return wallet || null;
   }
 
+  async adjustRiderTesterWalletBalance(userId: string, amount: number, reason: string, adjustedBy: string): Promise<RiderWallet | null> {
+    const [wallet] = await db.update(riderWallets)
+      .set({
+        testerWalletBalance: sql`${riderWallets.testerWalletBalance} + ${amount}`,
+        updatedAt: new Date(),
+      })
+      .where(eq(riderWallets.userId, userId))
+      .returning();
+    
+    if (wallet) {
+      await db.insert(financialAuditLogs).values({
+        userId,
+        actorRole: "ADMIN",
+        eventType: "ADJUSTMENT",
+        amount: Math.abs(amount).toFixed(2),
+        description: `Tester wallet adjustment: ${reason} (by ${adjustedBy})`,
+      });
+    }
+    return wallet || null;
+  }
+
   // Driver Wallets
   async getDriverWallet(userId: string): Promise<DriverWallet | null> {
     const [wallet] = await db.select().from(driverWallets)
@@ -4830,6 +4862,27 @@ export class DatabaseStorage implements IStorage {
         eventType: "ADJUSTMENT",
         amount: Math.abs(amount).toFixed(2),
         description: `Admin adjustment: ${reason} (by ${adjustedBy})`,
+      });
+    }
+    return wallet || null;
+  }
+
+  async adjustDriverTesterWalletBalance(userId: string, amount: number, reason: string, adjustedBy: string): Promise<DriverWallet | null> {
+    const [wallet] = await db.update(driverWallets)
+      .set({
+        testerWalletBalance: sql`${driverWallets.testerWalletBalance} + ${amount}`,
+        updatedAt: new Date(),
+      })
+      .where(eq(driverWallets.userId, userId))
+      .returning();
+    
+    if (wallet) {
+      await db.insert(financialAuditLogs).values({
+        userId,
+        actorRole: "ADMIN",
+        eventType: "ADJUSTMENT",
+        amount: Math.abs(amount).toFixed(2),
+        description: `Tester wallet adjustment: ${reason} (by ${adjustedBy})`,
       });
     }
     return wallet || null;
