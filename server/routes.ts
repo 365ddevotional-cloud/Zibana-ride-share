@@ -10429,5 +10429,168 @@ export async function registerRoutes(
     }
   });
 
+  // =============================================
+  // PHASE 3: RATINGS, BEHAVIOR SIGNALS & TRUST SCORING ENDPOINTS
+  // =============================================
+
+  // Submit a rating for a completed trip
+  app.post("/api/ratings/submit", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.claims.sub;
+      const { tripId, rateeId, score, ratingRole } = req.body;
+
+      if (!tripId || !rateeId || !score || !ratingRole) {
+        return res.status(400).json({ message: "Missing required fields: tripId, rateeId, score, ratingRole" });
+      }
+
+      const trip = await storage.getTripById(tripId);
+      if (!trip) {
+        return res.status(404).json({ message: "Trip not found" });
+      }
+
+      if (trip.status !== "completed") {
+        return res.status(400).json({ message: "Can only rate completed trips" });
+      }
+
+      if (ratingRole === "rider_to_driver" && trip.riderId !== userId) {
+        return res.status(403).json({ message: "Only the rider can rate the driver" });
+      }
+      if (ratingRole === "driver_to_rider" && trip.driverId !== userId) {
+        return res.status(403).json({ message: "Only the driver can rate the rider" });
+      }
+
+      const { submitRating } = await import("./trust-guards");
+      const result = await submitRating(
+        tripId,
+        userId,
+        rateeId,
+        score,
+        ratingRole,
+        new Date(trip.completedAt)
+      );
+
+      if (!result.success) {
+        return res.status(400).json({ message: result.error, code: result.code });
+      }
+
+      return res.json({
+        success: true,
+        ratingId: result.ratingId,
+        message: "Rating submitted successfully",
+      });
+    } catch (error) {
+      console.error("Error submitting rating:", error);
+      return res.status(500).json({ message: "Failed to submit rating" });
+    }
+  });
+
+  // Get ratings for a specific trip
+  app.get("/api/ratings/trip/:tripId", isAuthenticated, async (req, res) => {
+    try {
+      const ratings = await storage.getTrustTripRatings(req.params.tripId);
+      return res.json(ratings);
+    } catch (error) {
+      console.error("Error getting trip ratings:", error);
+      return res.status(500).json({ message: "Failed to get ratings" });
+    }
+  });
+
+  // Check if user can rate a trip
+  app.get("/api/ratings/can-rate/:tripId", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.claims.sub;
+      const { tripId } = req.params;
+
+      const trip = await storage.getTripById(tripId);
+      if (!trip) {
+        return res.status(404).json({ canRate: false, reason: "Trip not found" });
+      }
+
+      if (trip.status !== "completed") {
+        return res.json({ canRate: false, reason: "Trip not completed" });
+      }
+
+      const existingRating = await storage.getTripRatingByRater(tripId, userId);
+      if (existingRating) {
+        return res.json({ canRate: false, reason: "Already rated" });
+      }
+
+      const { isRatingWindowOpen } = await import("@shared/trust-config");
+      if (!isRatingWindowOpen(new Date(trip.completedAt))) {
+        return res.json({ canRate: false, reason: "Rating window expired" });
+      }
+
+      let ratingRole: "rider_to_driver" | "driver_to_rider" | null = null;
+      let rateeId: string | null = null;
+
+      if (trip.riderId === userId && trip.driverId) {
+        ratingRole = "rider_to_driver";
+        rateeId = trip.driverId;
+      } else if (trip.driverId === userId) {
+        ratingRole = "driver_to_rider";
+        rateeId = trip.riderId;
+      }
+
+      if (!ratingRole || !rateeId) {
+        return res.json({ canRate: false, reason: "Not a participant of this trip" });
+      }
+
+      return res.json({ canRate: true, ratingRole, rateeId });
+    } catch (error) {
+      console.error("Error checking rating eligibility:", error);
+      return res.status(500).json({ message: "Failed to check rating eligibility" });
+    }
+  });
+
+  // Admin: Get all trust profiles (read-only)
+  app.get("/api/admin/trust/profiles", isAuthenticated, hasRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const { getAllTrustProfiles } = await import("./trust-guards");
+      const profiles = await getAllTrustProfiles();
+      return res.json(profiles);
+    } catch (error) {
+      console.error("Error getting trust profiles:", error);
+      return res.status(500).json({ message: "Failed to get trust profiles" });
+    }
+  });
+
+  // Admin: Get trust details for a specific user (read-only)
+  app.get("/api/admin/trust/user/:userId", isAuthenticated, hasRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const { getAdminTrustView } = await import("./trust-guards");
+      const details = await getAdminTrustView(req.params.userId);
+      return res.json(details);
+    } catch (error) {
+      console.error("Error getting user trust details:", error);
+      return res.status(500).json({ message: "Failed to get user trust details" });
+    }
+  });
+
+  // Admin: Get all trust audit logs (read-only)
+  app.get("/api/admin/trust/audit-logs", isAuthenticated, hasRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const { getAllTrustAuditLogs } = await import("./trust-guards");
+      const logs = await getAllTrustAuditLogs();
+      return res.json(logs);
+    } catch (error) {
+      console.error("Error getting trust audit logs:", error);
+      return res.status(500).json({ message: "Failed to get audit logs" });
+    }
+  });
+
+  // Admin: Get trust score thresholds (for future enforcement)
+  app.get("/api/admin/trust/thresholds", isAuthenticated, hasRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const { trustScoreThresholdLow, trustScoreThresholdHigh } = await import("./trust-guards");
+      return res.json({
+        low: trustScoreThresholdLow(),
+        high: trustScoreThresholdHigh(),
+      });
+    } catch (error) {
+      console.error("Error getting trust thresholds:", error);
+      return res.status(500).json({ message: "Failed to get thresholds" });
+    }
+  });
+
   return httpServer;
 }
