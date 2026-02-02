@@ -10961,5 +10961,363 @@ export async function registerRoutes(
     }
   });
 
+  // =============================================
+  // PHASE 5: DISPUTES, REFUNDS & LEGAL RESOLUTION
+  // =============================================
+
+  // Check dispute eligibility for a trip
+  app.get("/api/disputes/eligibility/:tripId", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.claims.sub;
+      const role = await storage.getUserRole(userId);
+      const initiatorRole = role?.role === "driver" ? "DRIVER" : "RIDER";
+
+      const { checkDisputeEligibility } = await import("./dispute-guards");
+      const result = await checkDisputeEligibility(req.params.tripId, userId, initiatorRole);
+
+      return res.json(result);
+    } catch (error) {
+      console.error("Error checking dispute eligibility:", error);
+      return res.status(500).json({ message: "Failed to check eligibility" });
+    }
+  });
+
+  // File a dispute
+  app.post("/api/disputes", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.claims.sub;
+      const { tripId, accusedUserId, disputeType, description, evidenceMetadata } = req.body;
+
+      if (!tripId || !accusedUserId || !disputeType || !description) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      const role = await storage.getUserRole(userId);
+      const initiatorRole = role?.role === "driver" ? "DRIVER" : "RIDER";
+
+      const { createDispute } = await import("./dispute-guards");
+      const result = await createDispute(
+        tripId,
+        userId,
+        initiatorRole,
+        accusedUserId,
+        disputeType,
+        description,
+        evidenceMetadata
+      );
+
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
+      }
+
+      return res.json({
+        success: true,
+        disputeId: result.disputeId,
+        autoFlagged: result.autoFlagged,
+        message: "Dispute filed successfully",
+      });
+    } catch (error) {
+      console.error("Error creating dispute:", error);
+      return res.status(500).json({ message: "Failed to file dispute" });
+    }
+  });
+
+  // Get my disputes (as initiator)
+  app.get("/api/disputes/my", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.claims.sub;
+      const disputes = await storage.getPhase5DisputesByUser(userId);
+      return res.json(disputes);
+    } catch (error) {
+      console.error("Error getting disputes:", error);
+      return res.status(500).json({ message: "Failed to get disputes" });
+    }
+  });
+
+  // Get disputes against me
+  app.get("/api/disputes/against-me", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.claims.sub;
+      const disputes = await storage.getPhase5DisputesByAccused(userId);
+      return res.json(disputes);
+    } catch (error) {
+      console.error("Error getting disputes:", error);
+      return res.status(500).json({ message: "Failed to get disputes" });
+    }
+  });
+
+  // Get dispute details
+  app.get("/api/disputes/:disputeId", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.claims.sub;
+      const dispute = await storage.getPhase5Dispute(req.params.disputeId);
+
+      if (!dispute) {
+        return res.status(404).json({ message: "Dispute not found" });
+      }
+
+      const isParty = dispute.initiatorUserId === userId || dispute.accusedUserId === userId;
+      const role = await storage.getUserRole(userId);
+      const isAdmin = role?.role === "admin" || role?.role === "super_admin";
+
+      if (!isParty && !isAdmin) {
+        return res.status(403).json({ message: "Not authorized to view this dispute" });
+      }
+
+      return res.json(dispute);
+    } catch (error) {
+      console.error("Error getting dispute:", error);
+      return res.status(500).json({ message: "Failed to get dispute" });
+    }
+  });
+
+  // Get disputes for a trip
+  app.get("/api/disputes/trip/:tripId", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.claims.sub;
+      const trip = await storage.getTripById(req.params.tripId);
+
+      if (!trip) {
+        return res.status(404).json({ message: "Trip not found" });
+      }
+
+      const isParty = trip.riderId === userId || trip.driverId === userId;
+      const role = await storage.getUserRole(userId);
+      const isAdmin = role?.role === "admin" || role?.role === "super_admin";
+
+      if (!isParty && !isAdmin) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+
+      const disputes = await storage.getPhase5DisputesByTrip(req.params.tripId);
+      return res.json(disputes);
+    } catch (error) {
+      console.error("Error getting trip disputes:", error);
+      return res.status(500).json({ message: "Failed to get disputes" });
+    }
+  });
+
+  // Admin: Get open dispute queue
+  app.get("/api/admin/disputes/queue", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const { getDisputeQueue } = await import("./dispute-guards");
+      const disputes = await getDisputeQueue();
+      return res.json(disputes);
+    } catch (error) {
+      console.error("Error getting dispute queue:", error);
+      return res.status(500).json({ message: "Failed to get dispute queue" });
+    }
+  });
+
+  // Admin: Get disputes by status
+  app.get("/api/admin/disputes/status/:status", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const disputes = await storage.getPhase5DisputesByStatus(req.params.status);
+      return res.json(disputes);
+    } catch (error) {
+      console.error("Error getting disputes by status:", error);
+      return res.status(500).json({ message: "Failed to get disputes" });
+    }
+  });
+
+  // Admin: Review a dispute (assign to self)
+  app.post("/api/admin/disputes/:disputeId/review", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const adminId = req.user!.claims.sub;
+
+      const { adminReviewDispute } = await import("./dispute-guards");
+      const result = await adminReviewDispute(req.params.disputeId, adminId);
+
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
+      }
+
+      return res.json({ success: true, message: "Dispute is now under review" });
+    } catch (error) {
+      console.error("Error reviewing dispute:", error);
+      return res.status(500).json({ message: "Failed to review dispute" });
+    }
+  });
+
+  // Admin: Approve a dispute
+  app.post("/api/admin/disputes/:disputeId/approve", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const adminId = req.user!.claims.sub;
+      const { notes, refundType, refundAmount } = req.body;
+
+      if (!notes) {
+        return res.status(400).json({ message: "Admin notes required" });
+      }
+
+      const { adminApproveDispute } = await import("./dispute-guards");
+      const result = await adminApproveDispute(req.params.disputeId, adminId, notes, refundType, refundAmount);
+
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
+      }
+
+      return res.json({ success: true, message: "Dispute resolved" });
+    } catch (error) {
+      console.error("Error approving dispute:", error);
+      return res.status(500).json({ message: "Failed to approve dispute" });
+    }
+  });
+
+  // Admin: Reject a dispute
+  app.post("/api/admin/disputes/:disputeId/reject", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const adminId = req.user!.claims.sub;
+      const { reason } = req.body;
+
+      if (!reason) {
+        return res.status(400).json({ message: "Rejection reason required" });
+      }
+
+      const { adminRejectDispute } = await import("./dispute-guards");
+      const result = await adminRejectDispute(req.params.disputeId, adminId, reason);
+
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
+      }
+
+      return res.json({ success: true, message: "Dispute rejected" });
+    } catch (error) {
+      console.error("Error rejecting dispute:", error);
+      return res.status(500).json({ message: "Failed to reject dispute" });
+    }
+  });
+
+  // Admin: Escalate a dispute to safety incident
+  app.post("/api/admin/disputes/:disputeId/escalate", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const adminId = req.user!.claims.sub;
+      const { reason } = req.body;
+
+      if (!reason) {
+        return res.status(400).json({ message: "Escalation reason required" });
+      }
+
+      const { adminEscalateDispute } = await import("./dispute-guards");
+      const result = await adminEscalateDispute(req.params.disputeId, adminId, reason);
+
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
+      }
+
+      return res.json({ success: true, message: "Dispute escalated to safety incident" });
+    } catch (error) {
+      console.error("Error escalating dispute:", error);
+      return res.status(500).json({ message: "Failed to escalate dispute" });
+    }
+  });
+
+  // Admin: Report a chargeback
+  app.post("/api/admin/disputes/chargeback", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const adminId = req.user!.claims.sub;
+      const { userId, chargebackId } = req.body;
+
+      if (!userId || !chargebackId) {
+        return res.status(400).json({ message: "User ID and chargeback ID required" });
+      }
+
+      const { reportChargeback } = await import("./dispute-guards");
+      const result = await reportChargeback(userId, chargebackId, adminId);
+
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
+      }
+
+      return res.json({ success: true, message: "Chargeback reported" });
+    } catch (error) {
+      console.error("Error reporting chargeback:", error);
+      return res.status(500).json({ message: "Failed to report chargeback" });
+    }
+  });
+
+  // Admin: Get user dispute profile
+  app.get("/api/admin/disputes/user/:userId", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const { getUserDisputeProfile } = await import("./dispute-guards");
+      const profile = await getUserDisputeProfile(req.params.userId);
+      return res.json(profile);
+    } catch (error) {
+      console.error("Error getting user dispute profile:", error);
+      return res.status(500).json({ message: "Failed to get user dispute profile" });
+    }
+  });
+
+  // Admin: Get dispute audit logs
+  app.get("/api/admin/disputes/audit-logs", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const { getDisputeAuditLogs } = await import("./dispute-guards");
+      const logs = await getDisputeAuditLogs();
+      return res.json(logs);
+    } catch (error) {
+      console.error("Error getting dispute audit logs:", error);
+      return res.status(500).json({ message: "Failed to get audit logs" });
+    }
+  });
+
+  // Admin: Get dispute audit logs for specific dispute
+  app.get("/api/admin/disputes/:disputeId/audit-logs", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const logs = await storage.getDisputeAuditLogsForDispute(req.params.disputeId);
+      return res.json(logs);
+    } catch (error) {
+      console.error("Error getting dispute audit logs:", error);
+      return res.status(500).json({ message: "Failed to get audit logs" });
+    }
+  });
+
+  // Admin: Get refunds for a dispute
+  app.get("/api/admin/disputes/:disputeId/refunds", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const refunds = await storage.getPhase5RefundsByDispute(req.params.disputeId);
+      return res.json(refunds);
+    } catch (error) {
+      console.error("Error getting refunds:", error);
+      return res.status(500).json({ message: "Failed to get refunds" });
+    }
+  });
+
+  // Admin: Process a pending refund
+  app.post("/api/admin/disputes/refund/:refundId/process", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const adminId = req.user!.claims.sub;
+
+      const refund = await storage.getPhase5RefundOutcome(req.params.refundId);
+      if (!refund) {
+        return res.status(404).json({ message: "Refund not found" });
+      }
+
+      await storage.updatePhase5RefundStatus(req.params.refundId, "APPROVED", adminId);
+
+      const { processRefund } = await import("./dispute-guards");
+      const result = await processRefund(req.params.refundId, adminId);
+
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
+      }
+
+      return res.json({ success: true, message: "Refund processed" });
+    } catch (error) {
+      console.error("Error processing refund:", error);
+      return res.status(500).json({ message: "Failed to process refund" });
+    }
+  });
+
+  // Check if user is locked for chargebacks
+  app.get("/api/disputes/chargeback-status", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.claims.sub;
+      const isLocked = await storage.isUserLockedForChargebacks(userId);
+      return res.json({ isLocked });
+    } catch (error) {
+      console.error("Error checking chargeback status:", error);
+      return res.status(500).json({ message: "Failed to check status" });
+    }
+  });
+
   return httpServer;
 }
