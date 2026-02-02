@@ -2310,6 +2310,119 @@ export async function registerRoutes(
     }
   });
 
+  // Paystack Webhook for transfer status updates
+  app.post("/api/webhooks/paystack", async (req, res) => {
+    try {
+      const signature = req.headers["x-paystack-signature"] as string;
+      const body = JSON.stringify(req.body);
+      
+      // Validate webhook signature
+      if (!validatePaystackWebhook(body, signature)) {
+        console.log("[WEBHOOK] Invalid Paystack signature");
+        return res.status(401).json({ message: "Invalid signature" });
+      }
+      
+      const event = req.body;
+      console.log(`[WEBHOOK] Paystack event received: ${event.event}`);
+      
+      // Handle transfer events
+      if (event.event === "transfer.success" || event.event === "transfer.failed" || event.event === "transfer.reversed") {
+        const transferData = event.data;
+        const reference = transferData.reference;
+        
+        // Find withdrawal by reference
+        const withdrawal = await storage.getDriverWithdrawalByReference(reference);
+        if (!withdrawal) {
+          console.log(`[WEBHOOK] Withdrawal not found for reference: ${reference}`);
+          return res.status(200).json({ message: "Webhook received" });
+        }
+        
+        let newStatus: "paid" | "failed" | "processing" = "processing";
+        let providerStatus = transferData.status;
+        let providerError = transferData.reason || null;
+        
+        if (event.event === "transfer.success") {
+          newStatus = "paid";
+          console.log(`[WEBHOOK] Transfer successful: reference=${reference}, withdrawalId=${withdrawal.id}`);
+        } else if (event.event === "transfer.failed" || event.event === "transfer.reversed") {
+          newStatus = "failed";
+          console.log(`[WEBHOOK] Transfer failed: reference=${reference}, reason=${providerError}`);
+        }
+        
+        // Update withdrawal status
+        await storage.updateDriverWithdrawal(withdrawal.id, {
+          status: newStatus,
+          providerStatus,
+          providerError,
+          processedAt: new Date(),
+        });
+        
+        console.log(`[AUDIT] Withdrawal updated via Paystack webhook: id=${withdrawal.id}, status=${newStatus}`);
+      }
+      
+      return res.status(200).json({ message: "Webhook processed" });
+    } catch (error) {
+      console.error("[WEBHOOK] Paystack error:", error);
+      return res.status(500).json({ message: "Webhook processing failed" });
+    }
+  });
+
+  // Flutterwave Webhook for transfer status updates
+  app.post("/api/webhooks/flutterwave", async (req, res) => {
+    try {
+      const signature = req.headers["verif-hash"] as string;
+      
+      // Validate webhook signature
+      if (!validateFlutterwaveWebhook(signature)) {
+        console.log("[WEBHOOK] Invalid Flutterwave signature");
+        return res.status(401).json({ message: "Invalid signature" });
+      }
+      
+      const event = req.body;
+      console.log(`[WEBHOOK] Flutterwave event received: ${event.event}`);
+      
+      // Handle transfer events
+      if (event.event === "transfer.completed") {
+        const transferData = event.data;
+        const reference = transferData.reference;
+        
+        // Find withdrawal by reference
+        const withdrawal = await storage.getDriverWithdrawalByReference(reference);
+        if (!withdrawal) {
+          console.log(`[WEBHOOK] Withdrawal not found for reference: ${reference}`);
+          return res.status(200).json({ message: "Webhook received" });
+        }
+        
+        let newStatus: "paid" | "failed" | "processing" = "processing";
+        let providerStatus = transferData.status;
+        let providerError = transferData.complete_message || null;
+        
+        if (transferData.status === "SUCCESSFUL") {
+          newStatus = "paid";
+          console.log(`[WEBHOOK] Transfer successful: reference=${reference}, withdrawalId=${withdrawal.id}`);
+        } else if (transferData.status === "FAILED") {
+          newStatus = "failed";
+          console.log(`[WEBHOOK] Transfer failed: reference=${reference}, reason=${providerError}`);
+        }
+        
+        // Update withdrawal status
+        await storage.updateDriverWithdrawal(withdrawal.id, {
+          status: newStatus,
+          providerStatus,
+          providerError,
+          processedAt: new Date(),
+        });
+        
+        console.log(`[AUDIT] Withdrawal updated via Flutterwave webhook: id=${withdrawal.id}, status=${newStatus}`);
+      }
+      
+      return res.status(200).json({ message: "Webhook processed" });
+    } catch (error) {
+      console.error("[WEBHOOK] Flutterwave error:", error);
+      return res.status(500).json({ message: "Webhook processing failed" });
+    }
+  });
+
   // Admin Driver Verification Management
   app.post("/api/admin/drivers/:userId/verify-nin", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {
