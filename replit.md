@@ -184,3 +184,86 @@ When driver accepts ride/starts pickup/starts dropoff:
 - Operates ALONGSIDE identity verification (Phase 1)
 - Does NOT modify financial engine, wallets, or payouts
 - All enforcement is SERVER-SIDE only
+
+## Ratings, Behavior Signals & Trust Scoring (Phase 3)
+
+### Engine Lock Status
+- `TRUST_ENGINE_LOCKED = true` (cannot be removed without code change)
+- Assertion: `assertTrustEngineLocked()` prevents silent removal
+
+### Rating System
+- **One-time ratings**: Each user can rate once per trip (immutable)
+- **Score range**: 1-5 stars
+- **Rating window**: 72 hours after trip completion
+- **Bidirectional**: Riders rate drivers, drivers rate riders
+
+### Behavior Signals (Passive Capture)
+**Driver Signals:**
+- GPS_INTERRUPTION (-5)
+- LATE_ARRIVAL (-3)
+- ROUTE_DEVIATION (-4)
+- CANCELLATION (-5)
+- APP_FORCE_CLOSE (-2)
+
+**Rider Signals:**
+- NO_SHOW (-15, heaviest penalty)
+- CANCELLATION (-5)
+- PAYMENT_FAILURE (-10)
+- DISPUTE_FILED (-3)
+
+**Positive Signals:**
+- TRIP_COMPLETED (+5)
+- ON_TIME_ARRIVAL (+2)
+- SMOOTH_NAVIGATION (+3)
+
+### Trust Score Calculation
+- **Score range**: 0-100 (internal, NOT visible to users)
+- **Default score**: 75 for new users
+- **Components**:
+  - Ratings: 40% weight
+  - Behavior Signals: 30% weight
+  - Trip Completion Ratio: 20% weight
+  - Account Age: 10% weight
+
+### Anti-Manipulation Guards
+- **Rating Bombing Detection**: 3+ low ratings (≤2 stars) in 24 hours triggers alert
+- **Retaliation Dampening**: Ratings within 30 minutes of receiving a rating get reduced weight (0.3)
+- **Outlier Detection**: Ratings beyond 2.5 standard deviations flagged as outliers
+- **Low Sample Dampening**: Factor of 0.7 applied when sample size < 10 ratings
+- **Collusion Prevention**: Flagged ratings from suspicious patterns
+
+### Trust Score Thresholds
+- **Low Trust**: < 40 (for future enforcement actions)
+- **High Trust**: ≥ 85 (for future rewards/benefits)
+- Note: NO automatic actions currently - thresholds exposed for admin monitoring
+
+### Database Tables
+- `tripRatings`: Immutable rating records with anti-manipulation metadata
+- `behaviorSignals`: Passive behavior signal capture
+- `userTrustProfiles`: Calculated trust scores (0-100)
+- `trustAuditLog`: Immutable audit trail for all trust actions
+
+### API Endpoints
+
+**User Endpoints:**
+- `POST /api/ratings/submit`: Submit a rating for a completed trip
+- `GET /api/ratings/trip/:tripId`: Get ratings for a trip
+- `GET /api/ratings/can-rate/:tripId`: Check if user can rate a trip
+
+**Admin Endpoints (Read-Only):**
+- `GET /api/admin/trust/profiles`: All user trust profiles
+- `GET /api/admin/trust/user/:userId`: Detailed trust view for a user
+- `GET /api/admin/trust/audit-logs`: All trust audit logs
+- `GET /api/admin/trust/thresholds`: Current trust score thresholds
+
+### Important Files
+- `shared/schema.ts`: Database schema with trust tables
+- `shared/trust-config.ts`: Configuration constants and helper functions
+- `server/trust-guards.ts`: Trust calculation engine and anti-manipulation logic
+- `server/routes.ts`: Trust API endpoints
+
+### Integration Notes
+- Operates ALONGSIDE Phase 1 (identity) and Phase 2 (navigation)
+- Does NOT modify financial engine, wallets, or payouts
+- Trust scores are SERVER-SIDE only, never exposed to users
+- All trust calculations and anti-manipulation logic are SERVER-SIDE only
