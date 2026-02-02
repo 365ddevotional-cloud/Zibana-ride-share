@@ -205,6 +205,19 @@ import {
   type InsertUserIdentityProfile,
   type IdentityAuditLog,
   type InsertIdentityAuditLog,
+  // Phase 2 - Driver GPS & Navigation Enforcement
+  driverNavigationSetup,
+  gpsTrackingLogs,
+  navigationAuditLog,
+  driverGpsInterruptions,
+  type DriverNavigationSetup,
+  type InsertDriverNavigationSetup,
+  type GpsTrackingLog,
+  type InsertGpsTrackingLog,
+  type NavigationAuditLog,
+  type InsertNavigationAuditLog,
+  type DriverGpsInterruption,
+  type InsertDriverGpsInterruption,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull } from "drizzle-orm";
@@ -355,6 +368,47 @@ export interface IStorage {
   // Admin identity views
   getAllPendingIdentityProfiles(): Promise<UserIdentityProfile[]>;
   getAllIdentityProfiles(): Promise<UserIdentityProfile[]>;
+
+  // =============================================
+  // PHASE 2: DRIVER GPS & NAVIGATION ENFORCEMENT
+  // =============================================
+  
+  // Driver navigation setup
+  getDriverNavigationSetup(userId: string): Promise<DriverNavigationSetup | null>;
+  createDriverNavigationSetup(data: InsertDriverNavigationSetup): Promise<DriverNavigationSetup>;
+  updateDriverNavigationSetup(userId: string, data: Partial<DriverNavigationSetup>): Promise<DriverNavigationSetup | null>;
+  
+  // GPS state updates
+  updateGpsState(userId: string, isActive: boolean, latitude?: string, longitude?: string): Promise<DriverNavigationSetup | null>;
+  updateGpsHeartbeat(userId: string, latitude: string, longitude: string): Promise<DriverNavigationSetup | null>;
+  
+  // Navigation state
+  setNavigationActive(userId: string, tripId: string | null, isActive: boolean): Promise<DriverNavigationSetup | null>;
+  setAppInForeground(userId: string, isInForeground: boolean): Promise<DriverNavigationSetup | null>;
+  
+  // Setup completion
+  completeNavigationSetup(userId: string): Promise<DriverNavigationSetup | null>;
+  isNavigationSetupComplete(userId: string): Promise<boolean>;
+  
+  // GPS tracking logs
+  createGpsTrackingLog(data: InsertGpsTrackingLog): Promise<GpsTrackingLog>;
+  getGpsTrackingLogs(userId: string, limit?: number): Promise<GpsTrackingLog[]>;
+  getGpsTrackingLogsForTrip(tripId: string): Promise<GpsTrackingLog[]>;
+  
+  // Navigation audit log
+  createNavigationAuditLog(data: InsertNavigationAuditLog): Promise<NavigationAuditLog>;
+  getNavigationAuditLogs(userId: string): Promise<NavigationAuditLog[]>;
+  getAllNavigationAuditLogs(): Promise<NavigationAuditLog[]>;
+  
+  // GPS interruptions
+  createGpsInterruption(data: InsertDriverGpsInterruption): Promise<DriverGpsInterruption>;
+  getGpsInterruptions(userId: string): Promise<DriverGpsInterruption[]>;
+  getAllGpsInterruptions(): Promise<DriverGpsInterruption[]>;
+  resolveGpsInterruption(interruptionId: string, notes: string): Promise<DriverGpsInterruption | null>;
+  
+  // Admin views
+  getAllDriverNavigationSetups(): Promise<DriverNavigationSetup[]>;
+  getDriversWithGpsIssues(): Promise<DriverNavigationSetup[]>;
 
   getDirectorProfile(userId: string): Promise<DirectorProfile | undefined>;
   createDirectorProfile(data: InsertDirectorProfile): Promise<DirectorProfile>;
@@ -5862,6 +5916,181 @@ export class DatabaseStorage implements IStorage {
   async getAllIdentityProfiles(): Promise<UserIdentityProfile[]> {
     return db.select().from(userIdentityProfiles)
       .orderBy(desc(userIdentityProfiles.createdAt));
+  }
+
+  // =============================================
+  // PHASE 2: DRIVER GPS & NAVIGATION ENFORCEMENT
+  // =============================================
+
+  async getDriverNavigationSetup(userId: string): Promise<DriverNavigationSetup | null> {
+    const [setup] = await db.select().from(driverNavigationSetup)
+      .where(eq(driverNavigationSetup.userId, userId));
+    return setup || null;
+  }
+
+  async createDriverNavigationSetup(data: InsertDriverNavigationSetup): Promise<DriverNavigationSetup> {
+    const [setup] = await db.insert(driverNavigationSetup).values(data).returning();
+    return setup;
+  }
+
+  async updateDriverNavigationSetup(userId: string, data: Partial<DriverNavigationSetup>): Promise<DriverNavigationSetup | null> {
+    const [setup] = await db.update(driverNavigationSetup)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(driverNavigationSetup.userId, userId))
+      .returning();
+    return setup || null;
+  }
+
+  async updateGpsState(userId: string, isActive: boolean, latitude?: string, longitude?: string): Promise<DriverNavigationSetup | null> {
+    const updateData: Partial<DriverNavigationSetup> = {
+      isGpsActive: isActive,
+      updatedAt: new Date(),
+    };
+    if (latitude && longitude) {
+      updateData.lastKnownLatitude = latitude;
+      updateData.lastKnownLongitude = longitude;
+      updateData.lastLocationUpdateAt = new Date();
+    }
+    const [setup] = await db.update(driverNavigationSetup)
+      .set(updateData)
+      .where(eq(driverNavigationSetup.userId, userId))
+      .returning();
+    return setup || null;
+  }
+
+  async updateGpsHeartbeat(userId: string, latitude: string, longitude: string): Promise<DriverNavigationSetup | null> {
+    const [setup] = await db.update(driverNavigationSetup)
+      .set({
+        lastGpsHeartbeat: new Date(),
+        lastKnownLatitude: latitude,
+        lastKnownLongitude: longitude,
+        lastLocationUpdateAt: new Date(),
+        isGpsActive: true,
+        updatedAt: new Date(),
+      })
+      .where(eq(driverNavigationSetup.userId, userId))
+      .returning();
+    return setup || null;
+  }
+
+  async setNavigationActive(userId: string, tripId: string | null, isActive: boolean): Promise<DriverNavigationSetup | null> {
+    const [setup] = await db.update(driverNavigationSetup)
+      .set({
+        isNavigationActive: isActive,
+        currentNavigationTripId: tripId,
+        updatedAt: new Date(),
+      })
+      .where(eq(driverNavigationSetup.userId, userId))
+      .returning();
+    return setup || null;
+  }
+
+  async setAppInForeground(userId: string, isInForeground: boolean): Promise<DriverNavigationSetup | null> {
+    const [setup] = await db.update(driverNavigationSetup)
+      .set({
+        isAppInForeground: isInForeground,
+        lastAppStateChange: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(driverNavigationSetup.userId, userId))
+      .returning();
+    return setup || null;
+  }
+
+  async completeNavigationSetup(userId: string): Promise<DriverNavigationSetup | null> {
+    const [setup] = await db.update(driverNavigationSetup)
+      .set({
+        navigationSetupCompleted: true,
+        setupCompletedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(driverNavigationSetup.userId, userId))
+      .returning();
+    return setup || null;
+  }
+
+  async isNavigationSetupComplete(userId: string): Promise<boolean> {
+    const setup = await this.getDriverNavigationSetup(userId);
+    return setup?.navigationSetupCompleted === true;
+  }
+
+  async createGpsTrackingLog(data: InsertGpsTrackingLog): Promise<GpsTrackingLog> {
+    const [log] = await db.insert(gpsTrackingLogs).values(data).returning();
+    return log;
+  }
+
+  async getGpsTrackingLogs(userId: string, limit: number = 100): Promise<GpsTrackingLog[]> {
+    return db.select().from(gpsTrackingLogs)
+      .where(eq(gpsTrackingLogs.userId, userId))
+      .orderBy(desc(gpsTrackingLogs.createdAt))
+      .limit(limit);
+  }
+
+  async getGpsTrackingLogsForTrip(tripId: string): Promise<GpsTrackingLog[]> {
+    return db.select().from(gpsTrackingLogs)
+      .where(eq(gpsTrackingLogs.tripId, tripId))
+      .orderBy(gpsTrackingLogs.deviceTimestamp);
+  }
+
+  async createNavigationAuditLog(data: InsertNavigationAuditLog): Promise<NavigationAuditLog> {
+    const [log] = await db.insert(navigationAuditLog).values(data).returning();
+    return log;
+  }
+
+  async getNavigationAuditLogs(userId: string): Promise<NavigationAuditLog[]> {
+    return db.select().from(navigationAuditLog)
+      .where(eq(navigationAuditLog.userId, userId))
+      .orderBy(desc(navigationAuditLog.createdAt));
+  }
+
+  async getAllNavigationAuditLogs(): Promise<NavigationAuditLog[]> {
+    return db.select().from(navigationAuditLog)
+      .orderBy(desc(navigationAuditLog.createdAt));
+  }
+
+  async createGpsInterruption(data: InsertDriverGpsInterruption): Promise<DriverGpsInterruption> {
+    const [interruption] = await db.insert(driverGpsInterruptions).values(data).returning();
+    return interruption;
+  }
+
+  async getGpsInterruptions(userId: string): Promise<DriverGpsInterruption[]> {
+    return db.select().from(driverGpsInterruptions)
+      .where(eq(driverGpsInterruptions.userId, userId))
+      .orderBy(desc(driverGpsInterruptions.createdAt));
+  }
+
+  async getAllGpsInterruptions(): Promise<DriverGpsInterruption[]> {
+    return db.select().from(driverGpsInterruptions)
+      .orderBy(desc(driverGpsInterruptions.createdAt));
+  }
+
+  async resolveGpsInterruption(interruptionId: string, notes: string): Promise<DriverGpsInterruption | null> {
+    const [interruption] = await db.update(driverGpsInterruptions)
+      .set({
+        isResolved: true,
+        resolvedAt: new Date(),
+        resolutionNotes: notes,
+      })
+      .where(eq(driverGpsInterruptions.id, interruptionId))
+      .returning();
+    return interruption || null;
+  }
+
+  async getAllDriverNavigationSetups(): Promise<DriverNavigationSetup[]> {
+    return db.select().from(driverNavigationSetup)
+      .orderBy(desc(driverNavigationSetup.updatedAt));
+  }
+
+  async getDriversWithGpsIssues(): Promise<DriverNavigationSetup[]> {
+    const threshold = new Date(Date.now() - 60000); // 60 seconds ago
+    return db.select().from(driverNavigationSetup)
+      .where(
+        and(
+          eq(driverNavigationSetup.isGpsActive, true),
+          lt(driverNavigationSetup.lastGpsHeartbeat, threshold)
+        )
+      )
+      .orderBy(desc(driverNavigationSetup.lastGpsHeartbeat));
   }
 }
 
