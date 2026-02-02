@@ -694,6 +694,316 @@ export async function registerRoutes(
     }
   });
 
+  // Nigeria Bank Account Integration - Driver bank account CRUD
+  app.get("/api/driver/bank-account", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const driverProfile = await storage.getDriverProfile(userId);
+      if (!driverProfile) {
+        return res.status(404).json({ message: "Driver profile not found" });
+      }
+      const bankAccount = await storage.getDriverBankAccount(driverProfile.id);
+      
+      // Also return verification status for UI
+      const verificationStatus = {
+        isNINVerified: driverProfile.isNINVerified,
+        isDriversLicenseVerified: driverProfile.isDriversLicenseVerified,
+        isAddressVerified: driverProfile.isAddressVerified,
+        isIdentityVerified: driverProfile.isIdentityVerified,
+        withdrawalVerificationStatus: driverProfile.withdrawalVerificationStatus,
+        bankAccountVerified: bankAccount?.isVerified || false,
+      };
+      
+      return res.json({ bankAccount, verificationStatus });
+    } catch (error) {
+      console.error("Error getting driver bank account:", error);
+      return res.status(500).json({ message: "Failed to get bank account" });
+    }
+  });
+
+  app.post("/api/driver/bank-account", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { bankName, bankCode, accountNumber, accountName } = req.body;
+      
+      // Validate required fields
+      if (!bankName || !bankCode || !accountNumber || !accountName) {
+        return res.status(400).json({ message: "All bank account fields are required" });
+      }
+      
+      const driverProfile = await storage.getDriverProfile(userId);
+      if (!driverProfile) {
+        return res.status(404).json({ message: "Driver profile not found" });
+      }
+      
+      // Check if driver already has a bank account
+      const existing = await storage.getDriverBankAccount(driverProfile.id);
+      if (existing) {
+        return res.status(400).json({ message: "Bank account already exists. Use PATCH to update." });
+      }
+      
+      // Hash account number for uniqueness check
+      const crypto = await import("crypto");
+      const accountNumberHash = crypto.createHash("sha256").update(accountNumber).digest("hex");
+      
+      // Check if this bank account is already linked to another driver
+      const hashExists = await storage.checkBankAccountHashExists(accountNumberHash, driverProfile.id);
+      if (hashExists) {
+        console.log(`[FRAUD] Bank account reuse attempt: driverId=${driverProfile.id}, accountNumber=****${accountNumber.slice(-4)}`);
+        return res.status(400).json({ message: "This bank account is already linked to another driver" });
+      }
+      
+      const bankAccount = await storage.createDriverBankAccount({
+        driverId: driverProfile.id,
+        bankName,
+        bankCode,
+        accountNumber,
+        accountNumberHash,
+        accountName,
+        countryCode: "NG", // Nigeria only
+      });
+      
+      console.log(`[AUDIT] Driver bank account created: driverId=${driverProfile.id}, bankName=${bankName}`);
+      return res.json(bankAccount);
+    } catch (error) {
+      console.error("Error creating driver bank account:", error);
+      return res.status(500).json({ message: "Failed to create bank account" });
+    }
+  });
+
+  app.patch("/api/driver/bank-account", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { bankName, bankCode, accountNumber, accountName } = req.body;
+      
+      const driverProfile = await storage.getDriverProfile(userId);
+      if (!driverProfile) {
+        return res.status(404).json({ message: "Driver profile not found" });
+      }
+      
+      const existing = await storage.getDriverBankAccount(driverProfile.id);
+      if (!existing) {
+        return res.status(404).json({ message: "No bank account found. Create one first." });
+      }
+      
+      // If account number is changing, check for reuse
+      if (accountNumber && accountNumber !== existing.accountNumber) {
+        const crypto = await import("crypto");
+        const accountNumberHash = crypto.createHash("sha256").update(accountNumber).digest("hex");
+        
+        const hashExists = await storage.checkBankAccountHashExists(accountNumberHash, driverProfile.id);
+        if (hashExists) {
+          console.log(`[FRAUD] Bank account reuse attempt on update: driverId=${driverProfile.id}`);
+          return res.status(400).json({ message: "This bank account is already linked to another driver" });
+        }
+      }
+      
+      // Updating bank account resets verification
+      const updated = await storage.updateDriverBankAccount(driverProfile.id, {
+        bankName: bankName || existing.bankName,
+        bankCode: bankCode || existing.bankCode,
+        accountNumber: accountNumber || existing.accountNumber,
+        accountName: accountName || existing.accountName,
+      });
+      
+      // Reset bank verification if account changed
+      if (accountNumber && accountNumber !== existing.accountNumber) {
+        await storage.verifyDriverBankAccount(driverProfile.id, false, "manual", "system");
+        console.log(`[AUDIT] Bank account verification reset due to update: driverId=${driverProfile.id}`);
+      }
+      
+      console.log(`[AUDIT] Driver bank account updated: driverId=${driverProfile.id}`);
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error updating driver bank account:", error);
+      return res.status(500).json({ message: "Failed to update bank account" });
+    }
+  });
+
+  // Driver verification status and eligibility check
+  app.get("/api/driver/withdrawal-eligibility", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const driverProfile = await storage.getDriverProfile(userId);
+      if (!driverProfile) {
+        return res.status(404).json({ message: "Driver profile not found" });
+      }
+      
+      const bankAccount = await storage.getDriverBankAccount(driverProfile.id);
+      const driverWallet = await storage.getDriverWallet(userId);
+      const isTester = await storage.isUserTester(userId);
+      
+      // Get identity documents for Nigeria-specific checks
+      const identityDocs = await storage.getIdentityDocuments(userId);
+      const hasNIN = identityDocs.some(d => d.documentType === "NIN" && d.verified);
+      const hasDriversLicense = identityDocs.some(d => d.documentType === "DRIVER_LICENSE" && d.verified);
+      
+      const issues: string[] = [];
+      
+      // Check all requirements
+      if (driverProfile.withdrawalVerificationStatus !== "verified") {
+        issues.push("Driver verification status is not verified");
+      }
+      if (!driverProfile.isNINVerified && !hasNIN) {
+        issues.push("NIN verification required");
+      }
+      if (!driverProfile.isDriversLicenseVerified && !hasDriversLicense) {
+        issues.push("Driver's license verification required");
+      }
+      if (!driverProfile.isAddressVerified) {
+        issues.push("Address verification required");
+      }
+      if (!driverProfile.isIdentityVerified) {
+        issues.push("Identity verification required");
+      }
+      if (!bankAccount) {
+        issues.push("Bank account not linked");
+      } else if (!bankAccount.isVerified) {
+        issues.push("Bank account not verified");
+      }
+      if (!driverWallet || parseFloat(driverWallet.withdrawableBalance || "0") < 1000) {
+        issues.push("Minimum withdrawal amount is ₦1,000");
+      }
+      if (isTester) {
+        issues.push("Test drivers cannot withdraw real funds");
+      }
+      
+      const isEligible = issues.length === 0;
+      
+      return res.json({
+        isEligible,
+        issues,
+        walletBalance: driverWallet?.withdrawableBalance || "0.00",
+        currency: "NGN",
+        minimumWithdrawal: 1000,
+        bankAccount: bankAccount ? {
+          bankName: bankAccount.bankName,
+          accountNumber: `****${bankAccount.accountNumber.slice(-4)}`,
+          accountName: bankAccount.accountName,
+          isVerified: bankAccount.isVerified,
+        } : null,
+        verificationStatus: {
+          isNINVerified: driverProfile.isNINVerified || hasNIN,
+          isDriversLicenseVerified: driverProfile.isDriversLicenseVerified || hasDriversLicense,
+          isAddressVerified: driverProfile.isAddressVerified,
+          isIdentityVerified: driverProfile.isIdentityVerified,
+          overallStatus: driverProfile.withdrawalVerificationStatus,
+        },
+      });
+    } catch (error) {
+      console.error("Error checking withdrawal eligibility:", error);
+      return res.status(500).json({ message: "Failed to check eligibility" });
+    }
+  });
+
+  // Driver withdrawal request (Nigeria NGN only)
+  app.post("/api/driver/withdrawals", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { amount } = req.body;
+      
+      const driverProfile = await storage.getDriverProfile(userId);
+      if (!driverProfile) {
+        return res.status(404).json({ message: "Driver profile not found" });
+      }
+      
+      // Validate amount
+      const withdrawAmount = parseFloat(amount);
+      if (isNaN(withdrawAmount) || withdrawAmount < 1000) {
+        return res.status(400).json({ message: "Minimum withdrawal amount is ₦1,000" });
+      }
+      
+      // Check if driver is a tester
+      const isTester = await storage.isUserTester(userId);
+      if (isTester) {
+        return res.status(403).json({ message: "Test drivers cannot withdraw real funds" });
+      }
+      
+      // Check verification status
+      if (driverProfile.withdrawalVerificationStatus !== "verified") {
+        return res.status(403).json({ message: "Complete identity verification to withdraw" });
+      }
+      
+      // Check all verification flags
+      if (!driverProfile.isNINVerified || !driverProfile.isDriversLicenseVerified || 
+          !driverProfile.isAddressVerified || !driverProfile.isIdentityVerified) {
+        // Fall back to checking identity documents
+        const docs = await storage.getIdentityDocuments(userId);
+        const hasVerifiedNIN = docs.some(d => d.documentType === "NIN" && d.verified);
+        const hasVerifiedLicense = docs.some(d => d.documentType === "DRIVER_LICENSE" && d.verified);
+        
+        if (!hasVerifiedNIN) {
+          return res.status(403).json({ message: "NIN verification required for withdrawals" });
+        }
+        if (!hasVerifiedLicense) {
+          return res.status(403).json({ message: "Driver's license verification required for withdrawals" });
+        }
+      }
+      
+      // Check bank account
+      const bankAccount = await storage.getDriverBankAccount(driverProfile.id);
+      if (!bankAccount) {
+        return res.status(400).json({ message: "Link a bank account before withdrawing" });
+      }
+      if (!bankAccount.isVerified) {
+        return res.status(403).json({ message: "Bank account verification pending" });
+      }
+      
+      // Check wallet balance
+      const driverWallet = await storage.getDriverWallet(userId);
+      if (!driverWallet) {
+        return res.status(400).json({ message: "Driver wallet not found" });
+      }
+      
+      const walletBalance = parseFloat(driverWallet.withdrawableBalance || "0");
+      if (walletBalance < withdrawAmount) {
+        return res.status(400).json({ message: `Insufficient balance. Available: ₦${walletBalance.toFixed(2)}` });
+      }
+      
+      // Create withdrawal request
+      const withdrawal = await storage.createDriverWithdrawal({
+        driverId: driverProfile.id,
+        amount: withdrawAmount.toFixed(2),
+        currencyCode: "NGN",
+        payoutMethod: "BANK",
+        bankAccountId: bankAccount.id,
+      });
+      
+      console.log(`[AUDIT] Withdrawal requested: driverId=${driverProfile.id}, amount=₦${withdrawAmount}, withdrawalId=${withdrawal.id}`);
+      
+      return res.json({
+        message: "Withdrawal request submitted",
+        withdrawal: {
+          id: withdrawal.id,
+          amount: withdrawal.amount,
+          currency: "NGN",
+          status: withdrawal.status,
+          bankAccount: `${bankAccount.bankName} - ****${bankAccount.accountNumber.slice(-4)}`,
+        },
+      });
+    } catch (error) {
+      console.error("Error creating withdrawal request:", error);
+      return res.status(500).json({ message: "Failed to create withdrawal request" });
+    }
+  });
+
+  // Get driver's withdrawal history
+  app.get("/api/driver/withdrawals", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const driverProfile = await storage.getDriverProfile(userId);
+      if (!driverProfile) {
+        return res.status(404).json({ message: "Driver profile not found" });
+      }
+      
+      const withdrawals = await storage.getDriverWithdrawals(driverProfile.id);
+      return res.json(withdrawals);
+    } catch (error) {
+      console.error("Error getting driver withdrawals:", error);
+      return res.status(500).json({ message: "Failed to get withdrawals" });
+    }
+  });
+
   app.get("/api/rider/profile", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;

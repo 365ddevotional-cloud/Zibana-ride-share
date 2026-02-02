@@ -189,12 +189,15 @@ import {
   identityProfiles,
   identityDocuments,
   driverWithdrawals,
+  driverBankAccounts,
   type IdentityProfile,
   type InsertIdentityProfile,
   type IdentityDocument,
   type InsertIdentityDocument,
   type DriverWithdrawal,
-  type InsertDriverWithdrawal
+  type InsertDriverWithdrawal,
+  type DriverBankAccount,
+  type InsertDriverBankAccount
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull } from "drizzle-orm";
@@ -303,6 +306,14 @@ export interface IStorage {
   
   // Bank account uniqueness check
   checkBankAccountLinked(bankName: string, accountNumber: string, excludeUserId?: string): Promise<boolean>;
+  
+  // Driver Bank Account methods (Nigeria integration)
+  getDriverBankAccount(driverId: string): Promise<DriverBankAccount | null>;
+  createDriverBankAccount(data: InsertDriverBankAccount & { accountNumberHash: string }): Promise<DriverBankAccount>;
+  updateDriverBankAccount(driverId: string, data: Partial<InsertDriverBankAccount>): Promise<DriverBankAccount | null>;
+  verifyDriverBankAccount(driverId: string, verified: boolean, method: string, verifiedBy: string): Promise<DriverBankAccount | null>;
+  checkBankAccountHashExists(accountNumberHash: string, excludeDriverId?: string): Promise<boolean>;
+  getAllDriverBankAccounts(): Promise<DriverBankAccount[]>;
 
   getDirectorProfile(userId: string): Promise<DirectorProfile | undefined>;
   createDirectorProfile(data: InsertDirectorProfile): Promise<DirectorProfile>;
@@ -5607,6 +5618,55 @@ export class DatabaseStorage implements IStorage {
       .from(driverWallets)
       .where(and(...conditions));
     return (result?.count || 0) > 0;
+  }
+
+  // Driver Bank Account methods (Nigeria integration)
+  async getDriverBankAccount(driverId: string): Promise<DriverBankAccount | null> {
+    const [account] = await db.select().from(driverBankAccounts)
+      .where(eq(driverBankAccounts.driverId, driverId));
+    return account || null;
+  }
+
+  async createDriverBankAccount(data: InsertDriverBankAccount & { accountNumberHash: string }): Promise<DriverBankAccount> {
+    const [account] = await db.insert(driverBankAccounts).values(data).returning();
+    return account;
+  }
+
+  async updateDriverBankAccount(driverId: string, data: Partial<InsertDriverBankAccount>): Promise<DriverBankAccount | null> {
+    const [account] = await db.update(driverBankAccounts)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(driverBankAccounts.driverId, driverId))
+      .returning();
+    return account || null;
+  }
+
+  async verifyDriverBankAccount(driverId: string, verified: boolean, method: string, verifiedBy: string): Promise<DriverBankAccount | null> {
+    const [account] = await db.update(driverBankAccounts)
+      .set({
+        isVerified: verified,
+        verificationMethod: method as any,
+        verifiedAt: new Date(),
+        verifiedBy,
+        updatedAt: new Date(),
+      })
+      .where(eq(driverBankAccounts.driverId, driverId))
+      .returning();
+    return account || null;
+  }
+
+  async checkBankAccountHashExists(accountNumberHash: string, excludeDriverId?: string): Promise<boolean> {
+    const conditions = [eq(driverBankAccounts.accountNumberHash, accountNumberHash)];
+    if (excludeDriverId) {
+      conditions.push(sql`${driverBankAccounts.driverId} != ${excludeDriverId}` as any);
+    }
+    const [result] = await db.select({ count: count() })
+      .from(driverBankAccounts)
+      .where(and(...conditions));
+    return (result?.count || 0) > 0;
+  }
+
+  async getAllDriverBankAccounts(): Promise<DriverBankAccount[]> {
+    return db.select().from(driverBankAccounts).orderBy(desc(driverBankAccounts.createdAt));
   }
 }
 
