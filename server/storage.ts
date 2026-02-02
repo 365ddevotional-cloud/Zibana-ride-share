@@ -430,7 +430,7 @@ export interface IStorage {
   // Trip ratings
   createTripRating(data: InsertTripRating): Promise<TripRating>;
   getTripRatingByRater(tripId: string, raterId: string): Promise<TripRating | null>;
-  getTripRatings(tripId: string): Promise<TripRating[]>;
+  getTrustTripRatings(tripId: string): Promise<TripRating[]>;
   getUserRatingsReceived(userId: string): Promise<TripRating[]>;
   getUserRatingsGiven(userId: string): Promise<TripRating[]>;
   getRecentRatingsForUser(userId: string, hoursBack: number): Promise<TripRating[]>;
@@ -6164,7 +6164,7 @@ export class DatabaseStorage implements IStorage {
     return rating || null;
   }
 
-  async getTripRatings(tripId: string): Promise<TripRating[]> {
+  async getTrustTripRatings(tripId: string): Promise<TripRating[]> {
     return db.select().from(tripRatings)
       .where(eq(tripRatings.tripId, tripId))
       .orderBy(desc(tripRatings.createdAt));
