@@ -127,6 +127,32 @@ export const abuseFlagStatusEnum = pgEnum("abuse_flag_status", ["pending", "revi
 // Payment Source enum - determines which wallet to charge for rides
 export const paymentSourceEnum = pgEnum("payment_source", ["TEST_WALLET", "MAIN_WALLET", "CARD", "BANK"]);
 
+// =============================================
+// PHASE 1: UNIVERSAL IDENTITY FRAMEWORK ENUMS
+// =============================================
+
+// Identity verification status - applies to all users
+export const identityStatusEnum = pgEnum("identity_status", ["pending", "approved", "rejected"]);
+
+// Government ID types - country-aware
+export const governmentIdTypeEnum = pgEnum("government_id_type", [
+  // Nigeria
+  "NIN",
+  // United States  
+  "STATE_ID", "US_PASSPORT", "US_DRIVER_LICENSE",
+  // United Kingdom
+  "UK_DRIVING_LICENSE", "UK_PASSPORT",
+  // South Africa
+  "SA_ID", "SA_PASSPORT",
+  // Generic (for other countries)
+  "NATIONAL_ID", "PASSPORT", "OTHER"
+]);
+
+// Identity action types for audit logging
+export const identityActionTypeEnum = pgEnum("identity_action_type", [
+  "SUBMISSION", "APPROVAL", "REJECTION", "DUPLICATE_DETECTED", "UPDATE"
+]);
+
 // Phase 22 - Enhanced Ride Lifecycle enums
 export const rideStatusEnum = pgEnum("ride_status", [
   "requested",
@@ -405,6 +431,60 @@ export const tripCoordinatorProfiles = pgTable("trip_coordinator_profiles", {
   contactEmail: varchar("contact_email", { length: 255 }).notNull(),
   contactPhone: varchar("contact_phone", { length: 50 }),
   billingMode: varchar("billing_mode", { length: 50 }).notNull().default("simulated"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// =============================================
+// PHASE 1: UNIVERSAL IDENTITY FRAMEWORK TABLES
+// =============================================
+
+// Universal identity profiles - applies to ALL users (drivers, riders, etc.)
+export const userIdentityProfiles = pgTable("user_identity_profiles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique(),
+  
+  // Core identity fields (COMMON - all users)
+  legalFullName: varchar("legal_full_name", { length: 255 }).notNull(),
+  dateOfBirth: timestamp("date_of_birth").notNull(),
+  residentialAddress: text("residential_address").notNull(),
+  countryCode: varchar("country_code", { length: 2 }).notNull(), // ISO-2
+  
+  // Identity verification status
+  identityVerified: boolean("identity_verified").notNull().default(false),
+  identityStatus: identityStatusEnum("identity_status").notNull().default("pending"),
+  
+  // Government ID (country-aware) - NEVER store raw ID numbers
+  governmentIdType: governmentIdTypeEnum("government_id_type"),
+  governmentIdHash: varchar("government_id_hash", { length: 128 }), // SHA-256 hash
+  governmentIdIssuedCountry: varchar("government_id_issued_country", { length: 2 }),
+  governmentIdVerifiedAt: timestamp("government_id_verified_at"),
+  
+  // Driver-specific fields (only applicable to drivers)
+  driverLicenseHash: varchar("driver_license_hash", { length: 128 }), // SHA-256 hash
+  driverLicenseCountry: varchar("driver_license_country", { length: 2 }),
+  driverLicenseVerified: boolean("driver_license_verified").notNull().default(false),
+  driverLicenseVerifiedAt: timestamp("driver_license_verified_at"),
+  
+  // Rejection tracking
+  rejectionReason: text("rejection_reason"),
+  rejectedAt: timestamp("rejected_at"),
+  rejectedBy: varchar("rejected_by"),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Identity audit log - immutable log of all identity actions
+export const identityAuditLog = pgTable("identity_audit_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  actionType: identityActionTypeEnum("action_type").notNull(),
+  actionBy: varchar("action_by").notNull(), // userId of admin or "SYSTEM"
+  actionDetails: text("action_details"), // JSON string with details
+  countryCode: varchar("country_code", { length: 2 }),
+  governmentIdType: governmentIdTypeEnum("government_id_type"),
+  duplicateOfUserId: varchar("duplicate_of_user_id"), // If duplicate detected
   createdAt: timestamp("created_at").defaultNow(),
 });
 

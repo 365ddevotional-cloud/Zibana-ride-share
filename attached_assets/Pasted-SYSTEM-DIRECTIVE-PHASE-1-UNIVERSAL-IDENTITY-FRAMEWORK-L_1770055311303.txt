@@ -1,0 +1,135 @@
+SYSTEM DIRECTIVE — PHASE 1: UNIVERSAL IDENTITY FRAMEWORK (LOCK-SAFE)
+
+You are working on the ZIBA Ride Share codebase.
+
+OBJECTIVE:
+Implement a country-aware Universal Identity Framework for ALL users (drivers and riders) that strengthens identity verification WITHOUT touching or modifying any existing financial, wallet, payout, or revenue logic.
+
+ABSOLUTE RULES:
+- DO NOT modify financial engine, wallets, payouts, or guards.
+- DO NOT refactor unrelated code.
+- DO NOT add promotions, incentives, or discounts.
+- DO NOT weaken or bypass existing fraud checks.
+- All enforcement MUST be server-side.
+- Proceed deterministically. No questions.
+
+==============================
+1️⃣ GLOBAL IDENTITY MODEL
+==============================
+
+Create a unified identity profile linked to users.
+
+Fields (COMMON – Drivers & Riders):
+- legalFullName (string, required)
+- dateOfBirth (date, required)
+- residentialAddress (string, required)
+- countryCode (ISO-2, required)
+- identityVerified (boolean, default false)
+- identityStatus (pending | approved | rejected)
+- createdAt / updatedAt
+
+Government ID (country-aware):
+- idType (enum, country-specific)
+- idNumberHash (hashed, NEVER store raw)
+- idIssuedCountry
+- idVerifiedAt (nullable)
+
+==============================
+2️⃣ DRIVER-SPECIFIC IDENTITY
+==============================
+
+Drivers MUST additionally provide:
+- driverLicenseHash (hashed)
+- driverLicenseCountry
+- driverLicenseVerified (boolean)
+- licenseVerifiedAt
+
+RULE:
+Driver cannot:
+- go online
+- accept rides
+unless identityStatus = approved AND driverLicenseVerified = true
+
+==============================
+3️⃣ COUNTRY-AWARE ID RULES
+==============================
+
+Define identity requirements per country:
+
+Nigeria (NG):
+- idType = NIN (required)
+- driverLicense required
+
+United States (US):
+- idType = StateID | DriverLicense | Passport
+- driverLicense required
+
+United Kingdom (UK):
+- idType = DrivingLicense | Passport
+- driverLicense required
+
+Other countries:
+- idType configurable via admin
+- driverLicense required for drivers
+
+==============================
+4️⃣ ENFORCEMENT RULES (SERVER-SIDE)
+==============================
+
+- Identity numbers stored ONLY as hashes
+- One government ID hash → ONE user only
+- One driver license hash → ONE driver only
+- Duplicate identity → HARD BLOCK registration
+- Identity checks enforced before:
+  - driver approval
+  - driver online status
+  - withdrawals (already enforced, DO NOT modify)
+
+==============================
+5️⃣ ADMIN CONTROLS
+==============================
+
+Admin can:
+- View identity submissions
+- Approve / reject with reason
+- See country + ID type
+- See duplicate flags (hashed comparison only)
+
+Admin CANNOT:
+- Edit identity values
+- Override hash uniqueness
+- Bypass verification rules
+
+==============================
+6️⃣ AUDIT & LOGGING
+==============================
+
+Log all identity actions:
+- submission
+- approval
+- rejection
+- duplicate detection
+
+Logs must be immutable.
+
+==============================
+7️⃣ UI CONSTRAINTS
+==============================
+
+- UI may collect identity data
+- ALL validation happens on server
+- UI decisions NEVER trusted
+
+==============================
+8️⃣ LOCK CONFIRMATION
+==============================
+
+Once implemented:
+- Set IDENTITY_ENGINE_LOCKED = true
+- Add assertion to prevent silent removal
+- Confirm existing Nigeria behavior remains UNCHANGED
+
+OUTPUT:
+- Implementation summary
+- Confirmation of lock
+- Zero changes to financial systems
