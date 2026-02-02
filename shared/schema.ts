@@ -436,6 +436,9 @@ export const trips = pgTable("trips", {
   countryId: varchar("country_id"),
   currencyCode: varchar("currency_code", { length: 3 }).notNull().default("NGN"),
   estimatedTaxAmount: decimal("estimated_tax_amount", { precision: 10, scale: 2 }),
+  // Payment source and test mode tracking
+  paymentSource: paymentSourceEnum("payment_source"),
+  isTestTrip: boolean("is_test_trip").default(false),
 });
 
 // Phase 22 - Enhanced Rides table with full Uber/Lyft-style lifecycle

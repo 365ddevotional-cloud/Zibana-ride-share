@@ -1,0 +1,122 @@
+SYSTEM DIRECTIVE — PROCEED WITHOUT QUESTIONS.
+
+You are working on the ZIBA Ride Share codebase.
+
+OBJECTIVE:
+Finalize and ENFORCE rider payment methods and currency consistency, and hard-lock financial correctness across rider → trip → driver payout → platform commission.
+
+DO NOT ask follow-up questions.
+DO NOT add features beyond what is specified.
+DO NOT optimize unless required for correctness.
+DO NOT change completed withdrawal logic.
+Proceed deterministically.
+
+=====================================
+1) RIDER PAYMENT METHODS (MANDATORY)
+=====================================
+
+Implement a REQUIRED rider payment method system.
+
+• Riders MUST select a payment method before requesting a ride.
+• Supported rider payment sources:
+  - Test Wallet (test mode only)
+  - Main Wallet (real money)
+  - Card / Bank (Paystack / Flutterwave abstraction, Nigeria-ready)
+
+Enforcement rules:
+• A ride request MUST FAIL if:
+  - No payment method is selected
+  - Selected method currency does not match trip currency
+• Wallet source MUST be explicitly attached to every trip record:
+  paymentSource = TEST_WALLET | MAIN_WALLET | CARD | BANK
+
+=====================================
+2) TEST MODE ENFORCEMENT (FIX ROOT BUG)
+=====================================
+
+Test mode is SERVER-ENFORCED — NOT UI-TOGGLED.
+
+• Remove any dependency on a clickable “Test Mode” UI toggle.
+• Test mode must be resolved server-side using:
+  - isTester flag
+  - environment (API keys present or not)
+• If isTester = true:
+  - Force paymentSource = TEST_WALLET
+  - Ignore MAIN_WALLET and external providers
+• If isTester = false:
+  - TEST_WALLET is inaccessible
+
+INSUFFICIENT_BALANCE must NEVER be triggered for testers with test credits.
+
+=====================================
+3) CURRENCY CONSISTENCY (CRITICAL)
+=====================================
+
+Nigeria = NGN ONLY.
+
+• Trips in Nigeria MUST:
+  - Be priced in NGN
+  - Be paid in NGN
+  - Be stored in NGN
+• USD must NOT appear anywhere in Nigeria rider, trip, or wallet flows.
+
+Every trip MUST store:
+• currencyCode (e.g. NGN)
+• fareAmount (same currency everywhere)
+• commissionAmount
+• driverEarning
+
+Cross-currency math is FORBIDDEN.
+
+=====================================
+4) REVENUE SPLIT (HARD RULE)
+=====================================
+
+ENFORCE globally:
+• Driver = 80%
+• ZIBA = 20%
+
+Calculation must be:
+• driverEarning = fare * 0.80
+• platformCommission = fare * 0.20
+
+No rounding drift.
+No overrides.
+No environment exceptions.
+
+=====================================
+5) BLOCKING GUARDS
+=====================================
+
+A ride request MUST be rejected if:
+• paymentSource is missing
+• wallet currency ≠ trip currency
+• rider is tester but paymentSource ≠ TEST_WALLET
+• rider is non-tester but paymentSource = TEST_WALLET
+
+=====================================
+6) DATA & AUDIT
+=====================================
+
+Persist on trip:
+• paymentSource
+• currencyCode
+• fareAmount
+• driverEarning
+• platformCommission
+• isTestTrip
+
+Log all rejections with explicit reason codes.
+
+=====================================
+7) COMPLETION CRITERIA
+=====================================
+
+System is COMPLETE only when:
+• Rider can request rides in Nigeria using NGN without errors
+• Test riders NEVER see insufficient balance when test credits exist
+• Driver payout reflects EXACT 80% of NGN fare
+• ZIBA commission reflects EXACT 20%
+• No USD appears in Nigeria flows
+
+Proceed to implementation now.

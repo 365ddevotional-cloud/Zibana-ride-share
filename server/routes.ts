@@ -1542,11 +1542,45 @@ export async function registerRoutes(
         await storage.updateRiderWalletPaymentSource(userId, "MAIN_WALLET");
       }
 
-      // Create the trip with payment source tracking
+      // CURRENCY CONSISTENCY CHECK - Nigeria = NGN ONLY
+      const walletCurrency = riderWallet.currency || "NGN";
+      const tripCurrency = parsed.data.currencyCode || "NGN";
+      
+      // Block ride if wallet currency doesn't match trip currency
+      if (walletCurrency !== tripCurrency) {
+        console.log(`[CURRENCY MISMATCH] userId=${userId}, walletCurrency=${walletCurrency}, tripCurrency=${tripCurrency}`);
+        return res.status(400).json({
+          message: `Currency mismatch: Your wallet is ${walletCurrency} but trip is ${tripCurrency}`,
+          code: "CURRENCY_MISMATCH",
+          walletCurrency,
+          tripCurrency
+        });
+      }
+      
+      // BLOCKING GUARD: Tester must use TEST_WALLET
+      if (isTester && resolvedPaymentSource !== "TEST_WALLET") {
+        console.log(`[PAYMENT SOURCE ERROR] Tester userId=${userId} attempted non-TEST_WALLET payment`);
+        return res.status(400).json({
+          message: "Test users must use TEST_WALLET",
+          code: "INVALID_PAYMENT_SOURCE"
+        });
+      }
+      
+      // BLOCKING GUARD: Non-tester cannot use TEST_WALLET
+      if (!isTester && resolvedPaymentSource === "TEST_WALLET") {
+        console.log(`[PAYMENT SOURCE ERROR] Non-tester userId=${userId} attempted TEST_WALLET payment`);
+        return res.status(400).json({
+          message: "Regular users cannot use TEST_WALLET",
+          code: "INVALID_PAYMENT_SOURCE"
+        });
+      }
+
+      // Create the trip with payment source tracking (using correct schema fields)
       const tripData = {
         ...parsed.data,
-        paymentMethod: resolvedPaymentSource,
-        isTestRide: isTester,
+        paymentSource: resolvedPaymentSource as "TEST_WALLET" | "MAIN_WALLET" | "CARD" | "BANK",
+        isTestTrip: isTester,
+        currencyCode: tripCurrency,
       };
       
       const trip = await storage.createTrip(tripData);
