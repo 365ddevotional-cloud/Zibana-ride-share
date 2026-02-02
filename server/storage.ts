@@ -244,6 +244,19 @@ import {
   type InsertUserSuspension,
   type SafetyAuditLog,
   type InsertSafetyAuditLog,
+  // Phase 5 - Disputes, Refunds & Legal Resolution
+  phase5Disputes,
+  phase5RefundOutcomes,
+  chargebackFlags,
+  disputeAuditLog,
+  type Phase5Dispute,
+  type InsertPhase5Dispute,
+  type Phase5RefundOutcome,
+  type InsertPhase5RefundOutcome,
+  type ChargebackFlag,
+  type InsertChargebackFlag,
+  type DisputeAuditLog,
+  type InsertDisputeAuditLog,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull } from "drizzle-orm";
@@ -6555,6 +6568,210 @@ export class DatabaseStorage implements IStorage {
   async getAllSafetyAuditLogs(): Promise<SafetyAuditLog[]> {
     return db.select().from(safetyAuditLog)
       .orderBy(desc(safetyAuditLog.createdAt));
+  }
+
+  // =============================================
+  // PHASE 5: DISPUTES, REFUNDS & LEGAL RESOLUTION
+  // =============================================
+
+  async createPhase5Dispute(data: InsertPhase5Dispute): Promise<Phase5Dispute> {
+    const [dispute] = await db.insert(phase5Disputes).values(data).returning();
+    return dispute;
+  }
+
+  async getPhase5Dispute(disputeId: string): Promise<Phase5Dispute | null> {
+    const [dispute] = await db.select().from(phase5Disputes)
+      .where(eq(phase5Disputes.id, disputeId));
+    return dispute || null;
+  }
+
+  async getPhase5DisputesByTrip(tripId: string): Promise<Phase5Dispute[]> {
+    return db.select().from(phase5Disputes)
+      .where(eq(phase5Disputes.tripId, tripId))
+      .orderBy(desc(phase5Disputes.createdAt));
+  }
+
+  async getPhase5DisputesByUser(userId: string): Promise<Phase5Dispute[]> {
+    return db.select().from(phase5Disputes)
+      .where(eq(phase5Disputes.initiatorUserId, userId))
+      .orderBy(desc(phase5Disputes.createdAt));
+  }
+
+  async getPhase5DisputesByAccused(accusedUserId: string): Promise<Phase5Dispute[]> {
+    return db.select().from(phase5Disputes)
+      .where(eq(phase5Disputes.accusedUserId, accusedUserId))
+      .orderBy(desc(phase5Disputes.createdAt));
+  }
+
+  async getPhase5DisputesByStatus(status: string): Promise<Phase5Dispute[]> {
+    return db.select().from(phase5Disputes)
+      .where(eq(phase5Disputes.status, status as any))
+      .orderBy(desc(phase5Disputes.createdAt));
+  }
+
+  async getAllOpenPhase5Disputes(): Promise<Phase5Dispute[]> {
+    return db.select().from(phase5Disputes)
+      .where(or(
+        eq(phase5Disputes.status, "OPEN"),
+        eq(phase5Disputes.status, "UNDER_REVIEW")
+      ))
+      .orderBy(desc(phase5Disputes.createdAt));
+  }
+
+  async updatePhase5DisputeStatus(
+    disputeId: string, 
+    status: string, 
+    notes?: string, 
+    resolvedBy?: string
+  ): Promise<Phase5Dispute | null> {
+    const updateData: Partial<Phase5Dispute> = { status: status as any };
+    if (notes) updateData.adminNotes = notes;
+    if (resolvedBy) {
+      updateData.resolvedBy = resolvedBy;
+      updateData.resolvedAt = new Date();
+    }
+    const [dispute] = await db.update(phase5Disputes)
+      .set(updateData)
+      .where(eq(phase5Disputes.id, disputeId))
+      .returning();
+    return dispute || null;
+  }
+
+  async assignPhase5DisputeToAdmin(disputeId: string, adminId: string): Promise<Phase5Dispute | null> {
+    const [dispute] = await db.update(phase5Disputes)
+      .set({ assignedAdminId: adminId, status: "UNDER_REVIEW" })
+      .where(eq(phase5Disputes.id, disputeId))
+      .returning();
+    return dispute || null;
+  }
+
+  async countUserDisputesInPeriod(userId: string, daysBack: number): Promise<number> {
+    const threshold = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
+    const result = await db.select().from(phase5Disputes)
+      .where(and(
+        eq(phase5Disputes.initiatorUserId, userId),
+        gte(phase5Disputes.createdAt, threshold)
+      ));
+    return result.length;
+  }
+
+  async getExistingDisputeForTripAndRole(tripId: string, initiatorRole: string): Promise<Phase5Dispute | null> {
+    const [dispute] = await db.select().from(phase5Disputes)
+      .where(and(
+        eq(phase5Disputes.tripId, tripId),
+        eq(phase5Disputes.initiatorRole, initiatorRole as any)
+      ));
+    return dispute || null;
+  }
+
+  async createPhase5RefundOutcome(data: InsertPhase5RefundOutcome): Promise<Phase5RefundOutcome> {
+    const [refund] = await db.insert(phase5RefundOutcomes).values(data).returning();
+    return refund;
+  }
+
+  async getPhase5RefundOutcome(refundId: string): Promise<Phase5RefundOutcome | null> {
+    const [refund] = await db.select().from(phase5RefundOutcomes)
+      .where(eq(phase5RefundOutcomes.id, refundId));
+    return refund || null;
+  }
+
+  async getPhase5RefundsByDispute(disputeId: string): Promise<Phase5RefundOutcome[]> {
+    return db.select().from(phase5RefundOutcomes)
+      .where(eq(phase5RefundOutcomes.disputeId, disputeId))
+      .orderBy(desc(phase5RefundOutcomes.createdAt));
+  }
+
+  async updatePhase5RefundStatus(
+    refundId: string, 
+    status: string, 
+    processedBy?: string
+  ): Promise<Phase5RefundOutcome | null> {
+    const updateData: Partial<Phase5RefundOutcome> = { status: status as any };
+    if (processedBy) {
+      updateData.processedBy = processedBy;
+      updateData.processedAt = new Date();
+    }
+    const [refund] = await db.update(phase5RefundOutcomes)
+      .set(updateData)
+      .where(eq(phase5RefundOutcomes.id, refundId))
+      .returning();
+    return refund || null;
+  }
+
+  async getOrCreateChargebackFlag(userId: string): Promise<ChargebackFlag> {
+    const [existing] = await db.select().from(chargebackFlags)
+      .where(eq(chargebackFlags.userId, userId));
+    if (existing) return existing;
+    
+    const [created] = await db.insert(chargebackFlags)
+      .values({ userId })
+      .returning();
+    return created;
+  }
+
+  async incrementChargebackCount(userId: string): Promise<ChargebackFlag> {
+    const flag = await this.getOrCreateChargebackFlag(userId);
+    const [updated] = await db.update(chargebackFlags)
+      .set({
+        chargebackCount: flag.chargebackCount + 1,
+        lastChargebackAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(chargebackFlags.id, flag.id))
+      .returning();
+    return updated;
+  }
+
+  async flagUserForChargebacks(userId: string): Promise<ChargebackFlag> {
+    const flag = await this.getOrCreateChargebackFlag(userId);
+    const [updated] = await db.update(chargebackFlags)
+      .set({ isFlagged: true, updatedAt: new Date() })
+      .where(eq(chargebackFlags.id, flag.id))
+      .returning();
+    return updated;
+  }
+
+  async lockUserForChargebacks(userId: string, reason: string, lockedBy: string): Promise<ChargebackFlag> {
+    const flag = await this.getOrCreateChargebackFlag(userId);
+    const [updated] = await db.update(chargebackFlags)
+      .set({
+        isLocked: true,
+        lockReason: reason,
+        lockedAt: new Date(),
+        lockedBy,
+        updatedAt: new Date(),
+      })
+      .where(eq(chargebackFlags.id, flag.id))
+      .returning();
+    return updated;
+  }
+
+  async isUserLockedForChargebacks(userId: string): Promise<boolean> {
+    const [flag] = await db.select().from(chargebackFlags)
+      .where(eq(chargebackFlags.userId, userId));
+    return flag?.isLocked || false;
+  }
+
+  async createDisputeAuditLog(data: InsertDisputeAuditLog): Promise<DisputeAuditLog> {
+    const [log] = await db.insert(disputeAuditLog).values(data).returning();
+    return log;
+  }
+
+  async getDisputeAuditLogsForDispute(disputeId: string): Promise<DisputeAuditLog[]> {
+    return db.select().from(disputeAuditLog)
+      .where(eq(disputeAuditLog.disputeId, disputeId))
+      .orderBy(desc(disputeAuditLog.createdAt));
+  }
+
+  async getDisputeAuditLogsForUser(userId: string): Promise<DisputeAuditLog[]> {
+    return db.select().from(disputeAuditLog)
+      .where(eq(disputeAuditLog.userId, userId))
+      .orderBy(desc(disputeAuditLog.createdAt));
+  }
+
+  async getAllDisputeAuditLogs(): Promise<DisputeAuditLog[]> {
+    return db.select().from(disputeAuditLog)
+      .orderBy(desc(disputeAuditLog.createdAt));
   }
 }
 
