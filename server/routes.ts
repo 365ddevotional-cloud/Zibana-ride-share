@@ -10543,7 +10543,7 @@ export async function registerRoutes(
   });
 
   // Admin: Get all trust profiles (read-only)
-  app.get("/api/admin/trust/profiles", isAuthenticated, hasRole(["super_admin", "admin"]), async (req, res) => {
+  app.get("/api/admin/trust/profiles", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
     try {
       const { getAllTrustProfiles } = await import("./trust-guards");
       const profiles = await getAllTrustProfiles();
@@ -10555,7 +10555,7 @@ export async function registerRoutes(
   });
 
   // Admin: Get trust details for a specific user (read-only)
-  app.get("/api/admin/trust/user/:userId", isAuthenticated, hasRole(["super_admin", "admin"]), async (req, res) => {
+  app.get("/api/admin/trust/user/:userId", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
     try {
       const { getAdminTrustView } = await import("./trust-guards");
       const details = await getAdminTrustView(req.params.userId);
@@ -10567,7 +10567,7 @@ export async function registerRoutes(
   });
 
   // Admin: Get all trust audit logs (read-only)
-  app.get("/api/admin/trust/audit-logs", isAuthenticated, hasRole(["super_admin", "admin"]), async (req, res) => {
+  app.get("/api/admin/trust/audit-logs", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
     try {
       const { getAllTrustAuditLogs } = await import("./trust-guards");
       const logs = await getAllTrustAuditLogs();
@@ -10579,7 +10579,7 @@ export async function registerRoutes(
   });
 
   // Admin: Get trust score thresholds (for future enforcement)
-  app.get("/api/admin/trust/thresholds", isAuthenticated, hasRole(["super_admin", "admin"]), async (req, res) => {
+  app.get("/api/admin/trust/thresholds", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
     try {
       const { trustScoreThresholdLow, trustScoreThresholdHigh } = await import("./trust-guards");
       return res.json({
