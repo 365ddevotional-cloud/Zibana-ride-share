@@ -197,7 +197,14 @@ import {
   type DriverWithdrawal,
   type InsertDriverWithdrawal,
   type DriverBankAccount,
-  type InsertDriverBankAccount
+  type InsertDriverBankAccount,
+  // Phase 1 - Universal Identity Framework
+  userIdentityProfiles,
+  identityAuditLog,
+  type UserIdentityProfile,
+  type InsertUserIdentityProfile,
+  type IdentityAuditLog,
+  type InsertIdentityAuditLog,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull } from "drizzle-orm";
@@ -319,6 +326,35 @@ export interface IStorage {
   verifyDriverBankAccount(driverId: string, verified: boolean, method: string, verifiedBy: string): Promise<DriverBankAccount | null>;
   checkBankAccountHashExists(accountNumberHash: string, excludeDriverId?: string): Promise<boolean>;
   getAllDriverBankAccounts(): Promise<DriverBankAccount[]>;
+
+  // =============================================
+  // PHASE 1: UNIVERSAL IDENTITY FRAMEWORK
+  // =============================================
+  
+  // User Identity Profile methods
+  getUserIdentityProfile(userId: string): Promise<UserIdentityProfile | null>;
+  createUserIdentityProfile(data: InsertUserIdentityProfile): Promise<UserIdentityProfile>;
+  updateUserIdentityProfile(userId: string, data: Partial<UserIdentityProfile>): Promise<UserIdentityProfile | null>;
+  
+  // Identity verification methods
+  approveUserIdentity(userId: string, adminId: string): Promise<UserIdentityProfile | null>;
+  rejectUserIdentity(userId: string, adminId: string, reason: string): Promise<UserIdentityProfile | null>;
+  verifyDriverLicense(userId: string, adminId: string): Promise<UserIdentityProfile | null>;
+  
+  // Duplicate detection (hash-based)
+  checkGovernmentIdHashExists(governmentIdHash: string, excludeUserId?: string): Promise<boolean>;
+  checkDriverLicenseHashExists(driverLicenseHash: string, excludeUserId?: string): Promise<boolean>;
+  findUserByGovernmentIdHash(governmentIdHash: string): Promise<UserIdentityProfile | null>;
+  findUserByDriverLicenseHash(driverLicenseHash: string): Promise<UserIdentityProfile | null>;
+  
+  // Identity audit log
+  createIdentityAuditLog(data: InsertIdentityAuditLog): Promise<IdentityAuditLog>;
+  getIdentityAuditLogs(userId: string): Promise<IdentityAuditLog[]>;
+  getAllIdentityAuditLogs(): Promise<IdentityAuditLog[]>;
+  
+  // Admin identity views
+  getAllPendingIdentityProfiles(): Promise<UserIdentityProfile[]>;
+  getAllIdentityProfiles(): Promise<UserIdentityProfile[]>;
 
   getDirectorProfile(userId: string): Promise<DirectorProfile | undefined>;
   createDirectorProfile(data: InsertDirectorProfile): Promise<DirectorProfile>;
@@ -5702,6 +5738,130 @@ export class DatabaseStorage implements IStorage {
 
   async getAllDriverBankAccounts(): Promise<DriverBankAccount[]> {
     return db.select().from(driverBankAccounts).orderBy(desc(driverBankAccounts.createdAt));
+  }
+
+  // =============================================
+  // PHASE 1: UNIVERSAL IDENTITY FRAMEWORK
+  // =============================================
+
+  async getUserIdentityProfile(userId: string): Promise<UserIdentityProfile | null> {
+    const [profile] = await db.select().from(userIdentityProfiles)
+      .where(eq(userIdentityProfiles.userId, userId));
+    return profile || null;
+  }
+
+  async createUserIdentityProfile(data: InsertUserIdentityProfile): Promise<UserIdentityProfile> {
+    const [profile] = await db.insert(userIdentityProfiles).values(data).returning();
+    return profile;
+  }
+
+  async updateUserIdentityProfile(userId: string, data: Partial<UserIdentityProfile>): Promise<UserIdentityProfile | null> {
+    const [profile] = await db.update(userIdentityProfiles)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(userIdentityProfiles.userId, userId))
+      .returning();
+    return profile || null;
+  }
+
+  async approveUserIdentity(userId: string, adminId: string): Promise<UserIdentityProfile | null> {
+    const [profile] = await db.update(userIdentityProfiles)
+      .set({
+        identityVerified: true,
+        identityStatus: "approved",
+        governmentIdVerifiedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(userIdentityProfiles.userId, userId))
+      .returning();
+    return profile || null;
+  }
+
+  async rejectUserIdentity(userId: string, adminId: string, reason: string): Promise<UserIdentityProfile | null> {
+    const [profile] = await db.update(userIdentityProfiles)
+      .set({
+        identityVerified: false,
+        identityStatus: "rejected",
+        rejectionReason: reason,
+        rejectedAt: new Date(),
+        rejectedBy: adminId,
+        updatedAt: new Date(),
+      })
+      .where(eq(userIdentityProfiles.userId, userId))
+      .returning();
+    return profile || null;
+  }
+
+  async verifyDriverLicense(userId: string, adminId: string): Promise<UserIdentityProfile | null> {
+    const [profile] = await db.update(userIdentityProfiles)
+      .set({
+        driverLicenseVerified: true,
+        driverLicenseVerifiedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(userIdentityProfiles.userId, userId))
+      .returning();
+    return profile || null;
+  }
+
+  async checkGovernmentIdHashExists(governmentIdHash: string, excludeUserId?: string): Promise<boolean> {
+    const conditions = [eq(userIdentityProfiles.governmentIdHash, governmentIdHash)];
+    if (excludeUserId) {
+      conditions.push(sql`${userIdentityProfiles.userId} != ${excludeUserId}` as any);
+    }
+    const [result] = await db.select({ count: count() })
+      .from(userIdentityProfiles)
+      .where(and(...conditions));
+    return (result?.count || 0) > 0;
+  }
+
+  async checkDriverLicenseHashExists(driverLicenseHash: string, excludeUserId?: string): Promise<boolean> {
+    const conditions = [eq(userIdentityProfiles.driverLicenseHash, driverLicenseHash)];
+    if (excludeUserId) {
+      conditions.push(sql`${userIdentityProfiles.userId} != ${excludeUserId}` as any);
+    }
+    const [result] = await db.select({ count: count() })
+      .from(userIdentityProfiles)
+      .where(and(...conditions));
+    return (result?.count || 0) > 0;
+  }
+
+  async findUserByGovernmentIdHash(governmentIdHash: string): Promise<UserIdentityProfile | null> {
+    const [profile] = await db.select().from(userIdentityProfiles)
+      .where(eq(userIdentityProfiles.governmentIdHash, governmentIdHash));
+    return profile || null;
+  }
+
+  async findUserByDriverLicenseHash(driverLicenseHash: string): Promise<UserIdentityProfile | null> {
+    const [profile] = await db.select().from(userIdentityProfiles)
+      .where(eq(userIdentityProfiles.driverLicenseHash, driverLicenseHash));
+    return profile || null;
+  }
+
+  async createIdentityAuditLog(data: InsertIdentityAuditLog): Promise<IdentityAuditLog> {
+    const [log] = await db.insert(identityAuditLog).values(data).returning();
+    return log;
+  }
+
+  async getIdentityAuditLogs(userId: string): Promise<IdentityAuditLog[]> {
+    return db.select().from(identityAuditLog)
+      .where(eq(identityAuditLog.userId, userId))
+      .orderBy(desc(identityAuditLog.createdAt));
+  }
+
+  async getAllIdentityAuditLogs(): Promise<IdentityAuditLog[]> {
+    return db.select().from(identityAuditLog)
+      .orderBy(desc(identityAuditLog.createdAt));
+  }
+
+  async getAllPendingIdentityProfiles(): Promise<UserIdentityProfile[]> {
+    return db.select().from(userIdentityProfiles)
+      .where(eq(userIdentityProfiles.identityStatus, "pending"))
+      .orderBy(desc(userIdentityProfiles.createdAt));
+  }
+
+  async getAllIdentityProfiles(): Promise<UserIdentityProfile[]> {
+    return db.select().from(userIdentityProfiles)
+      .orderBy(desc(userIdentityProfiles.createdAt));
   }
 }
 
