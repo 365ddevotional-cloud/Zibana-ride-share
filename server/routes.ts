@@ -2093,6 +2093,279 @@ export async function registerRoutes(
     }
   });
 
+  // Admin Bank Account Management
+  app.get("/api/admin/bank-accounts", isAuthenticated, requireRole(["admin", "super_admin", "finance"]), async (req: any, res) => {
+    try {
+      const bankAccounts = await storage.getAllDriverBankAccounts();
+      
+      // Enhance with driver info
+      const enhanced = await Promise.all(bankAccounts.map(async (account) => {
+        const drivers = await storage.getAllDrivers();
+        const driver = drivers.find(d => d.id === account.driverId);
+        return {
+          ...account,
+          driverName: driver?.fullName || "Unknown",
+          driverUserId: driver?.userId,
+          accountNumberMasked: `****${account.accountNumber.slice(-4)}`,
+        };
+      }));
+      
+      return res.json(enhanced);
+    } catch (error) {
+      console.error("Error getting bank accounts:", error);
+      return res.status(500).json({ message: "Failed to get bank accounts" });
+    }
+  });
+
+  app.post("/api/admin/bank-accounts/:driverId/verify", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const { driverId } = req.params;
+      const { verified } = req.body;
+      
+      const updated = await storage.verifyDriverBankAccount(
+        driverId, 
+        verified === true, 
+        "manual", 
+        adminUserId
+      );
+      
+      if (!updated) {
+        return res.status(404).json({ message: "Bank account not found" });
+      }
+      
+      console.log(`[AUDIT] Bank account ${verified ? "verified" : "unverified"}: driverId=${driverId}, by=${adminUserId}`);
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error verifying bank account:", error);
+      return res.status(500).json({ message: "Failed to verify bank account" });
+    }
+  });
+
+  // Admin Withdrawal Management
+  app.get("/api/admin/withdrawals", isAuthenticated, requireRole(["admin", "super_admin", "finance"]), async (req: any, res) => {
+    try {
+      const withdrawals = await storage.getPendingDriverWithdrawals();
+      
+      // Enhance with driver and bank account info
+      const enhanced = await Promise.all(withdrawals.map(async (withdrawal) => {
+        const drivers = await storage.getAllDrivers();
+        const driver = drivers.find(d => d.id === withdrawal.driverId);
+        const bankAccount = await storage.getDriverBankAccount(withdrawal.driverId);
+        return {
+          ...withdrawal,
+          driverName: driver?.fullName || "Unknown",
+          driverUserId: driver?.userId,
+          bankDetails: bankAccount ? {
+            bankName: bankAccount.bankName,
+            accountNumber: `****${bankAccount.accountNumber.slice(-4)}`,
+            accountName: bankAccount.accountName,
+          } : null,
+        };
+      }));
+      
+      return res.json(enhanced);
+    } catch (error) {
+      console.error("Error getting withdrawals:", error);
+      return res.status(500).json({ message: "Failed to get withdrawals" });
+    }
+  });
+
+  app.post("/api/admin/withdrawals/:withdrawalId/approve", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const { withdrawalId } = req.params;
+      
+      const updated = await storage.updateDriverWithdrawalStatus(
+        withdrawalId,
+        "approved",
+        adminUserId
+      );
+      
+      if (!updated) {
+        return res.status(404).json({ message: "Withdrawal not found" });
+      }
+      
+      console.log(`[AUDIT] Withdrawal approved: id=${withdrawalId}, by=${adminUserId}`);
+      return res.json({ message: "Withdrawal approved", withdrawal: updated });
+    } catch (error) {
+      console.error("Error approving withdrawal:", error);
+      return res.status(500).json({ message: "Failed to approve withdrawal" });
+    }
+  });
+
+  app.post("/api/admin/withdrawals/:withdrawalId/reject", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const { withdrawalId } = req.params;
+      const { reason } = req.body;
+      
+      const updated = await storage.updateDriverWithdrawalStatus(
+        withdrawalId,
+        "rejected",
+        adminUserId,
+        reason || "Rejected by admin"
+      );
+      
+      if (!updated) {
+        return res.status(404).json({ message: "Withdrawal not found" });
+      }
+      
+      console.log(`[AUDIT] Withdrawal rejected: id=${withdrawalId}, by=${adminUserId}, reason=${reason}`);
+      return res.json({ message: "Withdrawal rejected", withdrawal: updated });
+    } catch (error) {
+      console.error("Error rejecting withdrawal:", error);
+      return res.status(500).json({ message: "Failed to reject withdrawal" });
+    }
+  });
+
+  app.post("/api/admin/withdrawals/:withdrawalId/mark-paid", isAuthenticated, requireRole(["admin", "super_admin", "finance"]), async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const { withdrawalId } = req.params;
+      const { payoutReference } = req.body;
+      
+      // First approve if pending
+      let withdrawal = await storage.updateDriverWithdrawalStatus(
+        withdrawalId,
+        "paid",
+        adminUserId
+      );
+      
+      if (!withdrawal) {
+        return res.status(404).json({ message: "Withdrawal not found" });
+      }
+      
+      console.log(`[AUDIT] Withdrawal marked as paid: id=${withdrawalId}, by=${adminUserId}, ref=${payoutReference || "N/A"}`);
+      
+      // TODO: Deduct from driver wallet when payment is confirmed
+      // This would integrate with actual payment provider
+      
+      return res.json({ message: "Withdrawal marked as paid", withdrawal });
+    } catch (error) {
+      console.error("Error marking withdrawal as paid:", error);
+      return res.status(500).json({ message: "Failed to mark withdrawal as paid" });
+    }
+  });
+
+  // Admin Driver Verification Management
+  app.post("/api/admin/drivers/:userId/verify-nin", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const { userId } = req.params;
+      const { verified } = req.body;
+      
+      const updated = await storage.updateDriverProfile(userId, {
+        isNINVerified: verified === true,
+      });
+      
+      if (!updated) {
+        return res.status(404).json({ message: "Driver not found" });
+      }
+      
+      console.log(`[AUDIT] Driver NIN ${verified ? "verified" : "unverified"}: userId=${userId}, by=${adminUserId}`);
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error updating NIN verification:", error);
+      return res.status(500).json({ message: "Failed to update NIN verification" });
+    }
+  });
+
+  app.post("/api/admin/drivers/:userId/verify-license", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const { userId } = req.params;
+      const { verified } = req.body;
+      
+      const updated = await storage.updateDriverProfile(userId, {
+        isDriversLicenseVerified: verified === true,
+      });
+      
+      if (!updated) {
+        return res.status(404).json({ message: "Driver not found" });
+      }
+      
+      console.log(`[AUDIT] Driver license ${verified ? "verified" : "unverified"}: userId=${userId}, by=${adminUserId}`);
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error updating license verification:", error);
+      return res.status(500).json({ message: "Failed to update license verification" });
+    }
+  });
+
+  app.post("/api/admin/drivers/:userId/verify-address", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const { userId } = req.params;
+      const { verified } = req.body;
+      
+      const updated = await storage.updateDriverProfile(userId, {
+        isAddressVerified: verified === true,
+      });
+      
+      if (!updated) {
+        return res.status(404).json({ message: "Driver not found" });
+      }
+      
+      console.log(`[AUDIT] Driver address ${verified ? "verified" : "unverified"}: userId=${userId}, by=${adminUserId}`);
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error updating address verification:", error);
+      return res.status(500).json({ message: "Failed to update address verification" });
+    }
+  });
+
+  app.post("/api/admin/drivers/:userId/verify-identity", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const { userId } = req.params;
+      const { verified } = req.body;
+      
+      const updated = await storage.updateDriverProfile(userId, {
+        isIdentityVerified: verified === true,
+      });
+      
+      if (!updated) {
+        return res.status(404).json({ message: "Driver not found" });
+      }
+      
+      console.log(`[AUDIT] Driver identity ${verified ? "verified" : "unverified"}: userId=${userId}, by=${adminUserId}`);
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error updating identity verification:", error);
+      return res.status(500).json({ message: "Failed to update identity verification" });
+    }
+  });
+
+  // Complete driver verification (sets all flags and status to verified)
+  app.post("/api/admin/drivers/:userId/complete-verification", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const { userId } = req.params;
+      
+      // Update all verification flags
+      await storage.updateDriverProfile(userId, {
+        isNINVerified: true,
+        isDriversLicenseVerified: true,
+        isAddressVerified: true,
+        isIdentityVerified: true,
+      });
+      
+      // Set overall status to verified
+      const updated = await storage.updateDriverWithdrawalVerificationStatus(userId, "verified");
+      
+      if (!updated) {
+        return res.status(404).json({ message: "Driver not found" });
+      }
+      
+      console.log(`[AUDIT] Driver verification completed: userId=${userId}, by=${adminUserId}`);
+      return res.json({ message: "Driver verification completed", driver: updated });
+    } catch (error) {
+      console.error("Error completing driver verification:", error);
+      return res.status(500).json({ message: "Failed to complete verification" });
+    }
+  });
+
   app.get("/api/notifications", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
