@@ -146,3 +146,60 @@ Drivers must have ALL of the following verified before withdrawal:
 - `POST /api/admin/withdrawals/:id/approve`: Approve withdrawal
 - `POST /api/admin/withdrawals/:id/reject`: Reject withdrawal
 - `POST /api/admin/withdrawals/:id/paid`: Mark withdrawal as paid
+
+## Nigeria Payout Provider Integration
+
+### Overview
+The platform integrates with Paystack (primary) and Flutterwave (fallback) for automated driver payouts in Nigeria. Other countries use manual mode until providers are configured.
+
+### Payout Providers
+- **Paystack**: Primary provider for Nigeria. Uses `PAYSTACK_SECRET_KEY` environment variable.
+- **Flutterwave**: Fallback provider for Nigeria. Uses `FLW_SECRET_KEY` environment variable.
+- **Manual**: Default for all countries without API keys configured.
+
+### Provider Selection
+1. Nigeria: Paystack (if key available) → Flutterwave (if key available) → Manual
+2. Other countries: Manual only (providers to be added)
+
+### Withdrawal Statuses
+- `pending`: Awaiting admin approval
+- `approved`: Admin approved, ready for processing
+- `processing`: Transfer initiated with provider
+- `paid`: Transfer successful
+- `failed`: Transfer failed
+- `rejected`: Admin rejected
+- `blocked`: Fraud-blocked
+
+### Automated Transfer Flow
+1. Admin approves withdrawal → status becomes `approved`
+2. Admin clicks "Initiate Transfer" → provider API called
+3. Provider returns reference → status becomes `processing`
+4. Webhook receives status update → status becomes `paid` or `failed`
+
+### Webhook Endpoints
+- `POST /api/webhooks/paystack`: Handles Paystack transfer events (transfer.success, transfer.failed, transfer.reversed)
+- `POST /api/webhooks/flutterwave`: Handles Flutterwave transfer events (transfer.completed)
+
+### Webhook Security
+- **Paystack**: HMAC-SHA512 signature validation via `x-paystack-signature` header
+- **Flutterwave**: Secret hash validation via `verif-hash` header against `FLW_WEBHOOK_SECRET`
+
+### Provider Reference Tracking
+Each withdrawal tracks:
+- `payoutProvider`: Which provider was used (paystack, flutterwave, manual)
+- `payoutReference`: Unique reference for the transfer
+- `providerReference`: Provider's internal reference ID
+- `providerStatus`: Provider's status string
+- `providerError`: Error message if failed
+
+### Required Environment Variables
+- `PAYSTACK_SECRET_KEY`: Paystack API secret key for transfers
+- `FLW_SECRET_KEY`: Flutterwave API secret key for transfers
+- `FLW_WEBHOOK_SECRET`: Flutterwave webhook verification secret
+
+### Manual Mode
+When no API keys are configured:
+1. Admin approves withdrawal
+2. Admin processes payment outside platform
+3. Admin enters bank reference and marks as paid
+4. Full audit trail maintained
