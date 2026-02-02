@@ -178,6 +178,29 @@ export const offlineReasonEnum = pgEnum("offline_reason", [
   "PERMISSION_REVOKED", "APP_TERMINATED", "SYSTEM_TIMEOUT"
 ]);
 
+// =============================================
+// PHASE 3: RATINGS, BEHAVIOR SIGNALS & TRUST SCORING ENUMS
+// =============================================
+
+// Rating role - who is rating whom
+export const ratingRoleEnum = pgEnum("rating_role", ["rider_to_driver", "driver_to_rider"]);
+
+// Behavior signal category
+export const behaviorSignalCategoryEnum = pgEnum("behavior_signal_category", ["driver", "rider"]);
+
+// Behavior signal type - all possible signals
+export const behaviorSignalTypeEnum = pgEnum("behavior_signal_type", [
+  "GPS_INTERRUPTION", "TRIP_CANCELLATION", "LATE_ARRIVAL", "ROUTE_DEVIATION", 
+  "APP_FORCE_CLOSE", "NO_SHOW", "TRIP_COMPLETED", "ON_TIME_ARRIVAL", "DIRECT_ROUTE",
+  "CANCELLATION", "PAYMENT_FAILURE", "DISPUTE_FILED", "ON_TIME_PICKUP", "PAYMENT_SUCCESS"
+]);
+
+// Trust audit action types
+export const trustAuditActionEnum = pgEnum("trust_audit_action", [
+  "RATING_SUBMITTED", "SIGNAL_CAPTURED", "TRUST_SCORE_RECALCULATED",
+  "RATING_FLAGGED_MANIPULATION", "RATING_DAMPENED", "OUTLIER_DETECTED"
+]);
+
 // Phase 22 - Enhanced Ride Lifecycle enums
 export const rideStatusEnum = pgEnum("ride_status", [
   "requested",
@@ -639,6 +662,111 @@ export const driverGpsInterruptions = pgTable("driver_gps_interruptions", {
   tripWasAffected: boolean("trip_was_affected").notNull().default(false),
   tripMarkedAsInterrupted: boolean("trip_marked_as_interrupted").notNull().default(false),
   
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// =============================================
+// PHASE 3: RATINGS, BEHAVIOR SIGNALS & TRUST SCORING TABLES
+// =============================================
+
+// Trip ratings - immutable ratings after completed trips
+export const tripRatings = pgTable("trip_ratings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tripId: varchar("trip_id").notNull(),
+  raterId: varchar("rater_id").notNull(),
+  rateeId: varchar("ratee_id").notNull(),
+  
+  // Rating details
+  ratingRole: ratingRoleEnum("rating_role").notNull(),
+  score: integer("score").notNull(),
+  
+  // Anti-manipulation tracking
+  effectiveWeight: decimal("effective_weight", { precision: 5, scale: 4 }).notNull().default("1.0000"),
+  isDampened: boolean("is_dampened").notNull().default(false),
+  dampeningReason: text("dampening_reason"),
+  isOutlier: boolean("is_outlier").notNull().default(false),
+  
+  // Timestamps
+  tripCompletedAt: timestamp("trip_completed_at").notNull(),
+  ratedAt: timestamp("rated_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Behavior signals - passive, numeric, timestamped signals
+export const behaviorSignals = pgTable("behavior_signals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  tripId: varchar("trip_id"),
+  
+  // Signal details
+  category: behaviorSignalCategoryEnum("category").notNull(),
+  signalType: behaviorSignalTypeEnum("signal_type").notNull(),
+  signalValue: decimal("signal_value", { precision: 10, scale: 4 }).notNull(),
+  
+  // Metadata
+  metadata: text("metadata"),
+  
+  // Timestamps - immutable
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// User trust profiles - internal trust scores (NOT visible to users)
+export const userTrustProfiles = pgTable("user_trust_profiles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique(),
+  
+  // Trust score (0-100)
+  trustScore: integer("trust_score").notNull().default(75),
+  trustScoreLevel: text("trust_score_level").notNull().default("medium"),
+  
+  // Rating components
+  averageRating: decimal("average_rating", { precision: 3, scale: 2 }),
+  totalRatingsReceived: integer("total_ratings_received").notNull().default(0),
+  totalRatingsGiven: integer("total_ratings_given").notNull().default(0),
+  
+  // Behavior signal components
+  positiveSignalCount: integer("positive_signal_count").notNull().default(0),
+  negativeSignalCount: integer("negative_signal_count").notNull().default(0),
+  signalScore: decimal("signal_score", { precision: 10, scale: 4 }).notNull().default("0"),
+  
+  // Trip completion stats
+  completedTrips: integer("completed_trips").notNull().default(0),
+  totalTrips: integer("total_trips").notNull().default(0),
+  completionRatio: decimal("completion_ratio", { precision: 5, scale: 4 }).notNull().default("1.0000"),
+  
+  // Account age factor
+  accountAgeFactor: decimal("account_age_factor", { precision: 5, scale: 4 }).notNull().default("0"),
+  
+  // Recalculation tracking
+  lastRecalculatedAt: timestamp("last_recalculated_at"),
+  recalculationCount: integer("recalculation_count").notNull().default(0),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Trust audit log - immutable audit trail
+export const trustAuditLog = pgTable("trust_audit_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  tripId: varchar("trip_id"),
+  ratingId: varchar("rating_id"),
+  signalId: varchar("signal_id"),
+  
+  // Action tracking
+  actionType: trustAuditActionEnum("action_type").notNull(),
+  actionDetails: text("action_details"),
+  
+  // Score changes
+  previousTrustScore: integer("previous_trust_score"),
+  newTrustScore: integer("new_trust_score"),
+  
+  // Anti-manipulation flags
+  manipulationDetected: boolean("manipulation_detected").notNull().default(false),
+  manipulationType: text("manipulation_type"),
+  
+  // Immutable timestamp
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -2474,3 +2602,56 @@ export type InsertNavigationAuditLog = z.infer<typeof insertNavigationAuditLogSc
 export type NavigationAuditLog = typeof navigationAuditLog.$inferSelect;
 export type InsertDriverGpsInterruption = z.infer<typeof insertDriverGpsInterruptionSchema>;
 export type DriverGpsInterruption = typeof driverGpsInterruptions.$inferSelect;
+
+// =============================================
+// PHASE 3: RATINGS, BEHAVIOR SIGNALS & TRUST SCORING SCHEMAS
+// =============================================
+
+export const insertTripRatingSchema = createInsertSchema(tripRatings).omit({
+  id: true,
+  effectiveWeight: true,
+  isDampened: true,
+  dampeningReason: true,
+  isOutlier: true,
+  ratedAt: true,
+  createdAt: true,
+});
+
+export const insertBehaviorSignalSchema = createInsertSchema(behaviorSignals).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertUserTrustProfileSchema = createInsertSchema(userTrustProfiles).omit({
+  id: true,
+  trustScore: true,
+  trustScoreLevel: true,
+  averageRating: true,
+  totalRatingsReceived: true,
+  totalRatingsGiven: true,
+  positiveSignalCount: true,
+  negativeSignalCount: true,
+  signalScore: true,
+  completedTrips: true,
+  totalTrips: true,
+  completionRatio: true,
+  accountAgeFactor: true,
+  lastRecalculatedAt: true,
+  recalculationCount: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertTrustAuditLogSchema = createInsertSchema(trustAuditLog).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertTripRating = z.infer<typeof insertTripRatingSchema>;
+export type TripRating = typeof tripRatings.$inferSelect;
+export type InsertBehaviorSignal = z.infer<typeof insertBehaviorSignalSchema>;
+export type BehaviorSignal = typeof behaviorSignals.$inferSelect;
+export type InsertUserTrustProfile = z.infer<typeof insertUserTrustProfileSchema>;
+export type UserTrustProfile = typeof userTrustProfiles.$inferSelect;
+export type InsertTrustAuditLog = z.infer<typeof insertTrustAuditLogSchema>;
+export type TrustAuditLog = typeof trustAuditLog.$inferSelect;

@@ -1,0 +1,149 @@
+SYSTEM DIRECTIVE — PHASE 3: RATINGS, BEHAVIOR SIGNALS & TRUST SCORING (LOCK-SAFE)
+
+You are working on the ZIBA Ride Share codebase.
+
+OBJECTIVE:
+Implement an enterprise-grade, abuse-resistant Ratings & Trust system that:
+- Accurately reflects driver and rider behavior
+- Prevents rating manipulation
+- Feeds into future enforcement without changing existing locks
+
+ABSOLUTE RULES:
+- DO NOT alter financial engine, payouts, wallets, or GPS enforcement.
+- DO NOT add promotions or gamification.
+- DO NOT expose internal trust scores to users.
+- All enforcement MUST be server-side.
+- Proceed deterministically. DO NOT ask questions.
+
+=================================
+1️⃣ RATINGS SYSTEM (CORE)
+=================================
+
+After every completed trip:
+
+- Rider rates Driver (1–5)
+- Driver rates Rider (1–5)
+
+Rules:
+- Rating allowed ONLY once per trip
+- Rating window expires after defined time
+- No rating edits
+- No anonymous ratings
+
+Persist:
+- tripId
+- raterId
+- rateeId
+- score
+- timestamp
+
+=================================
+2️⃣ BEHAVIOR SIGNAL CAPTURE
+=================================
+
+Capture passive, non-opinionated signals per trip:
+
+Driver Signals:
+- GPS interruptions
+- Trip cancellations
+- Late arrival patterns
+- Route deviation severity
+- App force-closes
+
+Rider Signals:
+- No-shows
+- Repeated cancellations
+- Payment failures
+- Disputes frequency
+
+Signals MUST:
+- Be numeric
+- Be timestamped
+- Be immutable
+
+=================================
+3️⃣ TRUST SCORE ENGINE (INTERNAL)
+=================================
+
+Create internal trustScore (0–100) for:
+- Drivers
+- Riders
+
+Trust score is derived from:
+- Weighted average of ratings
+- Behavior signals (positive & negative)
+- Account age
+- Trip completion ratio
+
+Rules:
+- Trust score is NOT user-visible
+- Trust score cannot be manually edited
+- Recalculated server-side only
+
+=================================
+4️⃣ ANTI-MANIPULATION GUARDS
+=================================
+
+Prevent:
+- Rating bombing
+- Retaliatory ratings
+- Collusion between driver & rider
+
+Enforce:
+- Rating weight normalization
+- Outlier detection
+- Low-sample dampening
+
+=================================
+5️⃣ ADMIN VISIBILITY (READ-ONLY)
+=================================
+
+Admin can view:
+- Rating history
+- Trust score
+- Signal breakdown
+
+Admin CANNOT:
+- Change ratings
+- Override trust score
+- Delete signals
+
+=================================
+6️⃣ FUTURE ENFORCEMENT HOOKS (NO ACTION YET)
+=================================
+
+Expose internal hooks ONLY:
+- trustScoreThresholdLow
+- trustScoreThresholdHigh
+
+DO NOT:
+- Suspend users automatically
+- Change driver availability
+- Alter payouts
+
+This phase ONLY prepares the foundation.
+
+=================================
+7️⃣ AUDIT & LOGGING
+=================================
+
+Log:
+- Rating submissions
+- Signal captures
+- Trust score recalculations
+
+All logs immutable.
+
+=================================
+8️⃣ LOCK CONFIRMATION
+=================================
+
+Once implemented:
+- Set TRUST_ENGINE_LOCKED = true
+- Add assertion preventing silent changes
+- Confirm no impact on financial, identity, or GPS systems
+
+OUTPUT REQUIRED:
+- Implementation summary
+- Trust engine confirmation
+- Lock confirmation
