@@ -288,6 +288,24 @@ export const identityDocuments = pgTable("identity_documents", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Driver bank accounts table - stores driver bank account details for withdrawals
+export const driverBankAccounts = pgTable("driver_bank_accounts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  driverId: varchar("driver_id").notNull().unique(), // One bank account per driver
+  bankName: varchar("bank_name", { length: 100 }).notNull(),
+  bankCode: varchar("bank_code", { length: 20 }).notNull(),
+  accountNumber: varchar("account_number", { length: 20 }).notNull(),
+  accountNumberHash: varchar("account_number_hash", { length: 128 }).notNull(), // SHA-256 hash for uniqueness check
+  accountName: varchar("account_name", { length: 200 }).notNull(),
+  countryCode: countryCodeEnum("country_code").notNull().default("NG"),
+  isVerified: boolean("is_verified").notNull().default(false),
+  verificationMethod: identityVerificationMethodEnum("verification_method"),
+  verifiedAt: timestamp("verified_at"),
+  verifiedBy: varchar("verified_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Driver withdrawals table - tracks all driver withdrawal requests
 export const driverWithdrawals = pgTable("driver_withdrawals", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -296,8 +314,10 @@ export const driverWithdrawals = pgTable("driver_withdrawals", {
   currencyCode: varchar("currency_code", { length: 3 }).notNull(),
   payoutMethod: driverWithdrawalPayoutMethodEnum("payout_method").notNull(),
   payoutReference: varchar("payout_reference", { length: 255 }),
+  bankAccountId: varchar("bank_account_id"), // Reference to driver_bank_accounts
   status: driverWithdrawalStatusEnum("status").notNull().default("pending"),
   blockReason: text("block_reason"),
+  requestedAt: timestamp("requested_at").defaultNow(),
   processedAt: timestamp("processed_at"),
   processedBy: varchar("processed_by"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -327,6 +347,11 @@ export const driverProfiles = pgTable("driver_profiles", {
   locationPermissionStatus: locationPermissionStatusEnum("location_permission_status").notNull().default("not_requested"),
   lastGpsHeartbeat: timestamp("last_gps_heartbeat"),
   withdrawalVerificationStatus: driverVerificationStatusEnum("withdrawal_verification_status").notNull().default("pending_verification"),
+  // Nigeria-specific verification flags
+  isNINVerified: boolean("is_nin_verified").notNull().default(false),
+  isDriversLicenseVerified: boolean("is_drivers_license_verified").notNull().default(false),
+  isAddressVerified: boolean("is_address_verified").notNull().default(false),
+  isIdentityVerified: boolean("is_identity_verified").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -1132,9 +1157,21 @@ export const insertIdentityDocumentSchema = createInsertSchema(identityDocuments
   rejectionReason: true,
 });
 
+export const insertDriverBankAccountSchema = createInsertSchema(driverBankAccounts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  isVerified: true,
+  verificationMethod: true,
+  verifiedAt: true,
+  verifiedBy: true,
+  accountNumberHash: true, // Generated server-side
+});
+
 export const insertDriverWithdrawalSchema = createInsertSchema(driverWithdrawals).omit({
   id: true,
   createdAt: true,
+  requestedAt: true,
   status: true,
   processedAt: true,
   processedBy: true,
@@ -1289,6 +1326,9 @@ export type IdentityProfile = typeof identityProfiles.$inferSelect;
 
 export type InsertIdentityDocument = z.infer<typeof insertIdentityDocumentSchema>;
 export type IdentityDocument = typeof identityDocuments.$inferSelect;
+
+export type InsertDriverBankAccount = z.infer<typeof insertDriverBankAccountSchema>;
+export type DriverBankAccount = typeof driverBankAccounts.$inferSelect;
 
 export type InsertDriverWithdrawal = z.infer<typeof insertDriverWithdrawalSchema>;
 export type DriverWithdrawal = typeof driverWithdrawals.$inferSelect;
