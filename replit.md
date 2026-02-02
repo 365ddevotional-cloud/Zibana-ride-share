@@ -1,7 +1,7 @@
 # ZIBA - Ride Hailing Platform
 
 ## Overview
-ZIBA is a ride-hailing web application for emerging markets, connecting riders with trusted drivers for safe and reliable transportation. It supports seven distinct user roles to manage operations, coordinate trips, oversee finances, and provide customer support. The project aims to deliver a scalable and reliable ride-hailing solution, enhancing mobility and creating economic opportunities.
+ZIBA is a ride-hailing web application designed for emerging markets, aiming to connect riders with trusted drivers for safe and reliable transportation. The platform supports seven distinct user roles to facilitate comprehensive management of operations, trip coordination, financial oversight, and customer support. The core vision is to deliver a scalable and reliable ride-hailing solution that enhances mobility and fosters economic opportunities across its operational regions.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -9,41 +9,41 @@ Preferred communication style: Simple, everyday language.
 ## System Architecture
 
 ### Frontend
-- **Framework**: React 18 with TypeScript
-- **Routing**: Wouter
-- **State Management**: TanStack React Query for server state, React hooks for local state
-- **Styling**: Tailwind CSS with shadcn/ui components
-- **UI/UX**: Role-based dashboards, public landing page, dark/light mode, eye-safe color palettes, lazy loading, error boundaries, and loading skeletons for performance optimization.
+- **Framework**: React 18 with TypeScript.
+- **Routing**: Wouter.
+- **State Management**: TanStack React Query for server state; React hooks for local state.
+- **Styling**: Tailwind CSS integrated with shadcn/ui components.
+- **UI/UX**: Features role-based dashboards, a public landing page, dark/light mode, eye-safe color palettes, lazy loading, error boundaries, and loading skeletons to optimize performance.
 
 ### Backend
-- **Runtime**: Node.js with Express.js
-- **Language**: TypeScript with ES modules
-- **API Pattern**: RESTful JSON APIs (`/api/*`)
-- **Authentication**: Replit Auth (OpenID Connect) via Passport.js
-- **Session Management**: Express sessions stored in PostgreSQL
-- **Design**: Clean separation of concerns for routes, storage, and authentication, with role-based middleware for security.
+- **Runtime**: Node.js using Express.js.
+- **Language**: TypeScript with ES modules.
+- **API Pattern**: RESTful JSON APIs.
+- **Authentication**: Replit Auth (OpenID Connect) managed via Passport.js.
+- **Session Management**: Express sessions stored in PostgreSQL.
+- **Design Principles**: Employs clean separation of concerns for routes, storage, and authentication, with role-based middleware for enhanced security.
 
 ### Data Storage
-- **Database**: PostgreSQL
-- **ORM**: Drizzle ORM with Zod for schema validation
-- **Schema**: Comprehensive schema covering users, trips, wallets, notifications, disputes, fraud profiles, incentive programs, country-specific data, support tickets, organization contracts, enterprise billing, referral codes, marketing, and feature flags.
+- **Database**: PostgreSQL.
+- **ORM**: Drizzle ORM, utilizing Zod for schema validation.
+- **Schema**: Comprehensive, covering users, trips, wallets, notifications, disputes, fraud profiles, incentive programs, country-specific data, support tickets, organization contracts, enterprise billing, referral codes, marketing, and feature flags.
 
 ### Core Features
-- **Authentication & Authorization**: Replit Auth integration and Role-Based Access Control (RBAC).
-- **User & Trip Management**: Full lifecycle management including identity verification.
-- **Financial Operations**: Fare calculation, commission, driver payouts, simulated payment system with virtual wallets, and audit logging.
-- **Notifications**: In-app notifications for real-time updates and safety checks.
-- **Ratings & Moderation**: Mutual rating system and dispute resolution.
-- **Fraud Detection**: Real-time engine with configurable signals and risk scoring.
-- **Driver Incentives**: Management of incentive programs.
-- **Trip Coordinator Module**: For institutional users to book and manage trips.
-- **Multi-Country Support**: Management of country-specific rules, taxes, and compliance for Nigeria, United States, and South Africa.
-- **Customer Support System**: Dedicated `support_agent` role and ticket management.
-- **Enterprise Contracts & Billing**: Management of contracts, SLAs, and invoicing.
-- **Monitoring & KPIs**: Aggregation of performance metrics with alerts and feature flag management.
-- **Growth & Marketing**: Referral codes and marketing campaign tracking.
-- **Scheduled Reservations**: Advance booking functionality.
-- **Monetization System**: Wallet-based escrow, dynamic country-specific pricing, payment provider abstraction, and rule-based fraud detection.
+- **Authentication & Authorization**: Integrates Replit Auth and implements Role-Based Access Control (RBAC).
+- **User & Trip Management**: Manages the full lifecycle of users and trips, including identity verification.
+- **Financial Operations**: Handles fare calculation, commission, driver payouts, a simulated payment system with virtual wallets, and detailed audit logging.
+- **Notifications**: Provides in-app notifications for real-time updates and safety checks.
+- **Ratings & Moderation**: Features a mutual rating system and a dispute resolution mechanism.
+- **Fraud Detection**: Utilizes a real-time engine with configurable signals and risk scoring.
+- **Driver Incentives**: Manages various incentive programs for drivers.
+- **Trip Coordinator Module**: Allows institutional users to book and manage trips.
+- **Multi-Country Support**: Manages country-specific rules, taxes, and compliance for Nigeria, United States, and South Africa.
+- **Customer Support System**: Includes a dedicated `support_agent` role and ticket management.
+- **Enterprise Contracts & Billing**: Manages contracts, SLAs, and invoicing for enterprise clients.
+- **Monitoring & KPIs**: Aggregates performance metrics, provides alerts, and manages feature flags.
+- **Growth & Marketing**: Supports referral codes and tracks marketing campaigns.
+- **Scheduled Reservations**: Enables advance booking functionality.
+- **Monetization System**: Implements wallet-based escrow, dynamic country-specific pricing, payment provider abstraction, and rule-based fraud detection.
 - **Production Switches**: Server-side, `SUPER_ADMIN`-protected switches for country-specific payment enabling, launch modes, and explanation mode.
 - **Test Mode Configuration**: Global test mode for simulated wallet payments and virtual wallets.
 - **Payment Source Architecture**: `paymentSource` field (TEST_WALLET, MAIN_WALLET, CARD, BANK) resolved server-side.
@@ -52,218 +52,23 @@ Preferred communication style: Simple, everyday language.
 - **Financial Engine**: Rides locked to `currencyCode`, 80% driver / 20% platform revenue split using integer-safe math and append-only ledger entries. Fare calculation uses country-specific rules.
 - **Navigation Architecture**: Internal distance/duration calculations; deep links to native GPS apps for navigation.
 - **Universal Identity Framework**: Country-aware identity verification for all users, enforcing ID requirements and preventing fraud through hash-based duplicate detection. Driver rules enforce identity and license verification before going online or accepting rides.
-
-### Nigeria Driver Withdrawal System
-- Supports withdrawals to Nigerian bank accounts with strict identity verification and fraud protection.
-- Integration with Paystack (primary) and Flutterwave (fallback) for automated payouts, with manual mode as default.
-- Robust workflow including admin verification of bank accounts and identity documents (NIN, Driver's License).
-- Fraud prevention through hashing document and bank account numbers to prevent duplicates.
-- Strict revenue split (80% driver / 20% platform) enforced server-side.
+- **Nigeria Driver Withdrawal System**: Supports withdrawals to Nigerian bank accounts with strict identity verification and fraud protection, integrating Paystack and Flutterwave for automated payouts.
+- **Driver GPS & Navigation Enforcement**: Mandates GPS permissions, selection of navigation providers, and background execution consent for drivers to go online. Includes spoofing detection and automatic navigation handoff via deep links.
+- **Ratings, Behavior Signals & Trust Scoring**: Implements a one-time, bidirectional rating system (1-5 stars) within a 72-hour window. Captures passive behavior signals (e.g., `GPS_INTERRUPTION`, `NO_SHOW`) and positive signals. Calculates a trust score (0-100) based on ratings, behavior signals, trip completion ratio, and account age, with anti-manipulation guards.
+- **Safety & Incident Intelligence**: Features an SOS trigger system for active trips, incident reporting with various types and severity levels, auto-escalation rules, and suspension management (temporary/permanent). Suspension checks prevent users from going online, accepting rides, or withdrawing funds.
 
 ## External Dependencies
 
 ### Third-Party Services
-- **Replit Auth**: OpenID Connect provider.
-- **PostgreSQL**: Primary database.
-- **Paystack**: Payment gateway for Nigeria payouts.
-- **Flutterwave**: Payment gateway for Nigeria payouts (fallback).
+- **Replit Auth**: OpenID Connect provider for user authentication.
+- **PostgreSQL**: The primary relational database used for data storage.
+- **Paystack**: Payment gateway utilized for driver payouts in Nigeria.
+- **Flutterwave**: Fallback payment gateway for driver payouts in Nigeria.
 
 ### Key NPM Packages
-- `drizzle-orm` / `drizzle-kit`: ORM and migration tools.
-- `passport` / `openid-client`: Authentication libraries.
-- `express-session` / `connect-pg-simple`: Session management.
-- `@tanstack/react-query`: Data fetching and caching.
-- `shadcn/ui`: UI component library.
-- `zod`: Runtime schema validation.
-
-## Universal Identity Framework (Phase 1)
-
-### Engine Lock Status
-- `IDENTITY_ENGINE_LOCKED = true` (cannot be removed without code change)
-- Assertion: `assertIdentityEngineLocked()` prevents silent removal
-
-### Key Features
-- Country-aware identity verification for ALL users (drivers and riders)
-- SHA-256 hash-based duplicate detection for government IDs
-- Driver enforcement: Cannot go online/accept rides without approved identity AND verified license
-- Immutable audit logging for all identity actions
-
-### Country-Specific ID Requirements
-| Country | Code | Allowed ID Types |
-|---------|------|------------------|
-| Nigeria | NG | NIN |
-| United States | US | STATE_ID, US_DRIVER_LICENSE, US_PASSPORT |
-| United Kingdom | GB | UK_DRIVING_LICENSE, UK_PASSPORT |
-| South Africa | ZA | SA_ID, SA_PASSPORT |
-
-## Driver GPS & Navigation Enforcement (Phase 2)
-
-### Engine Lock Status
-- `NAVIGATION_ENGINE_LOCKED = true` (cannot be removed without code change)
-- Assertion: `assertNavigationEngineLocked()` prevents silent removal
-
-### Navigation Setup Wizard (Mandatory for Drivers)
-**Step 1: GPS Permission**
-- Require OS-level location permission = ALWAYS
-- Require high accuracy mode
-- Block continuation if denied
-
-**Step 2: Navigation Provider Selection**
-Driver must choose ONE:
-- Google Maps
-- Apple Maps
-- Waze
-- Other (OS-supported)
-
-**Step 3: Background Execution Consent**
-- Require background location execution
-- Require foreground service (Android)
-
-Driver CANNOT go online until all steps are complete.
-
-### GPS Enforcement Rules
-When driver status = ONLINE or ON_TRIP:
-- GPS must be ACTIVE
-- Location updates streamed at enforced interval (30s heartbeat)
-- If GPS stops or timeout (60s) → auto-set driver OFFLINE
-- Log interruption reason
-
-Blocking conditions:
-- GPS disabled
-- Location spoofing detected
-- Background permission revoked
-
-### Spoofing Detection
-- Maximum speed threshold: 150 m/s (~540 km/h)
-- Maximum location jump: 10km between updates
-- Detected spoofing → immediate auto-offline + audit log
-
-### Auto-Navigation Handoff
-When driver accepts ride/starts pickup/starts dropoff:
-- Launch selected navigation provider via deep link
-- Pass pickup/dropoff coordinates
-- Continue GPS tracking in parallel
-
-### Database Tables
-- `driverNavigationSetup`: Driver navigation configuration and current GPS state
-- `gpsTrackingLogs`: Continuous stream of location updates
-- `navigationAuditLog`: Immutable log of all navigation/GPS events
-- `driverGpsInterruptions`: Records of auto-offline triggers
-
-### API Endpoints
-
-**Driver Endpoints:**
-- `GET /api/driver/navigation/setup`: Get navigation setup status
-- `POST /api/driver/navigation/setup/gps-permission`: Step 1
-- `POST /api/driver/navigation/setup/provider`: Step 2
-- `POST /api/driver/navigation/setup/background-consent`: Step 3
-- `POST /api/driver/navigation/setup/complete`: Finalize setup
-- `GET /api/driver/can-go-online`: Combined identity + navigation check
-- `POST /api/driver/gps/heartbeat`: GPS location update
-- `POST /api/driver/gps/state`: Report GPS enable/disable
-- `POST /api/driver/app/state`: Report foreground/background
-- `POST /api/driver/navigation/launch`: Get navigation deep link
-- `POST /api/driver/navigation/close`: Close navigation
-
-**Admin Endpoints:**
-- `GET /api/admin/navigation/drivers`: All driver navigation setups
-- `GET /api/admin/navigation/drivers/:userId`: Specific driver setup
-- `GET /api/admin/navigation/gps-issues`: Drivers with GPS problems
-- `GET /api/admin/navigation/interruptions`: All GPS interruptions
-- `POST /api/admin/navigation/interruptions/:id/resolve`: Resolve interruption
-- `GET /api/admin/navigation/audit-logs`: All navigation audit logs
-- `GET /api/admin/navigation/tracking/:userId`: Driver GPS tracking logs
-
-### Important Files
-- `shared/schema.ts`: Database schema with navigation tables
-- `shared/navigation-config.ts`: Configuration constants and helper functions
-- `server/navigation-guards.ts`: Server-side enforcement logic
-- `server/routes.ts`: Navigation API endpoints
-
-### Integration Notes
-- Operates ALONGSIDE identity verification (Phase 1)
-- Does NOT modify financial engine, wallets, or payouts
-- All enforcement is SERVER-SIDE only
-
-## Ratings, Behavior Signals & Trust Scoring (Phase 3)
-
-### Engine Lock Status
-- `TRUST_ENGINE_LOCKED = true` (cannot be removed without code change)
-- Assertion: `assertTrustEngineLocked()` prevents silent removal
-
-### Rating System
-- **One-time ratings**: Each user can rate once per trip (immutable)
-- **Score range**: 1-5 stars
-- **Rating window**: 72 hours after trip completion
-- **Bidirectional**: Riders rate drivers, drivers rate riders
-
-### Behavior Signals (Passive Capture)
-**Driver Signals:**
-- GPS_INTERRUPTION (-5)
-- LATE_ARRIVAL (-3)
-- ROUTE_DEVIATION (-4)
-- CANCELLATION (-5)
-- APP_FORCE_CLOSE (-2)
-
-**Rider Signals:**
-- NO_SHOW (-15, heaviest penalty)
-- CANCELLATION (-5)
-- PAYMENT_FAILURE (-10)
-- DISPUTE_FILED (-3)
-
-**Positive Signals:**
-- TRIP_COMPLETED (+5)
-- ON_TIME_ARRIVAL (+2)
-- SMOOTH_NAVIGATION (+3)
-
-### Trust Score Calculation
-- **Score range**: 0-100 (internal, NOT visible to users)
-- **Default score**: 75 for new users
-- **Components**:
-  - Ratings: 40% weight
-  - Behavior Signals: 30% weight
-  - Trip Completion Ratio: 20% weight
-  - Account Age: 10% weight
-
-### Anti-Manipulation Guards
-- **Rating Bombing Detection**: 3+ low ratings (≤2 stars) in 24 hours triggers alert
-- **Retaliation Dampening**: Ratings within 30 minutes of receiving a rating get reduced weight (0.3)
-- **Outlier Detection**: Ratings beyond 2.5 standard deviations flagged as outliers
-- **Low Sample Dampening**: Factor of 0.7 applied when sample size < 10 ratings
-- **Collusion Prevention**: Flagged ratings from suspicious patterns
-
-### Trust Score Thresholds
-- **Low Trust**: < 40 (for future enforcement actions)
-- **High Trust**: ≥ 85 (for future rewards/benefits)
-- Note: NO automatic actions currently - thresholds exposed for admin monitoring
-
-### Database Tables
-- `tripRatings`: Immutable rating records with anti-manipulation metadata
-- `behaviorSignals`: Passive behavior signal capture
-- `userTrustProfiles`: Calculated trust scores (0-100)
-- `trustAuditLog`: Immutable audit trail for all trust actions
-
-### API Endpoints
-
-**User Endpoints:**
-- `POST /api/ratings/submit`: Submit a rating for a completed trip
-- `GET /api/ratings/trip/:tripId`: Get ratings for a trip
-- `GET /api/ratings/can-rate/:tripId`: Check if user can rate a trip
-
-**Admin Endpoints (Read-Only):**
-- `GET /api/admin/trust/profiles`: All user trust profiles
-- `GET /api/admin/trust/user/:userId`: Detailed trust view for a user
-- `GET /api/admin/trust/audit-logs`: All trust audit logs
-- `GET /api/admin/trust/thresholds`: Current trust score thresholds
-
-### Important Files
-- `shared/schema.ts`: Database schema with trust tables
-- `shared/trust-config.ts`: Configuration constants and helper functions
-- `server/trust-guards.ts`: Trust calculation engine and anti-manipulation logic
-- `server/routes.ts`: Trust API endpoints
-
-### Integration Notes
-- Operates ALONGSIDE Phase 1 (identity) and Phase 2 (navigation)
-- Does NOT modify financial engine, wallets, or payouts
-- Trust scores are SERVER-SIDE only, never exposed to users
-- All trust calculations and anti-manipulation logic are SERVER-SIDE only
+- `drizzle-orm` / `drizzle-kit`: ORM and migration tools for PostgreSQL.
+- `passport` / `openid-client`: Libraries for authentication, including OpenID Connect integration.
+- `express-session` / `connect-pg-simple`: For session management with Express.js, storing sessions in PostgreSQL.
+- `@tanstack/react-query`: Used for data fetching, caching, and state management in the frontend.
+- `shadcn/ui`: A UI component library enhancing the frontend's visual design.
+- `zod`: Employed for runtime schema validation, particularly with Drizzle ORM.
