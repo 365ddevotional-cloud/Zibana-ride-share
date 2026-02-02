@@ -1,7 +1,7 @@
 # ZIBA - Ride Hailing Platform
 
 ## Overview
-ZIBA is a ride-hailing web application designed for emerging markets, aiming to connect riders with trusted drivers for safe and reliable transportation. It supports seven distinct user roles to manage platform operations, coordinate trips, oversee finances, and provide customer support. The project's vision is to deliver a scalable and reliable ride-hailing solution, thereby enhancing mobility and creating economic opportunities.
+ZIBA is a ride-hailing web application for emerging markets, connecting riders with trusted drivers for safe and reliable transportation. It supports seven distinct user roles to manage operations, coordinate trips, oversee finances, and provide customer support. The project aims to deliver a scalable and reliable ride-hailing solution, enhancing mobility and creating economic opportunities.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -13,7 +13,7 @@ Preferred communication style: Simple, everyday language.
 - **Routing**: Wouter
 - **State Management**: TanStack React Query for server state, React hooks for local state
 - **Styling**: Tailwind CSS with shadcn/ui components
-- **UI/UX**: Role-based dashboards for administrators, drivers, and riders, alongside a public landing page. Features include dark/light mode with system preference detection and eye-safe color palettes. Performance is optimized through lazy loading, error boundaries, and loading skeletons.
+- **UI/UX**: Role-based dashboards, public landing page, dark/light mode, eye-safe color palettes, lazy loading, error boundaries, and loading skeletons for performance optimization.
 
 ### Backend
 - **Runtime**: Node.js with Express.js
@@ -21,42 +21,52 @@ Preferred communication style: Simple, everyday language.
 - **API Pattern**: RESTful JSON APIs (`/api/*`)
 - **Authentication**: Replit Auth (OpenID Connect) via Passport.js
 - **Session Management**: Express sessions stored in PostgreSQL
-- **Design**: Employs a clean separation of concerns for routes, storage, and authentication, with role-based middleware securing endpoints.
+- **Design**: Clean separation of concerns for routes, storage, and authentication, with role-based middleware for security.
 
 ### Data Storage
 - **Database**: PostgreSQL
 - **ORM**: Drizzle ORM with Zod for schema validation
-- **Schema**: Defined in `shared/schema.ts`, encompassing entities such as `users`, `trips`, `wallets`, `notifications`, `disputes`, `fraud_risk_profiles`, `incentive_programs`, `countries`, `support_tickets`, `organization_contracts`, `service_level_agreements`, `enterprise_invoices`, `referral_codes`, `marketing_campaigns`, `partner_leads`, and `feature_flags`.
+- **Schema**: Comprehensive schema covering users, trips, wallets, notifications, disputes, fraud profiles, incentive programs, country-specific data, support tickets, organization contracts, enterprise billing, referral codes, marketing, and feature flags.
 
 ### Core Features
-- **Authentication & Authorization**: Integration with Replit Auth and comprehensive Role-Based Access Control (RBAC), including a hierarchical `super_admin` role.
-- **User & Trip Management**: Full lifecycle management for users and trips, covering approval, suspension, and cancellation. Includes identity verification with live camera and admin review.
-- **Financial Operations**: Fare calculation, commission management, driver payouts, a simulated payment system with virtual wallets, and payout cycles. Includes refunds, adjustments, and chargebacks.
-- **Notifications**: In-app notifications for real-time updates, ride offers with countdowns, status changes, and safety checks.
-- **Ratings & Moderation**: Mutual rating system and dispute resolution with admin oversight.
-- **Fraud Detection**: Real-time engine with configurable signals, risk scoring, and resolution workflows.
-- **Driver Incentives**: Management of various incentive programs integrated with driver wallets, with fraud prevention.
-- **Trip Coordinator Module**: Functionality for institutional users to book trips and manage organizational profiles.
-- **Multi-Country Support**: Management of countries, tax rules, exchange rates, and compliance profiles for Nigeria, United States, and South Africa.
-- **Customer Support System**: Dedicated `support_agent` role, ticket lifecycle management, and a messaging interface.
-- **Enterprise Contracts & Billing**: Management of organization contracts, SLAs, multiple billing models, invoice generation, and payment tracking.
-- **Monitoring & KPIs**: Aggregation of metrics for platform, rider, driver, organization, and financial performance, with threshold alerts and feature flag management.
-- **Growth & Marketing**: Referral codes, marketing campaigns, and partner lead tracking.
-- **Scheduled Reservations**: Advance booking functionality with reservation premiums, driver assignment, preparation windows, early arrival bonuses, and cancellation fees.
-- **Monetization System**: Wallet-based escrow flow, dynamic country-specific pricing, payment provider abstraction, rule-based fraud detection, and comprehensive financial audit logging.
-- **Production Switches**: Server-side, SUPER_ADMIN-protected switches for enabling real payments per country, setting launch mode (soft/full), and an explanation mode for stakeholders. All changes are logged and instantly reversible.
-- **Test Mode Configuration**: Global test mode enables simulated wallet payments, virtual wallets, and full logic execution without real monetary transactions.
-- **Payment Source Architecture**: `paymentSource` field (TEST_WALLET, MAIN_WALLET, CARD, BANK) resolved server-side. Testers use `TEST_WALLET` and non-testers use `MAIN_WALLET` or `CARD`.
-- **Driver Payout Management**: Drivers can manage bank/mobile money details. Payouts require manual admin processing in test mode and are logged.
-- **Driver Identity & Withdrawal Verification**: Drivers require verified identity profiles and country-specific documents (e.g., DRIVER_LICENSE + NIN for Nigeria) to withdraw funds. Verification status (`pending_verification`, `verified`, `suspended`) governs withdrawal eligibility. Anti-fraud safeguards include hashing document numbers, preventing multiple accounts per document/bank, and review triggers for mismatches or rapid withdrawals. Minimum withdrawal amounts are set per country.
-- **Financial Engine**: Rides are locked to a `currencyCode` based on the rider's country. Revenue split is strictly 80% driver / 20% platform, using integer-safe math and append-only ledger entries. Driver earnings are managed in separate `driverWallets`. A comprehensive audit trail is maintained for all financial transactions. Fare calculation uses country-specific rules for base, distance, time, waiting, and traffic fees, all within the ride's `currencyCode`.
-- **Navigation Architecture**: No external map SDKs or routing APIs are used. Navigation relies on opening native GPS apps via deep links. Distance and duration calculations are internal, based on GPS coordinates and timestamps. Fare calculation uses internally computed distance, time, and waiting periods.
+- **Authentication & Authorization**: Replit Auth integration and Role-Based Access Control (RBAC).
+- **User & Trip Management**: Full lifecycle management including identity verification.
+- **Financial Operations**: Fare calculation, commission, driver payouts, simulated payment system with virtual wallets, and audit logging.
+- **Notifications**: In-app notifications for real-time updates and safety checks.
+- **Ratings & Moderation**: Mutual rating system and dispute resolution.
+- **Fraud Detection**: Real-time engine with configurable signals and risk scoring.
+- **Driver Incentives**: Management of incentive programs.
+- **Trip Coordinator Module**: For institutional users to book and manage trips.
+- **Multi-Country Support**: Management of country-specific rules, taxes, and compliance for Nigeria, United States, and South Africa.
+- **Customer Support System**: Dedicated `support_agent` role and ticket management.
+- **Enterprise Contracts & Billing**: Management of contracts, SLAs, and invoicing.
+- **Monitoring & KPIs**: Aggregation of performance metrics with alerts and feature flag management.
+- **Growth & Marketing**: Referral codes and marketing campaign tracking.
+- **Scheduled Reservations**: Advance booking functionality.
+- **Monetization System**: Wallet-based escrow, dynamic country-specific pricing, payment provider abstraction, and rule-based fraud detection.
+- **Production Switches**: Server-side, `SUPER_ADMIN`-protected switches for country-specific payment enabling, launch modes, and explanation mode.
+- **Test Mode Configuration**: Global test mode for simulated wallet payments and virtual wallets.
+- **Payment Source Architecture**: `paymentSource` field (TEST_WALLET, MAIN_WALLET, CARD, BANK) resolved server-side.
+- **Driver Payout Management**: Drivers manage bank/mobile money details, with manual admin processing in test mode.
+- **Driver Identity & Withdrawal Verification**: Requires verified identity and country-specific documents for withdrawals, with anti-fraud safeguards.
+- **Financial Engine**: Rides locked to `currencyCode`, 80% driver / 20% platform revenue split using integer-safe math and append-only ledger entries. Fare calculation uses country-specific rules.
+- **Navigation Architecture**: Internal distance/duration calculations; deep links to native GPS apps for navigation.
+- **Universal Identity Framework**: Country-aware identity verification for all users, enforcing ID requirements and preventing fraud through hash-based duplicate detection. Driver rules enforce identity and license verification before going online or accepting rides.
+
+### Nigeria Driver Withdrawal System
+- Supports withdrawals to Nigerian bank accounts with strict identity verification and fraud protection.
+- Integration with Paystack (primary) and Flutterwave (fallback) for automated payouts, with manual mode as default.
+- Robust workflow including admin verification of bank accounts and identity documents (NIN, Driver's License).
+- Fraud prevention through hashing document and bank account numbers to prevent duplicates.
+- Strict revenue split (80% driver / 20% platform) enforced server-side.
 
 ## External Dependencies
 
 ### Third-Party Services
-- **Replit Auth**: OpenID Connect provider for user authentication.
-- **PostgreSQL**: Primary database service.
+- **Replit Auth**: OpenID Connect provider.
+- **PostgreSQL**: Primary database.
+- **Paystack**: Payment gateway for Nigeria payouts.
+- **Flutterwave**: Payment gateway for Nigeria payouts (fallback).
 
 ### Key NPM Packages
 - `drizzle-orm` / `drizzle-kit`: ORM and migration tools.
@@ -65,141 +75,3 @@ Preferred communication style: Simple, everyday language.
 - `@tanstack/react-query`: Data fetching and caching.
 - `shadcn/ui`: UI component library.
 - `zod`: Runtime schema validation.
-
-## Nigeria Driver Withdrawal System
-
-### Overview
-The platform supports driver withdrawals to Nigerian bank accounts with strict identity verification, currency consistency, and fraud protection.
-
-### Supported Banks
-Nigerian banks supported for withdrawals include: Access Bank, Citibank Nigeria, Ecobank Nigeria, Fidelity Bank, First Bank of Nigeria, First City Monument Bank, Guaranty Trust Bank, Heritage Bank, Keystone Bank, Polaris Bank, Stanbic IBTC Bank, Standard Chartered Bank, Sterling Bank, Union Bank of Nigeria, United Bank for Africa, Unity Bank, Wema Bank, Zenith Bank, Opay, Kuda Microfinance Bank, Moniepoint Microfinance Bank, and PalmPay.
-
-### Withdrawal Flow
-1. Driver adds bank account details (one account per driver)
-2. Admin verifies bank account
-3. Driver submits verification documents (NIN + Driver's License)
-4. Admin verifies each document with fraud check
-5. Once all verifications pass, driver can request withdrawals
-6. Admin approves/rejects withdrawal requests
-7. Admin marks withdrawal as paid after processing
-
-### Verification Requirements (Nigeria)
-Drivers must have ALL of the following verified before withdrawal:
-- **NIN (National Identification Number)**: Verified by admin, hash stored for duplicate detection
-- **Driver's License**: Verified by admin, hash stored for duplicate detection
-- **Residential Address**: Must match ID documents
-- **Identity Verification**: Live photo verification with admin review
-- **Bank Account**: Must be verified by admin before withdrawals
-
-### Withdrawal Rules
-- **Currency**: NGN only (wallet, fare, and payout must all match)
-- **Minimum Withdrawal**: ₦1,000
-- **Source**: Earnings wallet only (not test wallet)
-- **Eligibility**: Only fully verified drivers can withdraw
-- **Test Drivers**: Cannot withdraw real funds
-- **Suspended Drivers**: Blocked from withdrawals and going online
-
-### Fraud Prevention
-- **NIN Hash**: SHA-256 hash stored; blocks multiple drivers with same NIN
-- **License Hash**: SHA-256 hash stored; blocks duplicate license registrations
-- **Bank Account Hash**: SHA-256 hash of account number; prevents account reuse across drivers
-- **One Account Rule**: Each driver can only have one bank account
-- **Audit Trail**: All verifications, withdrawals, and fraud violations are logged
-
-### Revenue Split
-- **Driver Earnings**: 80% of fare
-- **Platform Commission**: 20% of fare
-- **Enforcement**: Server-side calculation with integer-safe math
-- **Ledger**: Append-only `revenueSplitLedger` table for reconciliation
-
-### Admin Controls
-- View all driver bank accounts
-- Verify/unverify bank accounts
-- Verify NIN, License, Address, Identity with document numbers
-- Approve/reject withdrawal requests
-- Mark withdrawals as paid
-- View full audit trail
-
-### Database Tables
-- `driverBankAccounts`: Bank account details with account number hash
-- `driverWithdrawals`: Withdrawal requests with status tracking
-- `driverProfiles`: Includes verification flags and document hashes
-- `revenueSplitLedger`: Immutable record of all revenue splits
-
-### API Endpoints
-**Driver Endpoints:**
-- `GET /api/driver/bank-account`: Get driver's bank account and verification status
-- `POST /api/driver/bank-account`: Add bank account
-- `PATCH /api/driver/bank-account`: Update bank account
-- `GET /api/driver/withdrawal-eligibility`: Check withdrawal eligibility
-- `GET /api/driver/withdrawals`: Get withdrawal history
-- `POST /api/driver/withdrawals`: Request withdrawal
-
-**Admin Endpoints:**
-- `GET /api/admin/bank-accounts`: List all driver bank accounts
-- `POST /api/admin/bank-accounts/:driverId/verify`: Verify bank account
-- `POST /api/admin/drivers/:userId/verify-nin`: Verify NIN with fraud check
-- `POST /api/admin/drivers/:userId/verify-license`: Verify license with fraud check
-- `POST /api/admin/drivers/:userId/verify-address`: Verify address
-- `POST /api/admin/drivers/:userId/verify-identity`: Verify identity
-- `GET /api/admin/withdrawals`: List all withdrawal requests
-- `POST /api/admin/withdrawals/:id/approve`: Approve withdrawal
-- `POST /api/admin/withdrawals/:id/reject`: Reject withdrawal
-- `POST /api/admin/withdrawals/:id/paid`: Mark withdrawal as paid
-
-## Nigeria Payout Provider Integration
-
-### Overview
-The platform integrates with Paystack (primary) and Flutterwave (fallback) for automated driver payouts in Nigeria. Other countries use manual mode until providers are configured.
-
-### Payout Providers
-- **Paystack**: Primary provider for Nigeria. Uses `PAYSTACK_SECRET_KEY` environment variable.
-- **Flutterwave**: Fallback provider for Nigeria. Uses `FLW_SECRET_KEY` environment variable.
-- **Manual**: Default for all countries without API keys configured.
-
-### Provider Selection
-1. Nigeria: Paystack (if key available) → Flutterwave (if key available) → Manual
-2. Other countries: Manual only (providers to be added)
-
-### Withdrawal Statuses
-- `pending`: Awaiting admin approval
-- `approved`: Admin approved, ready for processing
-- `processing`: Transfer initiated with provider
-- `paid`: Transfer successful
-- `failed`: Transfer failed
-- `rejected`: Admin rejected
-- `blocked`: Fraud-blocked
-
-### Automated Transfer Flow
-1. Admin approves withdrawal → status becomes `approved`
-2. Admin clicks "Initiate Transfer" → provider API called
-3. Provider returns reference → status becomes `processing`
-4. Webhook receives status update → status becomes `paid` or `failed`
-
-### Webhook Endpoints
-- `POST /api/webhooks/paystack`: Handles Paystack transfer events (transfer.success, transfer.failed, transfer.reversed)
-- `POST /api/webhooks/flutterwave`: Handles Flutterwave transfer events (transfer.completed)
-
-### Webhook Security
-- **Paystack**: HMAC-SHA512 signature validation via `x-paystack-signature` header
-- **Flutterwave**: Secret hash validation via `verif-hash` header against `FLW_WEBHOOK_SECRET`
-
-### Provider Reference Tracking
-Each withdrawal tracks:
-- `payoutProvider`: Which provider was used (paystack, flutterwave, manual)
-- `payoutReference`: Unique reference for the transfer
-- `providerReference`: Provider's internal reference ID
-- `providerStatus`: Provider's status string
-- `providerError`: Error message if failed
-
-### Required Environment Variables
-- `PAYSTACK_SECRET_KEY`: Paystack API secret key for transfers
-- `FLW_SECRET_KEY`: Flutterwave API secret key for transfers
-- `FLW_WEBHOOK_SECRET`: Flutterwave webhook verification secret
-
-### Manual Mode
-When no API keys are configured:
-1. Admin approves withdrawal
-2. Admin processes payment outside platform
-3. Admin enters bank reference and marks as paid
-4. Full audit trail maintained
