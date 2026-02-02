@@ -231,6 +231,19 @@ import {
   type InsertUserTrustProfile,
   type TrustAuditLog,
   type InsertTrustAuditLog,
+  // Phase 4 - Safety & Incident Intelligence
+  sosTriggers,
+  incidents,
+  userSuspensions,
+  safetyAuditLog,
+  type SosTrigger,
+  type InsertSosTrigger,
+  type Incident,
+  type InsertIncident,
+  type UserSuspension,
+  type InsertUserSuspension,
+  type SafetyAuditLog,
+  type InsertSafetyAuditLog,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull } from "drizzle-orm";
@@ -462,6 +475,45 @@ export interface IStorage {
     signals: BehaviorSignal[];
     auditLogs: TrustAuditLog[];
   }>;
+
+  // =============================================
+  // PHASE 4: SAFETY & INCIDENT INTELLIGENCE
+  // =============================================
+  
+  // SOS Triggers
+  createSosTrigger(data: InsertSosTrigger): Promise<SosTrigger>;
+  getSosTrigger(triggerId: string): Promise<SosTrigger | null>;
+  getSosTriggersByTrip(tripId: string): Promise<SosTrigger[]>;
+  getSosTriggersByUser(userId: string): Promise<SosTrigger[]>;
+  
+  // Incidents
+  createIncident(data: InsertIncident): Promise<Incident>;
+  getIncident(incidentId: string): Promise<Incident | null>;
+  getIncidentsByTrip(tripId: string): Promise<Incident[]>;
+  getIncidentsByUser(userId: string): Promise<Incident[]>;
+  getIncidentsByAccused(accusedUserId: string): Promise<Incident[]>;
+  getIncidentsByStatus(status: string): Promise<Incident[]>;
+  getAllOpenIncidents(): Promise<Incident[]>;
+  updateIncidentStatus(incidentId: string, status: string, notes?: string, resolvedBy?: string): Promise<Incident | null>;
+  assignIncidentToAdmin(incidentId: string, adminId: string): Promise<Incident | null>;
+  markIncidentAutoEscalated(incidentId: string, reason: string): Promise<Incident | null>;
+  getRecentIncidentsByAccused(accusedUserId: string, daysBack: number): Promise<Incident[]>;
+  countIncidentsBySeverity(accusedUserId: string, severity: string, daysBack: number): Promise<number>;
+  
+  // User Suspensions
+  createUserSuspension(data: InsertUserSuspension): Promise<UserSuspension>;
+  getUserSuspension(suspensionId: string): Promise<UserSuspension | null>;
+  getActiveSuspensionForUser(userId: string): Promise<UserSuspension | null>;
+  getUserSuspensions(userId: string): Promise<UserSuspension[]>;
+  getAllActiveSuspensions(): Promise<UserSuspension[]>;
+  liftSuspension(suspensionId: string, liftedBy: string, reason: string): Promise<UserSuspension | null>;
+  isUserSuspended(userId: string): Promise<boolean>;
+  
+  // Safety Audit Log
+  createSafetyAuditLog(data: InsertSafetyAuditLog): Promise<SafetyAuditLog>;
+  getSafetyAuditLogsForUser(userId: string): Promise<SafetyAuditLog[]>;
+  getSafetyAuditLogsForIncident(incidentId: string): Promise<SafetyAuditLog[]>;
+  getAllSafetyAuditLogs(): Promise<SafetyAuditLog[]>;
 
   getDirectorProfile(userId: string): Promise<DirectorProfile | undefined>;
   createDirectorProfile(data: InsertDirectorProfile): Promise<DirectorProfile>;
@@ -6300,6 +6352,209 @@ export class DatabaseStorage implements IStorage {
       this.getUserTrustAuditLogs(userId),
     ]);
     return { profile, ratingsReceived, signals, auditLogs };
+  }
+
+  // =============================================
+  // PHASE 4: SAFETY & INCIDENT INTELLIGENCE
+  // =============================================
+
+  async createSosTrigger(data: InsertSosTrigger): Promise<SosTrigger> {
+    const [trigger] = await db.insert(sosTriggers).values(data).returning();
+    return trigger;
+  }
+
+  async getSosTrigger(triggerId: string): Promise<SosTrigger | null> {
+    const [trigger] = await db.select().from(sosTriggers)
+      .where(eq(sosTriggers.id, triggerId));
+    return trigger || null;
+  }
+
+  async getSosTriggersByTrip(tripId: string): Promise<SosTrigger[]> {
+    return db.select().from(sosTriggers)
+      .where(eq(sosTriggers.tripId, tripId))
+      .orderBy(desc(sosTriggers.createdAt));
+  }
+
+  async getSosTriggersByUser(userId: string): Promise<SosTrigger[]> {
+    return db.select().from(sosTriggers)
+      .where(eq(sosTriggers.triggeredBy, userId))
+      .orderBy(desc(sosTriggers.createdAt));
+  }
+
+  async createIncident(data: InsertIncident): Promise<Incident> {
+    const [incident] = await db.insert(incidents).values(data).returning();
+    return incident;
+  }
+
+  async getIncident(incidentId: string): Promise<Incident | null> {
+    const [incident] = await db.select().from(incidents)
+      .where(eq(incidents.id, incidentId));
+    return incident || null;
+  }
+
+  async getIncidentsByTrip(tripId: string): Promise<Incident[]> {
+    return db.select().from(incidents)
+      .where(eq(incidents.tripId, tripId))
+      .orderBy(desc(incidents.createdAt));
+  }
+
+  async getIncidentsByUser(userId: string): Promise<Incident[]> {
+    return db.select().from(incidents)
+      .where(eq(incidents.reporterId, userId))
+      .orderBy(desc(incidents.createdAt));
+  }
+
+  async getIncidentsByAccused(accusedUserId: string): Promise<Incident[]> {
+    return db.select().from(incidents)
+      .where(eq(incidents.accusedUserId, accusedUserId))
+      .orderBy(desc(incidents.createdAt));
+  }
+
+  async getIncidentsByStatus(status: string): Promise<Incident[]> {
+    return db.select().from(incidents)
+      .where(eq(incidents.status, status as any))
+      .orderBy(desc(incidents.createdAt));
+  }
+
+  async getAllOpenIncidents(): Promise<Incident[]> {
+    return db.select().from(incidents)
+      .where(or(
+        eq(incidents.status, "OPEN"),
+        eq(incidents.status, "UNDER_REVIEW")
+      ))
+      .orderBy(desc(incidents.createdAt));
+  }
+
+  async updateIncidentStatus(incidentId: string, status: string, notes?: string, resolvedBy?: string): Promise<Incident | null> {
+    const updateData: Partial<Incident> = { status: status as any };
+    if (notes) updateData.resolutionNotes = notes;
+    if (resolvedBy) {
+      updateData.resolvedBy = resolvedBy;
+      updateData.resolvedAt = new Date();
+    }
+    const [incident] = await db.update(incidents)
+      .set(updateData)
+      .where(eq(incidents.id, incidentId))
+      .returning();
+    return incident || null;
+  }
+
+  async assignIncidentToAdmin(incidentId: string, adminId: string): Promise<Incident | null> {
+    const [incident] = await db.update(incidents)
+      .set({ assignedAdminId: adminId, status: "UNDER_REVIEW" })
+      .where(eq(incidents.id, incidentId))
+      .returning();
+    return incident || null;
+  }
+
+  async markIncidentAutoEscalated(incidentId: string, reason: string): Promise<Incident | null> {
+    const [incident] = await db.update(incidents)
+      .set({ autoEscalated: true, escalationReason: reason })
+      .where(eq(incidents.id, incidentId))
+      .returning();
+    return incident || null;
+  }
+
+  async getRecentIncidentsByAccused(accusedUserId: string, daysBack: number): Promise<Incident[]> {
+    const threshold = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
+    return db.select().from(incidents)
+      .where(and(
+        eq(incidents.accusedUserId, accusedUserId),
+        gte(incidents.createdAt, threshold)
+      ))
+      .orderBy(desc(incidents.createdAt));
+  }
+
+  async countIncidentsBySeverity(accusedUserId: string, severity: string, daysBack: number): Promise<number> {
+    const threshold = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
+    const result = await db.select({ count: count() }).from(incidents)
+      .where(and(
+        eq(incidents.accusedUserId, accusedUserId),
+        eq(incidents.severity, severity as any),
+        gte(incidents.createdAt, threshold)
+      ));
+    return result[0]?.count || 0;
+  }
+
+  async createUserSuspension(data: InsertUserSuspension): Promise<UserSuspension> {
+    const [suspension] = await db.insert(userSuspensions).values(data).returning();
+    return suspension;
+  }
+
+  async getUserSuspension(suspensionId: string): Promise<UserSuspension | null> {
+    const [suspension] = await db.select().from(userSuspensions)
+      .where(eq(userSuspensions.id, suspensionId));
+    return suspension || null;
+  }
+
+  async getActiveSuspensionForUser(userId: string): Promise<UserSuspension | null> {
+    const [suspension] = await db.select().from(userSuspensions)
+      .where(and(
+        eq(userSuspensions.userId, userId),
+        eq(userSuspensions.status, "ACTIVE")
+      ))
+      .orderBy(desc(userSuspensions.createdAt));
+    return suspension || null;
+  }
+
+  async getUserSuspensions(userId: string): Promise<UserSuspension[]> {
+    return db.select().from(userSuspensions)
+      .where(eq(userSuspensions.userId, userId))
+      .orderBy(desc(userSuspensions.createdAt));
+  }
+
+  async getAllActiveSuspensions(): Promise<UserSuspension[]> {
+    return db.select().from(userSuspensions)
+      .where(eq(userSuspensions.status, "ACTIVE"))
+      .orderBy(desc(userSuspensions.createdAt));
+  }
+
+  async liftSuspension(suspensionId: string, liftedBy: string, reason: string): Promise<UserSuspension | null> {
+    const [suspension] = await db.update(userSuspensions)
+      .set({
+        status: "LIFTED",
+        liftedAt: new Date(),
+        liftedBy,
+        liftReason: reason,
+        updatedAt: new Date(),
+      })
+      .where(eq(userSuspensions.id, suspensionId))
+      .returning();
+    return suspension || null;
+  }
+
+  async isUserSuspended(userId: string): Promise<boolean> {
+    const suspension = await this.getActiveSuspensionForUser(userId);
+    if (!suspension) return false;
+    if (suspension.expiresAt && new Date() > suspension.expiresAt) {
+      await db.update(userSuspensions)
+        .set({ status: "EXPIRED", updatedAt: new Date() })
+        .where(eq(userSuspensions.id, suspension.id));
+      return false;
+    }
+    return true;
+  }
+
+  async createSafetyAuditLog(data: InsertSafetyAuditLog): Promise<SafetyAuditLog> {
+    const [log] = await db.insert(safetyAuditLog).values(data).returning();
+    return log;
+  }
+
+  async getSafetyAuditLogsForUser(userId: string): Promise<SafetyAuditLog[]> {
+    return db.select().from(safetyAuditLog)
+      .where(eq(safetyAuditLog.userId, userId))
+      .orderBy(desc(safetyAuditLog.createdAt));
+  }
+
+  async getSafetyAuditLogsForIncident(incidentId: string): Promise<SafetyAuditLog[]> {
+    return db.select().from(safetyAuditLog)
+      .where(eq(safetyAuditLog.incidentId, incidentId))
+      .orderBy(desc(safetyAuditLog.createdAt));
+  }
+
+  async getAllSafetyAuditLogs(): Promise<SafetyAuditLog[]> {
+    return db.select().from(safetyAuditLog)
+      .orderBy(desc(safetyAuditLog.createdAt));
   }
 }
 
