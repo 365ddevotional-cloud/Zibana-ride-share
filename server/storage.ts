@@ -218,6 +218,19 @@ import {
   type InsertNavigationAuditLog,
   type DriverGpsInterruption,
   type InsertDriverGpsInterruption,
+  // Phase 3 - Ratings, Behavior Signals & Trust Scoring
+  tripRatings,
+  behaviorSignals,
+  userTrustProfiles,
+  trustAuditLog,
+  type TripRating,
+  type InsertTripRating,
+  type BehaviorSignal,
+  type InsertBehaviorSignal,
+  type UserTrustProfile,
+  type InsertUserTrustProfile,
+  type TrustAuditLog,
+  type InsertTrustAuditLog,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull } from "drizzle-orm";
@@ -409,6 +422,46 @@ export interface IStorage {
   // Admin views
   getAllDriverNavigationSetups(): Promise<DriverNavigationSetup[]>;
   getDriversWithGpsIssues(): Promise<DriverNavigationSetup[]>;
+
+  // =============================================
+  // PHASE 3: RATINGS, BEHAVIOR SIGNALS & TRUST SCORING
+  // =============================================
+  
+  // Trip ratings
+  createTripRating(data: InsertTripRating): Promise<TripRating>;
+  getTripRatingByRater(tripId: string, raterId: string): Promise<TripRating | null>;
+  getTripRatings(tripId: string): Promise<TripRating[]>;
+  getUserRatingsReceived(userId: string): Promise<TripRating[]>;
+  getUserRatingsGiven(userId: string): Promise<TripRating[]>;
+  getRecentRatingsForUser(userId: string, hoursBack: number): Promise<TripRating[]>;
+  updateTripRatingWeight(ratingId: string, weight: string, isDampened: boolean, reason?: string): Promise<TripRating | null>;
+  markRatingAsOutlier(ratingId: string): Promise<TripRating | null>;
+  
+  // Behavior signals
+  createBehaviorSignal(data: InsertBehaviorSignal): Promise<BehaviorSignal>;
+  getUserBehaviorSignals(userId: string): Promise<BehaviorSignal[]>;
+  getSignalsForTrip(tripId: string): Promise<BehaviorSignal[]>;
+  getRecentSignals(userId: string, hoursBack: number): Promise<BehaviorSignal[]>;
+  
+  // User trust profiles
+  getUserTrustProfile(userId: string): Promise<UserTrustProfile | null>;
+  createUserTrustProfile(data: InsertUserTrustProfile): Promise<UserTrustProfile>;
+  updateUserTrustProfile(userId: string, data: Partial<UserTrustProfile>): Promise<UserTrustProfile | null>;
+  getOrCreateUserTrustProfile(userId: string): Promise<UserTrustProfile>;
+  
+  // Trust audit log
+  createTrustAuditLog(data: InsertTrustAuditLog): Promise<TrustAuditLog>;
+  getUserTrustAuditLogs(userId: string): Promise<TrustAuditLog[]>;
+  getAllTrustAuditLogs(): Promise<TrustAuditLog[]>;
+  
+  // Admin trust views (read-only)
+  getAllUserTrustProfiles(): Promise<UserTrustProfile[]>;
+  getUserTrustDetails(userId: string): Promise<{
+    profile: UserTrustProfile | null;
+    ratingsReceived: TripRating[];
+    signals: BehaviorSignal[];
+    auditLogs: TrustAuditLog[];
+  }>;
 
   getDirectorProfile(userId: string): Promise<DirectorProfile | undefined>;
   createDirectorProfile(data: InsertDirectorProfile): Promise<DirectorProfile>;
@@ -6091,6 +6144,162 @@ export class DatabaseStorage implements IStorage {
         )
       )
       .orderBy(desc(driverNavigationSetup.lastGpsHeartbeat));
+  }
+
+  // =============================================
+  // PHASE 3: RATINGS, BEHAVIOR SIGNALS & TRUST SCORING
+  // =============================================
+
+  async createTripRating(data: InsertTripRating): Promise<TripRating> {
+    const [rating] = await db.insert(tripRatings).values(data).returning();
+    return rating;
+  }
+
+  async getTripRatingByRater(tripId: string, raterId: string): Promise<TripRating | null> {
+    const [rating] = await db.select().from(tripRatings)
+      .where(and(
+        eq(tripRatings.tripId, tripId),
+        eq(tripRatings.raterId, raterId)
+      ));
+    return rating || null;
+  }
+
+  async getTripRatings(tripId: string): Promise<TripRating[]> {
+    return db.select().from(tripRatings)
+      .where(eq(tripRatings.tripId, tripId))
+      .orderBy(desc(tripRatings.createdAt));
+  }
+
+  async getUserRatingsReceived(userId: string): Promise<TripRating[]> {
+    return db.select().from(tripRatings)
+      .where(eq(tripRatings.rateeId, userId))
+      .orderBy(desc(tripRatings.createdAt));
+  }
+
+  async getUserRatingsGiven(userId: string): Promise<TripRating[]> {
+    return db.select().from(tripRatings)
+      .where(eq(tripRatings.raterId, userId))
+      .orderBy(desc(tripRatings.createdAt));
+  }
+
+  async getRecentRatingsForUser(userId: string, hoursBack: number): Promise<TripRating[]> {
+    const threshold = new Date(Date.now() - hoursBack * 60 * 60 * 1000);
+    return db.select().from(tripRatings)
+      .where(and(
+        eq(tripRatings.rateeId, userId),
+        gte(tripRatings.createdAt, threshold)
+      ))
+      .orderBy(desc(tripRatings.createdAt));
+  }
+
+  async updateTripRatingWeight(ratingId: string, weight: string, isDampened: boolean, reason?: string): Promise<TripRating | null> {
+    const [rating] = await db.update(tripRatings)
+      .set({
+        effectiveWeight: weight,
+        isDampened,
+        dampeningReason: reason || null,
+      })
+      .where(eq(tripRatings.id, ratingId))
+      .returning();
+    return rating || null;
+  }
+
+  async markRatingAsOutlier(ratingId: string): Promise<TripRating | null> {
+    const [rating] = await db.update(tripRatings)
+      .set({ isOutlier: true })
+      .where(eq(tripRatings.id, ratingId))
+      .returning();
+    return rating || null;
+  }
+
+  async createBehaviorSignal(data: InsertBehaviorSignal): Promise<BehaviorSignal> {
+    const [signal] = await db.insert(behaviorSignals).values(data).returning();
+    return signal;
+  }
+
+  async getUserBehaviorSignals(userId: string): Promise<BehaviorSignal[]> {
+    return db.select().from(behaviorSignals)
+      .where(eq(behaviorSignals.userId, userId))
+      .orderBy(desc(behaviorSignals.createdAt));
+  }
+
+  async getSignalsForTrip(tripId: string): Promise<BehaviorSignal[]> {
+    return db.select().from(behaviorSignals)
+      .where(eq(behaviorSignals.tripId, tripId))
+      .orderBy(desc(behaviorSignals.createdAt));
+  }
+
+  async getRecentSignals(userId: string, hoursBack: number): Promise<BehaviorSignal[]> {
+    const threshold = new Date(Date.now() - hoursBack * 60 * 60 * 1000);
+    return db.select().from(behaviorSignals)
+      .where(and(
+        eq(behaviorSignals.userId, userId),
+        gte(behaviorSignals.createdAt, threshold)
+      ))
+      .orderBy(desc(behaviorSignals.createdAt));
+  }
+
+  async getUserTrustProfile(userId: string): Promise<UserTrustProfile | null> {
+    const [profile] = await db.select().from(userTrustProfiles)
+      .where(eq(userTrustProfiles.userId, userId));
+    return profile || null;
+  }
+
+  async createUserTrustProfile(data: InsertUserTrustProfile): Promise<UserTrustProfile> {
+    const [profile] = await db.insert(userTrustProfiles).values(data).returning();
+    return profile;
+  }
+
+  async updateUserTrustProfile(userId: string, data: Partial<UserTrustProfile>): Promise<UserTrustProfile | null> {
+    const [profile] = await db.update(userTrustProfiles)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(userTrustProfiles.userId, userId))
+      .returning();
+    return profile || null;
+  }
+
+  async getOrCreateUserTrustProfile(userId: string): Promise<UserTrustProfile> {
+    let profile = await this.getUserTrustProfile(userId);
+    if (!profile) {
+      profile = await this.createUserTrustProfile({ userId });
+    }
+    return profile;
+  }
+
+  async createTrustAuditLog(data: InsertTrustAuditLog): Promise<TrustAuditLog> {
+    const [log] = await db.insert(trustAuditLog).values(data).returning();
+    return log;
+  }
+
+  async getUserTrustAuditLogs(userId: string): Promise<TrustAuditLog[]> {
+    return db.select().from(trustAuditLog)
+      .where(eq(trustAuditLog.userId, userId))
+      .orderBy(desc(trustAuditLog.createdAt));
+  }
+
+  async getAllTrustAuditLogs(): Promise<TrustAuditLog[]> {
+    return db.select().from(trustAuditLog)
+      .orderBy(desc(trustAuditLog.createdAt));
+  }
+
+  async getAllUserTrustProfiles(): Promise<UserTrustProfile[]> {
+    return db.select().from(userTrustProfiles)
+      .orderBy(desc(userTrustProfiles.updatedAt));
+  }
+
+  async getUserTrustDetails(userId: string): Promise<{
+    profile: UserTrustProfile | null;
+    ratingsReceived: TripRating[];
+    signals: BehaviorSignal[];
+    auditLogs: TrustAuditLog[];
+  }> {
+    const [profile, ratingsReceived, signals, auditLogs] = await Promise.all([
+      this.getUserTrustProfile(userId),
+      this.getUserRatingsReceived(userId),
+      this.getUserBehaviorSignals(userId),
+      this.getUserTrustAuditLogs(userId),
+    ]);
+    return { profile, ratingsReceived, signals, auditLogs };
   }
 }
 
