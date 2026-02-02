@@ -257,6 +257,28 @@ import {
   type InsertChargebackFlag,
   type DisputeAuditLog,
   type InsertDisputeAuditLog,
+  // Compliance & Store Readiness
+  legalDocuments,
+  userConsents,
+  complianceAuditLog,
+  launchSettings,
+  killSwitchStates,
+  testUserFlags,
+  complianceConfirmations,
+  type LegalDocument,
+  type InsertLegalDocument,
+  type UserConsent,
+  type InsertUserConsent,
+  type ComplianceAuditLog,
+  type InsertComplianceAuditLog,
+  type LaunchSetting,
+  type InsertLaunchSetting,
+  type KillSwitchState,
+  type InsertKillSwitchState,
+  type TestUserFlag,
+  type InsertTestUserFlag,
+  type ComplianceConfirmation,
+  type InsertComplianceConfirmation,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull } from "drizzle-orm";
@@ -6772,6 +6794,278 @@ export class DatabaseStorage implements IStorage {
   async getAllDisputeAuditLogs(): Promise<DisputeAuditLog[]> {
     return db.select().from(disputeAuditLog)
       .orderBy(desc(disputeAuditLog.createdAt));
+  }
+
+  // =============================================
+  // COMPLIANCE & STORE READINESS STORAGE
+  // =============================================
+
+  async createLegalDocument(data: InsertLegalDocument): Promise<LegalDocument> {
+    const [doc] = await db.insert(legalDocuments).values(data).returning();
+    return doc;
+  }
+
+  async getLegalDocument(documentId: string): Promise<LegalDocument | null> {
+    const [doc] = await db.select().from(legalDocuments)
+      .where(eq(legalDocuments.id, documentId));
+    return doc || null;
+  }
+
+  async getActiveLegalDocuments(): Promise<LegalDocument[]> {
+    return db.select().from(legalDocuments)
+      .where(eq(legalDocuments.isActive, true))
+      .orderBy(desc(legalDocuments.effectiveDate));
+  }
+
+  async getActiveLegalDocumentByType(documentType: string): Promise<LegalDocument | null> {
+    const [doc] = await db.select().from(legalDocuments)
+      .where(and(
+        eq(legalDocuments.documentType, documentType as any),
+        eq(legalDocuments.isActive, true)
+      ))
+      .orderBy(desc(legalDocuments.effectiveDate))
+      .limit(1);
+    return doc || null;
+  }
+
+  async createUserConsent(data: InsertUserConsent): Promise<UserConsent> {
+    const [consent] = await db.insert(userConsents).values(data).returning();
+    return consent;
+  }
+
+  async getUserConsents(userId: string): Promise<UserConsent[]> {
+    return db.select().from(userConsents)
+      .where(eq(userConsents.userId, userId))
+      .orderBy(desc(userConsents.createdAt));
+  }
+
+  async getUserConsentByType(userId: string, consentType: string): Promise<UserConsent | null> {
+    const [consent] = await db.select().from(userConsents)
+      .where(and(
+        eq(userConsents.userId, userId),
+        eq(userConsents.consentType, consentType as any)
+      ))
+      .orderBy(desc(userConsents.createdAt))
+      .limit(1);
+    return consent || null;
+  }
+
+  async updateUserConsent(userId: string, consentType: string, granted: boolean): Promise<UserConsent | null> {
+    const existing = await this.getUserConsentByType(userId, consentType);
+    if (existing) {
+      const [updated] = await db.update(userConsents)
+        .set({
+          granted,
+          grantedAt: granted ? new Date() : null,
+          revokedAt: granted ? null : new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(userConsents.id, existing.id))
+        .returning();
+      return updated || null;
+    }
+    return null;
+  }
+
+  async hasRequiredConsents(userId: string, requiredTypes: string[]): Promise<boolean> {
+    const consents = await this.getUserConsents(userId);
+    const grantedTypes = consents
+      .filter(c => c.granted)
+      .map(c => c.consentType);
+    return requiredTypes.every(type => grantedTypes.includes(type as any));
+  }
+
+  async createComplianceAuditLog(data: InsertComplianceAuditLog): Promise<ComplianceAuditLog> {
+    const [log] = await db.insert(complianceAuditLog).values(data).returning();
+    return log;
+  }
+
+  async getComplianceAuditLogs(limit?: number): Promise<ComplianceAuditLog[]> {
+    const query = db.select().from(complianceAuditLog)
+      .orderBy(desc(complianceAuditLog.createdAt));
+    if (limit) {
+      return query.limit(limit);
+    }
+    return query;
+  }
+
+  async getComplianceAuditLogsByCategory(category: string): Promise<ComplianceAuditLog[]> {
+    return db.select().from(complianceAuditLog)
+      .where(eq(complianceAuditLog.category, category as any))
+      .orderBy(desc(complianceAuditLog.createdAt));
+  }
+
+  async getComplianceAuditLogsByUser(userId: string): Promise<ComplianceAuditLog[]> {
+    return db.select().from(complianceAuditLog)
+      .where(eq(complianceAuditLog.userId, userId))
+      .orderBy(desc(complianceAuditLog.createdAt));
+  }
+
+  async getLaunchSetting(settingKey: string): Promise<LaunchSetting | null> {
+    const [setting] = await db.select().from(launchSettings)
+      .where(eq(launchSettings.settingKey, settingKey));
+    return setting || null;
+  }
+
+  async setLaunchSetting(settingKey: string, value: boolean, changedBy: string, description?: string): Promise<LaunchSetting> {
+    const existing = await this.getLaunchSetting(settingKey);
+    if (existing) {
+      const [updated] = await db.update(launchSettings)
+        .set({
+          settingValue: value,
+          lastChangedBy: changedBy,
+          lastChangedAt: new Date(),
+        })
+        .where(eq(launchSettings.id, existing.id))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(launchSettings)
+      .values({
+        settingKey,
+        settingValue: value,
+        description,
+        lastChangedBy: changedBy,
+        lastChangedAt: new Date(),
+      })
+      .returning();
+    return created;
+  }
+
+  async getAllLaunchSettings(): Promise<LaunchSetting[]> {
+    return db.select().from(launchSettings);
+  }
+
+  async getKillSwitchState(switchName: string): Promise<KillSwitchState | null> {
+    const [state] = await db.select().from(killSwitchStates)
+      .where(eq(killSwitchStates.switchName, switchName));
+    return state || null;
+  }
+
+  async activateKillSwitch(switchName: string, reason: string, activatedBy: string): Promise<KillSwitchState> {
+    const existing = await this.getKillSwitchState(switchName);
+    if (existing) {
+      const [updated] = await db.update(killSwitchStates)
+        .set({
+          isActive: true,
+          reason,
+          activatedBy,
+          activatedAt: new Date(),
+          deactivatedBy: null,
+          deactivatedAt: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(killSwitchStates.id, existing.id))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(killSwitchStates)
+      .values({
+        switchName,
+        isActive: true,
+        reason,
+        activatedBy,
+        activatedAt: new Date(),
+      })
+      .returning();
+    return created;
+  }
+
+  async deactivateKillSwitch(switchName: string, deactivatedBy: string): Promise<KillSwitchState | null> {
+    const existing = await this.getKillSwitchState(switchName);
+    if (!existing) return null;
+    const [updated] = await db.update(killSwitchStates)
+      .set({
+        isActive: false,
+        deactivatedBy,
+        deactivatedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(killSwitchStates.id, existing.id))
+      .returning();
+    return updated || null;
+  }
+
+  async getAllKillSwitchStates(): Promise<KillSwitchState[]> {
+    return db.select().from(killSwitchStates);
+  }
+
+  async isKillSwitchActive(switchName: string): Promise<boolean> {
+    const state = await this.getKillSwitchState(switchName);
+    return state?.isActive || false;
+  }
+
+  async getTestUserFlag(userId: string): Promise<TestUserFlag | null> {
+    const [flag] = await db.select().from(testUserFlags)
+      .where(eq(testUserFlags.userId, userId));
+    return flag || null;
+  }
+
+  async markUserAsTest(userId: string, markedBy: string): Promise<TestUserFlag> {
+    const existing = await this.getTestUserFlag(userId);
+    if (existing) {
+      const [updated] = await db.update(testUserFlags)
+        .set({
+          isTestUser: true,
+          testBadge: "[TEST]",
+          excludeFromAnalytics: true,
+          excludeFromRevenue: true,
+        })
+        .where(eq(testUserFlags.id, existing.id))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(testUserFlags)
+      .values({
+        userId,
+        isTestUser: true,
+        testBadge: "[TEST]",
+        excludeFromAnalytics: true,
+        excludeFromRevenue: true,
+        markedBy,
+        markedAt: new Date(),
+      })
+      .returning();
+    return created;
+  }
+
+  async unmarkUserAsTest(userId: string): Promise<TestUserFlag | null> {
+    const existing = await this.getTestUserFlag(userId);
+    if (!existing) return null;
+    const [updated] = await db.update(testUserFlags)
+      .set({
+        isTestUser: false,
+        testBadge: null,
+      })
+      .where(eq(testUserFlags.id, existing.id))
+      .returning();
+    return updated || null;
+  }
+
+  async isTestUser(userId: string): Promise<boolean> {
+    const flag = await this.getTestUserFlag(userId);
+    return flag?.isTestUser || false;
+  }
+
+  async getAllTestUsers(): Promise<TestUserFlag[]> {
+    return db.select().from(testUserFlags)
+      .where(eq(testUserFlags.isTestUser, true));
+  }
+
+  async createComplianceConfirmation(data: InsertComplianceConfirmation): Promise<ComplianceConfirmation> {
+    const [confirmation] = await db.insert(complianceConfirmations).values(data).returning();
+    return confirmation;
+  }
+
+  async getUserComplianceConfirmations(userId: string): Promise<ComplianceConfirmation[]> {
+    return db.select().from(complianceConfirmations)
+      .where(eq(complianceConfirmations.userId, userId))
+      .orderBy(desc(complianceConfirmations.createdAt));
+  }
+
+  async hasComplianceConfirmation(userId: string, confirmationType: string): Promise<boolean> {
+    const confirmations = await this.getUserComplianceConfirmations(userId);
+    return confirmations.some(c => c.confirmationType === confirmationType);
   }
 }
 
