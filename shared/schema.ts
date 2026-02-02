@@ -2994,3 +2994,187 @@ export type InsertChargebackFlag = z.infer<typeof insertChargebackFlagSchema>;
 export type ChargebackFlag = typeof chargebackFlags.$inferSelect;
 export type InsertDisputeAuditLog = z.infer<typeof insertDisputeAuditLogSchema>;
 export type DisputeAuditLog = typeof disputeAuditLog.$inferSelect;
+
+// =============================================
+// COMPLIANCE & STORE READINESS ENUMS
+// =============================================
+
+export const legalDocumentTypeEnum = pgEnum("legal_document_type", [
+  "TERMS_OF_SERVICE",
+  "PRIVACY_POLICY",
+  "COMMUNITY_GUIDELINES",
+  "REFUND_DISPUTE_POLICY",
+]);
+
+export const consentTypeEnum = pgEnum("consent_type", [
+  "LOCATION_TRACKING",
+  "CAMERA_USAGE",
+  "BACKGROUND_SAFETY_MONITORING",
+  "TERMS_ACCEPTANCE",
+  "PRIVACY_ACCEPTANCE",
+]);
+
+export const auditCategoryEnum = pgEnum("audit_category", [
+  "RIDE_LIFECYCLE",
+  "PAYMENT_ATTEMPT",
+  "REFUND_DECISION",
+  "ADMIN_ACTION",
+  "SAFETY_INCIDENT",
+  "CONSENT_GRANTED",
+  "CONSENT_REVOKED",
+  "COMPLIANCE_CHECK",
+  "KILL_SWITCH_TOGGLE",
+  "LAUNCH_MODE_CHANGE",
+]);
+
+// =============================================
+// COMPLIANCE & STORE READINESS TABLES
+// =============================================
+
+// Legal documents (versioned policy documents)
+export const legalDocuments = pgTable("legal_documents", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  documentType: legalDocumentTypeEnum("document_type").notNull(),
+  version: varchar("version", { length: 20 }).notNull(),
+  title: varchar("title", { length: 200 }).notNull(),
+  content: text("content").notNull(),
+  effectiveDate: timestamp("effective_date").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdBy: varchar("created_by"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// User consent records (versioned, logged)
+export const userConsents = pgTable("user_consents", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  consentType: consentTypeEnum("consent_type").notNull(),
+  version: varchar("version", { length: 20 }).notNull(),
+  granted: boolean("granted").default(false).notNull(),
+  grantedAt: timestamp("granted_at"),
+  revokedAt: timestamp("revoked_at"),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  userAgent: text("user_agent"),
+  countryCode: varchar("country_code", { length: 3 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Compliance audit log (immutable, exportable)
+export const complianceAuditLog = pgTable("compliance_audit_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  category: auditCategoryEnum("category").notNull(),
+  userId: varchar("user_id"),
+  actionBy: varchar("action_by"),
+  actionByRole: varchar("action_by_role", { length: 50 }),
+  eventType: varchar("event_type", { length: 100 }).notNull(),
+  eventData: text("event_data"), // JSON stringified
+  tripId: varchar("trip_id"),
+  paymentId: varchar("payment_id"),
+  incidentId: varchar("incident_id"),
+  disputeId: varchar("dispute_id"),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  countryCode: varchar("country_code", { length: 3 }),
+  isTestMode: boolean("is_test_mode").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Launch mode settings (SUPER_ADMIN only)
+export const launchSettings = pgTable("launch_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  settingKey: varchar("setting_key", { length: 100 }).notNull().unique(),
+  settingValue: boolean("setting_value").default(false).notNull(),
+  description: text("description"),
+  lastChangedBy: varchar("last_changed_by"),
+  lastChangedAt: timestamp("last_changed_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Kill switch states (emergency controls)
+export const killSwitchStates = pgTable("kill_switch_states", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  switchName: varchar("switch_name", { length: 100 }).notNull().unique(),
+  isActive: boolean("is_active").default(false).notNull(),
+  reason: text("reason"),
+  activatedBy: varchar("activated_by"),
+  activatedAt: timestamp("activated_at"),
+  deactivatedBy: varchar("deactivated_by"),
+  deactivatedAt: timestamp("deactivated_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Test user flags (isolation tracking)
+export const testUserFlags = pgTable("test_user_flags", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique(),
+  isTestUser: boolean("is_test_user").default(false).notNull(),
+  testBadge: varchar("test_badge", { length: 50 }),
+  excludeFromAnalytics: boolean("exclude_from_analytics").default(true).notNull(),
+  excludeFromRevenue: boolean("exclude_from_revenue").default(true).notNull(),
+  markedBy: varchar("marked_by"),
+  markedAt: timestamp("marked_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// First app use compliance confirmation
+export const complianceConfirmations = pgTable("compliance_confirmations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  confirmationType: varchar("confirmation_type", { length: 100 }).notNull(),
+  confirmedAt: timestamp("confirmed_at").defaultNow().notNull(),
+  version: varchar("version", { length: 20 }).notNull(),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  deviceInfo: text("device_info"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Insert schemas
+export const insertLegalDocumentSchema = createInsertSchema(legalDocuments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertUserConsentSchema = createInsertSchema(userConsents).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertComplianceAuditLogSchema = createInsertSchema(complianceAuditLog).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertLaunchSettingSchema = createInsertSchema(launchSettings).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertKillSwitchStateSchema = createInsertSchema(killSwitchStates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertTestUserFlagSchema = createInsertSchema(testUserFlags).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertComplianceConfirmationSchema = createInsertSchema(complianceConfirmations).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Types
+export type InsertLegalDocument = z.infer<typeof insertLegalDocumentSchema>;
+export type LegalDocument = typeof legalDocuments.$inferSelect;
+export type InsertUserConsent = z.infer<typeof insertUserConsentSchema>;
+export type UserConsent = typeof userConsents.$inferSelect;
+export type InsertComplianceAuditLog = z.infer<typeof insertComplianceAuditLogSchema>;
+export type ComplianceAuditLog = typeof complianceAuditLog.$inferSelect;
+export type InsertLaunchSetting = z.infer<typeof insertLaunchSettingSchema>;
+export type LaunchSetting = typeof launchSettings.$inferSelect;
+export type InsertKillSwitchState = z.infer<typeof insertKillSwitchStateSchema>;
+export type KillSwitchState = typeof killSwitchStates.$inferSelect;
+export type InsertTestUserFlag = z.infer<typeof insertTestUserFlagSchema>;
+export type TestUserFlag = typeof testUserFlags.$inferSelect;
+export type InsertComplianceConfirmation = z.infer<typeof insertComplianceConfirmationSchema>;
+export type ComplianceConfirmation = typeof complianceConfirmations.$inferSelect;
