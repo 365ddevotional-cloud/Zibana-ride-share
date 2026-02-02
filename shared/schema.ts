@@ -2250,3 +2250,30 @@ export const PRODUCTION_SWITCH_DEFAULTS = {
   DRIVER_ONBOARDING_CAP: "50",
   DAILY_RIDE_LIMIT: "100",
 } as const;
+
+// =============================================
+// PHASE 1: UNIVERSAL IDENTITY FRAMEWORK SCHEMAS
+// =============================================
+
+export const insertUserIdentityProfileSchema = createInsertSchema(userIdentityProfiles).omit({
+  id: true,
+  identityVerified: true,
+  identityStatus: true,
+  governmentIdVerifiedAt: true,
+  driverLicenseVerifiedAt: true,
+  rejectionReason: true,
+  rejectedAt: true,
+  rejectedBy: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertIdentityAuditLogSchema = createInsertSchema(identityAuditLog).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertUserIdentityProfile = z.infer<typeof insertUserIdentityProfileSchema>;
+export type UserIdentityProfile = typeof userIdentityProfiles.$inferSelect;
+export type InsertIdentityAuditLog = z.infer<typeof insertIdentityAuditLogSchema>;
+export type IdentityAuditLog = typeof identityAuditLog.$inferSelect;
