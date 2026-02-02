@@ -10592,5 +10592,374 @@ export async function registerRoutes(
     }
   });
 
+  // =============================================
+  // PHASE 4: SAFETY & INCIDENT INTELLIGENCE ENDPOINTS
+  // =============================================
+
+  // SOS Trigger - available during active trips
+  app.post("/api/safety/sos", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.claims.sub;
+      const { tripId, isSilentMode, latitude, longitude, speed, routePolyline } = req.body;
+
+      if (!tripId) {
+        return res.status(400).json({ message: "Trip ID is required" });
+      }
+
+      const trip = await storage.getTripById(tripId);
+      if (!trip) {
+        return res.status(404).json({ message: "Trip not found" });
+      }
+
+      let role: "RIDER" | "DRIVER";
+      if (trip.riderId === userId) {
+        role = "RIDER";
+      } else if (trip.driverId === userId) {
+        role = "DRIVER";
+      } else {
+        return res.status(403).json({ message: "You are not part of this trip" });
+      }
+
+      const { triggerSos } = await import("./safety-guards");
+      const result = await triggerSos(tripId, userId, role, isSilentMode || false, {
+        latitude: latitude?.toString(),
+        longitude: longitude?.toString(),
+        speed: speed?.toString(),
+        routePolyline,
+      });
+
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
+      }
+
+      return res.json({
+        success: true,
+        triggerId: result.triggerId,
+        message: "SOS triggered successfully",
+      });
+    } catch (error) {
+      console.error("Error triggering SOS:", error);
+      return res.status(500).json({ message: "Failed to trigger SOS" });
+    }
+  });
+
+  // Report an incident
+  app.post("/api/safety/incident", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.claims.sub;
+      const { tripId, accusedUserId, incidentType, severity, description, evidenceMetadata } = req.body;
+
+      if (!tripId || !accusedUserId || !incidentType || !severity || !description) {
+        return res.status(400).json({ 
+          message: "Missing required fields: tripId, accusedUserId, incidentType, severity, description" 
+        });
+      }
+
+      const trip = await storage.getTripById(tripId);
+      if (!trip) {
+        return res.status(404).json({ message: "Trip not found" });
+      }
+
+      let role: "RIDER" | "DRIVER";
+      if (trip.riderId === userId) {
+        role = "RIDER";
+      } else if (trip.driverId === userId) {
+        role = "DRIVER";
+      } else {
+        return res.status(403).json({ message: "You are not part of this trip" });
+      }
+
+      const { reportIncident } = await import("./safety-guards");
+      const result = await reportIncident(
+        tripId,
+        userId,
+        role,
+        accusedUserId,
+        incidentType,
+        severity,
+        description,
+        evidenceMetadata,
+        trip.countryCode || undefined
+      );
+
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
+      }
+
+      return res.json({
+        success: true,
+        incidentId: result.incidentId,
+        autoSuspended: result.autoSuspended,
+        message: "Incident reported successfully",
+      });
+    } catch (error) {
+      console.error("Error reporting incident:", error);
+      return res.status(500).json({ message: "Failed to report incident" });
+    }
+  });
+
+  // Get user's reported incidents
+  app.get("/api/safety/my-incidents", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.claims.sub;
+      const incidents = await storage.getIncidentsByUser(userId);
+      return res.json(incidents);
+    } catch (error) {
+      console.error("Error getting incidents:", error);
+      return res.status(500).json({ message: "Failed to get incidents" });
+    }
+  });
+
+  // Check if user is suspended
+  app.get("/api/safety/suspension-status", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.claims.sub;
+      const isSuspended = await storage.isUserSuspended(userId);
+      const activeSuspension = isSuspended ? await storage.getActiveSuspensionForUser(userId) : null;
+      
+      return res.json({
+        isSuspended,
+        suspension: activeSuspension ? {
+          reason: activeSuspension.reason,
+          type: activeSuspension.suspensionType,
+          expiresAt: activeSuspension.expiresAt,
+        } : null,
+      });
+    } catch (error) {
+      console.error("Error checking suspension status:", error);
+      return res.status(500).json({ message: "Failed to check suspension status" });
+    }
+  });
+
+  // Admin: Get incident queue
+  app.get("/api/admin/safety/incidents", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const { getIncidentQueue } = await import("./safety-guards");
+      const incidents = await getIncidentQueue();
+      return res.json(incidents);
+    } catch (error) {
+      console.error("Error getting incident queue:", error);
+      return res.status(500).json({ message: "Failed to get incidents" });
+    }
+  });
+
+  // Admin: Get all incidents by status
+  app.get("/api/admin/safety/incidents/:status", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const incidents = await storage.getIncidentsByStatus(req.params.status);
+      return res.json(incidents);
+    } catch (error) {
+      console.error("Error getting incidents by status:", error);
+      return res.status(500).json({ message: "Failed to get incidents" });
+    }
+  });
+
+  // Admin: Get single incident details
+  app.get("/api/admin/safety/incident/:incidentId", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const incident = await storage.getIncident(req.params.incidentId);
+      if (!incident) {
+        return res.status(404).json({ message: "Incident not found" });
+      }
+      
+      const auditLogs = await storage.getSafetyAuditLogsForIncident(req.params.incidentId);
+      return res.json({ incident, auditLogs });
+    } catch (error) {
+      console.error("Error getting incident:", error);
+      return res.status(500).json({ message: "Failed to get incident" });
+    }
+  });
+
+  // Admin: Review incident (assign to self)
+  app.post("/api/admin/safety/incident/:incidentId/review", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const adminId = req.user!.claims.sub;
+      const { adminReviewIncident } = await import("./safety-guards");
+      const result = await adminReviewIncident(req.params.incidentId, adminId);
+
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
+      }
+
+      return res.json({ success: true, message: "Incident under review" });
+    } catch (error) {
+      console.error("Error reviewing incident:", error);
+      return res.status(500).json({ message: "Failed to review incident" });
+    }
+  });
+
+  // Admin: Approve incident (resolve)
+  app.post("/api/admin/safety/incident/:incidentId/approve", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const adminId = req.user!.claims.sub;
+      const { notes, suspendUser, isPermanentBan } = req.body;
+
+      if (!notes) {
+        return res.status(400).json({ message: "Notes are required" });
+      }
+
+      const { adminApproveIncident } = await import("./safety-guards");
+      const result = await adminApproveIncident(
+        req.params.incidentId,
+        adminId,
+        notes,
+        suspendUser || false,
+        isPermanentBan || false
+      );
+
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
+      }
+
+      return res.json({ success: true, message: "Incident approved and resolved" });
+    } catch (error) {
+      console.error("Error approving incident:", error);
+      return res.status(500).json({ message: "Failed to approve incident" });
+    }
+  });
+
+  // Admin: Dismiss incident
+  app.post("/api/admin/safety/incident/:incidentId/dismiss", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const adminId = req.user!.claims.sub;
+      const { reason } = req.body;
+
+      if (!reason) {
+        return res.status(400).json({ message: "Dismissal reason is required" });
+      }
+
+      const { adminDismissIncident } = await import("./safety-guards");
+      const result = await adminDismissIncident(req.params.incidentId, adminId, reason);
+
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
+      }
+
+      return res.json({ success: true, message: "Incident dismissed" });
+    } catch (error) {
+      console.error("Error dismissing incident:", error);
+      return res.status(500).json({ message: "Failed to dismiss incident" });
+    }
+  });
+
+  // Admin: Escalate incident
+  app.post("/api/admin/safety/incident/:incidentId/escalate", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const adminId = req.user!.claims.sub;
+      const { reason } = req.body;
+
+      if (!reason) {
+        return res.status(400).json({ message: "Escalation reason is required" });
+      }
+
+      const { adminEscalateIncident } = await import("./safety-guards");
+      const result = await adminEscalateIncident(req.params.incidentId, adminId, reason);
+
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
+      }
+
+      return res.json({ success: true, message: "Incident escalated" });
+    } catch (error) {
+      console.error("Error escalating incident:", error);
+      return res.status(500).json({ message: "Failed to escalate incident" });
+    }
+  });
+
+  // Admin: Get all active suspensions
+  app.get("/api/admin/safety/suspensions", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const { getAllSuspensions } = await import("./safety-guards");
+      const suspensions = await getAllSuspensions();
+      return res.json(suspensions);
+    } catch (error) {
+      console.error("Error getting suspensions:", error);
+      return res.status(500).json({ message: "Failed to get suspensions" });
+    }
+  });
+
+  // Admin: Ban user permanently
+  app.post("/api/admin/safety/ban/:userId", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const adminId = req.user!.claims.sub;
+      const { reason, relatedIncidentId } = req.body;
+
+      if (!reason) {
+        return res.status(400).json({ message: "Ban reason is required" });
+      }
+
+      const { adminBanUser } = await import("./safety-guards");
+      const result = await adminBanUser(req.params.userId, adminId, reason, relatedIncidentId);
+
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
+      }
+
+      return res.json({ success: true, suspensionId: result.suspensionId, message: "User permanently banned" });
+    } catch (error) {
+      console.error("Error banning user:", error);
+      return res.status(500).json({ message: "Failed to ban user" });
+    }
+  });
+
+  // Admin: Lift suspension
+  app.post("/api/admin/safety/suspension/:suspensionId/lift", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const adminId = req.user!.claims.sub;
+      const { reason } = req.body;
+
+      if (!reason) {
+        return res.status(400).json({ message: "Lift reason is required" });
+      }
+
+      const { liftUserSuspension } = await import("./safety-guards");
+      const result = await liftUserSuspension(req.params.suspensionId, adminId, reason);
+
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
+      }
+
+      return res.json({ success: true, message: "Suspension lifted" });
+    } catch (error) {
+      console.error("Error lifting suspension:", error);
+      return res.status(500).json({ message: "Failed to lift suspension" });
+    }
+  });
+
+  // Admin: Get user safety profile
+  app.get("/api/admin/safety/user/:userId", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const { getUserSafetyProfile } = await import("./safety-guards");
+      const profile = await getUserSafetyProfile(req.params.userId);
+      return res.json(profile);
+    } catch (error) {
+      console.error("Error getting user safety profile:", error);
+      return res.status(500).json({ message: "Failed to get user safety profile" });
+    }
+  });
+
+  // Admin: Get all safety audit logs
+  app.get("/api/admin/safety/audit-logs", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const { getSafetyAuditLogs } = await import("./safety-guards");
+      const logs = await getSafetyAuditLogs();
+      return res.json(logs);
+    } catch (error) {
+      console.error("Error getting safety audit logs:", error);
+      return res.status(500).json({ message: "Failed to get audit logs" });
+    }
+  });
+
+  // Admin: Get SOS triggers for a trip
+  app.get("/api/admin/safety/sos/trip/:tripId", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const triggers = await storage.getSosTriggersByTrip(req.params.tripId);
+      return res.json(triggers);
+    } catch (error) {
+      console.error("Error getting SOS triggers:", error);
+      return res.status(500).json({ message: "Failed to get SOS triggers" });
+    }
+  });
+
   return httpServer;
 }
