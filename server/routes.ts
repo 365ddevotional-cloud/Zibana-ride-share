@@ -2253,7 +2253,31 @@ export async function registerRoutes(
     try {
       const adminUserId = req.user.claims.sub;
       const { userId } = req.params;
-      const { verified } = req.body;
+      const { verified, ninNumber } = req.body;
+      
+      // If verifying with NIN number, check for duplicates
+      if (verified && ninNumber) {
+        const ninHash = require("crypto").createHash("sha256").update(ninNumber.trim().toUpperCase()).digest("hex");
+        
+        // Check if any other driver has this NIN hash
+        const existingDriver = await storage.getDriverByNinHash(ninHash);
+        if (existingDriver && existingDriver.userId !== userId) {
+          console.log(`[FRAUD] Duplicate NIN detected: userId=${userId}, existingDriver=${existingDriver.userId}, by=${adminUserId}`);
+          return res.status(400).json({ message: "This NIN is already registered to another driver. Fraud detected." });
+        }
+        
+        const updated = await storage.updateDriverProfile(userId, {
+          isNINVerified: true,
+          ninHash: ninHash,
+        });
+        
+        if (!updated) {
+          return res.status(404).json({ message: "Driver not found" });
+        }
+        
+        console.log(`[AUDIT] Driver NIN verified with hash: userId=${userId}, by=${adminUserId}`);
+        return res.json(updated);
+      }
       
       const updated = await storage.updateDriverProfile(userId, {
         isNINVerified: verified === true,
@@ -2275,7 +2299,31 @@ export async function registerRoutes(
     try {
       const adminUserId = req.user.claims.sub;
       const { userId } = req.params;
-      const { verified } = req.body;
+      const { verified, licenseNumber } = req.body;
+      
+      // If verifying with license number, check for duplicates
+      if (verified && licenseNumber) {
+        const licenseHash = require("crypto").createHash("sha256").update(licenseNumber.trim().toUpperCase()).digest("hex");
+        
+        // Check if any other driver has this license hash
+        const existingDriver = await storage.getDriverByLicenseHash(licenseHash);
+        if (existingDriver && existingDriver.userId !== userId) {
+          console.log(`[FRAUD] Duplicate license detected: userId=${userId}, existingDriver=${existingDriver.userId}, by=${adminUserId}`);
+          return res.status(400).json({ message: "This driver's license is already registered to another driver. Fraud detected." });
+        }
+        
+        const updated = await storage.updateDriverProfile(userId, {
+          isDriversLicenseVerified: true,
+          driversLicenseHash: licenseHash,
+        });
+        
+        if (!updated) {
+          return res.status(404).json({ message: "Driver not found" });
+        }
+        
+        console.log(`[AUDIT] Driver license verified with hash: userId=${userId}, by=${adminUserId}`);
+        return res.json(updated);
+      }
       
       const updated = await storage.updateDriverProfile(userId, {
         isDriversLicenseVerified: verified === true,

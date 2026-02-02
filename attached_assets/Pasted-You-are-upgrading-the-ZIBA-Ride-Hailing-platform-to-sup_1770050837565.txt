@@ -1,0 +1,106 @@
+You are upgrading the ZIBA Ride-Hailing platform to support FULL Nigeria bank integrations for driver withdrawals, with strict identity verification, currency consistency, and fraud protection.
+
+THIS IS A BLOCKING STEP. IMPLEMENT COMPLETELY.
+
+GOALS (DO NOT SKIP ANY):
+
+1) NIGERIA BANK WITHDRAWAL INTEGRATION
+- Enable driver withdrawals to Nigerian bank accounts only.
+- Supported payout currency: NGN ONLY.
+- No USD, no cross-currency, no conversion.
+- Wallet currency, ride fare currency, payout currency MUST ALL MATCH (NGN).
+
+2) DRIVER BANK ACCOUNT MODEL
+Create or extend a driverBankAccounts model with:
+- driverId
+- bankName
+- bankCode
+- accountNumber
+- accountName
+- countryCode = "NG"
+- isVerified (boolean)
+- createdAt
+
+Rules:
+- One bank account per driver.
+- One bank account cannot be reused by multiple drivers.
+- Bank account must be verified before withdrawals are allowed.
+
+3) IDENTITY & RESIDENCE VERIFICATION (NIGERIA)
+Driver MUST have ALL of the following verified before withdrawal:
+- Government ID (Nigeria-specific)
+- Residential address (must match ID)
+- NIN (Nigeria National Identification Number)
+- Valid Driver’s License
+
+Store verification flags server-side:
+- isIdentityVerified
+- isAddressVerified
+- isNINVerified
+- isDriversLicenseVerified
+
+If ANY is false → block withdrawals.
+
+4) WITHDRAWAL RULES & SAFETY
+- Only VERIFIED drivers can withdraw.
+- Test drivers CANNOT withdraw real funds.
+- Minimum withdrawal amount (Nigeria): ₦1,000
+- Withdrawals only from EARNINGS WALLET (not test wallet).
+- Suspended drivers are blocked from withdrawals and from going online.
+
+5) DRIVER WITHDRAWALS SYSTEM
+Create a driverWithdrawals table with:
+- driverId
+- amount
+- currencyCode = NGN
+- status (PENDING | APPROVED | REJECTED | PAID)
+- bankAccountId
+- requestedAt
+- processedAt
+- processedByAdminId
+
+All withdrawal logic MUST be server-side enforced.
+
+6) REVENUE SPLIT ENFORCEMENT
+Enforce revenue split at trip completion:
+- 80% → Driver earnings wallet
+- 20% → ZIBA commission wallet
+
+NO hard-coded values.
+NO rounding errors.
+Totals must reconcile exactly.
+
+7) ADMIN CONTROLS
+Admin must be able to:
+- View all driver bank accounts
+- Approve or reject withdrawal requests
+- View full audit trail
+- See country-specific rules enforced
+
+8) FRAUD PREVENTION
+- Block multiple drivers sharing the same NIN.
+- Block multiple drivers sharing the same bank account.
+- Log all violations.
+
+9) UI / UX REQUIREMENTS
+- Driver dashboard must show:
+  - Linked bank account
+  - Verification status checklist
+  - Withdrawal eligibility status
+- Withdrawal button must be DISABLED until all requirements are met.
+
+10) DOCUMENTATION
+- Update replit.md with:
+  - Nigeria withdrawal flow
+  - Verification requirements
+  - Revenue split rules
+  - Fraud safeguards
+
+IMPORTANT CONSTRAINTS:
+- DO NOT provide sample data.
+- DO NOT remove existing features.
+- DO NOT explain the implementation.
+- DO NOT ask questions.
+- IMPLEMENT AND ENFORCE SERVER-SIDE.
+
+This upgrade must be production-grade, secure, and irreversible.

@@ -234,6 +234,8 @@ export interface IStorage {
   getThemePreference(userId: string): Promise<"light" | "dark" | "system">;
 
   getDriverProfile(userId: string): Promise<DriverProfile | undefined>;
+  getDriverByNinHash(ninHash: string): Promise<DriverProfile | undefined>;
+  getDriverByLicenseHash(licenseHash: string): Promise<DriverProfile | undefined>;
   createDriverProfile(data: InsertDriverProfile): Promise<DriverProfile>;
   updateDriverProfile(userId: string, data: Partial<InsertDriverProfile>): Promise<DriverProfile | undefined>;
   updateDriverOnlineStatus(userId: string, isOnline: boolean): Promise<DriverProfile | undefined>;
@@ -959,6 +961,16 @@ export class DatabaseStorage implements IStorage {
 
   async getDriverProfile(userId: string): Promise<DriverProfile | undefined> {
     const [profile] = await db.select().from(driverProfiles).where(eq(driverProfiles.userId, userId));
+    return profile;
+  }
+
+  async getDriverByNinHash(ninHash: string): Promise<DriverProfile | undefined> {
+    const [profile] = await db.select().from(driverProfiles).where(eq(driverProfiles.ninHash, ninHash));
+    return profile;
+  }
+
+  async getDriverByLicenseHash(licenseHash: string): Promise<DriverProfile | undefined> {
+    const [profile] = await db.select().from(driverProfiles).where(eq(driverProfiles.driversLicenseHash, licenseHash));
     return profile;
   }
 

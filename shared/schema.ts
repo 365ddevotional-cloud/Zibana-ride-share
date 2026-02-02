@@ -352,6 +352,9 @@ export const driverProfiles = pgTable("driver_profiles", {
   isDriversLicenseVerified: boolean("is_drivers_license_verified").notNull().default(false),
   isAddressVerified: boolean("is_address_verified").notNull().default(false),
   isIdentityVerified: boolean("is_identity_verified").notNull().default(false),
+  // Nigeria fraud prevention - hashed document numbers for uniqueness checks
+  ninHash: varchar("nin_hash", { length: 128 }), // SHA-256 hash of NIN for duplicate detection
+  driversLicenseHash: varchar("drivers_license_hash", { length: 128 }), // SHA-256 hash of license number
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

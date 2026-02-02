@@ -65,3 +65,84 @@ Preferred communication style: Simple, everyday language.
 - `@tanstack/react-query`: Data fetching and caching.
 - `shadcn/ui`: UI component library.
 - `zod`: Runtime schema validation.
+
+## Nigeria Driver Withdrawal System
+
+### Overview
+The platform supports driver withdrawals to Nigerian bank accounts with strict identity verification, currency consistency, and fraud protection.
+
+### Supported Banks
+Nigerian banks supported for withdrawals include: Access Bank, Citibank Nigeria, Ecobank Nigeria, Fidelity Bank, First Bank of Nigeria, First City Monument Bank, Guaranty Trust Bank, Heritage Bank, Keystone Bank, Polaris Bank, Stanbic IBTC Bank, Standard Chartered Bank, Sterling Bank, Union Bank of Nigeria, United Bank for Africa, Unity Bank, Wema Bank, Zenith Bank, Opay, Kuda Microfinance Bank, Moniepoint Microfinance Bank, and PalmPay.
+
+### Withdrawal Flow
+1. Driver adds bank account details (one account per driver)
+2. Admin verifies bank account
+3. Driver submits verification documents (NIN + Driver's License)
+4. Admin verifies each document with fraud check
+5. Once all verifications pass, driver can request withdrawals
+6. Admin approves/rejects withdrawal requests
+7. Admin marks withdrawal as paid after processing
+
+### Verification Requirements (Nigeria)
+Drivers must have ALL of the following verified before withdrawal:
+- **NIN (National Identification Number)**: Verified by admin, hash stored for duplicate detection
+- **Driver's License**: Verified by admin, hash stored for duplicate detection
+- **Residential Address**: Must match ID documents
+- **Identity Verification**: Live photo verification with admin review
+- **Bank Account**: Must be verified by admin before withdrawals
+
+### Withdrawal Rules
+- **Currency**: NGN only (wallet, fare, and payout must all match)
+- **Minimum Withdrawal**: ₦1,000
+- **Source**: Earnings wallet only (not test wallet)
+- **Eligibility**: Only fully verified drivers can withdraw
+- **Test Drivers**: Cannot withdraw real funds
+- **Suspended Drivers**: Blocked from withdrawals and going online
+
+### Fraud Prevention
+- **NIN Hash**: SHA-256 hash stored; blocks multiple drivers with same NIN
+- **License Hash**: SHA-256 hash stored; blocks duplicate license registrations
+- **Bank Account Hash**: SHA-256 hash of account number; prevents account reuse across drivers
+- **One Account Rule**: Each driver can only have one bank account
+- **Audit Trail**: All verifications, withdrawals, and fraud violations are logged
+
+### Revenue Split
+- **Driver Earnings**: 80% of fare
+- **Platform Commission**: 20% of fare
+- **Enforcement**: Server-side calculation with integer-safe math
+- **Ledger**: Append-only `revenueSplitLedger` table for reconciliation
+
+### Admin Controls
+- View all driver bank accounts
+- Verify/unverify bank accounts
+- Verify NIN, License, Address, Identity with document numbers
+- Approve/reject withdrawal requests
+- Mark withdrawals as paid
+- View full audit trail
+
+### Database Tables
+- `driverBankAccounts`: Bank account details with account number hash
+- `driverWithdrawals`: Withdrawal requests with status tracking
+- `driverProfiles`: Includes verification flags and document hashes
+- `revenueSplitLedger`: Immutable record of all revenue splits
+
+### API Endpoints
+**Driver Endpoints:**
+- `GET /api/driver/bank-account`: Get driver's bank account and verification status
+- `POST /api/driver/bank-account`: Add bank account
+- `PATCH /api/driver/bank-account`: Update bank account
+- `GET /api/driver/withdrawal-eligibility`: Check withdrawal eligibility
+- `GET /api/driver/withdrawals`: Get withdrawal history
+- `POST /api/driver/withdrawals`: Request withdrawal
+
+**Admin Endpoints:**
+- `GET /api/admin/bank-accounts`: List all driver bank accounts
+- `POST /api/admin/bank-accounts/:driverId/verify`: Verify bank account
+- `POST /api/admin/drivers/:userId/verify-nin`: Verify NIN with fraud check
+- `POST /api/admin/drivers/:userId/verify-license`: Verify license with fraud check
+- `POST /api/admin/drivers/:userId/verify-address`: Verify address
+- `POST /api/admin/drivers/:userId/verify-identity`: Verify identity
+- `GET /api/admin/withdrawals`: List all withdrawal requests
+- `POST /api/admin/withdrawals/:id/approve`: Approve withdrawal
+- `POST /api/admin/withdrawals/:id/reject`: Reject withdrawal
+- `POST /api/admin/withdrawals/:id/paid`: Mark withdrawal as paid
