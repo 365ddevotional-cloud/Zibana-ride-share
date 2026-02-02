@@ -1,0 +1,108 @@
+SYSTEM DIRECTIVE — PHASE 4: SAFETY & INCIDENT INTELLIGENCE (LOCKED)
+
+You are working on the ZIBA Ride Share codebase.
+
+OBJECTIVE:
+Implement an enterprise-grade Safety & Incident Intelligence system that protects riders and drivers in real time, enforces consequences automatically, and integrates with Identity (Phase 1), Navigation (Phase 2), Trust (Phase 3), and the Financial Engine — WITHOUT modifying existing logic.
+
+RULES:
+- DO NOT ask follow-up questions.
+- DO NOT add unrelated features.
+- DO NOT weaken or bypass existing guards.
+- ALL enforcement must be server-side.
+- Proceed deterministically.
+- Lock the system when complete.
+
+====================================
+PHASE 4 REQUIREMENTS
+====================================
+
+1) IN-RIDE SAFETY (DRIVER & RIDER)
+- Add Panic / SOS trigger available during active trips
+- Support silent mode (no audible alert)
+- On trigger, immediately snapshot:
+  - tripId
+  - riderId
+  - driverId
+  - GPS coordinates
+  - speed
+  - route polyline
+  - timestamp
+- Snapshot must be immutable
+
+2) INCIDENT REPORTING SYSTEM
+- Create Incident table with:
+  - incidentId
+  - tripId
+  - reporterRole (RIDER | DRIVER)
+  - accusedUserId
+  - incidentType (HARASSMENT, ASSAULT, UNSAFE_DRIVING, PAYMENT_COERCION, ACCIDENT, OTHER)
+  - severity (LOW | MEDIUM | HIGH | CRITICAL)
+  - description
+  - evidenceMetadata (no edit after submit)
+  - status (OPEN | UNDER_REVIEW | RESOLVED | DISMISSED)
+  - createdAt
+- Incidents cannot be edited after submission
+
+3) AUTOMATED SAFETY INTELLIGENCE
+- Auto-escalate incidents based on:
+  - severity
+  - trust score (Phase 3)
+  - prior incident history
+- Rules:
+  - HIGH or CRITICAL → immediate temporary suspension
+  - Repeated MEDIUM incidents → escalation
+- Suspended users:
+  - cannot go online
+  - cannot accept rides
+  - cannot withdraw funds
+
+4) ADMIN INCIDENT QUEUE
+- Add Admin Incident Queue
+- Admin actions:
+  - approve
+  - dismiss (with reason)
+  - escalate
+  - permanently ban
+- All actions must log:
+  - adminId
+  - timestamp
+  - decision
+  - reason
+
+5) ENFORCEMENT PROPAGATION
+- Suspension must propagate instantly to:
+  - Identity system
+  - Navigation system
+  - Trust engine
+  - Financial engine
+- No client-side bypass possible
+
+6) AUDIT & COMPLIANCE
+- Immutable audit log for:
+  - incident creation
+  - safety triggers
+  - admin decisions
+- Logs must be queryable by admin only
+
+7) GLOBAL POLICY SUPPORT
+- Core safety logic is global
+- Country-specific escalation thresholds allowed via config
+- Default behavior identical across all countries
+
+8) SYSTEM LOCK
+- Set SAFETY_ENGINE_LOCKED = true
+- Assert lock at runtime
+- No Phase 1–3 logic may be modified
+
+====================================
+DELIVERABLES
+====================================
+- Database schema updates
+- Server-side enforcement logic
+- Admin endpoints (read/write where allowed)
+- Safety trigger endpoints
+- Incident intelligence rules
+- Lock confirmation summary
+
+Proceed with implementation.

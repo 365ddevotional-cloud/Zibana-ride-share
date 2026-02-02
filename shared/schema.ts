@@ -2655,3 +2655,171 @@ export type InsertUserTrustProfile = z.infer<typeof insertUserTrustProfileSchema
 export type UserTrustProfile = typeof userTrustProfiles.$inferSelect;
 export type InsertTrustAuditLog = z.infer<typeof insertTrustAuditLogSchema>;
 export type TrustAuditLog = typeof trustAuditLog.$inferSelect;
+
+// =============================================
+// PHASE 4: SAFETY & INCIDENT INTELLIGENCE
+// =============================================
+
+export const incidentTypeEnum = pgEnum("incident_type", [
+  "HARASSMENT",
+  "ASSAULT", 
+  "UNSAFE_DRIVING",
+  "PAYMENT_COERCION",
+  "ACCIDENT",
+  "OTHER"
+]);
+
+export const incidentSeverityEnum = pgEnum("incident_severity", [
+  "LOW",
+  "MEDIUM",
+  "HIGH",
+  "CRITICAL"
+]);
+
+export const incidentStatusEnum = pgEnum("incident_status", [
+  "OPEN",
+  "UNDER_REVIEW",
+  "RESOLVED",
+  "DISMISSED"
+]);
+
+export const reporterRoleEnum = pgEnum("reporter_role", ["RIDER", "DRIVER"]);
+
+export const suspensionTypeEnum = pgEnum("suspension_type", [
+  "TEMPORARY",
+  "PERMANENT"
+]);
+
+export const suspensionStatusEnum = pgEnum("suspension_status", [
+  "ACTIVE",
+  "LIFTED",
+  "EXPIRED"
+]);
+
+export const safetyAuditActionEnum = pgEnum("safety_audit_action", [
+  "INCIDENT_CREATED",
+  "SOS_TRIGGERED",
+  "ADMIN_REVIEWED",
+  "ADMIN_APPROVED",
+  "ADMIN_DISMISSED",
+  "ADMIN_ESCALATED",
+  "USER_SUSPENDED",
+  "USER_BANNED",
+  "SUSPENSION_LIFTED",
+  "AUTO_ESCALATED"
+]);
+
+// SOS Safety Triggers - immutable snapshots
+export const sosTriggers = pgTable("sos_triggers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tripId: varchar("trip_id").notNull(),
+  triggeredBy: varchar("triggered_by").notNull(),
+  triggeredByRole: reporterRoleEnum("triggered_by_role").notNull(),
+  isSilentMode: boolean("is_silent_mode").default(false),
+  latitude: decimal("latitude", { precision: 10, scale: 7 }),
+  longitude: decimal("longitude", { precision: 10, scale: 7 }),
+  speed: decimal("speed", { precision: 6, scale: 2 }),
+  routePolyline: text("route_polyline"),
+  riderId: varchar("rider_id").notNull(),
+  driverId: varchar("driver_id"),
+  tripStatus: text("trip_status"),
+  snapshotData: text("snapshot_data"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Incidents - immutable after submission
+export const incidents = pgTable("incidents", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tripId: varchar("trip_id").notNull(),
+  reporterId: varchar("reporter_id").notNull(),
+  reporterRole: reporterRoleEnum("reporter_role").notNull(),
+  accusedUserId: varchar("accused_user_id").notNull(),
+  incidentType: incidentTypeEnum("incident_type").notNull(),
+  severity: incidentSeverityEnum("severity").notNull(),
+  description: text("description").notNull(),
+  evidenceMetadata: text("evidence_metadata"),
+  status: incidentStatusEnum("status").default("OPEN").notNull(),
+  assignedAdminId: varchar("assigned_admin_id"),
+  autoEscalated: boolean("auto_escalated").default(false),
+  escalationReason: text("escalation_reason"),
+  resolutionNotes: text("resolution_notes"),
+  resolvedAt: timestamp("resolved_at"),
+  resolvedBy: varchar("resolved_by"),
+  countryCode: varchar("country_code", { length: 2 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// User Suspensions
+export const userSuspensions = pgTable("user_suspensions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  suspensionType: suspensionTypeEnum("suspension_type").notNull(),
+  status: suspensionStatusEnum("status").default("ACTIVE").notNull(),
+  reason: text("reason").notNull(),
+  relatedIncidentId: varchar("related_incident_id"),
+  suspendedBy: varchar("suspended_by").notNull(),
+  expiresAt: timestamp("expires_at"),
+  liftedAt: timestamp("lifted_at"),
+  liftedBy: varchar("lifted_by"),
+  liftReason: text("lift_reason"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Safety Audit Log - immutable
+export const safetyAuditLog = pgTable("safety_audit_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id"),
+  incidentId: varchar("incident_id"),
+  sosTriggerId: varchar("sos_trigger_id"),
+  suspensionId: varchar("suspension_id"),
+  actionType: safetyAuditActionEnum("action_type").notNull(),
+  actionBy: varchar("action_by"),
+  actionByRole: text("action_by_role"),
+  reason: text("reason"),
+  previousState: text("previous_state"),
+  newState: text("new_state"),
+  metadata: text("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Insert schemas
+export const insertSosTriggerSchema = createInsertSchema(sosTriggers).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertIncidentSchema = createInsertSchema(incidents).omit({
+  id: true,
+  createdAt: true,
+  resolvedAt: true,
+  resolvedBy: true,
+  autoEscalated: true,
+  escalationReason: true,
+  resolutionNotes: true,
+  assignedAdminId: true,
+});
+
+export const insertUserSuspensionSchema = createInsertSchema(userSuspensions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  liftedAt: true,
+  liftedBy: true,
+  liftReason: true,
+});
+
+export const insertSafetyAuditLogSchema = createInsertSchema(safetyAuditLog).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Types
+export type InsertSosTrigger = z.infer<typeof insertSosTriggerSchema>;
+export type SosTrigger = typeof sosTriggers.$inferSelect;
+export type InsertIncident = z.infer<typeof insertIncidentSchema>;
+export type Incident = typeof incidents.$inferSelect;
+export type InsertUserSuspension = z.infer<typeof insertUserSuspensionSchema>;
+export type UserSuspension = typeof userSuspensions.$inferSelect;
+export type InsertSafetyAuditLog = z.infer<typeof insertSafetyAuditLogSchema>;
+export type SafetyAuditLog = typeof safetyAuditLog.$inferSelect;
