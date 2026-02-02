@@ -224,9 +224,11 @@ export const identityVerificationMethodEnum = pgEnum("identity_verification_meth
 // Driver withdrawal status enum
 export const driverWithdrawalStatusEnum = pgEnum("driver_withdrawal_status", [
   "pending",
+  "approved",
   "processing",
   "paid",
   "failed",
+  "rejected",
   "blocked"
 ]);
 
@@ -317,6 +319,11 @@ export const driverWithdrawals = pgTable("driver_withdrawals", {
   bankAccountId: varchar("bank_account_id"), // Reference to driver_bank_accounts
   status: driverWithdrawalStatusEnum("status").notNull().default("pending"),
   blockReason: text("block_reason"),
+  // Payout provider fields
+  payoutProvider: varchar("payout_provider", { length: 50 }), // paystack, flutterwave, manual
+  providerReference: varchar("provider_reference", { length: 255 }), // Provider's transfer ID
+  providerStatus: varchar("provider_status", { length: 50 }), // Provider-specific status
+  providerError: text("provider_error"), // Error message from provider if failed
   requestedAt: timestamp("requested_at").defaultNow(),
   processedAt: timestamp("processed_at"),
   processedBy: varchar("processed_by"),

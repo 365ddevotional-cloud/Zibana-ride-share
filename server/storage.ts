@@ -300,8 +300,11 @@ export interface IStorage {
   // Driver Withdrawal methods
   createDriverWithdrawal(data: InsertDriverWithdrawal): Promise<DriverWithdrawal>;
   getDriverWithdrawals(driverId: string): Promise<DriverWithdrawal[]>;
+  getDriverWithdrawalById(withdrawalId: string): Promise<DriverWithdrawal | null>;
   getPendingDriverWithdrawals(): Promise<DriverWithdrawal[]>;
   updateDriverWithdrawalStatus(withdrawalId: string, status: string, processedBy?: string, blockReason?: string): Promise<DriverWithdrawal | null>;
+  updateDriverWithdrawal(withdrawalId: string, data: Partial<DriverWithdrawal>): Promise<DriverWithdrawal | null>;
+  getDriverWithdrawalByReference(reference: string): Promise<DriverWithdrawal | null>;
   
   // Driver verification status
   updateDriverWithdrawalVerificationStatus(userId: string, status: string): Promise<DriverProfile | null>;
@@ -5602,6 +5605,26 @@ export class DatabaseStorage implements IStorage {
       .set(updates)
       .where(eq(driverWithdrawals.id, withdrawalId))
       .returning();
+    return withdrawal || null;
+  }
+
+  async getDriverWithdrawalById(withdrawalId: string): Promise<DriverWithdrawal | null> {
+    const [withdrawal] = await db.select().from(driverWithdrawals)
+      .where(eq(driverWithdrawals.id, withdrawalId));
+    return withdrawal || null;
+  }
+
+  async updateDriverWithdrawal(withdrawalId: string, data: Partial<DriverWithdrawal>): Promise<DriverWithdrawal | null> {
+    const [withdrawal] = await db.update(driverWithdrawals)
+      .set(data as any)
+      .where(eq(driverWithdrawals.id, withdrawalId))
+      .returning();
+    return withdrawal || null;
+  }
+
+  async getDriverWithdrawalByReference(reference: string): Promise<DriverWithdrawal | null> {
+    const [withdrawal] = await db.select().from(driverWithdrawals)
+      .where(eq(driverWithdrawals.payoutReference, reference));
     return withdrawal || null;
   }
 

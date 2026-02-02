@@ -1,0 +1,155 @@
+You are implementing Nigeria payout provider integration for the ZIBA Ride-Hailing platform using a clean, extensible PAYMENT PROVIDER ABSTRACTION.
+
+THIS IS A BLOCKING, PRODUCTION STEP. IMPLEMENT COMPLETELY.
+
+==============================
+CORE PRINCIPLE
+==============================
+ZIBA MUST NOT BE HARD-COUPLED TO ANY SINGLE PAYMENT PROVIDER.
+
+Use a provider abstraction that allows:
+- Paystack (Nigeria)
+- Flutterwave (Nigeria)
+- Future providers (Stripe, etc.)
+
+==============================
+1) PAYMENT PROVIDER ABSTRACTION
+==============================
+Create a payoutProvider interface with the following methods:
+
+- verifyBankAccount(bankCode, accountNumber)
+- initiateTransfer(amountNGN, bankCode, accountNumber, accountName, reference)
+- getTransferStatus(reference)
+
+All providers MUST implement this interface.
+
+==============================
+2) PAYSTACK IMPLEMENTATION
+==============================
+Create PaystackPayoutProvider that implements payoutProvider.
+
+- Use Paystack Transfer API
+- Currency: NGN ONLY
+- Bank account verification required before transfer
+- Store Paystack transfer reference
+- Handle:
+  - success
+  - failed
+  - reversed
+  - pending
+
+Environment variables:
+- PAYSTACK_SECRET_KEY
+- PAYSTACK_PUBLIC_KEY
+
+==============================
+3) FLUTTERWAVE IMPLEMENTATION
+==============================
+Create FlutterwavePayoutProvider that implements payoutProvider.
+
+- Use Flutterwave Transfer API
+- Currency: NGN ONLY
+- Bank account verification required
+- Store Flutterwave transfer reference
+- Handle:
+  - success
+  - failed
+  - reversed
+  - pending
+
+Environment variables:
+- FLW_SECRET_KEY
+- FLW_PUBLIC_KEY
+
+==============================
+4) PROVIDER SELECTION LOGIC
+==============================
+Create a payoutProviderFactory:
+
+Rules:
+- Default provider for Nigeria = Paystack
+- Allow admin to switch provider via config without code changes
+- Provider selection MUST be server-side only
+
+Example:
+- country = "NG" → Paystack
+- fallback → Flutterwave
+
+==============================
+5) DRIVER WITHDRAWAL FLOW (ENFORCED)
+==============================
+When admin approves a withdrawal:
+1. Validate driver verification flags
+2. Validate bank account verification
+3. Validate sufficient balance
+4. Lock wallet balance (atomic transaction)
+5. Call selected payout provider
+6. Update withdrawal status
+7. Log provider response
+
+NO client-side logic allowed.
+
+==============================
+6) FAILURE & SAFETY HANDLING
+==============================
+If payout fails:
+- Wallet balance MUST be unlocked
+- Withdrawal status = FAILED
+- Provider error logged
+- Admin notified
+
+If payout succeeds:
+- Wallet balance permanently deducted
+- Status = PAID
+- Timestamp recorded
+
+==============================
+7) WEBHOOK HANDLING
+==============================
+Implement secure webhook endpoints for:
+- Paystack
+- Flutterwave
+
+Rules:
+- Validate signatures
+- Idempotent processing
+- Update withdrawal status safely
+
+==============================
+8) ADMIN DASHBOARD UPDATES
+==============================
+Admin must see:
+- Provider used
+- Provider reference ID
+- Transfer status
+- Error messages if any
+
+Admin must be able to retry FAILED withdrawals.
+
+==============================
+9) SECURITY RULES
+==============================
+- Test drivers CANNOT trigger real payouts
+- Withdrawals only allowed from real earnings wallet
+- One payout per withdrawal record
+- No double processing
+
+==============================
+10) DOCUMENTATION
+==============================
+Update replit.md with:
+- Payout provider abstraction design
+- Nigeria payout flow
+- Paystack vs Flutterwave switching logic
+- Webhook security notes
+
+==============================
+IMPORTANT CONSTRAINTS
+==============================
+- DO NOT hardcode API keys
+- DO NOT expose secrets to frontend
+- DO NOT mix currencies
+- DO NOT bypass admin approval
+- DO NOT explain — IMPLEMENT
+
+This system must be production-ready, auditable, and scalable to other countries.

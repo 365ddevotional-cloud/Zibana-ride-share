@@ -7,6 +7,7 @@ import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema,
 import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, evaluateAllDrivers } from "./incentives";
 import { notificationService } from "./notification-service";
 import { getCurrencyFromCountry } from "@shared/currency";
+import { getPayoutProviderForCountry, generatePayoutReference, validatePaystackWebhook, validateFlutterwaveWebhook, type TransferStatus } from "./payout-provider";
 
 // Helper function to get user's currency based on their country
 async function getUserCurrency(userId: string): Promise<string> {
@@ -2175,16 +2176,77 @@ export async function registerRoutes(
     try {
       const adminUserId = req.user.claims.sub;
       const { withdrawalId } = req.params;
+      const { initiateTransfer } = req.body; // Optional: if true, initiate real transfer
       
+      // Get withdrawal details
+      const withdrawal = await storage.getDriverWithdrawalById(withdrawalId);
+      if (!withdrawal) {
+        return res.status(404).json({ message: "Withdrawal not found" });
+      }
+      
+      if (withdrawal.status !== "pending") {
+        return res.status(400).json({ message: "Withdrawal already processed" });
+      }
+      
+      // Get driver profile to check if test driver
+      const driverProfile = await storage.getDriverProfile(withdrawal.driverId);
+      if (!driverProfile) {
+        return res.status(404).json({ message: "Driver profile not found" });
+      }
+      
+      // Get bank account for transfer
+      const bankAccount = await storage.getDriverBankAccount(withdrawal.driverId);
+      if (!bankAccount || !bankAccount.isVerified) {
+        return res.status(400).json({ message: "Driver bank account not verified" });
+      }
+      
+      // If initiateTransfer is true, use payout provider
+      if (initiateTransfer && withdrawal.currencyCode === "NGN") {
+        const provider = getPayoutProviderForCountry("NG");
+        const reference = generatePayoutReference();
+        
+        console.log(`[PAYOUT] Initiating transfer via ${provider.name}: ${withdrawal.amount} NGN to ${bankAccount.accountNumber}`);
+        
+        const result = await provider.initiateTransfer({
+          amountNGN: parseFloat(withdrawal.amount),
+          bankCode: bankAccount.bankCode,
+          accountNumber: bankAccount.accountNumber,
+          accountName: bankAccount.accountName,
+          reference: reference,
+          narration: `ZIBA Driver Payout - ${withdrawal.id}`,
+        });
+        
+        if (result.success) {
+          const updated = await storage.updateDriverWithdrawal(withdrawalId, {
+            status: "approved",
+            payoutProvider: provider.name,
+            payoutReference: reference,
+            providerReference: result.providerReference,
+            providerStatus: result.status,
+            processedBy: adminUserId,
+            processedAt: new Date(),
+          });
+          
+          console.log(`[AUDIT] Withdrawal approved with transfer: id=${withdrawalId}, provider=${provider.name}, ref=${reference}, by=${adminUserId}`);
+          return res.json({ message: "Withdrawal approved and transfer initiated", withdrawal: updated, transferResult: result });
+        } else {
+          // Transfer failed - update with error
+          await storage.updateDriverWithdrawal(withdrawalId, {
+            providerError: result.error,
+            payoutProvider: provider.name,
+          });
+          
+          console.error(`[PAYOUT] Transfer failed: ${result.error}`);
+          return res.status(400).json({ message: "Transfer failed", error: result.error });
+        }
+      }
+      
+      // Standard approval without transfer initiation
       const updated = await storage.updateDriverWithdrawalStatus(
         withdrawalId,
         "approved",
         adminUserId
       );
-      
-      if (!updated) {
-        return res.status(404).json({ message: "Withdrawal not found" });
-      }
       
       console.log(`[AUDIT] Withdrawal approved: id=${withdrawalId}, by=${adminUserId}`);
       return res.json({ message: "Withdrawal approved", withdrawal: updated });
