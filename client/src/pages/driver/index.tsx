@@ -53,6 +53,7 @@ import { useDriverRide, type RideWithDetails } from "@/hooks/use-ride-lifecycle"
 import { useRideOffers } from "@/hooks/use-ride-offers";
 import { useSafetyCheck } from "@/hooks/use-safety-check";
 import { DriverNavigationSetup } from "@/components/driver-navigation-setup";
+import { DriverBankAccountSection } from "@/components/driver-bank-account-section";
 
 type TripWithRider = Trip & { riderName?: string };
 
@@ -574,6 +575,24 @@ export default function DriverDashboard() {
                       )}
                     </>
                   )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Nigeria Bank Account & Withdrawal Section */}
+            {profile.status === "approved" && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <DollarSign className="h-5 w-5 text-primary" />
+                    Bank Account & Withdrawals
+                  </CardTitle>
+                  <CardDescription>
+                    Manage your bank account for NGN withdrawals
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <DriverBankAccountSection />
                 </CardContent>
               </Card>
             )}
