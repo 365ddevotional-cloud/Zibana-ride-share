@@ -11319,5 +11319,419 @@ export async function registerRoutes(
     }
   });
 
+  // =============================================
+  // COMPLIANCE & STORE READINESS ENDPOINTS
+  // =============================================
+
+  // Public: Get active legal documents (pre-signup accessible)
+  app.get("/api/legal", async (req, res) => {
+    try {
+      const docs = await storage.getActiveLegalDocuments();
+      return res.json(docs);
+    } catch (error) {
+      console.error("Error getting legal documents:", error);
+      return res.status(500).json({ message: "Failed to get legal documents" });
+    }
+  });
+
+  // Public: Get specific legal document by type
+  app.get("/api/legal/:documentType", async (req, res) => {
+    try {
+      const doc = await storage.getActiveLegalDocumentByType(req.params.documentType);
+      if (!doc) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+      return res.json(doc);
+    } catch (error) {
+      console.error("Error getting legal document:", error);
+      return res.status(500).json({ message: "Failed to get legal document" });
+    }
+  });
+
+  // User: Get my consents
+  app.get("/api/consents/my", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.claims.sub;
+      const consents = await storage.getUserConsents(userId);
+      return res.json(consents);
+    } catch (error) {
+      console.error("Error getting consents:", error);
+      return res.status(500).json({ message: "Failed to get consents" });
+    }
+  });
+
+  // User: Check required consents status
+  app.get("/api/consents/status", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.claims.sub;
+      const role = await storage.getUserRole(userId);
+      const { checkRequiredConsents } = await import("./compliance-guards");
+      const status = await checkRequiredConsents(userId, role?.role || "rider");
+      return res.json(status);
+    } catch (error) {
+      console.error("Error checking consent status:", error);
+      return res.status(500).json({ message: "Failed to check consent status" });
+    }
+  });
+
+  // User: Grant consent
+  app.post("/api/consents/grant", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.claims.sub;
+      const { consentType } = req.body;
+      const ipAddress = req.ip;
+      const userAgent = req.get("User-Agent");
+
+      if (!consentType) {
+        return res.status(400).json({ message: "Consent type is required" });
+      }
+
+      const { grantConsent } = await import("./compliance-guards");
+      const result = await grantConsent(userId, consentType, ipAddress, userAgent);
+
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
+      }
+
+      return res.json({ success: true, consentId: result.consentId });
+    } catch (error) {
+      console.error("Error granting consent:", error);
+      return res.status(500).json({ message: "Failed to grant consent" });
+    }
+  });
+
+  // User: Grant all required consents
+  app.post("/api/consents/grant-all", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.claims.sub;
+      const ipAddress = req.ip;
+      const userAgent = req.get("User-Agent");
+      const role = await storage.getUserRole(userId);
+
+      const { grantAllRequiredConsents } = await import("./compliance-guards");
+      const result = await grantAllRequiredConsents(userId, role?.role || "rider", ipAddress, userAgent);
+
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
+      }
+
+      return res.json({ success: true, message: "All required consents granted" });
+    } catch (error) {
+      console.error("Error granting all consents:", error);
+      return res.status(500).json({ message: "Failed to grant consents" });
+    }
+  });
+
+  // User: Revoke consent
+  app.post("/api/consents/revoke", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.claims.sub;
+      const { consentType } = req.body;
+      const ipAddress = req.ip;
+
+      if (!consentType) {
+        return res.status(400).json({ message: "Consent type is required" });
+      }
+
+      const { revokeConsent } = await import("./compliance-guards");
+      const result = await revokeConsent(userId, consentType, ipAddress);
+
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
+      }
+
+      return res.json({ success: true, message: "Consent revoked" });
+    } catch (error) {
+      console.error("Error revoking consent:", error);
+      return res.status(500).json({ message: "Failed to revoke consent" });
+    }
+  });
+
+  // User: Confirm first use compliance
+  app.post("/api/compliance/first-use", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.claims.sub;
+      const ipAddress = req.ip;
+      const { deviceInfo } = req.body;
+
+      const { confirmFirstUseCompliance } = await import("./compliance-guards");
+      const result = await confirmFirstUseCompliance(userId, ipAddress, deviceInfo);
+
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
+      }
+
+      return res.json({ success: true, message: "First use confirmed" });
+    } catch (error) {
+      console.error("Error confirming first use:", error);
+      return res.status(500).json({ message: "Failed to confirm first use" });
+    }
+  });
+
+  // Public: Get store metadata (for app store submission)
+  app.get("/api/compliance/store-metadata", async (req, res) => {
+    try {
+      const { getStoreMetadata } = await import("./compliance-guards");
+      return res.json(getStoreMetadata());
+    } catch (error) {
+      console.error("Error getting store metadata:", error);
+      return res.status(500).json({ message: "Failed to get store metadata" });
+    }
+  });
+
+  // Public: Get readiness summary
+  app.get("/api/compliance/readiness", async (req, res) => {
+    try {
+      const { getFullReadinessSummary } = await import("./compliance-guards");
+      return res.json(getFullReadinessSummary());
+    } catch (error) {
+      console.error("Error getting readiness summary:", error);
+      return res.status(500).json({ message: "Failed to get readiness summary" });
+    }
+  });
+
+  // SUPER_ADMIN: Get full system readiness report
+  app.get("/api/admin/compliance/readiness-report", isAuthenticated, requireRole(["super_admin"]), async (req, res) => {
+    try {
+      const { getSystemReadinessReport } = await import("./compliance-guards");
+      const report = await getSystemReadinessReport();
+      return res.json(report);
+    } catch (error) {
+      console.error("Error getting readiness report:", error);
+      return res.status(500).json({ message: "Failed to get readiness report" });
+    }
+  });
+
+  // SUPER_ADMIN: Toggle launch mode
+  app.post("/api/admin/compliance/launch-mode", isAuthenticated, requireRole(["super_admin"]), async (req, res) => {
+    try {
+      const adminId = req.user!.claims.sub;
+      const { mode, value } = req.body;
+
+      if (!mode || typeof value !== "boolean") {
+        return res.status(400).json({ message: "Mode and boolean value are required" });
+      }
+
+      const { toggleLaunchMode } = await import("./compliance-guards");
+      const result = await toggleLaunchMode(mode, value, adminId);
+
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
+      }
+
+      return res.json({ success: true, message: `${mode} set to ${value}` });
+    } catch (error) {
+      console.error("Error toggling launch mode:", error);
+      return res.status(500).json({ message: "Failed to toggle launch mode" });
+    }
+  });
+
+  // SUPER_ADMIN: Get all kill switch states
+  app.get("/api/admin/compliance/kill-switches", isAuthenticated, requireRole(["super_admin"]), async (req, res) => {
+    try {
+      const states = await storage.getAllKillSwitchStates();
+      return res.json(states);
+    } catch (error) {
+      console.error("Error getting kill switch states:", error);
+      return res.status(500).json({ message: "Failed to get kill switch states" });
+    }
+  });
+
+  // SUPER_ADMIN: Activate kill switch
+  app.post("/api/admin/compliance/kill-switch/activate", isAuthenticated, requireRole(["super_admin"]), async (req, res) => {
+    try {
+      const adminId = req.user!.claims.sub;
+      const { switchName, reason } = req.body;
+
+      if (!switchName || !reason) {
+        return res.status(400).json({ message: "Switch name and reason are required" });
+      }
+
+      const { activateKillSwitch } = await import("./compliance-guards");
+      const result = await activateKillSwitch(switchName, reason, adminId);
+
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
+      }
+
+      return res.json({ success: true, message: `Kill switch ${switchName} activated` });
+    } catch (error) {
+      console.error("Error activating kill switch:", error);
+      return res.status(500).json({ message: "Failed to activate kill switch" });
+    }
+  });
+
+  // SUPER_ADMIN: Deactivate kill switch
+  app.post("/api/admin/compliance/kill-switch/deactivate", isAuthenticated, requireRole(["super_admin"]), async (req, res) => {
+    try {
+      const adminId = req.user!.claims.sub;
+      const { switchName } = req.body;
+
+      if (!switchName) {
+        return res.status(400).json({ message: "Switch name is required" });
+      }
+
+      const { deactivateKillSwitch } = await import("./compliance-guards");
+      const result = await deactivateKillSwitch(switchName, adminId);
+
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
+      }
+
+      return res.json({ success: true, message: `Kill switch ${switchName} deactivated` });
+    } catch (error) {
+      console.error("Error deactivating kill switch:", error);
+      return res.status(500).json({ message: "Failed to deactivate kill switch" });
+    }
+  });
+
+  // SUPER_ADMIN: Get all test users
+  app.get("/api/admin/compliance/test-users", isAuthenticated, requireRole(["super_admin"]), async (req, res) => {
+    try {
+      const testUsers = await storage.getAllTestUsers();
+      return res.json(testUsers);
+    } catch (error) {
+      console.error("Error getting test users:", error);
+      return res.status(500).json({ message: "Failed to get test users" });
+    }
+  });
+
+  // SUPER_ADMIN: Mark user as test user
+  app.post("/api/admin/compliance/test-user/mark", isAuthenticated, requireRole(["super_admin"]), async (req, res) => {
+    try {
+      const adminId = req.user!.claims.sub;
+      const { userId } = req.body;
+
+      if (!userId) {
+        return res.status(400).json({ message: "User ID is required" });
+      }
+
+      const { markAsTestUser } = await import("./compliance-guards");
+      const result = await markAsTestUser(userId, adminId);
+
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
+      }
+
+      return res.json({ success: true, message: "User marked as test user" });
+    } catch (error) {
+      console.error("Error marking test user:", error);
+      return res.status(500).json({ message: "Failed to mark test user" });
+    }
+  });
+
+  // SUPER_ADMIN: Unmark user as test user
+  app.post("/api/admin/compliance/test-user/unmark", isAuthenticated, requireRole(["super_admin"]), async (req, res) => {
+    try {
+      const adminId = req.user!.claims.sub;
+      const { userId } = req.body;
+
+      if (!userId) {
+        return res.status(400).json({ message: "User ID is required" });
+      }
+
+      const { unmarkAsTestUser } = await import("./compliance-guards");
+      const result = await unmarkAsTestUser(userId, adminId);
+
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
+      }
+
+      return res.json({ success: true, message: "User unmarked as test user" });
+    } catch (error) {
+      console.error("Error unmarking test user:", error);
+      return res.status(500).json({ message: "Failed to unmark test user" });
+    }
+  });
+
+  // SUPER_ADMIN: Get compliance audit logs
+  app.get("/api/admin/compliance/audit-logs", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const { category, limit } = req.query;
+      const { getComplianceAuditLogsForExport } = await import("./compliance-guards");
+      const logs = await getComplianceAuditLogsForExport({
+        category: category as string | undefined,
+        limit: limit ? parseInt(limit as string) : undefined,
+      });
+      return res.json(logs);
+    } catch (error) {
+      console.error("Error getting compliance audit logs:", error);
+      return res.status(500).json({ message: "Failed to get audit logs" });
+    }
+  });
+
+  // SUPER_ADMIN: Export audit logs (for regulators)
+  app.get("/api/admin/compliance/audit-logs/export", isAuthenticated, requireRole(["super_admin"]), async (req, res) => {
+    try {
+      const { category, format } = req.query;
+      const { getComplianceAuditLogsForExport } = await import("./compliance-guards");
+      const logs = await getComplianceAuditLogsForExport({
+        category: category as string | undefined,
+      });
+
+      if (format === "csv") {
+        const headers = "ID,Category,User ID,Action By,Event Type,Created At\n";
+        const rows = logs.map(l => 
+          `${l.id},${l.category},${l.userId || ""},${l.actionBy || ""},${l.eventType},${l.createdAt}`
+        ).join("\n");
+        res.setHeader("Content-Type", "text/csv");
+        res.setHeader("Content-Disposition", `attachment; filename="compliance_audit_${new Date().toISOString().split("T")[0]}.csv"`);
+        return res.send(headers + rows);
+      }
+
+      return res.json({ data: logs, exportedAt: new Date().toISOString() });
+    } catch (error) {
+      console.error("Error exporting audit logs:", error);
+      return res.status(500).json({ message: "Failed to export audit logs" });
+    }
+  });
+
+  // SUPER_ADMIN: Create legal document
+  app.post("/api/admin/compliance/legal-documents", isAuthenticated, requireRole(["super_admin"]), async (req, res) => {
+    try {
+      const adminId = req.user!.claims.sub;
+      const { documentType, version, title, content, effectiveDate } = req.body;
+
+      if (!documentType || !version || !title || !content || !effectiveDate) {
+        return res.status(400).json({ message: "All fields are required" });
+      }
+
+      const doc = await storage.createLegalDocument({
+        documentType,
+        version,
+        title,
+        content,
+        effectiveDate: new Date(effectiveDate),
+        createdBy: adminId,
+      });
+
+      await storage.createComplianceAuditLog({
+        category: "ADMIN_ACTION",
+        actionBy: adminId,
+        actionByRole: "super_admin",
+        eventType: "LEGAL_DOCUMENT_CREATED",
+        eventData: JSON.stringify({ documentType, version }),
+      });
+
+      return res.json({ success: true, document: doc });
+    } catch (error) {
+      console.error("Error creating legal document:", error);
+      return res.status(500).json({ message: "Failed to create legal document" });
+    }
+  });
+
+  // Check if user is a test user
+  app.get("/api/compliance/test-mode", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.claims.sub;
+      const { isTestUser } = await import("./compliance-guards");
+      const isTest = await isTestUser(userId);
+      return res.json({ isTestUser: isTest });
+    } catch (error) {
+      console.error("Error checking test mode:", error);
+      return res.status(500).json({ message: "Failed to check test mode" });
+    }
+  });
+
   return httpServer;
 }
