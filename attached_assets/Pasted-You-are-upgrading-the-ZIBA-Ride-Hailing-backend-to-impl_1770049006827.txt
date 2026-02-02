@@ -1,0 +1,185 @@
+You are upgrading the ZIBA Ride-Hailing backend to implement
+SECURE DRIVER WITHDRAWALS with STRICT IDENTITY & RESIDENCY VERIFICATION.
+
+This is a production-critical financial and compliance upgrade.
+
+────────────────────────
+STRICT RULES
+────────────────────────
+- Do NOT ask questions
+- Do NOT explain decisions
+- Backend logic only
+- Do NOT rely on frontend state
+- Do NOT weaken existing wallet, currency, or revenue rules
+- All enforcement must be server-side
+- Changes must be additive and backward compatible
+
+────────────────────────
+IDENTITY & RESIDENCY REQUIREMENTS (ALL USERS)
+────────────────────────
+
+Introduce mandatory identityProfile for ALL riders and drivers.
+
+identityProfile fields:
+- legalFirstName
+- legalLastName
+- dateOfBirth
+- countryCode
+- residenceAddressLine1
+- residenceCity
+- residenceState
+- residencePostalCode
+- residenceCountryCode
+- addressVerified (boolean)
+- identityVerified (boolean)
+
+Rules:
+- Residence address MUST match ID address where applicable
+- User cannot transact financially without identityProfile
+- identityVerified is required for withdrawals
+- addressVerified is required for withdrawals
+
+────────────────────────
+COUNTRY-SPECIFIC IDENTITY VERIFICATION
+────────────────────────
+
+Introduce identityDocuments table:
+
+Fields:
+- id
+- userId
+- countryCode
+- documentType
+- documentNumber (hashed)
+- issuingAuthority
+- expiryDate
+- verified (boolean)
+- verificationMethod (manual | automated)
+- createdAt
+
+Required documents by country:
+
+NIGERIA:
+- Drivers: DRIVER_LICENSE (mandatory)
+- Drivers: NIN (mandatory)
+- Riders: NIN (recommended, required for withdrawals)
+- Address must match NIN records when possible
+
+UNITED STATES:
+- Drivers: DRIVER_LICENSE
+- Riders: SSN_LAST4 or STATE_ID (for withdrawals)
+- Address must match ID
+
+OTHER COUNTRIES:
+- Drivers: Government-issued Driver License
+- Riders: National ID or Passport (for withdrawals)
+- Address consistency required
+
+No anonymous withdrawals allowed in any country.
+
+────────────────────────
+DRIVER VERIFICATION ENFORCEMENT
+────────────────────────
+
+Driver status flow:
+- PENDING_VERIFICATION
+- VERIFIED
+- SUSPENDED
+
+Rules:
+- Driver must be VERIFIED to:
+  - Go online
+  - Accept rides
+  - Withdraw earnings
+
+Verification requires:
+- Valid driver license
+- Country-required national ID
+- Verified residence address
+
+────────────────────────
+DRIVER EARNINGS WALLET
+────────────────────────
+
+Driver wallet rules:
+- Currency = driver.country currency
+- Earnings credited per completed ride
+- Revenue split enforced:
+  - Driver = 80%
+  - Ziba = 20%
+
+Ledger every credit and debit.
+
+────────────────────────
+DRIVER WITHDRAWAL SYSTEM
+────────────────────────
+
+Introduce driver_withdrawals table:
+
+Fields:
+- id
+- driverId
+- amount
+- currencyCode
+- payoutMethod (BANK | MOBILE_MONEY | CARD_FUTURE)
+- payoutReference
+- status (PENDING | PROCESSING | PAID | FAILED | BLOCKED)
+- createdAt
+- processedAt
+
+Rules:
+- Withdrawals ONLY from earnings wallet
+- Currency must match wallet currency
+- Minimum withdrawal enforced per country
+- No partial currency conversion
+- No auto-fallback payout methods
+
+────────────────────────
+WITHDRAWAL AUTHORIZATION LOGIC
+────────────────────────
+
+A driver may request withdrawal ONLY IF:
+- driver.status === VERIFIED
+- identityVerified === true
+- addressVerified === true
+- earningsWallet.balance >= withdrawalAmount
+- payoutMethod is verified and active
+
+If ANY condition fails → BLOCK withdrawal with explicit reason.
+
+────────────────────────
+ANTI-FRAUD & IMPERSONATION SAFEGUARDS
+────────────────────────
+
+- One identity document cannot be reused across multiple users
+- One bank account cannot be linked to multiple drivers
+- Identity document hashes must be unique
+- Manual review triggered on:
+  - Name mismatch
+  - Address mismatch
+  - Reused documents
+  - Rapid withdrawal attempts
+
+────────────────────────
+TEST MODE RULES
+────────────────────────
+
+- Test drivers may earn test funds
+- Test drivers CANNOT withdraw real money
+- Test withdrawals are simulated only
+- Test drivers still require identity documents for flow testing
+
+────────────────────────
+ACCEPTANCE CONDITIONS (MUST PASS)
+────────────────────────
+
+- Nigerian drivers cannot withdraw without NIN + Driver License
+- Address mismatch blocks withdrawal
+- Drivers receive exactly 80% of fare
+- Ziba receives exactly 20%
+- No cross-currency withdrawals
+- No anonymous payouts
+- No UI-based bypasses
+
+Implement cleanly.
+Checkpoint when complete.
