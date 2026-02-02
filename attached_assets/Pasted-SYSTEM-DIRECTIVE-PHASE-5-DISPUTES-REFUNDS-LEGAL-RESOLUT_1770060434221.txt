@@ -1,0 +1,104 @@
+SYSTEM DIRECTIVE — PHASE 5: DISPUTES, REFUNDS & LEGAL RESOLUTION (LOCKED)
+
+You are working on the ZIBA Ride Share codebase.
+
+OBJECTIVE:
+Implement an enterprise-grade Disputes, Refunds, and Legal Resolution system that handles rider complaints, driver claims, payment reversals, and chargebacks with full auditability — WITHOUT modifying existing phases.
+
+RULES:
+- DO NOT ask follow-up questions.
+- DO NOT add unrelated features.
+- DO NOT weaken existing guards.
+- ALL enforcement must be server-side.
+- Preserve financial, safety, trust, and identity integrity.
+- Proceed deterministically.
+- Lock system when complete.
+
+====================================
+PHASE 5 REQUIREMENTS
+====================================
+
+1) DISPUTE CREATION
+- Allow disputes only for COMPLETED trips
+- Create Dispute table with:
+  - disputeId
+  - tripId
+  - initiatorRole (RIDER | DRIVER)
+  - initiatorUserId
+  - accusedUserId
+  - disputeType (OVERCHARGE, NO_SHOW, UNSAFE_BEHAVIOR, SERVICE_QUALITY, DAMAGE, OTHER)
+  - description
+  - evidenceMetadata (immutable)
+  - status (OPEN | UNDER_REVIEW | RESOLVED | REJECTED)
+  - createdAt
+
+2) AUTOMATED ELIGIBILITY GUARDS
+- Reject disputes if:
+  - Trip is not completed
+  - Outside dispute window (default: 72 hours)
+  - Duplicate dispute exists
+- Enforce one dispute per trip per role
+
+3) REFUND & ADJUSTMENT ENGINE
+- Support refund types:
+  - FULL_REFUND
+  - PARTIAL_REFUND
+  - NO_REFUND
+- Refunds must:
+  - Respect original paymentSource
+  - Respect original currencyCode
+  - Never cross wallets or currencies
+- Driver payouts already withdrawn CANNOT be clawed back
+- Platform absorbs refund if payout already settled
+
+4) ADMIN DISPUTE QUEUE
+- Admin actions:
+  - approve refund
+  - deny dispute (with reason)
+  - partial adjustment
+  - escalate to safety (Phase 4)
+- All admin actions must log:
+  - adminId
+  - timestamp
+  - decision
+  - justification
+
+5) TRUST & SAFETY INTEGRATION
+- Dispute outcomes must:
+  - Affect Trust Engine (Phase 3)
+  - Trigger Safety Engine (Phase 4) if needed
+- Repeated disputes auto-flag user accounts
+
+6) CHARGEBACK PROTECTION
+- Flag chargeback-prone users
+- Lock accounts with repeated payment disputes
+- Prevent chargebacks from bypassing wallet rules
+
+7) AUDIT & LEGAL READINESS
+- Immutable logs for:
+  - disputes
+  - refunds
+  - admin decisions
+- Logs must be exportable for legal/regulatory review
+- Admin-only access
+
+8) GLOBAL CONSISTENCY
+- Dispute logic applies globally
+- Country-specific windows allowed via config
+- Core enforcement identical worldwide
+
+9) SYSTEM LOCK
+- Set DISPUTE_ENGINE_LOCKED = true
+- Assert lock at runtime
+- No Phase 1–4 logic may be modified
+
+====================================
+DELIVERABLES
+====================================
+- Database schema updates
+- Dispute & refund APIs
+- Admin dispute dashboard logic
+- Automated enforcement rules
+- Lock confirmation summary
+
+Proceed with implementation.

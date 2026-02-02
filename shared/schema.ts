@@ -2709,6 +2709,59 @@ export const safetyAuditActionEnum = pgEnum("safety_audit_action", [
   "AUTO_ESCALATED"
 ]);
 
+// =============================================
+// PHASE 5: DISPUTES, REFUNDS & LEGAL RESOLUTION ENUMS
+// =============================================
+
+export const phase5DisputeTypeEnum = pgEnum("phase5_dispute_type", [
+  "OVERCHARGE",
+  "NO_SHOW",
+  "UNSAFE_BEHAVIOR",
+  "SERVICE_QUALITY",
+  "DAMAGE",
+  "OTHER"
+]);
+
+export const phase5DisputeStatusEnum = pgEnum("phase5_dispute_status", [
+  "OPEN",
+  "UNDER_REVIEW",
+  "RESOLVED",
+  "REJECTED"
+]);
+
+export const phase5InitiatorRoleEnum = pgEnum("phase5_initiator_role", ["RIDER", "DRIVER"]);
+
+export const phase5RefundTypeEnum = pgEnum("phase5_refund_type", [
+  "FULL_REFUND",
+  "PARTIAL_REFUND",
+  "NO_REFUND"
+]);
+
+export const phase5RefundStatusEnum = pgEnum("phase5_refund_status", [
+  "PENDING",
+  "APPROVED",
+  "REJECTED",
+  "PROCESSED"
+]);
+
+export const disputeAuditActionEnum = pgEnum("dispute_audit_action", [
+  "DISPUTE_CREATED",
+  "DISPUTE_REVIEWED",
+  "DISPUTE_APPROVED",
+  "DISPUTE_REJECTED",
+  "DISPUTE_ESCALATED",
+  "REFUND_INITIATED",
+  "REFUND_APPROVED",
+  "REFUND_REJECTED",
+  "REFUND_PROCESSED",
+  "PARTIAL_ADJUSTMENT",
+  "CHARGEBACK_REPORTED",
+  "CHARGEBACK_WON",
+  "CHARGEBACK_LOST",
+  "ACCOUNT_FLAGGED",
+  "ACCOUNT_LOCKED"
+]);
+
 // SOS Safety Triggers - immutable snapshots
 export const sosTriggers = pgTable("sos_triggers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -2823,3 +2876,121 @@ export type InsertUserSuspension = z.infer<typeof insertUserSuspensionSchema>;
 export type UserSuspension = typeof userSuspensions.$inferSelect;
 export type InsertSafetyAuditLog = z.infer<typeof insertSafetyAuditLogSchema>;
 export type SafetyAuditLog = typeof safetyAuditLog.$inferSelect;
+
+// =============================================
+// PHASE 5: DISPUTES, REFUNDS & LEGAL RESOLUTION TABLES
+// =============================================
+
+// Phase 5 Enhanced Disputes - for legal resolution
+export const phase5Disputes = pgTable("phase5_disputes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tripId: varchar("trip_id").notNull(),
+  initiatorRole: phase5InitiatorRoleEnum("initiator_role").notNull(),
+  initiatorUserId: varchar("initiator_user_id").notNull(),
+  accusedUserId: varchar("accused_user_id").notNull(),
+  disputeType: phase5DisputeTypeEnum("dispute_type").notNull(),
+  description: text("description").notNull(),
+  evidenceMetadata: text("evidence_metadata"),
+  status: phase5DisputeStatusEnum("status").default("OPEN").notNull(),
+  adminNotes: text("admin_notes"),
+  assignedAdminId: varchar("assigned_admin_id"),
+  countryCode: varchar("country_code", { length: 3 }),
+  currencyCode: varchar("currency_code", { length: 3 }),
+  originalFare: decimal("original_fare", { precision: 10, scale: 2 }),
+  resolvedAt: timestamp("resolved_at"),
+  resolvedBy: varchar("resolved_by"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Phase 5 Refund Outcomes - tied to disputes
+export const phase5RefundOutcomes = pgTable("phase5_refund_outcomes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  disputeId: varchar("dispute_id").notNull(),
+  tripId: varchar("trip_id").notNull(),
+  riderId: varchar("rider_id").notNull(),
+  driverId: varchar("driver_id"),
+  refundType: phase5RefundTypeEnum("refund_type").notNull(),
+  refundAmount: decimal("refund_amount", { precision: 10, scale: 2 }),
+  originalPaymentSource: paymentSourceEnum("original_payment_source"),
+  currencyCode: varchar("currency_code", { length: 3 }).notNull(),
+  status: phase5RefundStatusEnum("status").default("PENDING").notNull(),
+  driverPayoutSettled: boolean("driver_payout_settled").default(false),
+  platformAbsorbed: boolean("platform_absorbed").default(false),
+  processedBy: varchar("processed_by"),
+  processedAt: timestamp("processed_at"),
+  reason: text("reason"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Chargeback Flags - tracks users with payment issues
+export const chargebackFlags = pgTable("chargeback_flags", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  chargebackCount: integer("chargeback_count").default(0).notNull(),
+  lastChargebackAt: timestamp("last_chargeback_at"),
+  isFlagged: boolean("is_flagged").default(false),
+  isLocked: boolean("is_locked").default(false),
+  lockReason: text("lock_reason"),
+  lockedAt: timestamp("locked_at"),
+  lockedBy: varchar("locked_by"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Dispute Audit Log - immutable for legal readiness
+export const disputeAuditLog = pgTable("dispute_audit_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  disputeId: varchar("dispute_id"),
+  refundId: varchar("refund_id"),
+  chargebackId: varchar("chargeback_id"),
+  userId: varchar("user_id"),
+  actionType: disputeAuditActionEnum("action_type").notNull(),
+  actionBy: varchar("action_by").notNull(),
+  actionByRole: text("action_by_role"),
+  decision: text("decision"),
+  justification: text("justification"),
+  previousState: text("previous_state"),
+  newState: text("new_state"),
+  metadata: text("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Insert schemas for Phase 5
+export const insertPhase5DisputeSchema = createInsertSchema(phase5Disputes).omit({
+  id: true,
+  createdAt: true,
+  resolvedAt: true,
+  resolvedBy: true,
+  assignedAdminId: true,
+  adminNotes: true,
+});
+
+export const insertPhase5RefundOutcomeSchema = createInsertSchema(phase5RefundOutcomes).omit({
+  id: true,
+  createdAt: true,
+  processedAt: true,
+  processedBy: true,
+});
+
+export const insertChargebackFlagSchema = createInsertSchema(chargebackFlags).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  lockedAt: true,
+  lockedBy: true,
+});
+
+export const insertDisputeAuditLogSchema = createInsertSchema(disputeAuditLog).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Phase 5 Types
+export type InsertPhase5Dispute = z.infer<typeof insertPhase5DisputeSchema>;
+export type Phase5Dispute = typeof phase5Disputes.$inferSelect;
+export type InsertPhase5RefundOutcome = z.infer<typeof insertPhase5RefundOutcomeSchema>;
+export type Phase5RefundOutcome = typeof phase5RefundOutcomes.$inferSelect;
+export type InsertChargebackFlag = z.infer<typeof insertChargebackFlagSchema>;
+export type ChargebackFlag = typeof chargebackFlags.$inferSelect;
+export type InsertDisputeAuditLog = z.infer<typeof insertDisputeAuditLogSchema>;
+export type DisputeAuditLog = typeof disputeAuditLog.$inferSelect;
