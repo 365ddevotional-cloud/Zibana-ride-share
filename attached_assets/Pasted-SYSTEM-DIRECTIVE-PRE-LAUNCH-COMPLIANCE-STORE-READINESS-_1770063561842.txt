@@ -1,0 +1,111 @@
+SYSTEM DIRECTIVE — PRE-LAUNCH COMPLIANCE & STORE READINESS (FINAL, NON-NEGOTIABLE)
+
+You are working on the ZIBA Ride Share application.
+
+THIS PROMPT IS AUTHORITATIVE.
+Follow it EXACTLY.
+Do NOT introduce new core features.
+Do NOT modify ride logic, payments logic, wallets, or payouts.
+This phase is COMPLIANCE, SAFETY, and STORE READINESS ONLY.
+
+========================================
+OBJECTIVE
+========================================
+
+Prepare ZIBA for public app-store submission and soft launch readiness.
+Focus on compliance, legal defensibility, safety posture, and operational controls.
+All changes must be defensive, additive, and reversible.
+
+========================================
+REQUIRED IMPLEMENTATIONS
+========================================
+
+1) APP STORE COMPLIANCE
+- Ensure the following are present, accessible, and linked in-app:
+  • Terms of Service
+  • Privacy Policy
+  • Community Guidelines
+  • Refund & Dispute Policy
+- These links must be visible:
+  • Before signup
+  • After login
+- Log first-time user acknowledgment.
+
+2) USER CONSENT & DISCLOSURES
+- Require explicit consent (checkbox + log) for:
+  • Location tracking during rides
+  • Camera usage (profile + live verification)
+  • Safety monitoring during trips
+- Store:
+  • consentType
+  • version
+  • timestamp
+  • userId
+
+3) LAUNCH MODE CONTROLS
+- Add global system flags:
+  • SOFT_LAUNCH = true
+  • HARD_LAUNCH = false
+- Only SUPER_ADMIN can modify these flags.
+- Add emergency KILL_SWITCH to disable:
+  • Ride requests
+  • New signups
+  • Payments
+  independently.
+
+4) TEST MODE ISOLATION
+- Ensure tester accounts are:
+  • Clearly flagged (backend + UI badge)
+  • Excluded from revenue analytics
+  • Excluded from payout calculations
+- Test wallets MUST NOT interact with real payments.
+- Assert no TEST → REAL leakage.
+
+5) INCIDENT & AUDIT LOGGING
+- Ensure immutable logs exist for:
+  • Ride lifecycle events
+  • Payment attempts
+  • Refunds & disputes
+  • Admin actions
+  • Safety incidents
+- Logs must be exportable for:
+  • App store review
+  • Regulators
+  • Legal requests
+
+6) CONTENT & BRAND SAFETY
+- Verify app copy:
+  • Makes no income guarantees
+  • Makes no zero-risk claims
+  • Clearly explains fees & commissions
+- Ensure driver earnings are described as variable.
+
+7) STORE METADATA READINESS
+- Prepare compliant app description:
+  • Neutral
+  • Factual
+  • Safety-focused
+- Include Safety & Trust section.
+- Avoid exaggerated or promotional claims.
+
+8) FINAL LOCKS
+- Set and assert:
+  • COMPLIANCE_READY = true
+  • STORE_READY = true
+  • CORE_SYSTEMS_LOCKED = true
+- Prevent modifications to Phases 0–5.
+
+========================================
+FINAL RESPONSE REQUIRED
+========================================
+
+Return a checklist-style confirmation that:
+1) App store compliance is satisfied
+2) Legal disclosures are active
+3) Test mode is isolated
+4) Soft launch controls are enabled
+5) System is safe for store submission
+
+DO NOT proceed beyond this phase.
+
+END.
