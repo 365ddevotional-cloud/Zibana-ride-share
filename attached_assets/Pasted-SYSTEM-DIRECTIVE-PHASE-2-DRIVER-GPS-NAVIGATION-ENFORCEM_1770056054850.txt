@@ -1,0 +1,155 @@
+SYSTEM DIRECTIVE — PHASE 2: DRIVER GPS & NAVIGATION ENFORCEMENT (LOCK-SAFE)
+
+You are working on the ZIBA Ride Share codebase.
+
+OBJECTIVE:
+Implement a mandatory, country-agnostic Driver GPS & Navigation Enforcement system that guarantees:
+- Continuous GPS tracking while a driver is online or on a trip
+- Automatic handoff to the driver’s chosen navigation app
+- No interruption of ZIBA app execution during active driving states
+
+ABSOLUTE RULES:
+- DO NOT modify financial engine, wallets, payouts, or revenue logic.
+- DO NOT add promotions or user-facing features.
+- DO NOT weaken identity or fraud guards.
+- All enforcement MUST be server-side.
+- UI choices are advisory only.
+- Proceed deterministically. DO NOT ask questions.
+
+=================================
+1️⃣ DRIVER NAVIGATION SETUP FLOW
+=================================
+
+During ALL driver onboarding (including existing drivers):
+
+Require a one-time Navigation Setup Wizard:
+
+Step 1 — GPS Permission
+- Require OS-level:
+  - Location permission = ALWAYS
+  - High accuracy mode
+- Block continuation if denied
+
+Step 2 — Navigation Provider Selection
+Driver must choose ONE:
+- Google Maps
+- Apple Maps
+- Waze
+- Other (OS-supported)
+
+Store:
+- preferredNavigationProvider
+- gpsPermissionGranted = true
+- navigationSetupCompleted = true
+
+Step 3 — Background Execution Consent
+- Require background location execution
+- Require foreground service (Android)
+- Persist consent flag
+
+Driver CANNOT go online until all steps are complete.
+
+=================================
+2️⃣ GPS ENFORCEMENT RULES
+=================================
+
+When driver status = ONLINE or ON_TRIP:
+
+- GPS must be ACTIVE
+- Location updates streamed at enforced interval
+- If GPS stops → auto-set driver OFFLINE
+- Log interruption reason
+
+Blocking conditions:
+- GPS disabled
+- Location spoofing detected
+- Background permission revoked
+
+=================================
+3️⃣ AUTO-NAVIGATION HANDOFF
+=================================
+
+When a driver:
+- Accepts a ride
+- Starts pickup
+- Starts dropoff
+
+System MUST:
+- Launch selected navigation provider
+- Pass pickup/dropoff coordinates
+- Continue tracking in parallel
+
+ZIBA app MUST remain active:
+- Use foreground service (Android)
+- Prevent OS background kill during trip
+- Resume cleanly if navigation app closes
+
+=================================
+4️⃣ APP INTERRUPTION PROTECTION
+=================================
+
+While driver is:
+- ONLINE
+- ON_TRIP
+
+Enforce:
+- App state lock
+- Reconnection handling if minimized
+- Graceful resume without trip loss
+
+If OS forces termination:
+- Trip marked “interrupted”
+- Admin-visible log created
+
+=================================
+5️⃣ SERVER-SIDE VALIDATION
+=================================
+
+Server MUST validate:
+- GPS heartbeat within threshold
+- Navigation state consistency
+- Trip progress based on coordinates
+
+Client cannot spoof:
+- GPS active status
+- Navigation state
+- Location source
+
+=================================
+6️⃣ ADMIN VISIBILITY
+=================================
+
+Admin dashboard additions (read-only):
+- Driver GPS status
+- Navigation provider
+- Last location timestamp
+- Interruption history
+
+Admin CANNOT:
+- Force GPS enable
+- Override enforcement
+- Manually fake location
+
+=================================
+7️⃣ AUDIT & LOGGING
+=================================
+
+Log immutably:
+- GPS enable/disable
+- Navigation launches
+- App interruptions
+- Auto-offline triggers
+
+=================================
+8️⃣ LOCK CONFIRMATION
+=================================
+
+Once implemented:
+- Set NAVIGATION_ENGINE_LOCKED = true
+- Add assertion preventing silent removal
+- Confirm no financial or identity logic changed
+
+OUTPUT REQUIRED:
+- Implementation summary
+- Enforcement confirmation
+- Lock confirmation

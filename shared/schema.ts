@@ -153,6 +153,31 @@ export const identityActionTypeEnum = pgEnum("identity_action_type", [
   "SUBMISSION", "APPROVAL", "REJECTION", "DUPLICATE_DETECTED", "UPDATE"
 ]);
 
+// =============================================
+// PHASE 2: DRIVER GPS & NAVIGATION ENFORCEMENT ENUMS
+// =============================================
+
+// GPS tracking event types for audit logging
+export const gpsEventTypeEnum = pgEnum("gps_event_type", [
+  "GPS_ENABLED", "GPS_DISABLED", "GPS_PERMISSION_GRANTED", "GPS_PERMISSION_DENIED",
+  "SPOOFING_DETECTED", "HEARTBEAT_TIMEOUT", "AUTO_OFFLINE_TRIGGERED",
+  "NAVIGATION_LAUNCHED", "NAVIGATION_CLOSED", "APP_INTERRUPTED", "APP_RESUMED"
+]);
+
+// Navigation audit action types
+export const navigationAuditActionEnum = pgEnum("navigation_audit_action", [
+  "SETUP_STARTED", "SETUP_COMPLETED", "PROVIDER_CHANGED", "PERMISSION_GRANTED",
+  "PERMISSION_DENIED", "BACKGROUND_CONSENT_GRANTED", "NAVIGATION_LAUNCHED",
+  "NAVIGATION_CLOSED", "GPS_TIMEOUT", "AUTO_OFFLINE", "SPOOFING_DETECTED",
+  "APP_INTERRUPTED", "APP_RESUMED", "HEARTBEAT_MISSED"
+]);
+
+// Driver online status reasons for going offline
+export const offlineReasonEnum = pgEnum("offline_reason", [
+  "MANUAL", "GPS_DISABLED", "GPS_TIMEOUT", "SPOOFING_DETECTED", 
+  "PERMISSION_REVOKED", "APP_TERMINATED", "SYSTEM_TIMEOUT"
+]);
+
 // Phase 22 - Enhanced Ride Lifecycle enums
 export const rideStatusEnum = pgEnum("ride_status", [
   "requested",
@@ -485,6 +510,135 @@ export const identityAuditLog = pgTable("identity_audit_log", {
   countryCode: varchar("country_code", { length: 2 }),
   governmentIdType: governmentIdTypeEnum("government_id_type"),
   duplicateOfUserId: varchar("duplicate_of_user_id"), // If duplicate detected
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// =============================================
+// PHASE 2: DRIVER GPS & NAVIGATION ENFORCEMENT TABLES
+// =============================================
+
+// Driver navigation setup - mandatory for all drivers before going online
+export const driverNavigationSetup = pgTable("driver_navigation_setup", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique(),
+  
+  // Step 1: GPS Permission
+  gpsPermissionGranted: boolean("gps_permission_granted").notNull().default(false),
+  locationPermissionStatus: locationPermissionStatusEnum("location_permission_status").notNull().default("not_requested"),
+  highAccuracyEnabled: boolean("high_accuracy_enabled").notNull().default(false),
+  
+  // Step 2: Navigation Provider Selection
+  preferredNavigationProvider: navigationProviderEnum("preferred_navigation_provider"),
+  navigationProviderSetAt: timestamp("navigation_provider_set_at"),
+  
+  // Step 3: Background Execution Consent
+  backgroundLocationConsent: boolean("background_location_consent").notNull().default(false),
+  foregroundServiceConsent: boolean("foreground_service_consent").notNull().default(false),
+  
+  // Setup completion
+  navigationSetupCompleted: boolean("navigation_setup_completed").notNull().default(false),
+  setupCompletedAt: timestamp("setup_completed_at"),
+  
+  // Current tracking state
+  isGpsActive: boolean("is_gps_active").notNull().default(false),
+  lastGpsHeartbeat: timestamp("last_gps_heartbeat"),
+  lastKnownLatitude: decimal("last_known_latitude", { precision: 10, scale: 7 }),
+  lastKnownLongitude: decimal("last_known_longitude", { precision: 10, scale: 7 }),
+  lastLocationUpdateAt: timestamp("last_location_update_at"),
+  
+  // Current navigation state
+  isNavigationActive: boolean("is_navigation_active").notNull().default(false),
+  currentNavigationTripId: varchar("current_navigation_trip_id"),
+  
+  // App state tracking
+  isAppInForeground: boolean("is_app_in_foreground").notNull().default(false),
+  lastAppStateChange: timestamp("last_app_state_change"),
+  
+  // Offline reason tracking
+  lastOfflineReason: offlineReasonEnum("last_offline_reason"),
+  lastOfflineAt: timestamp("last_offline_at"),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// GPS tracking logs - continuous stream of location updates during online/trip
+export const gpsTrackingLogs = pgTable("gps_tracking_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  tripId: varchar("trip_id"), // Null if driver is online but not on trip
+  
+  // Location data
+  latitude: decimal("latitude", { precision: 10, scale: 7 }).notNull(),
+  longitude: decimal("longitude", { precision: 10, scale: 7 }).notNull(),
+  accuracy: decimal("accuracy", { precision: 8, scale: 2 }), // Meters
+  altitude: decimal("altitude", { precision: 10, scale: 2 }), // Meters
+  speed: decimal("speed", { precision: 8, scale: 2 }), // m/s
+  heading: decimal("heading", { precision: 6, scale: 2 }), // Degrees
+  
+  // Event tracking
+  eventType: gpsEventTypeEnum("event_type").notNull(),
+  
+  // Metadata
+  deviceTimestamp: timestamp("device_timestamp").notNull(),
+  serverTimestamp: timestamp("server_timestamp").defaultNow(),
+  
+  // Validation flags
+  isSpoofingDetected: boolean("is_spoofing_detected").notNull().default(false),
+  spoofingReason: text("spoofing_reason"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Navigation audit log - immutable log of all navigation/GPS events
+export const navigationAuditLog = pgTable("navigation_audit_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  tripId: varchar("trip_id"),
+  
+  // Action tracking
+  actionType: navigationAuditActionEnum("action_type").notNull(),
+  actionDetails: text("action_details"), // JSON string with details
+  
+  // Location at time of action
+  latitude: decimal("latitude", { precision: 10, scale: 7 }),
+  longitude: decimal("longitude", { precision: 10, scale: 7 }),
+  
+  // Navigation provider used
+  navigationProvider: navigationProviderEnum("navigation_provider"),
+  
+  // If auto-offline was triggered
+  offlineReason: offlineReasonEnum("offline_reason"),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Driver GPS interruptions - tracks when drivers get auto-offlined
+export const driverGpsInterruptions = pgTable("driver_gps_interruptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  tripId: varchar("trip_id"), // If on trip when interrupted
+  
+  // Interruption details
+  interruptionReason: offlineReasonEnum("interruption_reason").notNull(),
+  interruptionDetails: text("interruption_details"), // JSON with additional info
+  
+  // Location at interruption
+  lastLatitude: decimal("last_latitude", { precision: 10, scale: 7 }),
+  lastLongitude: decimal("last_longitude", { precision: 10, scale: 7 }),
+  lastHeartbeatAt: timestamp("last_heartbeat_at"),
+  
+  // Resolution tracking
+  isResolved: boolean("is_resolved").notNull().default(false),
+  resolvedAt: timestamp("resolved_at"),
+  resolutionNotes: text("resolution_notes"),
+  
+  // Was trip affected?
+  tripWasAffected: boolean("trip_was_affected").notNull().default(false),
+  tripMarkedAsInterrupted: boolean("trip_marked_as_interrupted").notNull().default(false),
+  
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -2277,3 +2431,46 @@ export type InsertUserIdentityProfile = z.infer<typeof insertUserIdentityProfile
 export type UserIdentityProfile = typeof userIdentityProfiles.$inferSelect;
 export type InsertIdentityAuditLog = z.infer<typeof insertIdentityAuditLogSchema>;
 export type IdentityAuditLog = typeof identityAuditLog.$inferSelect;
+
+// =============================================
+// PHASE 2: DRIVER GPS & NAVIGATION ENFORCEMENT SCHEMAS
+// =============================================
+
+export const insertDriverNavigationSetupSchema = createInsertSchema(driverNavigationSetup).omit({
+  id: true,
+  setupCompletedAt: true,
+  lastGpsHeartbeat: true,
+  lastLocationUpdateAt: true,
+  lastAppStateChange: true,
+  lastOfflineAt: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertGpsTrackingLogSchema = createInsertSchema(gpsTrackingLogs).omit({
+  id: true,
+  serverTimestamp: true,
+  createdAt: true,
+});
+
+export const insertNavigationAuditLogSchema = createInsertSchema(navigationAuditLog).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertDriverGpsInterruptionSchema = createInsertSchema(driverGpsInterruptions).omit({
+  id: true,
+  isResolved: true,
+  resolvedAt: true,
+  resolutionNotes: true,
+  createdAt: true,
+});
+
+export type InsertDriverNavigationSetup = z.infer<typeof insertDriverNavigationSetupSchema>;
+export type DriverNavigationSetup = typeof driverNavigationSetup.$inferSelect;
+export type InsertGpsTrackingLog = z.infer<typeof insertGpsTrackingLogSchema>;
+export type GpsTrackingLog = typeof gpsTrackingLogs.$inferSelect;
+export type InsertNavigationAuditLog = z.infer<typeof insertNavigationAuditLogSchema>;
+export type NavigationAuditLog = typeof navigationAuditLog.$inferSelect;
+export type InsertDriverGpsInterruption = z.infer<typeof insertDriverGpsInterruptionSchema>;
+export type DriverGpsInterruption = typeof driverGpsInterruptions.$inferSelect;
