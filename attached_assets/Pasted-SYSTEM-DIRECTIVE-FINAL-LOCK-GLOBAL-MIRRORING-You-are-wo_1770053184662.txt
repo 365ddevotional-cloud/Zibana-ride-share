@@ -1,0 +1,134 @@
+SYSTEM DIRECTIVE — FINAL LOCK & GLOBAL MIRRORING
+
+You are working on the ZIBA Ride Share codebase.
+
+OBJECTIVE:
+HARD-LOCK automated financial guards and mirror the same payment, currency, and revenue rules across ALL supported countries, with Nigeria as the reference implementation.
+
+DO NOT ask questions.
+DO NOT add new product features.
+DO NOT refactor UI unless required for correctness.
+DO NOT weaken existing guards.
+Proceed deterministically.
+
+=====================================
+1) GLOBAL PAYMENT & CURRENCY ENGINE
+=====================================
+
+Promote Nigeria rules into a GLOBAL country-aware engine.
+
+For EVERY country:
+• Each trip MUST have exactly ONE currencyCode
+• All monetary fields MUST use the same currencyCode
+• Cross-currency transactions are FORBIDDEN
+
+Introduce a country config map:
+• countryCode → defaultCurrency
+• countryCode → minRideFare
+• countryCode → minWithdrawalAmount
+
+Nigeria:
+• currencyCode = NGN
+• USD must NEVER appear in rider, trip, or payout flows
+
+=====================================
+2) AUTOMATED SERVER-SIDE GUARDS (LOCKED)
+=====================================
+
+Guards MUST run BEFORE ride creation.
+
+ENFORCE globally:
+
+A ride request MUST FAIL if:
+• paymentSource is missing
+• paymentSource not allowed for user type
+• wallet currency ≠ trip currency
+• user is tester AND paymentSource ≠ TEST_WALLET
+• user is non-tester AND paymentSource = TEST_WALLET
+• available balance < required fare
+• wallet is frozen or user is suspended
+
+These guards are SERVER-ONLY.
+UI cannot bypass or override them.
+
+=====================================
+3) TEST MODE (GLOBAL RULE)
+=====================================
+
+Test mode is NEVER UI-controlled.
+
+Resolution order:
+1. isTester flag
+2. environment (API keys present or not)
+
+Rules:
+• isTester = true → paymentSource FORCED to TEST_WALLET
+• isTester = false → TEST_WALLET inaccessible
+• INS UFFICIENT_BALANCE must NEVER trigger for testers with test credits
+
+=====================================
+4) REVENUE SPLIT (IMMUTABLE)
+=====================================
+
+GLOBAL, COUNTRY-INDEPENDENT RULE:
+
+• Driver = 80%
+• Platform (ZIBA) = 20%
+
+For EVERY trip:
+• driverPayout = fareAmount × 0.80
+• commissionAmount = fareAmount × 0.20
+
+No overrides.
+No rounding drift.
+No country exceptions.
+
+=====================================
+5) MIRRORING TO ALL COUNTRIES
+=====================================
+
+For every new or existing country:
+• Currency rules identical to Nigeria (single-currency per trip)
+• Same paymentSource enforcement
+• Same tester restrictions
+• Same revenue split
+• Same audit logging
+
+Only the following may differ per country:
+• currencyCode
+• minimum fare
+• minimum withdrawal threshold
+• payout provider implementation
+
+=====================================
+6) DATA & AUDIT (MANDATORY)
+=====================================
+
+Persist on every trip:
+• countryCode
+• currencyCode
+• paymentSource
+• fareAmount
+• driverPayout
+• commissionAmount
+• isTestTrip
+
+Log ALL guard rejections with:
+• reasonCode
+• userId
+• tripAttemptId
+• countryCode
+
+=====================================
+7) FINAL SYSTEM LOCK
+=====================================
+
+After implementation:
+• Guards MUST NOT be removable without code change
+• All checks must be unit-testable
+• Existing Nigeria behavior MUST remain unchanged
+
+Mark system as:
+FINANCIAL_ENGINE_LOCKED = TRUE
+
+Proceed with implementation now.

@@ -6,8 +6,9 @@ import { storage } from "./storage";
 import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema } from "@shared/schema";
 import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, evaluateAllDrivers } from "./incentives";
 import { notificationService } from "./notification-service";
-import { getCurrencyFromCountry } from "@shared/currency";
+import { getCurrencyFromCountry, getCountryConfig, FINANCIAL_ENGINE_LOCKED } from "@shared/currency";
 import { getPayoutProviderForCountry, generatePayoutReference, validatePaystackWebhook, validateFlutterwaveWebhook, type TransferStatus } from "./payout-provider";
+import { validateRideRequest, assertFinancialEngineLocked } from "./financial-guards";
 
 // Helper function to get user's currency based on their country
 async function getUserCurrency(userId: string): Promise<string> {
@@ -1471,6 +1472,9 @@ export async function registerRoutes(
 
   app.post("/api/rider/request-ride", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
     try {
+      // ASSERT FINANCIAL ENGINE IS LOCKED
+      assertFinancialEngineLocked();
+      
       const userId = req.user.claims.sub;
       const parsed = insertTripSchema.safeParse({ ...req.body, riderId: userId });
       
@@ -1483,20 +1487,15 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Already have an active trip" });
       }
 
+      // Get user's country for country-aware config
+      const userRole = await storage.getUserRole(userId);
+      const countryCode = userRole?.countryCode || "NG";
+      const countryConfig = getCountryConfig(countryCode);
+
       // Get or create rider wallet with user's country currency
       let riderWallet = await storage.getRiderWallet(userId);
       if (!riderWallet) {
-        const currency = await getUserCurrency(userId);
-        riderWallet = await storage.createRiderWallet({ userId, currency });
-      }
-
-      // Check if wallet is frozen
-      if (riderWallet.isFrozen) {
-        console.log(`[SECURITY AUDIT] Frozen wallet ride request attempt: userId=${userId}`);
-        return res.status(403).json({ 
-          message: "Your wallet is frozen. Please contact support.",
-          code: "WALLET_FROZEN"
-        });
+        riderWallet = await storage.createRiderWallet({ userId, currency: countryConfig.currencyCode });
       }
 
       // SERVER-SIDE WALLET RESOLUTION - Determine payment source based on tester status
@@ -1507,31 +1506,39 @@ export async function registerRoutes(
       
       // Get the correct balance based on resolved payment source
       let availableBalance: number;
-      let walletType: string;
       
       if (resolvedPaymentSource === "TEST_WALLET") {
-        // TESTER: Use tester wallet balance
         availableBalance = parseFloat(String(riderWallet.testerWalletBalance || "0"));
-        walletType = "TEST";
         console.log(`[WALLET RESOLUTION] Tester user ${userId} - using TEST_WALLET, balance: ${availableBalance}`);
       } else {
-        // NON-TESTER: Use main wallet balance
         availableBalance = parseFloat(String(riderWallet.balance || "0")) - parseFloat(String(riderWallet.lockedBalance || "0"));
-        walletType = "MAIN";
         console.log(`[WALLET RESOLUTION] Regular user ${userId} - using MAIN_WALLET, balance: ${availableBalance}`);
       }
-      
-      // Minimum balance check - ₦5.00 (stored as 5.00, not kobo)
-      const minimumRequiredBalance = 5.00;
-      
-      if (availableBalance < minimumRequiredBalance) {
-        console.log(`[BALANCE CHECK FAILED] userId=${userId}, paymentSource=${resolvedPaymentSource}, available=${availableBalance}, required=${minimumRequiredBalance}`);
-        return res.status(400).json({ 
-          message: `Please add funds to your ${walletType === "TEST" ? "test" : "main"} wallet to request a ride.`,
-          code: "INSUFFICIENT_BALANCE",
-          paymentSource: resolvedPaymentSource,
-          required: minimumRequiredBalance,
-          available: availableBalance
+
+      // CURRENCY CONSISTENCY - Trip currency MUST match country currency
+      const walletCurrency = riderWallet.currency || countryConfig.currencyCode;
+      const tripCurrency = countryConfig.currencyCode; // FORCED to country currency
+
+      // ===========================================
+      // GLOBAL FINANCIAL GUARDS (ALL COUNTRIES)
+      // ===========================================
+      const guardResult = validateRideRequest({
+        userId,
+        isTester,
+        walletCurrency,
+        tripCurrency,
+        countryCode,
+        availableBalance,
+        walletFrozen: riderWallet.isFrozen || false,
+        userSuspended: false, // TODO: Add user suspension check
+        resolvedPaymentSource,
+      });
+
+      if (!guardResult.allowed) {
+        return res.status(400).json({
+          message: guardResult.message,
+          code: guardResult.code,
+          ...guardResult.details,
         });
       }
 
@@ -1542,50 +1549,20 @@ export async function registerRoutes(
         await storage.updateRiderWalletPaymentSource(userId, "MAIN_WALLET");
       }
 
-      // CURRENCY CONSISTENCY CHECK - Nigeria = NGN ONLY
-      const walletCurrency = riderWallet.currency || "NGN";
-      const tripCurrency = parsed.data.currencyCode || "NGN";
-      
-      // Block ride if wallet currency doesn't match trip currency
-      if (walletCurrency !== tripCurrency) {
-        console.log(`[CURRENCY MISMATCH] userId=${userId}, walletCurrency=${walletCurrency}, tripCurrency=${tripCurrency}`);
-        return res.status(400).json({
-          message: `Currency mismatch: Your wallet is ${walletCurrency} but trip is ${tripCurrency}`,
-          code: "CURRENCY_MISMATCH",
-          walletCurrency,
-          tripCurrency
-        });
-      }
-      
-      // BLOCKING GUARD: Tester must use TEST_WALLET
-      if (isTester && resolvedPaymentSource !== "TEST_WALLET") {
-        console.log(`[PAYMENT SOURCE ERROR] Tester userId=${userId} attempted non-TEST_WALLET payment`);
-        return res.status(400).json({
-          message: "Test users must use TEST_WALLET",
-          code: "INVALID_PAYMENT_SOURCE"
-        });
-      }
-      
-      // BLOCKING GUARD: Non-tester cannot use TEST_WALLET
-      if (!isTester && resolvedPaymentSource === "TEST_WALLET") {
-        console.log(`[PAYMENT SOURCE ERROR] Non-tester userId=${userId} attempted TEST_WALLET payment`);
-        return res.status(400).json({
-          message: "Regular users cannot use TEST_WALLET",
-          code: "INVALID_PAYMENT_SOURCE"
-        });
-      }
-
-      // Create the trip with payment source tracking (using correct schema fields)
+      // Create the trip with FULL financial tracking
       const tripData = {
         ...parsed.data,
         paymentSource: resolvedPaymentSource as "TEST_WALLET" | "MAIN_WALLET" | "CARD" | "BANK",
         isTestTrip: isTester,
         currencyCode: tripCurrency,
+        countryId: countryCode,
       };
       
       const trip = await storage.createTrip(tripData);
       
-      console.log(`[RIDE CREATED] tripId=${trip.id}, userId=${userId}, paymentSource=${resolvedPaymentSource}, isTester=${isTester}, walletBalance=${availableBalance}`);
+      console.log(`[RIDE CREATED] tripId=${trip.id}, userId=${userId}, countryCode=${countryCode}, ` +
+        `paymentSource=${resolvedPaymentSource}, isTester=${isTester}, walletBalance=${availableBalance}, ` +
+        `currency=${tripCurrency}`);
       
       await storage.notifyAllDrivers(
         "New Ride Request",
