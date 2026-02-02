@@ -20,6 +20,20 @@ import {
   hashIdentityDocument,
   validateIdentitySubmission,
 } from "./identity-guards";
+import {
+  NAVIGATION_ENGINE_LOCKED,
+  assertNavigationEngineLocked,
+  checkNavigationSetup,
+  validateDriverGps,
+  processGpsUpdate,
+  triggerAutoOffline,
+  launchNavigation,
+  closeNavigation,
+  reportAppState,
+  checkStaleGpsHeartbeats,
+  canDriverGoOnline as canDriverGoOnlineNavigation,
+} from "./navigation-guards";
+import { NAVIGATION_PROVIDERS } from "@shared/navigation-config";
 import { insertUserIdentityProfileSchema } from "@shared/schema";
 import { getIdentityConfig, isValidIdTypeForCountry } from "@shared/identity-config";
 
@@ -2886,6 +2900,567 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error checking driver identity:", error);
       return res.status(500).json({ message: "Failed to check driver identity" });
+    }
+  });
+
+  // =============================================
+  // PHASE 2: DRIVER GPS & NAVIGATION ENFORCEMENT ENDPOINTS
+  // =============================================
+
+  // Get navigation providers list
+  app.get("/api/navigation/providers", isAuthenticated, async (req: any, res) => {
+    try {
+      const providers = Object.values(NAVIGATION_PROVIDERS).map(p => ({
+        id: p.id,
+        name: p.name,
+      }));
+      return res.json(providers);
+    } catch (error) {
+      console.error("Error getting navigation providers:", error);
+      return res.status(500).json({ message: "Failed to get navigation providers" });
+    }
+  });
+
+  // Get driver's navigation setup status
+  app.get("/api/driver/navigation/setup", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const setup = await storage.getDriverNavigationSetup(userId);
+      
+      if (!setup) {
+        return res.json({
+          exists: false,
+          setupComplete: false,
+          gpsPermissionGranted: false,
+          highAccuracyEnabled: false,
+          preferredNavigationProvider: null,
+          backgroundLocationConsent: false,
+          foregroundServiceConsent: false,
+        });
+      }
+      
+      return res.json({
+        exists: true,
+        setupComplete: setup.navigationSetupCompleted,
+        gpsPermissionGranted: setup.gpsPermissionGranted,
+        highAccuracyEnabled: setup.highAccuracyEnabled,
+        preferredNavigationProvider: setup.preferredNavigationProvider,
+        backgroundLocationConsent: setup.backgroundLocationConsent,
+        foregroundServiceConsent: setup.foregroundServiceConsent,
+        isGpsActive: setup.isGpsActive,
+        lastGpsHeartbeat: setup.lastGpsHeartbeat,
+        lastOfflineReason: setup.lastOfflineReason,
+      });
+    } catch (error) {
+      console.error("Error getting navigation setup:", error);
+      return res.status(500).json({ message: "Failed to get navigation setup" });
+    }
+  });
+
+  // Initialize or update navigation setup (Step 1: GPS Permission)
+  app.post("/api/driver/navigation/setup/gps-permission", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      assertNavigationEngineLocked();
+      
+      const userId = req.user.claims.sub;
+      const { granted, highAccuracy, permissionStatus } = req.body;
+      
+      let setup = await storage.getDriverNavigationSetup(userId);
+      
+      if (!setup) {
+        setup = await storage.createDriverNavigationSetup({
+          userId,
+          gpsPermissionGranted: granted === true,
+          highAccuracyEnabled: highAccuracy === true,
+          locationPermissionStatus: permissionStatus || (granted ? "granted" : "denied"),
+        });
+      } else {
+        setup = await storage.updateDriverNavigationSetup(userId, {
+          gpsPermissionGranted: granted === true,
+          highAccuracyEnabled: highAccuracy === true,
+          locationPermissionStatus: permissionStatus || (granted ? "granted" : "denied"),
+        });
+      }
+      
+      // Log audit event
+      await storage.createNavigationAuditLog({
+        userId,
+        actionType: granted ? "PERMISSION_GRANTED" : "PERMISSION_DENIED",
+        actionDetails: JSON.stringify({ highAccuracy, permissionStatus }),
+      });
+      
+      console.log(`[NAVIGATION] GPS permission ${granted ? "granted" : "denied"}: userId=${userId}`);
+      
+      return res.json({
+        success: true,
+        message: granted ? "GPS permission granted" : "GPS permission denied",
+        setup,
+      });
+    } catch (error) {
+      console.error("Error updating GPS permission:", error);
+      return res.status(500).json({ message: "Failed to update GPS permission" });
+    }
+  });
+
+  // Update navigation setup (Step 2: Navigation Provider Selection)
+  app.post("/api/driver/navigation/setup/provider", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      assertNavigationEngineLocked();
+      
+      const userId = req.user.claims.sub;
+      const { provider } = req.body;
+      
+      if (!provider || !NAVIGATION_PROVIDERS[provider as keyof typeof NAVIGATION_PROVIDERS]) {
+        return res.status(400).json({ message: "Invalid navigation provider" });
+      }
+      
+      let setup = await storage.getDriverNavigationSetup(userId);
+      
+      if (!setup) {
+        return res.status(400).json({ message: "Complete GPS permission step first" });
+      }
+      
+      setup = await storage.updateDriverNavigationSetup(userId, {
+        preferredNavigationProvider: provider,
+        navigationProviderSetAt: new Date(),
+      });
+      
+      // Log audit event
+      await storage.createNavigationAuditLog({
+        userId,
+        actionType: "PROVIDER_CHANGED",
+        actionDetails: JSON.stringify({ provider }),
+        navigationProvider: provider,
+      });
+      
+      console.log(`[NAVIGATION] Provider set: userId=${userId}, provider=${provider}`);
+      
+      return res.json({
+        success: true,
+        message: `Navigation provider set to ${NAVIGATION_PROVIDERS[provider as keyof typeof NAVIGATION_PROVIDERS].name}`,
+        setup,
+      });
+    } catch (error) {
+      console.error("Error updating navigation provider:", error);
+      return res.status(500).json({ message: "Failed to update navigation provider" });
+    }
+  });
+
+  // Update navigation setup (Step 3: Background Execution Consent)
+  app.post("/api/driver/navigation/setup/background-consent", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      assertNavigationEngineLocked();
+      
+      const userId = req.user.claims.sub;
+      const { backgroundLocation, foregroundService } = req.body;
+      
+      let setup = await storage.getDriverNavigationSetup(userId);
+      
+      if (!setup) {
+        return res.status(400).json({ message: "Complete GPS permission step first" });
+      }
+      
+      setup = await storage.updateDriverNavigationSetup(userId, {
+        backgroundLocationConsent: backgroundLocation === true,
+        foregroundServiceConsent: foregroundService === true,
+      });
+      
+      // Log audit event
+      await storage.createNavigationAuditLog({
+        userId,
+        actionType: "BACKGROUND_CONSENT_GRANTED",
+        actionDetails: JSON.stringify({ backgroundLocation, foregroundService }),
+      });
+      
+      console.log(`[NAVIGATION] Background consent updated: userId=${userId}, bg=${backgroundLocation}, fg=${foregroundService}`);
+      
+      return res.json({
+        success: true,
+        message: "Background execution consent updated",
+        setup,
+      });
+    } catch (error) {
+      console.error("Error updating background consent:", error);
+      return res.status(500).json({ message: "Failed to update background consent" });
+    }
+  });
+
+  // Complete navigation setup wizard
+  app.post("/api/driver/navigation/setup/complete", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      assertNavigationEngineLocked();
+      
+      const userId = req.user.claims.sub;
+      
+      // Validate all steps are complete
+      const checkResult = await checkNavigationSetup(userId);
+      
+      if (!checkResult.canGoOnline) {
+        return res.status(400).json({
+          success: false,
+          message: checkResult.message,
+          missingSteps: checkResult.missingSteps,
+        });
+      }
+      
+      // Mark setup as complete
+      const setup = await storage.completeNavigationSetup(userId);
+      
+      // Log audit event
+      await storage.createNavigationAuditLog({
+        userId,
+        actionType: "SETUP_COMPLETED",
+        actionDetails: JSON.stringify({ completedAt: new Date() }),
+      });
+      
+      console.log(`[NAVIGATION] Setup completed: userId=${userId}`);
+      
+      return res.json({
+        success: true,
+        message: "Navigation setup completed. You can now go online.",
+        setup,
+      });
+    } catch (error) {
+      console.error("Error completing navigation setup:", error);
+      return res.status(500).json({ message: "Failed to complete navigation setup" });
+    }
+  });
+
+  // Check if driver can go online (combined identity + navigation check)
+  app.get("/api/driver/can-go-online", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Check identity requirements
+      const identityCheck = await checkDriverCanGoOnline(userId);
+      
+      // Check navigation requirements
+      const navigationCheck = await checkNavigationSetup(userId);
+      
+      const canGoOnline = identityCheck.canGoOnline && navigationCheck.canGoOnline;
+      
+      return res.json({
+        canGoOnline,
+        identity: {
+          ready: identityCheck.canGoOnline,
+          message: identityCheck.message,
+        },
+        navigation: {
+          ready: navigationCheck.canGoOnline,
+          setupComplete: navigationCheck.setupComplete,
+          missingSteps: navigationCheck.missingSteps,
+          message: navigationCheck.message,
+        },
+      });
+    } catch (error) {
+      console.error("Error checking driver status:", error);
+      return res.status(500).json({ message: "Failed to check driver status" });
+    }
+  });
+
+  // GPS heartbeat update (called frequently while online/on trip)
+  app.post("/api/driver/gps/heartbeat", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      assertNavigationEngineLocked();
+      
+      const userId = req.user.claims.sub;
+      const { latitude, longitude, accuracy, altitude, speed, heading, deviceTimestamp } = req.body;
+      
+      if (!latitude || !longitude) {
+        return res.status(400).json({ message: "Latitude and longitude are required" });
+      }
+      
+      const result = await processGpsUpdate(
+        userId,
+        parseFloat(latitude),
+        parseFloat(longitude),
+        accuracy ? parseFloat(accuracy) : undefined,
+        altitude ? parseFloat(altitude) : undefined,
+        speed ? parseFloat(speed) : undefined,
+        heading ? parseFloat(heading) : undefined,
+        deviceTimestamp ? new Date(deviceTimestamp) : undefined
+      );
+      
+      if (!result.success) {
+        return res.status(400).json({
+          success: false,
+          message: result.message,
+          isSpoofing: result.isSpoofing,
+        });
+      }
+      
+      return res.json({
+        success: true,
+        message: "GPS heartbeat received",
+      });
+    } catch (error) {
+      console.error("Error processing GPS heartbeat:", error);
+      return res.status(500).json({ message: "Failed to process GPS heartbeat" });
+    }
+  });
+
+  // Report GPS state change
+  app.post("/api/driver/gps/state", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      assertNavigationEngineLocked();
+      
+      const userId = req.user.claims.sub;
+      const { enabled, latitude, longitude } = req.body;
+      
+      await storage.updateGpsState(userId, enabled === true, latitude, longitude);
+      
+      // Log the event
+      await storage.createNavigationAuditLog({
+        userId,
+        actionType: enabled ? "PERMISSION_GRANTED" : "GPS_TIMEOUT",
+        actionDetails: JSON.stringify({ enabled }),
+        latitude,
+        longitude,
+      });
+      
+      // If GPS disabled, trigger auto-offline
+      if (!enabled) {
+        await triggerAutoOffline(userId, "GPS_DISABLED", "Driver disabled GPS");
+      }
+      
+      return res.json({
+        success: true,
+        message: enabled ? "GPS enabled" : "GPS disabled - driver set offline",
+      });
+    } catch (error) {
+      console.error("Error updating GPS state:", error);
+      return res.status(500).json({ message: "Failed to update GPS state" });
+    }
+  });
+
+  // Report app state change (foreground/background)
+  app.post("/api/driver/app/state", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      assertNavigationEngineLocked();
+      
+      const userId = req.user.claims.sub;
+      const { isInForeground } = req.body;
+      
+      await reportAppState(userId, isInForeground === true);
+      
+      return res.json({
+        success: true,
+        message: isInForeground ? "App resumed" : "App backgrounded",
+      });
+    } catch (error) {
+      console.error("Error updating app state:", error);
+      return res.status(500).json({ message: "Failed to update app state" });
+    }
+  });
+
+  // Get navigation link for trip
+  app.post("/api/driver/navigation/launch", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      assertNavigationEngineLocked();
+      
+      const userId = req.user.claims.sub;
+      const { tripId, destLatitude, destLongitude, startLatitude, startLongitude } = req.body;
+      
+      if (!tripId || !destLatitude || !destLongitude) {
+        return res.status(400).json({ message: "Trip ID and destination coordinates are required" });
+      }
+      
+      const links = await launchNavigation(
+        userId,
+        tripId,
+        parseFloat(destLatitude),
+        parseFloat(destLongitude),
+        startLatitude ? parseFloat(startLatitude) : undefined,
+        startLongitude ? parseFloat(startLongitude) : undefined
+      );
+      
+      if (!links) {
+        return res.status(400).json({ message: "Navigation setup not complete" });
+      }
+      
+      return res.json({
+        success: true,
+        deepLink: links.deepLink,
+        webFallback: links.webFallback,
+      });
+    } catch (error) {
+      console.error("Error launching navigation:", error);
+      return res.status(500).json({ message: "Failed to launch navigation" });
+    }
+  });
+
+  // Close navigation (trip ended)
+  app.post("/api/driver/navigation/close", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      assertNavigationEngineLocked();
+      
+      const userId = req.user.claims.sub;
+      const { tripId } = req.body;
+      
+      await closeNavigation(userId, tripId);
+      
+      return res.json({
+        success: true,
+        message: "Navigation closed",
+      });
+    } catch (error) {
+      console.error("Error closing navigation:", error);
+      return res.status(500).json({ message: "Failed to close navigation" });
+    }
+  });
+
+  // Admin: Get all driver navigation setups
+  app.get("/api/admin/navigation/drivers", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const setups = await storage.getAllDriverNavigationSetups();
+      return res.json(setups);
+    } catch (error) {
+      console.error("Error getting driver navigation setups:", error);
+      return res.status(500).json({ message: "Failed to get driver navigation setups" });
+    }
+  });
+
+  // Admin: Get driver's navigation setup
+  app.get("/api/admin/navigation/drivers/:userId", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const setup = await storage.getDriverNavigationSetup(userId);
+      
+      if (!setup) {
+        return res.status(404).json({ message: "Navigation setup not found" });
+      }
+      
+      return res.json(setup);
+    } catch (error) {
+      console.error("Error getting driver navigation setup:", error);
+      return res.status(500).json({ message: "Failed to get driver navigation setup" });
+    }
+  });
+
+  // Admin: Get drivers with GPS issues
+  app.get("/api/admin/navigation/gps-issues", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const driversWithIssues = await storage.getDriversWithGpsIssues();
+      return res.json(driversWithIssues);
+    } catch (error) {
+      console.error("Error getting drivers with GPS issues:", error);
+      return res.status(500).json({ message: "Failed to get drivers with GPS issues" });
+    }
+  });
+
+  // Admin: Get all GPS interruptions
+  app.get("/api/admin/navigation/interruptions", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const interruptions = await storage.getAllGpsInterruptions();
+      return res.json(interruptions);
+    } catch (error) {
+      console.error("Error getting GPS interruptions:", error);
+      return res.status(500).json({ message: "Failed to get GPS interruptions" });
+    }
+  });
+
+  // Admin: Get driver's GPS interruptions
+  app.get("/api/admin/navigation/interruptions/:userId", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const interruptions = await storage.getGpsInterruptions(userId);
+      return res.json(interruptions);
+    } catch (error) {
+      console.error("Error getting driver GPS interruptions:", error);
+      return res.status(500).json({ message: "Failed to get driver GPS interruptions" });
+    }
+  });
+
+  // Admin: Resolve GPS interruption
+  app.post("/api/admin/navigation/interruptions/:interruptionId/resolve", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { interruptionId } = req.params;
+      const { notes } = req.body;
+      
+      if (!notes) {
+        return res.status(400).json({ message: "Resolution notes are required" });
+      }
+      
+      const interruption = await storage.resolveGpsInterruption(interruptionId, notes);
+      
+      if (!interruption) {
+        return res.status(404).json({ message: "Interruption not found" });
+      }
+      
+      return res.json({
+        success: true,
+        message: "Interruption resolved",
+        interruption,
+      });
+    } catch (error) {
+      console.error("Error resolving GPS interruption:", error);
+      return res.status(500).json({ message: "Failed to resolve GPS interruption" });
+    }
+  });
+
+  // Admin: Get all navigation audit logs
+  app.get("/api/admin/navigation/audit-logs", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const logs = await storage.getAllNavigationAuditLogs();
+      return res.json(logs);
+    } catch (error) {
+      console.error("Error getting navigation audit logs:", error);
+      return res.status(500).json({ message: "Failed to get navigation audit logs" });
+    }
+  });
+
+  // Admin: Get driver's navigation audit logs
+  app.get("/api/admin/navigation/audit-logs/:userId", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const logs = await storage.getNavigationAuditLogs(userId);
+      return res.json(logs);
+    } catch (error) {
+      console.error("Error getting driver navigation audit logs:", error);
+      return res.status(500).json({ message: "Failed to get driver navigation audit logs" });
+    }
+  });
+
+  // Admin: Get driver's GPS tracking logs
+  app.get("/api/admin/navigation/tracking/:userId", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 100;
+      const logs = await storage.getGpsTrackingLogs(userId, limit);
+      return res.json(logs);
+    } catch (error) {
+      console.error("Error getting GPS tracking logs:", error);
+      return res.status(500).json({ message: "Failed to get GPS tracking logs" });
+    }
+  });
+
+  // Admin: Get GPS tracking logs for a trip
+  app.get("/api/admin/navigation/tracking/trip/:tripId", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { tripId } = req.params;
+      const logs = await storage.getGpsTrackingLogsForTrip(tripId);
+      return res.json(logs);
+    } catch (error) {
+      console.error("Error getting trip GPS tracking logs:", error);
+      return res.status(500).json({ message: "Failed to get trip GPS tracking logs" });
+    }
+  });
+
+  // System: Check stale GPS heartbeats (called by cron/scheduled task)
+  app.post("/api/system/navigation/check-heartbeats", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      assertNavigationEngineLocked();
+      
+      const offlinedCount = await checkStaleGpsHeartbeats();
+      
+      return res.json({
+        success: true,
+        offlinedCount,
+        message: `Checked heartbeats. ${offlinedCount} drivers auto-offlined.`,
+      });
+    } catch (error) {
+      console.error("Error checking stale heartbeats:", error);
+      return res.status(500).json({ message: "Failed to check stale heartbeats" });
     }
   });
 
