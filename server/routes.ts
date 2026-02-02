@@ -9,6 +9,19 @@ import { notificationService } from "./notification-service";
 import { getCurrencyFromCountry, getCountryConfig, FINANCIAL_ENGINE_LOCKED } from "@shared/currency";
 import { getPayoutProviderForCountry, generatePayoutReference, validatePaystackWebhook, validateFlutterwaveWebhook, type TransferStatus } from "./payout-provider";
 import { validateRideRequest, assertFinancialEngineLocked } from "./financial-guards";
+import { 
+  IDENTITY_ENGINE_LOCKED, 
+  assertIdentityEngineLocked,
+  checkDriverCanGoOnline,
+  checkDriverCanAcceptRide,
+  adminApproveIdentity,
+  adminRejectIdentity,
+  adminVerifyDriverLicense,
+  hashIdentityDocument,
+  validateIdentitySubmission,
+} from "./identity-guards";
+import { insertUserIdentityProfileSchema } from "@shared/schema";
+import { getIdentityConfig, isValidIdTypeForCountry } from "@shared/identity-config";
 
 // Helper function to get user's currency based on their country
 async function getUserCurrency(userId: string): Promise<string> {
@@ -2597,6 +2610,282 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error completing driver verification:", error);
       return res.status(500).json({ message: "Failed to complete verification" });
+    }
+  });
+
+  // =============================================
+  // PHASE 1: UNIVERSAL IDENTITY FRAMEWORK ENDPOINTS
+  // =============================================
+
+  // Submit identity profile (for all users)
+  app.post("/api/identity/submit", isAuthenticated, async (req: any, res) => {
+    try {
+      assertIdentityEngineLocked();
+      
+      const userId = req.user.claims.sub;
+      const { 
+        legalFullName, 
+        dateOfBirth, 
+        residentialAddress, 
+        countryCode, 
+        governmentIdType, 
+        governmentIdNumber,
+        driverLicenseNumber,
+        driverLicenseCountry,
+      } = req.body;
+
+      // Validate required fields
+      if (!legalFullName || !dateOfBirth || !residentialAddress || !countryCode || !governmentIdType || !governmentIdNumber) {
+        return res.status(400).json({ message: "Missing required identity fields" });
+      }
+
+      // Validate ID type for country
+      if (!isValidIdTypeForCountry(countryCode, governmentIdType)) {
+        const config = getIdentityConfig(countryCode);
+        return res.status(400).json({ 
+          message: `Invalid ID type for ${countryCode}. Allowed: ${config.allowedIdTypes.join(", ")}`,
+          code: "INVALID_ID_TYPE",
+        });
+      }
+
+      // Validate submission (checks for duplicates)
+      const validation = await validateIdentitySubmission({
+        userId,
+        countryCode,
+        governmentIdType,
+        governmentIdNumber,
+        driverLicenseNumber,
+      });
+
+      if (!validation.allowed) {
+        return res.status(400).json({
+          message: validation.message,
+          code: validation.code,
+        });
+      }
+
+      // Check if profile already exists
+      const existing = await storage.getUserIdentityProfile(userId);
+      if (existing) {
+        return res.status(400).json({ message: "Identity profile already submitted" });
+      }
+
+      // Hash the documents (NEVER store raw)
+      const governmentIdHash = hashIdentityDocument(governmentIdNumber);
+      const driverLicenseHash = driverLicenseNumber ? hashIdentityDocument(driverLicenseNumber) : null;
+
+      // Create the identity profile
+      const profile = await storage.createUserIdentityProfile({
+        userId,
+        legalFullName,
+        dateOfBirth: new Date(dateOfBirth),
+        residentialAddress,
+        countryCode,
+        governmentIdType,
+        governmentIdHash,
+        governmentIdIssuedCountry: countryCode,
+        driverLicenseHash,
+        driverLicenseCountry: driverLicenseCountry || null,
+      });
+
+      // Log the submission
+      await storage.createIdentityAuditLog({
+        userId,
+        actionType: "SUBMISSION",
+        actionBy: userId,
+        actionDetails: JSON.stringify({ governmentIdType, countryCode }),
+        countryCode,
+        governmentIdType,
+      });
+
+      console.log(`[IDENTITY] Profile submitted: userId=${userId}, countryCode=${countryCode}, idType=${governmentIdType}`);
+
+      return res.json({
+        message: "Identity submitted for verification",
+        profile: {
+          id: profile.id,
+          identityStatus: profile.identityStatus,
+          countryCode: profile.countryCode,
+          governmentIdType: profile.governmentIdType,
+        },
+      });
+    } catch (error) {
+      console.error("Error submitting identity:", error);
+      return res.status(500).json({ message: "Failed to submit identity" });
+    }
+  });
+
+  // Get my identity profile
+  app.get("/api/identity/me", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const profile = await storage.getUserIdentityProfile(userId);
+      
+      if (!profile) {
+        return res.json({ submitted: false });
+      }
+
+      return res.json({
+        submitted: true,
+        identityStatus: profile.identityStatus,
+        identityVerified: profile.identityVerified,
+        driverLicenseVerified: profile.driverLicenseVerified,
+        countryCode: profile.countryCode,
+        governmentIdType: profile.governmentIdType,
+        rejectionReason: profile.rejectionReason,
+        createdAt: profile.createdAt,
+      });
+    } catch (error) {
+      console.error("Error getting identity profile:", error);
+      return res.status(500).json({ message: "Failed to get identity profile" });
+    }
+  });
+
+  // Get identity config for country
+  app.get("/api/identity/config/:countryCode", isAuthenticated, async (req: any, res) => {
+    try {
+      const { countryCode } = req.params;
+      const config = getIdentityConfig(countryCode);
+      return res.json(config);
+    } catch (error) {
+      console.error("Error getting identity config:", error);
+      return res.status(500).json({ message: "Failed to get identity config" });
+    }
+  });
+
+  // Admin: Get all pending identity profiles
+  app.get("/api/admin/identity/pending", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const profiles = await storage.getAllPendingIdentityProfiles();
+      return res.json(profiles);
+    } catch (error) {
+      console.error("Error getting pending identities:", error);
+      return res.status(500).json({ message: "Failed to get pending identities" });
+    }
+  });
+
+  // Admin: Get all identity profiles
+  app.get("/api/admin/identity/all", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const profiles = await storage.getAllIdentityProfiles();
+      return res.json(profiles);
+    } catch (error) {
+      console.error("Error getting identities:", error);
+      return res.status(500).json({ message: "Failed to get identities" });
+    }
+  });
+
+  // Admin: Get identity profile for user
+  app.get("/api/admin/identity/:userId", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const profile = await storage.getUserIdentityProfile(userId);
+      
+      if (!profile) {
+        return res.status(404).json({ message: "Identity profile not found" });
+      }
+
+      return res.json(profile);
+    } catch (error) {
+      console.error("Error getting identity profile:", error);
+      return res.status(500).json({ message: "Failed to get identity profile" });
+    }
+  });
+
+  // Admin: Approve identity
+  app.post("/api/admin/identity/:userId/approve", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const { userId } = req.params;
+
+      const result = await adminApproveIdentity(userId, adminId);
+      
+      if (!result.success) {
+        return res.status(400).json({ message: result.message });
+      }
+
+      return res.json({ message: result.message });
+    } catch (error) {
+      console.error("Error approving identity:", error);
+      return res.status(500).json({ message: "Failed to approve identity" });
+    }
+  });
+
+  // Admin: Reject identity
+  app.post("/api/admin/identity/:userId/reject", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const { userId } = req.params;
+      const { reason } = req.body;
+
+      if (!reason) {
+        return res.status(400).json({ message: "Rejection reason is required" });
+      }
+
+      const result = await adminRejectIdentity(userId, adminId, reason);
+      
+      if (!result.success) {
+        return res.status(400).json({ message: result.message });
+      }
+
+      return res.json({ message: result.message });
+    } catch (error) {
+      console.error("Error rejecting identity:", error);
+      return res.status(500).json({ message: "Failed to reject identity" });
+    }
+  });
+
+  // Admin: Verify driver license
+  app.post("/api/admin/identity/:userId/verify-license", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const { userId } = req.params;
+
+      const result = await adminVerifyDriverLicense(userId, adminId);
+      
+      if (!result.success) {
+        return res.status(400).json({ message: result.message });
+      }
+
+      return res.json({ message: result.message });
+    } catch (error) {
+      console.error("Error verifying driver license:", error);
+      return res.status(500).json({ message: "Failed to verify driver license" });
+    }
+  });
+
+  // Admin: Get identity audit logs
+  app.get("/api/admin/identity/audit-logs", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const logs = await storage.getAllIdentityAuditLogs();
+      return res.json(logs);
+    } catch (error) {
+      console.error("Error getting audit logs:", error);
+      return res.status(500).json({ message: "Failed to get audit logs" });
+    }
+  });
+
+  // Admin: Get identity audit logs for user
+  app.get("/api/admin/identity/:userId/audit-logs", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const logs = await storage.getIdentityAuditLogs(userId);
+      return res.json(logs);
+    } catch (error) {
+      console.error("Error getting user audit logs:", error);
+      return res.status(500).json({ message: "Failed to get user audit logs" });
+    }
+  });
+
+  // Check driver can go online (for UI feedback)
+  app.get("/api/driver/identity-check", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const result = await checkDriverCanGoOnline(userId);
+      return res.json(result);
+    } catch (error) {
+      console.error("Error checking driver identity:", error);
+      return res.status(500).json({ message: "Failed to check driver identity" });
     }
   });
 
