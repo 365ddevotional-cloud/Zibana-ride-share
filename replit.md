@@ -75,3 +75,112 @@ Preferred communication style: Simple, everyday language.
 - `@tanstack/react-query`: Data fetching and caching.
 - `shadcn/ui`: UI component library.
 - `zod`: Runtime schema validation.
+
+## Universal Identity Framework (Phase 1)
+
+### Engine Lock Status
+- `IDENTITY_ENGINE_LOCKED = true` (cannot be removed without code change)
+- Assertion: `assertIdentityEngineLocked()` prevents silent removal
+
+### Key Features
+- Country-aware identity verification for ALL users (drivers and riders)
+- SHA-256 hash-based duplicate detection for government IDs
+- Driver enforcement: Cannot go online/accept rides without approved identity AND verified license
+- Immutable audit logging for all identity actions
+
+### Country-Specific ID Requirements
+| Country | Code | Allowed ID Types |
+|---------|------|------------------|
+| Nigeria | NG | NIN |
+| United States | US | STATE_ID, US_DRIVER_LICENSE, US_PASSPORT |
+| United Kingdom | GB | UK_DRIVING_LICENSE, UK_PASSPORT |
+| South Africa | ZA | SA_ID, SA_PASSPORT |
+
+## Driver GPS & Navigation Enforcement (Phase 2)
+
+### Engine Lock Status
+- `NAVIGATION_ENGINE_LOCKED = true` (cannot be removed without code change)
+- Assertion: `assertNavigationEngineLocked()` prevents silent removal
+
+### Navigation Setup Wizard (Mandatory for Drivers)
+**Step 1: GPS Permission**
+- Require OS-level location permission = ALWAYS
+- Require high accuracy mode
+- Block continuation if denied
+
+**Step 2: Navigation Provider Selection**
+Driver must choose ONE:
+- Google Maps
+- Apple Maps
+- Waze
+- Other (OS-supported)
+
+**Step 3: Background Execution Consent**
+- Require background location execution
+- Require foreground service (Android)
+
+Driver CANNOT go online until all steps are complete.
+
+### GPS Enforcement Rules
+When driver status = ONLINE or ON_TRIP:
+- GPS must be ACTIVE
+- Location updates streamed at enforced interval (30s heartbeat)
+- If GPS stops or timeout (60s) → auto-set driver OFFLINE
+- Log interruption reason
+
+Blocking conditions:
+- GPS disabled
+- Location spoofing detected
+- Background permission revoked
+
+### Spoofing Detection
+- Maximum speed threshold: 150 m/s (~540 km/h)
+- Maximum location jump: 10km between updates
+- Detected spoofing → immediate auto-offline + audit log
+
+### Auto-Navigation Handoff
+When driver accepts ride/starts pickup/starts dropoff:
+- Launch selected navigation provider via deep link
+- Pass pickup/dropoff coordinates
+- Continue GPS tracking in parallel
+
+### Database Tables
+- `driverNavigationSetup`: Driver navigation configuration and current GPS state
+- `gpsTrackingLogs`: Continuous stream of location updates
+- `navigationAuditLog`: Immutable log of all navigation/GPS events
+- `driverGpsInterruptions`: Records of auto-offline triggers
+
+### API Endpoints
+
+**Driver Endpoints:**
+- `GET /api/driver/navigation/setup`: Get navigation setup status
+- `POST /api/driver/navigation/setup/gps-permission`: Step 1
+- `POST /api/driver/navigation/setup/provider`: Step 2
+- `POST /api/driver/navigation/setup/background-consent`: Step 3
+- `POST /api/driver/navigation/setup/complete`: Finalize setup
+- `GET /api/driver/can-go-online`: Combined identity + navigation check
+- `POST /api/driver/gps/heartbeat`: GPS location update
+- `POST /api/driver/gps/state`: Report GPS enable/disable
+- `POST /api/driver/app/state`: Report foreground/background
+- `POST /api/driver/navigation/launch`: Get navigation deep link
+- `POST /api/driver/navigation/close`: Close navigation
+
+**Admin Endpoints:**
+- `GET /api/admin/navigation/drivers`: All driver navigation setups
+- `GET /api/admin/navigation/drivers/:userId`: Specific driver setup
+- `GET /api/admin/navigation/gps-issues`: Drivers with GPS problems
+- `GET /api/admin/navigation/interruptions`: All GPS interruptions
+- `POST /api/admin/navigation/interruptions/:id/resolve`: Resolve interruption
+- `GET /api/admin/navigation/audit-logs`: All navigation audit logs
+- `GET /api/admin/navigation/tracking/:userId`: Driver GPS tracking logs
+
+### Important Files
+- `shared/schema.ts`: Database schema with navigation tables
+- `shared/navigation-config.ts`: Configuration constants and helper functions
+- `server/navigation-guards.ts`: Server-side enforcement logic
+- `server/routes.ts`: Navigation API endpoints
+
+### Integration Notes
+- Operates ALONGSIDE identity verification (Phase 1)
+- Does NOT modify financial engine, wallets, or payouts
+- All enforcement is SERVER-SIDE only

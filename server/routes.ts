@@ -3137,12 +3137,12 @@ export async function registerRoutes(
       // Check navigation requirements
       const navigationCheck = await checkNavigationSetup(userId);
       
-      const canGoOnline = identityCheck.canGoOnline && navigationCheck.canGoOnline;
+      const canGoOnline = identityCheck.allowed && navigationCheck.canGoOnline;
       
       return res.json({
         canGoOnline,
         identity: {
-          ready: identityCheck.canGoOnline,
+          ready: identityCheck.allowed,
           message: identityCheck.message,
         },
         navigation: {
