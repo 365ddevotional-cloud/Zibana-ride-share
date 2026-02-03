@@ -122,6 +122,16 @@ export async function registerRoutes(
       if (!userRole) {
         return res.json(null);
       }
+      
+      // RIDER APP: Block non-rider roles at session load
+      if (userRole.role !== "rider") {
+        console.warn(`[RIDER APP SECURITY] Non-rider session blocked: userId=${userId}, role=${userRole.role}, timestamp=${new Date().toISOString()}`);
+        return res.status(403).json({ 
+          message: "Please use the correct ZIBA app for your role.",
+          code: "ROLE_NOT_ALLOWED"
+        });
+      }
+      
       return res.json({ role: userRole.role });
     } catch (error) {
       console.error("Error getting user role:", error);
@@ -134,20 +144,24 @@ export async function registerRoutes(
       const userId = req.user.claims.sub;
       const { role } = req.body;
 
-      if (!["driver", "rider"].includes(role)) {
-        return res.status(400).json({ message: "Invalid role" });
+      // RIDER APP: Only allow rider role
+      if (role !== "rider") {
+        console.warn(`[RIDER APP SECURITY] Non-rider role selection blocked: userId=${userId}, attemptedRole=${role}, timestamp=${new Date().toISOString()}`);
+        return res.status(403).json({ message: "This app is for Riders only" });
       }
 
       const existingRole = await storage.getUserRole(userId);
       if (existingRole) {
+        // If existing role is not rider, block access
+        if (existingRole.role !== "rider") {
+          console.warn(`[RIDER APP SECURITY] Existing non-rider role blocked: userId=${userId}, existingRole=${existingRole.role}, timestamp=${new Date().toISOString()}`);
+          return res.status(403).json({ message: "This app is for Riders only. Please use the correct ZIBA app for your role." });
+        }
         return res.status(400).json({ message: "Role already assigned" });
       }
 
       const userRole = await storage.createUserRole({ userId, role });
-
-      if (role === "rider") {
-        await storage.createRiderProfile({ userId });
-      }
+      await storage.createRiderProfile({ userId });
 
       return res.json({ role: userRole.role });
     } catch (error) {

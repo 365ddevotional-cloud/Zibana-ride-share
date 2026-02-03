@@ -1,0 +1,130 @@
+You are working on the ZIBA Ride Share application.
+
+THIS PROMPT IS AUTHORITATIVE.
+Follow it EXACTLY.
+Do NOT suggest alternatives.
+Do NOT skip steps.
+
+====================================
+GOAL
+====================================
+
+LOCK the ZIBA RIDER APP so that ONLY users with role = RIDER
+can authenticate, access routes, or use features.
+
+All other roles MUST be blocked at login and runtime.
+
+This is FRONTEND + BACKEND SAFE CHECKS.
+NO database schema changes.
+
+====================================
+PHASE B — AUTH & ROLE ENFORCEMENT
+====================================
+
+1) DEFINE ALLOWED ROLE FOR THIS APP
+
+Allowed role:
+- RIDER ONLY
+
+Explicitly DISALLOWED:
+- DRIVER
+- ADMIN
+- SUPER_ADMIN
+- DIRECTOR
+- TRIP_COORDINATOR
+- ANY OTHER ROLE
+
+------------------------------------
+
+2) ENFORCE ROLE CHECK AT LOGIN (SERVER-SIDE)
+
+In authentication / session validation logic:
+
+- After user is authenticated
+- BEFORE session is created
+
+Add logic:
+
+If user.role !== "RIDER":
+  - Reject login
+  - Return HTTP 403
+  - Message: "This app is for Riders only"
+
+This must run on EVERY login attempt.
+
+------------------------------------
+
+3) ENFORCE ROLE CHECK AT SESSION LOAD
+
+On app startup / session restore:
+
+- Fetch user profile
+- If role !== "RIDER":
+  - Immediately log out user
+  - Clear session/token
+  - Redirect to login screen
+  - Show message:
+    "Please use the correct ZIBA app for your role."
+
+------------------------------------
+
+4) FRONTEND ROUTE GUARDS
+
+Protect ALL routes:
+
+- Before rendering any page:
+  - Check user.role
+  - If not RIDER → block navigation
+
+No hidden access.
+No partial rendering.
+No fallback screens.
+
+------------------------------------
+
+5) REMOVE ROLE SWITCHING UI
+
+In Rider App:
+- REMOVE any role selector
+- REMOVE any "switch to driver" or admin access
+- REMOVE links to admin/driver dashboards
+
+The Rider App must appear SINGLE-PURPOSE.
+
+------------------------------------
+
+6) SECURITY LOGGING (LIGHTWEIGHT)
+
+When a non-rider attempts access:
+- Log event:
+  - userId
+  - attemptedRole
+  - timestamp
+  - appMode = "RIDER"
+
+Do NOT expose this log to users.
+
+------------------------------------
+
+7) IMPORTANT RESTRICTIONS
+
+DO NOT:
+- Modify database schema
+- Auto-downgrade roles
+- Allow admins through for testing
+- Add environment flags
+
+If a user is not a RIDER,
+they MUST NOT use this app.
+
+====================================
+EXPECTED RESULT
+====================================
+
+- Only RIDER users can log in
+- Drivers/Admins are blocked cleanly
+- No role leakage possible
+- Rider App is store-compliant
+
+After completion, respond ONLY with:
+“Phase B — Auth & Role Enforcement complete.”
