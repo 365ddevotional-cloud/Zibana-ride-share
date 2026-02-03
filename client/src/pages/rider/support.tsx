@@ -12,8 +12,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { 
   HelpCircle, Shield, Phone, MessageSquare, Plus, 
-  Clock, CheckCircle, AlertTriangle, ChevronRight,
-  FileText, AlertCircle
+  ChevronRight, FileText, AlertTriangle, AlertOctagon
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
@@ -30,6 +29,7 @@ export default function RiderSupport() {
   const [showNewTicket, setShowNewTicket] = useState(false);
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
+  const [showSafetyInfo, setShowSafetyInfo] = useState(false);
 
   const { data: tickets, isLoading } = useQuery<SupportTicket[]>({
     queryKey: ["/api/support/tickets/my"],
@@ -71,31 +71,89 @@ export default function RiderSupport() {
     <RiderRouteGuard>
       <RiderLayout>
         <div className="p-4 space-y-6">
-          <h1 className="text-2xl font-bold" data-testid="text-support-title">Support</h1>
+          <h1 className="text-2xl font-bold" data-testid="text-support-title">Help & Safety</h1>
+
+          <Card className="border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <AlertOctagon className="h-6 w-6 text-red-600 dark:text-red-400 shrink-0" />
+                <div className="flex-1">
+                  <p className="font-semibold text-red-800 dark:text-red-200">Emergency?</p>
+                  <p className="text-sm text-red-700 dark:text-red-300 mt-1">
+                    If you're in immediate danger, please call emergency services directly.
+                  </p>
+                  <Button 
+                    variant="destructive" 
+                    className="mt-3 w-full"
+                    onClick={() => window.location.href = "tel:911"}
+                    data-testid="button-emergency-call"
+                  >
+                    <Phone className="h-4 w-4 mr-2" />
+                    Call Emergency Services
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           <div className="grid grid-cols-2 gap-3">
-            <Card className="hover-elevate cursor-pointer">
+            <Card 
+              className="hover-elevate cursor-pointer"
+              onClick={() => setShowSafetyInfo(!showSafetyInfo)}
+            >
               <CardContent className="p-4 text-center">
                 <div className="h-12 w-12 rounded-full bg-red-100 dark:bg-red-900 flex items-center justify-center mx-auto mb-2">
                   <Shield className="h-6 w-6 text-red-600 dark:text-red-400" />
                 </div>
                 <p className="font-medium" data-testid="text-safety-center">Safety Center</p>
-                <p className="text-xs text-muted-foreground mt-1">Emergency help</p>
+                <p className="text-xs text-muted-foreground mt-1">Safety tips & info</p>
               </CardContent>
             </Card>
-            <Card className="hover-elevate cursor-pointer">
+            <Card 
+              className="hover-elevate cursor-pointer"
+              onClick={() => setShowNewTicket(true)}
+            >
               <CardContent className="p-4 text-center">
-                <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-2">
-                  <Phone className="h-6 w-6 text-primary" />
+                <div className="h-12 w-12 rounded-full bg-amber-100 dark:bg-amber-900 flex items-center justify-center mx-auto mb-2">
+                  <AlertTriangle className="h-6 w-6 text-amber-600 dark:text-amber-400" />
                 </div>
-                <p className="font-medium" data-testid="text-contact-us">Contact Us</p>
-                <p className="text-xs text-muted-foreground mt-1">24/7 support</p>
+                <p className="font-medium" data-testid="text-report-issue">Report Issue</p>
+                <p className="text-xs text-muted-foreground mt-1">Trip problems</p>
               </CardContent>
             </Card>
           </div>
 
+          {showSafetyInfo && (
+            <Card className="border-primary/20">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Shield className="h-5 w-5 text-primary" />
+                  Safety Tips
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="p-3 rounded-lg bg-muted/50">
+                  <p className="font-medium text-sm">Verify your driver</p>
+                  <p className="text-xs text-muted-foreground">Check the driver's name, photo, and license plate before entering</p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/50">
+                  <p className="font-medium text-sm">Share your trip</p>
+                  <p className="text-xs text-muted-foreground">Share your live location with trusted contacts</p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/50">
+                  <p className="font-medium text-sm">Trust your instincts</p>
+                  <p className="text-xs text-muted-foreground">If something feels wrong, don't get in or ask to be let out safely</p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/50">
+                  <p className="font-medium text-sm">Sit in the back</p>
+                  <p className="text-xs text-muted-foreground">Sitting in the back seat gives you more personal space</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
-            <CardHeader className="pb-3 flex flex-row items-center justify-between">
+            <CardHeader className="pb-3 flex flex-row items-center justify-between gap-2">
               <CardTitle className="text-lg flex items-center gap-2">
                 <MessageSquare className="h-5 w-5" />
                 Support Tickets
@@ -163,7 +221,7 @@ export default function RiderSupport() {
                       className="flex items-center justify-between p-3 rounded-lg border hover-elevate cursor-pointer"
                     >
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <Badge variant="outline" className={getStatusColor(ticket.status)}>
                             {ticket.status.replace("_", " ")}
                           </Badge>
@@ -199,12 +257,20 @@ export default function RiderSupport() {
                 <span>Privacy Policy</span>
                 <ChevronRight className="h-5 w-5 text-muted-foreground" />
               </a>
-              <a href="/guidelines" className="block p-4 hover-elevate flex items-center justify-between">
+              <a href="/guidelines" className="block p-4 hover-elevate flex items-center justify-between border-b">
                 <span>Community Guidelines</span>
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              </a>
+              <a href="/refund-policy" className="block p-4 hover-elevate flex items-center justify-between">
+                <span>Refund Policy</span>
                 <ChevronRight className="h-5 w-5 text-muted-foreground" />
               </a>
             </CardContent>
           </Card>
+
+          <p className="text-xs text-center text-muted-foreground px-4">
+            ZIBA Rider v1.0 | Need immediate help? Tap Safety Center above.
+          </p>
         </div>
       </RiderLayout>
     </RiderRouteGuard>

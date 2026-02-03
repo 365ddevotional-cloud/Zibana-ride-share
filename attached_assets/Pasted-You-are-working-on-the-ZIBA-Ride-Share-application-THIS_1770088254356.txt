@@ -1,0 +1,129 @@
+You are working on the ZIBA Ride Share application.
+
+THIS PROMPT IS AUTHORITATIVE.
+Follow it EXACTLY.
+Do NOT suggest alternatives.
+Do NOT skip steps.
+
+====================================
+GOAL
+====================================
+
+Prepare the ZIBA RIDER APP for store submission by ensuring:
+• Correct branding
+• Proper permissions
+• Clear user disclosures
+• Store-compliant behavior
+
+NO backend changes.
+NO new features.
+
+====================================
+PHASE E — STORE READINESS
+====================================
+
+1) APP IDENTITY (RIDER-ONLY)
+
+Ensure everywhere in the app:
+• App name clearly reads:
+  "ZIBA – Rider"
+
+• Remove any text implying:
+  - Driver functionality
+  - Admin access
+  - Multi-role switching
+
+------------------------------------
+
+2) PERMISSIONS HYGIENE
+
+Ensure the app requests ONLY:
+• Location (while using app)
+• Camera (for profile verification, if used)
+• Notifications (optional but explained)
+
+DO NOT:
+• Request background location without explanation
+• Request contacts, storage, or phone state
+
+Add clear user-facing explanations where permissions are requested.
+
+------------------------------------
+
+3) LOCATION USAGE DISCLOSURE
+
+Before first ride request:
+• Show a short explanation:
+  "ZIBA uses your location to match you with nearby drivers and calculate fares."
+
+This must be visible BEFORE OS permission prompt.
+
+------------------------------------
+
+4) PAYMENT DISCLOSURE
+
+In /rider/payments or onboarding:
+• Clearly state:
+  - How payments work
+  - Wallet-based charging
+  - Test mode (if applicable)
+
+No hidden charges.
+No silent deductions.
+
+------------------------------------
+
+5) SAFETY & SUPPORT VISIBILITY
+
+Ensure Rider can easily find:
+• Emergency / Safety info
+• Support / Help page
+• How to report an issue
+
+These must be reachable within 2 taps.
+
+------------------------------------
+
+6) REMOVE DEBUG / TEST LABELS
+
+Ensure:
+• No “DEBUG”
+• No “DEV MODE”
+• No internal labels visible to users
+
+Tester-related text must be user-friendly.
+
+------------------------------------
+
+7) ICONS & METADATA CHECK
+
+Verify:
+• App icon is present
+• Splash screen is present
+• No placeholder images
+• No default framework branding
+
+------------------------------------
+
+8) IMPORTANT RESTRICTIONS
+
+DO NOT:
+- Change backend
+- Change database
+- Add analytics SDKs
+- Add tracking libraries
+
+This phase is COMPLIANCE & PRESENTATION ONLY.
+
+====================================
+EXPECTED RESULT
+====================================
+
+• Rider App is store-compliant
+• Permissions are justified
+• Branding is clear
+• No role confusion
+• Ready for submission
+
+After completion, respond ONLY with:
+“Phase E — Store Readiness complete.”

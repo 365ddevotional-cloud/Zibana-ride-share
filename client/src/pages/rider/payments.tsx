@@ -102,9 +102,15 @@ export default function RiderPayments() {
                 <div>
                   <p className="font-medium text-sm">How payments work</p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Select your preferred payment method below. This will be used for all ride requests. 
-                    Make sure your selected wallet has sufficient balance before requesting a ride.
+                    ZIBA uses a wallet-based payment system. When you request a ride, 
+                    the fare is deducted from your selected wallet after the trip is completed. 
+                    No hidden fees or silent deductions.
                   </p>
+                  <ul className="text-sm text-muted-foreground mt-2 space-y-1 list-disc list-inside">
+                    <li>You're charged only after a trip ends</li>
+                    <li>Fares are calculated based on distance and time</li>
+                    <li>You'll see the estimated fare before confirming</li>
+                  </ul>
                 </div>
               </div>
             </CardContent>

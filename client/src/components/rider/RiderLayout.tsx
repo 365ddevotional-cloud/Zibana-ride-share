@@ -22,9 +22,10 @@ export function RiderLayout({ children }: RiderLayoutProps) {
       <header className="sticky top-0 z-50 bg-primary text-primary-foreground px-4 py-3 shadow-sm">
         <div className="flex items-center justify-between max-w-lg mx-auto">
           <Link href="/rider/home">
-            <span className="text-xl font-bold tracking-tight cursor-pointer" data-testid="logo-ziba">
-              ZIBA
-            </span>
+            <div className="flex items-center gap-1.5 cursor-pointer" data-testid="logo-ziba">
+              <span className="text-xl font-bold tracking-tight">ZIBA</span>
+              <span className="text-xs font-medium opacity-80">Rider</span>
+            </div>
           </Link>
         </div>
       </header>

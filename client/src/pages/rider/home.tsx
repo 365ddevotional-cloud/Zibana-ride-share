@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { RiderLayout } from "@/components/rider/RiderLayout";
 import { RiderRouteGuard } from "@/components/rider/RiderRouteGuard";
+import { LocationDisclosure, useLocationDisclosure } from "@/components/rider/LocationDisclosure";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -23,6 +24,7 @@ export default function RiderHome() {
   const [destination, setDestination] = useState("");
   const [pickup, setPickup] = useState("");
   const { toast } = useToast();
+  const { showDisclosure, acceptDisclosure } = useLocationDisclosure();
 
   const { data: walletInfo } = useQuery<WalletInfo>({
     queryKey: ["/api/rider/wallet-info"],
@@ -62,6 +64,7 @@ export default function RiderHome() {
 
   return (
     <RiderRouteGuard>
+      {showDisclosure && <LocationDisclosure onAccept={acceptDisclosure} />}
       <RiderLayout>
         <div className="p-4 space-y-6">
           <div className="pt-4 pb-2">
