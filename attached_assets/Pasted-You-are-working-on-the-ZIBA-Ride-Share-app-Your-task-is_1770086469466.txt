@@ -1,0 +1,75 @@
+You are working on the ZIBA Ride Share app.
+Your task is to separate the RIDER APP from the existing unified app
+WITHOUT touching the backend APIs or production database.
+
+STRICT RULES:
+- DO NOT modify database schemas
+- DO NOT add or remove migrations
+- DO NOT change backend endpoints
+- Frontend-only separation
+- Use role-based access enforcement
+- App must be Google Play compliant for a Rider-only app
+
+PHASE A — APP MODE SETUP
+1. Introduce a global application mode flag:
+   APP_MODE = "RIDER"
+
+2. Ensure this flag is accessible across routing, auth guards, and UI rendering.
+
+PHASE B — AUTH & ROLE ENFORCEMENT
+3. Enforce a hard restriction:
+   - Only users with role === "RIDER" may log in
+   - If any other role (DRIVER, ADMIN, DIRECTOR, TRIP_COORDINATOR) attempts login:
+     → Immediately log them out and show an access error
+
+4. This restriction must apply at:
+   - Login
+   - Session restore
+   - Route navigation
+
+PHASE C — ROUTE & SCREEN ISOLATION
+5. Completely disable and unregister ALL driver-related routes:
+   - Driver dashboard
+   - Driver onboarding
+   - Driver navigation
+   - Driver earnings
+   - Driver accept/decline rides
+   - Driver withdrawals
+   - Any /driver/* routes
+
+6. Do NOT merely hide UI components.
+   Routes must not exist in Rider App builds.
+
+PHASE D — RIDER-ONLY FEATURES (KEEP ENABLED)
+7. Ensure the Rider App supports ONLY:
+   - Rider registration & login
+   - Request ride
+   - Ride tracking
+   - Ride history
+   - Rider wallet & payments
+   - Ratings (rider → driver)
+   - Support & SOS
+   - Rider profile & settings
+
+PHASE E — UI & COPY CLEANUP
+8. Remove ALL driver language from the UI:
+   - No references to “earn”, “drive”, “accept trips”
+   - App wording must be rider-focused only
+
+PHASE F — APP IDENTITY
+9. Prepare the app for Rider-only distribution:
+   - App Name: “ZIBA Ride”
+   - Package Name: com.ziba.rider
+   - Ensure no driver permissions are requested
+
+PHASE G — SAFETY CHECK
+10. Verify:
+   - Driver users cannot log in
+   - No driver routes are reachable
+   - App functions correctly using existing production data
+   - No backend changes were required
+
+Proceed step-by-step.
+Explain each change briefly as you implement it.
+Do NOT move to Driver App separation.
+Focus ONLY on Rider App separation.

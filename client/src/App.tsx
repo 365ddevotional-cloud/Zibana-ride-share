@@ -7,6 +7,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { NetworkStatusIndicator } from "@/components/network-status";
+import { RiderAppGuard } from "@/components/rider-app-guard";
+import { APP_MODE, isRoleAllowedInAppMode } from "@/lib/app-mode";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { FullPageLoading } from "@/components/loading-spinner";
@@ -15,20 +17,11 @@ import NotFound from "@/pages/not-found";
 import LandingPage from "@/pages/landing";
 import RoleSelectionPage from "@/pages/role-selection";
 
-const DriverDashboard = lazy(() => import("@/pages/driver/index"));
-const DriverSetupPage = lazy(() => import("@/pages/driver/setup"));
-const DriverProfilePage = lazy(() => import("@/pages/driver/profile"));
-const RiderDashboard = lazy(() => import("@/pages/rider/index"));
 const RiderHomePage = lazy(() => import("@/pages/rider/home"));
 const RiderTripsPage = lazy(() => import("@/pages/rider/trips"));
 const RiderWalletPage = lazy(() => import("@/pages/rider/wallet"));
 const RiderProfilePage = lazy(() => import("@/pages/rider/profile"));
 const RiderSupportPage = lazy(() => import("@/pages/rider/support"));
-const AdminDashboard = lazy(() => import("@/pages/admin/index"));
-const AdminApprovalsPage = lazy(() => import("@/pages/admin/approvals"));
-const AdminSetupPage = lazy(() => import("@/pages/admin-setup"));
-const CoordinatorDashboard = lazy(() => import("@/pages/coordinator/index"));
-const SupportDashboard = lazy(() => import("@/pages/support/index"));
 const UnauthorizedPage = lazy(() => import("@/pages/unauthorized"));
 const LegalPage = lazy(() => import("@/pages/legal"));
 const ProfilePage = lazy(() => import("@/pages/profile"));
@@ -42,6 +35,33 @@ function LazyComponent({ children }: { children: React.ReactNode }) {
     <Suspense fallback={<DashboardSkeleton />}>
       {children}
     </Suspense>
+  );
+}
+
+function AccessDeniedPage() {
+  const { logout } = useAuth();
+  
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="text-center max-w-md">
+        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-destructive/10 flex items-center justify-center">
+          <svg className="w-8 h-8 text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        <h1 className="text-2xl font-bold mb-2">Access Restricted</h1>
+        <p className="text-muted-foreground mb-6">
+          ZIBA Ride is exclusively for riders. If you're a driver, please download the ZIBA Driver app.
+        </p>
+        <button 
+          onClick={() => logout?.()} 
+          className="px-6 py-2 bg-primary text-primary-foreground rounded-md hover-elevate"
+          data-testid="button-logout-access-denied"
+        >
+          Sign Out
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -70,52 +90,8 @@ function AuthenticatedRoutes() {
     return <RoleSelectionPage />;
   }
 
-  if (userRole.role === "super_admin") {
-    return (
-      <LazyComponent>
-        <AdminDashboard userRole="super_admin" />
-      </LazyComponent>
-    );
-  }
-
-  if (userRole.role === "admin") {
-    return (
-      <LazyComponent>
-        <AdminDashboard userRole="admin" />
-      </LazyComponent>
-    );
-  }
-
-  if (userRole.role === "director") {
-    return (
-      <LazyComponent>
-        <AdminDashboard userRole="director" />
-      </LazyComponent>
-    );
-  }
-
-  if (userRole.role === "driver") {
-    return (
-      <LazyComponent>
-        <DriverDashboard />
-      </LazyComponent>
-    );
-  }
-
-  if (userRole.role === "trip_coordinator") {
-    return (
-      <LazyComponent>
-        <CoordinatorDashboard />
-      </LazyComponent>
-    );
-  }
-
-  if (userRole.role === "support_agent") {
-    return (
-      <LazyComponent>
-        <SupportDashboard />
-      </LazyComponent>
-    );
+  if (APP_MODE === "RIDER" && !isRoleAllowedInAppMode(userRole.role)) {
+    return <AccessDeniedPage />;
   }
 
   return <Redirect to="/rider/home" />;
@@ -127,14 +103,12 @@ function ProtectedRoute({
   user,
   userRole,
   isLoading,
-  isAdminRoute = false
 }: { 
   children: React.ReactNode;
   allowedRoles: string[];
   user: any;
   userRole: { role: string } | null | undefined;
   isLoading: boolean;
-  isAdminRoute?: boolean;
 }) {
   if (!user) {
     return <Redirect to="/welcome" />;
@@ -144,17 +118,14 @@ function ProtectedRoute({
     return <FullPageLoading text="Verifying access..." />;
   }
   
-  // super_admin always has access to admin routes
-  const hasAccess = userRole?.role === "super_admin" || 
-    (userRole?.role && allowedRoles.includes(userRole.role));
+  if (APP_MODE === "RIDER" && userRole?.role && !isRoleAllowedInAppMode(userRole.role)) {
+    return <AccessDeniedPage />;
+  }
+  
+  const hasAccess = userRole?.role && allowedRoles.includes(userRole.role);
   
   if (!hasAccess) {
-    // Admin routes redirect to /unauthorized with audit log
-    if (isAdminRoute) {
-      console.warn(`[SECURITY AUDIT] Unauthorized admin access attempt by role: ${userRole?.role || 'unknown'}`);
-      return <Redirect to="/unauthorized" />;
-    }
-    return <Redirect to="/" />;
+    return <Redirect to="/unauthorized" />;
   }
   
   return <>{children}</>;
@@ -182,24 +153,6 @@ function Router() {
       
       <Route path="/role-select">
         {user ? <RoleSelectionPage /> : <Redirect to="/welcome" />}
-      </Route>
-      
-      <Route path="/driver">
-        <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["driver"]}>
-          <LazyComponent><DriverDashboard /></LazyComponent>
-        </ProtectedRoute>
-      </Route>
-      
-      <Route path="/driver/setup">
-        <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["driver"]}>
-          <LazyComponent><DriverSetupPage /></LazyComponent>
-        </ProtectedRoute>
-      </Route>
-      
-      <Route path="/driver/profile">
-        <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["driver"]}>
-          <LazyComponent><DriverProfilePage /></LazyComponent>
-        </ProtectedRoute>
       </Route>
       
       <Route path="/rider">
@@ -242,38 +195,6 @@ function Router() {
         <LazyComponent><UnauthorizedPage /></LazyComponent>
       </Route>
       
-      <Route path="/admin">
-        <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["admin", "super_admin"]} isAdminRoute={true}>
-          <LazyComponent>
-            <AdminDashboard userRole={(userRole?.role as "admin" | "director" | "super_admin") || "admin"} />
-          </LazyComponent>
-        </ProtectedRoute>
-      </Route>
-      
-      <Route path="/admin/setup">
-        <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["admin", "super_admin"]} isAdminRoute={true}>
-          <LazyComponent><AdminSetupPage /></LazyComponent>
-        </ProtectedRoute>
-      </Route>
-      
-      <Route path="/admin/approvals">
-        <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["admin", "super_admin"]} isAdminRoute={true}>
-          <LazyComponent><AdminApprovalsPage /></LazyComponent>
-        </ProtectedRoute>
-      </Route>
-      
-      <Route path="/coordinator">
-        <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["trip_coordinator"]}>
-          <LazyComponent><CoordinatorDashboard /></LazyComponent>
-        </ProtectedRoute>
-      </Route>
-      
-      <Route path="/support">
-        <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["support_agent"]}>
-          <LazyComponent><SupportDashboard /></LazyComponent>
-        </ProtectedRoute>
-      </Route>
-      
       <Route path="/profile">
         {user ? <LazyComponent><ProfilePage /></LazyComponent> : <Redirect to="/welcome" />}
       </Route>
@@ -305,9 +226,11 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <ThemeProvider defaultTheme="light" storageKey="ziba-ui-theme">
           <TooltipProvider>
-            <Toaster />
-            <NetworkStatusIndicator />
-            <Router />
+            <RiderAppGuard>
+              <Toaster />
+              <NetworkStatusIndicator />
+              <Router />
+            </RiderAppGuard>
           </TooltipProvider>
         </ThemeProvider>
       </QueryClientProvider>
