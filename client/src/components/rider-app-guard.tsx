@@ -11,16 +11,20 @@ interface RiderAppGuardProps {
 
 export function RiderAppGuard({ children }: RiderAppGuardProps) {
   const { user, logout } = useAuth();
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const { toast } = useToast();
+
+  const isAdminRoute = location.startsWith("/admin");
 
   const { data: userRole, error: roleError, isError } = useQuery<{ role: string } | null>({
     queryKey: ["/api/user/role"],
-    enabled: !!user,
+    enabled: !!user && !isAdminRoute,
     retry: false,
   });
 
   useEffect(() => {
+    if (isAdminRoute) return;
+    
     if (isError && roleError) {
       const errorMessage = (roleError as any)?.message || "";
       if (errorMessage.includes("ROLE_NOT_ALLOWED") || errorMessage.includes("for your role")) {
@@ -34,9 +38,11 @@ export function RiderAppGuard({ children }: RiderAppGuardProps) {
         setLocation("/welcome");
       }
     }
-  }, [isError, roleError, logout, setLocation, toast]);
+  }, [isError, roleError, logout, setLocation, toast, isAdminRoute]);
 
   useEffect(() => {
+    if (isAdminRoute) return;
+    
     if (APP_MODE === "RIDER" && user && userRole?.role && userRole.role !== "rider") {
       console.warn(`[RIDER APP GUARD] Non-rider blocked: role=${userRole.role}`);
       toast({
@@ -48,7 +54,7 @@ export function RiderAppGuard({ children }: RiderAppGuardProps) {
       logout?.();
       setLocation("/welcome");
     }
-  }, [user, userRole, logout, setLocation, toast]);
+  }, [user, userRole, logout, setLocation, toast, isAdminRoute]);
 
   return <>{children}</>;
 }
