@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Shield, Clock, MapPin, Users, CheckCircle, Navigation, Wallet, Star } from "lucide-react";
-import { getAppName } from "@/lib/app-mode";
+import { getAppName } from "@/config/appMode";
 
 export default function LandingPage() {
   const appName = getAppName();

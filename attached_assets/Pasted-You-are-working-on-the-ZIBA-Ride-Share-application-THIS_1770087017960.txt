@@ -1,0 +1,108 @@
+You are working on the ZIBA Ride Share application.
+
+THIS PROMPT IS AUTHORITATIVE.
+Follow it EXACTLY.
+Do NOT suggest alternatives.
+Do NOT skip steps.
+Do NOT touch backend or database logic.
+
+====================================
+GOAL
+====================================
+
+Begin SEPARATION of the ZIBA RIDER APP from the Driver/Admin logic.
+
+This phase is FRONTEND-ONLY.
+No backend changes.
+No database migrations.
+
+The objective is to LOCK the app into RIDER MODE permanently.
+
+====================================
+PHASE A — RIDER APP MODE FOUNDATION
+====================================
+
+1) CREATE A GLOBAL APP MODE CONSTANT
+
+Create a new file:
+
+src/config/appMode.ts
+
+With EXACT content:
+
+export const APP_MODE = "RIDER" as const;
+export type AppMode = typeof APP_MODE;
+
+This value must NOT be dynamic.
+
+------------------------------------
+
+2) ENFORCE RIDER MODE AT APP BOOTSTRAP
+
+In src/main.tsx OR src/App.tsx (where the app initializes):
+
+- Import APP_MODE
+- Add a runtime guard so the app crashes if mode is not RIDER
+
+Example logic (do not change intent):
+
+If APP_MODE !== "RIDER"
+→ throw error "Invalid app mode: Rider App expected"
+
+------------------------------------
+
+3) CREATE APP MODE CONTEXT (GLOBAL ACCESS)
+
+Create:
+
+src/context/AppModeContext.tsx
+
+Implement:
+- React Context that always provides "RIDER"
+- A hook: useAppMode()
+
+No toggles.
+No switching.
+No environment overrides.
+
+------------------------------------
+
+4) WRAP THE ENTIRE APP
+
+Wrap the root <App /> with <AppModeProvider> so the app globally knows it is RIDER-only.
+
+------------------------------------
+
+5) ADD RUNTIME SAFETY GUARD
+
+Where authentication or routes initialize:
+- Read app mode using useAppMode()
+- If mode !== "RIDER", block execution
+
+This prevents future driver/admin logic leaks.
+
+------------------------------------
+
+6) IMPORTANT RESTRICTIONS
+
+DO NOT:
+- Add driver routes
+- Add admin routes
+- Add feature flags
+- Add environment switches
+- Touch backend APIs
+- Touch roles in database
+
+This phase is ONLY to lock the frontend into RIDER APP MODE.
+
+====================================
+EXPECTED RESULT
+====================================
+
+- App runs normally for riders
+- App CANNOT function as Driver/Admin
+- Any attempt to change mode breaks build/runtime
+- No backend or DB changes made
+
+After completion, respond ONLY with:
+“Phase A — Rider App Mode Foundation complete.”

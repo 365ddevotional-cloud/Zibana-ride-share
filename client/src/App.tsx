@@ -8,7 +8,8 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { NetworkStatusIndicator } from "@/components/network-status";
 import { RiderAppGuard } from "@/components/rider-app-guard";
-import { APP_MODE, isRoleAllowedInAppMode } from "@/lib/app-mode";
+import { APP_MODE, isRoleAllowedInAppMode } from "@/config/appMode";
+import { AppModeProvider, useAppMode } from "@/context/AppModeContext";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { FullPageLoading } from "@/components/loading-spinner";
@@ -16,6 +17,10 @@ import { DashboardSkeleton } from "@/components/loading-skeleton";
 import NotFound from "@/pages/not-found";
 import LandingPage from "@/pages/landing";
 import RoleSelectionPage from "@/pages/role-selection";
+
+if (APP_MODE !== "RIDER") {
+  throw new Error("Invalid app mode: Rider App expected");
+}
 
 const RiderHomePage = lazy(() => import("@/pages/rider/home"));
 const RiderTripsPage = lazy(() => import("@/pages/rider/trips"));
@@ -220,17 +225,38 @@ function Router() {
   );
 }
 
+function AppModeGuard({ children }: { children: React.ReactNode }) {
+  const appMode = useAppMode();
+  
+  if (appMode !== "RIDER") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-destructive">Invalid App Mode</h1>
+          <p className="text-muted-foreground">This app is configured for riders only.</p>
+        </div>
+      </div>
+    );
+  }
+  
+  return <>{children}</>;
+}
+
 function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider defaultTheme="light" storageKey="ziba-ui-theme">
           <TooltipProvider>
-            <RiderAppGuard>
-              <Toaster />
-              <NetworkStatusIndicator />
-              <Router />
-            </RiderAppGuard>
+            <AppModeProvider>
+              <AppModeGuard>
+                <RiderAppGuard>
+                  <Toaster />
+                  <NetworkStatusIndicator />
+                  <Router />
+                </RiderAppGuard>
+              </AppModeGuard>
+            </AppModeProvider>
           </TooltipProvider>
         </ThemeProvider>
       </QueryClientProvider>

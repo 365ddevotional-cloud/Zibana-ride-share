@@ -7,7 +7,7 @@ import { Logo } from "@/components/logo";
 import { Users } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { APP_MODE, getAppName } from "@/lib/app-mode";
+import { APP_MODE, getAppName } from "@/config/appMode";
 
 type Role = "rider";
 

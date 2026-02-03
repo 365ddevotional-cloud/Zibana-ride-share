@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useLocation } from "wouter";
-import { APP_MODE, isRoleAllowedInAppMode, getAppName } from "@/lib/app-mode";
+import { APP_MODE, isRoleAllowedInAppMode, getAppName } from "@/config/appMode";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
