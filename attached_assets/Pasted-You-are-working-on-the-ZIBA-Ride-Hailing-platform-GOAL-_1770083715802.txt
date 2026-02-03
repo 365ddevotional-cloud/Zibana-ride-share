@@ -1,0 +1,145 @@
+You are working on the ZIBA Ride-Hailing platform.
+
+GOAL:
+Separate the RIDER APP experience from Driver and Admin while keeping ONE shared backend.
+
+SCOPE:
+RIDER APP ONLY (UI + routing + guards).
+Do NOT touch Driver or Admin logic.
+
+ARCHITECTURE RULES:
+- Same backend
+- Same database
+- Same auth system
+- Role-based routing
+- Rider must NEVER see driver/admin features
+
+--------------------------------------------------
+STEP 1: CREATE RIDER LAYOUT
+--------------------------------------------------
+
+Create a RiderLayout component that:
+- Wraps all rider pages
+- Includes top header with ZIBA logo
+- Includes bottom navigation (or side menu on desktop)
+
+Navigation items:
+1. Home
+2. Trips
+3. Wallet
+4. Profile
+5. Support
+
+--------------------------------------------------
+STEP 2: ROLE GUARD
+--------------------------------------------------
+
+Implement a RiderRouteGuard:
+- Allow access ONLY if user.role === "RIDER"
+- Redirect drivers → /driver
+- Redirect admins → /admin
+- Redirect unauthenticated → /login
+
+--------------------------------------------------
+STEP 3: RIDER ROUTES
+--------------------------------------------------
+
+Create the following routes:
+
+/rider/home
+/rider/trips
+/rider/wallet
+/rider/profile
+/rider/support
+
+All routes must:
+- Be wrapped in RiderLayout
+- Be protected by RiderRouteGuard
+
+--------------------------------------------------
+STEP 4: PAGE RESPONSIBILITIES (STRICT)
+--------------------------------------------------
+
+/rider/home  (DEFAULT LANDING PAGE)
+- Purpose: Request a ride ONLY
+- Components:
+  - "Where are you going?" destination input
+  - Request Ride button
+  - Schedule Ride (optional)
+- Do NOT show:
+  - Wallet balance
+  - Trip history
+  - Profile info
+  - Support
+
+/rider/trips
+- Purpose: Ride history & current ride
+- Components:
+  - Active trip card (if any)
+  - Trip history list
+  - Trip details (receipt, route, driver, rating)
+- Read-only financial info only
+
+/rider/wallet
+- Purpose: Payments & balance
+- Components:
+  - Wallet balance
+  - Active payment method
+  - Add payment method (disabled in test mode if needed)
+  - Refund status (read-only)
+- Do NOT allow withdrawals
+
+/rider/profile
+- Purpose: Identity & preferences
+- Components:
+  - Name, email, phone
+  - Rider rating
+  - Saved locations
+  - Preferences
+- No driver documents
+
+/rider/support
+- Purpose: Help & safety
+- Components:
+  - Create support ticket
+  - View tickets
+  - Safety center
+  - Emergency contact info
+
+--------------------------------------------------
+STEP 5: REMOVE RIDER ACCESS TO DRIVER FEATURES
+--------------------------------------------------
+
+Ensure RIDER cannot access:
+- Driver earnings
+- Go online/offline
+- Driver verification
+- Vehicle management
+- Withdrawals
+- Driver dashboards
+
+--------------------------------------------------
+STEP 6: NAVIGATION UX
+--------------------------------------------------
+
+Use bottom navigation (mobile-first):
+- Home (primary action, centered or highlighted)
+- Trips
+- Wallet
+- Profile
+- Support
+
+Home must be the default route after login.
+
+--------------------------------------------------
+STEP 7: FINAL CHECK
+--------------------------------------------------
+
+Confirm:
+- Rider login always lands on /rider/home
+- No driver UI renders for riders
+- Routes are clean, fast, and minimal
+- Backend remains unchanged
+
+Do NOT implement Driver App yet.
+Focus ONLY on Rider App separation.
