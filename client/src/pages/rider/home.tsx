@@ -4,18 +4,60 @@ import { RiderRouteGuard } from "@/components/rider/RiderRouteGuard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { MapPin, Navigation, Calendar, ChevronRight } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { MapPin, Navigation, Calendar, ChevronRight, Wallet, Beaker, AlertCircle } from "lucide-react";
 import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+
+interface WalletInfo {
+  mainBalance: string;
+  testBalance: string;
+  currencyCode: string;
+  isTester: boolean;
+  defaultPaymentMethod: string;
+}
 
 export default function RiderHome() {
   const [, setLocation] = useLocation();
   const [destination, setDestination] = useState("");
   const [pickup, setPickup] = useState("");
+  const { toast } = useToast();
+
+  const { data: walletInfo } = useQuery<WalletInfo>({
+    queryKey: ["/api/rider/wallet-info"],
+  });
+
+  const formatCurrency = (amount: string | null | undefined, currency: string) => {
+    if (!amount) return `${getCurrencySymbol(currency)} 0.00`;
+    const symbols: Record<string, string> = { NGN: "₦", USD: "$", ZAR: "R" };
+    return `${symbols[currency] || currency} ${parseFloat(amount).toLocaleString()}`;
+  };
+
+  const getCurrencySymbol = (currency: string) => {
+    const symbols: Record<string, string> = { NGN: "₦", USD: "$", ZAR: "R" };
+    return symbols[currency] || currency;
+  };
+
+  const paymentMethod = walletInfo?.defaultPaymentMethod || "MAIN_WALLET";
+  const currency = walletInfo?.currencyCode || "NGN";
+  const currentBalance = paymentMethod === "TEST_WALLET" 
+    ? walletInfo?.testBalance 
+    : walletInfo?.mainBalance;
+  const hasLowBalance = parseFloat(currentBalance || "0") < 500;
 
   const handleRequestRide = () => {
-    if (destination.trim()) {
-      setLocation(`/rider/trips?action=request&destination=${encodeURIComponent(destination)}&pickup=${encodeURIComponent(pickup)}`);
+    if (!destination.trim()) return;
+
+    if (hasLowBalance) {
+      toast({
+        title: "Low Balance Warning",
+        description: `Your ${paymentMethod === "MAIN_WALLET" ? "Main Wallet" : "Test Wallet"} has ${formatCurrency(currentBalance, currency)}. Consider adding funds or changing payment method.`,
+        variant: "destructive",
+      });
     }
+    
+    setLocation(`/rider/trips?action=request&destination=${encodeURIComponent(destination)}&pickup=${encodeURIComponent(pickup)}&paymentMethod=${paymentMethod}`);
   };
 
   return (
@@ -54,6 +96,45 @@ export default function RiderHome() {
                   data-testid="input-destination"
                 />
               </div>
+
+              <button 
+                className="w-full p-3 rounded-lg border flex items-center justify-between hover-elevate"
+                onClick={() => setLocation("/rider/payments")}
+                data-testid="button-payment-method"
+              >
+                <div className="flex items-center gap-3">
+                  {paymentMethod === "TEST_WALLET" ? (
+                    <Beaker className="h-5 w-5 text-amber-500" />
+                  ) : (
+                    <Wallet className="h-5 w-5 text-primary" />
+                  )}
+                  <div className="text-left">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-sm">
+                        {paymentMethod === "TEST_WALLET" ? "Test Wallet" : "Main Wallet"}
+                      </span>
+                      {paymentMethod === "TEST_WALLET" && (
+                        <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                          Test
+                        </Badge>
+                      )}
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      Balance: {formatCurrency(currentBalance, currency)}
+                    </span>
+                  </div>
+                </div>
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              </button>
+
+              {hasLowBalance && (
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span className="text-xs">
+                    Low balance. Tap to add funds or change payment method.
+                  </span>
+                </div>
+              )}
 
               <Button 
                 className="w-full h-12 text-base font-medium"

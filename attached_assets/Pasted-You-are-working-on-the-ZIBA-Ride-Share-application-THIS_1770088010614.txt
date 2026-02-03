@@ -1,0 +1,130 @@
+You are working on the ZIBA Ride Share application.
+
+THIS PROMPT IS AUTHORITATIVE.
+Follow it EXACTLY.
+Do NOT suggest alternatives.
+Do NOT skip steps.
+
+====================================
+GOAL
+====================================
+
+Make Rider payments CLEAR, EXPLICIT, and USER-CONTROLLED.
+
+A Rider must ALWAYS know:
+• What wallets exist
+• Which wallet will be used
+• Why a ride can or cannot be requested
+
+====================================
+PHASE D — RIDER PAYMENTS UX
+====================================
+
+1) DEFINE PAYMENT METHODS EXPLICITLY
+
+In Rider context, support EXACTLY these payment methods:
+
+• MAIN_WALLET
+• TEST_WALLET (if user.isTester === true)
+
+No implicit wallet usage.
+No guessing.
+No auto-selection without visibility.
+
+------------------------------------
+
+2) ADD "PAYMENT METHOD" SECTION
+
+In /rider/payments page:
+
+• Display available payment methods
+• Each method must show:
+  - Wallet name
+  - Currency
+  - Balance
+  - Short description
+
+Example:
+- Main Wallet (₦)
+- Tester Wallet (₦) [Test Mode]
+
+------------------------------------
+
+3) ADD DEFAULT PAYMENT METHOD SELECTOR
+
+Rider MUST be able to select:
+• Default payment method
+
+Rules:
+• Selection is explicit
+• Persist selection in user session/profile
+• Visually highlight active method
+
+------------------------------------
+
+4) USE SELECTED METHOD FOR RIDE REQUESTS
+
+When requesting a ride:
+
+• Use ONLY the selected payment method
+• Validate balance against that wallet ONLY
+• Do NOT fall back to another wallet automatically
+
+------------------------------------
+
+5) IMPROVE ERROR MESSAGES
+
+Replace generic:
+"INSUFFICIENT_FUNDS"
+
+With:
+"Insufficient balance in your selected payment method."
+
+Include:
+• Wallet name
+• Current balance
+• Action button → “Change payment method” or “Add funds”
+
+------------------------------------
+
+6) TESTER-SPECIFIC BEHAVIOR
+
+If user.isTester === true:
+• Allow TEST_WALLET selection
+• Display “Test credits — no real charge”
+
+If not tester:
+• TEST_WALLET must be hidden entirely
+
+------------------------------------
+
+7) UI RULES
+
+• Payment method is visible BEFORE requesting a ride
+• No hidden logic
+• No silent failures
+• Rider must always understand what’s happening
+
+------------------------------------
+
+8) IMPORTANT RESTRICTIONS
+
+DO NOT:
+- Touch backend payment logic
+- Change wallet schemas
+- Auto-switch wallets
+- Auto-bypass payments
+
+This phase is UX CLARITY ONLY.
+
+====================================
+EXPECTED RESULT
+====================================
+
+• Rider explicitly chooses how to pay
+• No more wallet confusion
+• Clear resolution for insufficient funds
+• Cleaner testing and production UX
+
+After completion, respond ONLY with:
+“Phase D — Rider Payments UX complete.”

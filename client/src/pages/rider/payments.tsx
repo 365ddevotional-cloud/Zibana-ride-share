@@ -1,40 +1,81 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { RiderLayout } from "@/components/rider/RiderLayout";
 import { RiderRouteGuard } from "@/components/rider/RiderRouteGuard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { 
-  CreditCard, Wallet, Building, Smartphone, 
-  Plus, CheckCircle, ChevronRight, ArrowLeft 
+  Wallet, CheckCircle, ArrowLeft, AlertCircle, Beaker
 } from "lucide-react";
 import { useLocation } from "wouter";
 
-interface PaymentMethod {
-  id: string;
-  type: string;
-  name: string;
-  lastFour?: string;
-  isDefault: boolean;
+interface WalletData {
+  mainBalance: string;
+  testBalance: string;
+  currencyCode: string;
+  isTester: boolean;
+  defaultPaymentMethod: string;
 }
+
+type PaymentMethod = "MAIN_WALLET" | "TEST_WALLET";
 
 export default function RiderPayments() {
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>("MAIN_WALLET");
 
-  const { data: methods, isLoading } = useQuery<PaymentMethod[]>({
-    queryKey: ["/api/rider/payment-methods"],
+  const { data: walletData, isLoading } = useQuery<WalletData>({
+    queryKey: ["/api/rider/wallet-info"],
   });
 
-  const getPaymentIcon = (type: string) => {
-    switch (type) {
-      case "card": return <CreditCard className="h-5 w-5" />;
-      case "bank": return <Building className="h-5 w-5" />;
-      case "mobile": return <Smartphone className="h-5 w-5" />;
-      default: return <Wallet className="h-5 w-5" />;
+  useEffect(() => {
+    if (walletData?.defaultPaymentMethod) {
+      setSelectedMethod(walletData.defaultPaymentMethod as PaymentMethod);
     }
+  }, [walletData]);
+
+  const updateDefaultMethod = useMutation({
+    mutationFn: async (method: PaymentMethod) => {
+      return apiRequest("PATCH", "/api/rider/payment-method", { defaultPaymentMethod: method });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/rider/wallet-info"] });
+      toast({ 
+        title: "Payment method updated", 
+        description: `Your rides will now use ${selectedMethod === "MAIN_WALLET" ? "Main Wallet" : "Test Wallet"}` 
+      });
+    },
+    onError: () => {
+      toast({ 
+        title: "Update failed", 
+        description: "Could not update payment method", 
+        variant: "destructive" 
+      });
+    },
+  });
+
+  const handleSelectMethod = (method: PaymentMethod) => {
+    setSelectedMethod(method);
+    updateDefaultMethod.mutate(method);
   };
+
+  const formatCurrency = (amount: string | null | undefined, currency: string) => {
+    if (!amount) return `${getCurrencySymbol(currency)} 0.00`;
+    const symbols: Record<string, string> = { NGN: "₦", USD: "$", ZAR: "R" };
+    return `${symbols[currency] || currency} ${parseFloat(amount).toLocaleString()}`;
+  };
+
+  const getCurrencySymbol = (currency: string) => {
+    const symbols: Record<string, string> = { NGN: "₦", USD: "$", ZAR: "R" };
+    return symbols[currency] || currency;
+  };
+
+  const currency = walletData?.currencyCode || "NGN";
+  const isTester = walletData?.isTester || false;
 
   return (
     <RiderRouteGuard>
@@ -54,130 +95,182 @@ export default function RiderPayments() {
             </h1>
           </div>
 
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <CreditCard className="h-5 w-5" />
-                Your Payment Methods
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <div className="space-y-3">
-                  <Skeleton className="h-16 w-full" />
-                  <Skeleton className="h-16 w-full" />
-                </div>
-              ) : !methods || methods.length === 0 ? (
-                <div className="text-center py-8">
-                  <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
-                    <CreditCard className="h-8 w-8 text-muted-foreground" />
-                  </div>
-                  <p className="text-muted-foreground mb-2">No payment methods</p>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Add a payment method to pay for rides
-                  </p>
-                  <Button data-testid="button-add-first-method">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Payment Method
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {methods.map((method) => (
-                    <div 
-                      key={method.id}
-                      className="flex items-center justify-between p-4 rounded-lg border hover-elevate cursor-pointer"
-                      data-testid={`payment-method-${method.id}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-                          {getPaymentIcon(method.type)}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium">{method.name}</p>
-                            {method.isDefault && (
-                              <Badge variant="secondary" className="text-xs">
-                                Default
-                              </Badge>
-                            )}
-                          </div>
-                          {method.lastFour && (
-                            <p className="text-sm text-muted-foreground">
-                              **** {method.lastFour}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="border-dashed">
+          <Card className="bg-muted/50">
             <CardContent className="p-4">
-              <button 
-                className="w-full flex items-center justify-center gap-2 py-4 text-primary hover-elevate rounded-lg"
-                data-testid="button-add-method"
-              >
-                <Plus className="h-5 w-5" />
-                <span className="font-medium">Add Payment Method</span>
-              </button>
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium text-sm">How payments work</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Select your preferred payment method below. This will be used for all ride requests. 
+                    Make sure your selected wallet has sufficient balance before requesting a ride.
+                  </p>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
           <div className="space-y-3">
             <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-              Available Options
+              Select Payment Method
             </h2>
-            <Card>
-              <CardContent className="p-0 divide-y">
-                <button 
-                  className="w-full p-4 flex items-center gap-3 hover-elevate text-left"
-                  data-testid="button-add-card"
+
+            {isLoading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-24 w-full" />
+                <Skeleton className="h-24 w-full" />
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <Card 
+                  className={`cursor-pointer transition-all ${
+                    selectedMethod === "MAIN_WALLET" 
+                      ? "ring-2 ring-primary border-primary" 
+                      : "hover-elevate"
+                  }`}
+                  onClick={() => handleSelectMethod("MAIN_WALLET")}
+                  data-testid="payment-method-main"
                 >
-                  <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
-                    <CreditCard className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <div>
-                    <p className="font-medium">Credit or Debit Card</p>
-                    <p className="text-sm text-muted-foreground">Visa, Mastercard, Verve</p>
-                  </div>
-                </button>
-                <button 
-                  className="w-full p-4 flex items-center gap-3 hover-elevate text-left"
-                  data-testid="button-add-bank"
-                >
-                  <div className="h-10 w-10 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
-                    <Building className="h-5 w-5 text-green-600 dark:text-green-400" />
-                  </div>
-                  <div>
-                    <p className="font-medium">Bank Transfer</p>
-                    <p className="text-sm text-muted-foreground">Direct bank payment</p>
-                  </div>
-                </button>
-                <button 
-                  className="w-full p-4 flex items-center gap-3 hover-elevate text-left"
-                  data-testid="button-add-mobile"
-                >
-                  <div className="h-10 w-10 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
-                    <Smartphone className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                  </div>
-                  <div>
-                    <p className="font-medium">Mobile Money</p>
-                    <p className="text-sm text-muted-foreground">MTN, Airtel Money</p>
-                  </div>
-                </button>
-              </CardContent>
-            </Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                          <Wallet className="h-6 w-6 text-primary" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold">Main Wallet</p>
+                            <Badge variant="outline" className="text-xs">
+                              {currency}
+                            </Badge>
+                          </div>
+                          <p className="text-lg font-bold mt-1" data-testid="text-main-balance">
+                            {formatCurrency(walletData?.mainBalance, currency)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Real funds for ride payments
+                          </p>
+                        </div>
+                      </div>
+                      {selectedMethod === "MAIN_WALLET" && (
+                        <div className="flex items-center gap-2">
+                          <Badge className="bg-primary text-primary-foreground">
+                            Default
+                          </Badge>
+                          <CheckCircle className="h-6 w-6 text-primary" />
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {isTester && (
+                  <Card 
+                    className={`cursor-pointer transition-all ${
+                      selectedMethod === "TEST_WALLET" 
+                        ? "ring-2 ring-amber-500 border-amber-500" 
+                        : "hover-elevate"
+                    }`}
+                    onClick={() => handleSelectMethod("TEST_WALLET")}
+                    data-testid="payment-method-test"
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="h-12 w-12 rounded-full bg-amber-100 dark:bg-amber-900 flex items-center justify-center">
+                            <Beaker className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-semibold">Test Wallet</p>
+                              <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                                Test Mode
+                              </Badge>
+                              <Badge variant="outline" className="text-xs">
+                                {currency}
+                              </Badge>
+                            </div>
+                            <p className="text-lg font-bold mt-1" data-testid="text-test-balance">
+                              {formatCurrency(walletData?.testBalance, currency)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Test credits — no real charge
+                            </p>
+                          </div>
+                        </div>
+                        {selectedMethod === "TEST_WALLET" && (
+                          <div className="flex items-center gap-2">
+                            <Badge className="bg-amber-500 text-white">
+                              Default
+                            </Badge>
+                            <CheckCircle className="h-6 w-6 text-amber-500" />
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            )}
           </div>
 
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">Current Selection</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between p-3 rounded-lg bg-muted">
+                <div className="flex items-center gap-3">
+                  {selectedMethod === "MAIN_WALLET" ? (
+                    <Wallet className="h-5 w-5 text-primary" />
+                  ) : (
+                    <Beaker className="h-5 w-5 text-amber-500" />
+                  )}
+                  <div>
+                    <p className="font-medium">
+                      {selectedMethod === "MAIN_WALLET" ? "Main Wallet" : "Test Wallet"}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Will be charged for your rides
+                    </p>
+                  </div>
+                </div>
+                <p className="font-bold">
+                  {formatCurrency(
+                    selectedMethod === "MAIN_WALLET" 
+                      ? walletData?.mainBalance 
+                      : walletData?.testBalance, 
+                    currency
+                  )}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium text-sm text-amber-800 dark:text-amber-200">
+                    Insufficient Balance?
+                  </p>
+                  <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                    If your selected wallet doesn't have enough funds for a ride, 
+                    you'll see a clear error message. You can then:
+                  </p>
+                  <ul className="text-sm text-amber-700 dark:text-amber-300 mt-2 space-y-1 list-disc list-inside">
+                    <li>Add funds to your wallet</li>
+                    <li>Switch to a different payment method</li>
+                  </ul>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <p className="text-xs text-muted-foreground text-center px-4">
-            Your payment information is encrypted and stored securely. 
-            Payment methods are managed in test mode.
+            Your payment selection is saved automatically. 
+            You can change it anytime before requesting a ride.
           </p>
         </div>
       </RiderLayout>
