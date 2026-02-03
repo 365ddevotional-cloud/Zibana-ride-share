@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { Switch, Route, Redirect } from "wouter";
+import { Switch, Route, Redirect, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -18,10 +18,6 @@ import NotFound from "@/pages/not-found";
 import LandingPage from "@/pages/landing";
 import RoleSelectionPage from "@/pages/role-selection";
 
-if (APP_MODE !== "RIDER") {
-  throw new Error("Invalid app mode: Rider App expected");
-}
-
 const RiderHomePage = lazy(() => import("@/pages/rider/home"));
 const RiderTripsPage = lazy(() => import("@/pages/rider/trips"));
 const RiderWalletPage = lazy(() => import("@/pages/rider/wallet"));
@@ -35,6 +31,11 @@ const TripsPage = lazy(() => import("@/pages/trips"));
 const WalletPage = lazy(() => import("@/pages/wallet"));
 const SettingsPage = lazy(() => import("@/pages/settings"));
 const AppearancePage = lazy(() => import("@/pages/settings/appearance"));
+
+const AdminDashboard = lazy(() => import("@/pages/admin/index"));
+const ApprovalsPage = lazy(() => import("@/pages/admin/approvals"));
+
+const ADMIN_ROLES = ["super_admin", "admin", "finance_admin", "support_agent", "trip_coordinator", "director"];
 
 function LazyComponent({ children }: { children: React.ReactNode }) {
   return (
@@ -68,6 +69,107 @@ function AccessDeniedPage() {
         </button>
       </div>
     </div>
+  );
+}
+
+function AdminAccessDenied() {
+  const { logout } = useAuth();
+  
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="text-center max-w-md">
+        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-destructive/10 flex items-center justify-center">
+          <svg className="w-8 h-8 text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+        </div>
+        <h1 className="text-2xl font-bold mb-2">Admin Access Required</h1>
+        <p className="text-muted-foreground mb-6">
+          You don't have permission to access the admin dashboard. Please contact a super admin if you believe this is an error.
+        </p>
+        <button 
+          onClick={() => logout?.()} 
+          className="px-6 py-2 bg-primary text-primary-foreground rounded-md hover-elevate"
+          data-testid="button-logout-admin-denied"
+        >
+          Sign Out
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function AdminLoginRequired() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="text-center max-w-md">
+        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
+          <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+        </div>
+        <h1 className="text-2xl font-bold mb-2">ZIBA Admin Dashboard</h1>
+        <p className="text-muted-foreground mb-6">
+          Please sign in with your admin account to access the dashboard.
+        </p>
+        <a 
+          href="/api/login"
+          className="inline-block px-6 py-2 bg-primary text-primary-foreground rounded-md hover-elevate"
+          data-testid="button-admin-login"
+        >
+          Sign In
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function AdminRouter() {
+  const { user, isLoading: authLoading } = useAuth();
+  
+  const { data: userRole, isLoading: roleLoading } = useQuery<{ role: string } | null>({
+    queryKey: ["/api/user/role"],
+    enabled: !!user,
+    retry: false,
+  });
+
+  if (authLoading) {
+    return <FullPageLoading text="Loading..." />;
+  }
+
+  if (!user) {
+    return <AdminLoginRequired />;
+  }
+
+  if (roleLoading) {
+    return <FullPageLoading text="Verifying admin access..." />;
+  }
+
+  const role = userRole?.role;
+  const hasAdminAccess = role && ADMIN_ROLES.includes(role);
+
+  if (!hasAdminAccess) {
+    return <AdminAccessDenied />;
+  }
+
+  return (
+    <Switch>
+      <Route path="/admin">
+        <LazyComponent><AdminDashboard /></LazyComponent>
+      </Route>
+      <Route path="/admin/approvals">
+        <LazyComponent><ApprovalsPage /></LazyComponent>
+      </Route>
+      <Route path="/admin/profile">
+        <LazyComponent><ProfilePage /></LazyComponent>
+      </Route>
+      <Route path="/admin/settings">
+        <LazyComponent><SettingsPage /></LazyComponent>
+      </Route>
+      <Route>
+        <Redirect to="/admin" />
+      </Route>
+    </Switch>
   );
 }
 
@@ -137,7 +239,7 @@ function ProtectedRoute({
   return <>{children}</>;
 }
 
-function Router() {
+function RiderRouter() {
   const { user, isLoading: authLoading } = useAuth();
   const { data: userRole, isLoading: roleLoading } = useQuery<{ role: string } | null>({
     queryKey: ["/api/user/role"],
@@ -154,6 +256,22 @@ function Router() {
       <Route path="/welcome" component={LandingPage} />
       
       <Route path="/legal">
+        <LazyComponent><LegalPage /></LazyComponent>
+      </Route>
+      
+      <Route path="/terms">
+        <LazyComponent><LegalPage /></LazyComponent>
+      </Route>
+      
+      <Route path="/privacy">
+        <LazyComponent><LegalPage /></LazyComponent>
+      </Route>
+      
+      <Route path="/guidelines">
+        <LazyComponent><LegalPage /></LazyComponent>
+      </Route>
+      
+      <Route path="/refund-policy">
         <LazyComponent><LegalPage /></LazyComponent>
       </Route>
       
@@ -234,6 +352,11 @@ function Router() {
 
 function AppModeGuard({ children }: { children: React.ReactNode }) {
   const appMode = useAppMode();
+  const [location] = useLocation();
+  
+  if (location.startsWith("/admin")) {
+    return <>{children}</>;
+  }
   
   if (appMode !== "RIDER") {
     return (
@@ -249,6 +372,20 @@ function AppModeGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function MainRouter() {
+  const [location] = useLocation();
+  
+  if (location.startsWith("/admin")) {
+    return <AdminRouter />;
+  }
+  
+  return (
+    <RiderAppGuard>
+      <RiderRouter />
+    </RiderAppGuard>
+  );
+}
+
 function App() {
   return (
     <ErrorBoundary>
@@ -257,11 +394,9 @@ function App() {
           <TooltipProvider>
             <AppModeProvider>
               <AppModeGuard>
-                <RiderAppGuard>
-                  <Toaster />
-                  <NetworkStatusIndicator />
-                  <Router />
-                </RiderAppGuard>
+                <Toaster />
+                <NetworkStatusIndicator />
+                <MainRouter />
               </AppModeGuard>
             </AppModeProvider>
           </TooltipProvider>
