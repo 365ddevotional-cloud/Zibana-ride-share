@@ -1,0 +1,132 @@
+You are working on the ZIBA Ride Share application.
+
+THIS PROMPT IS AUTHORITATIVE.
+Follow it EXACTLY.
+Do NOT suggest alternatives.
+Do NOT skip steps.
+
+====================================
+GOAL
+====================================
+
+Restructure the ZIBA RIDER APP UI so that:
+
+• Each Rider feature lives on its OWN page
+• No “all-in-one dashboard” clutter
+• Navigation is simple, clean, and rider-friendly
+• No backend or database changes
+
+====================================
+PHASE C — RIDER UI RESTRUCTURE
+====================================
+
+1) REMOVE MONOLITHIC RIDER DASHBOARD
+
+If there is a single Rider page containing multiple feature boxes
+(e.g. Wallet, Trips, Profile, Support, Payments):
+
+- STOP rendering everything on one page
+- Each box must now navigate to a dedicated page
+
+------------------------------------
+
+2) CREATE DEDICATED RIDER PAGES
+
+Ensure the following pages exist (or are created):
+
+• /rider/home
+  - Simple welcome
+  - “Request Ride” primary CTA
+
+• /rider/trips
+  - Active trip
+  - Trip history
+
+• /rider/wallet
+  - Wallet balance
+  - Funding options
+  - Test / real balance display (read-only)
+
+• /rider/payments
+  - Payment methods
+  - Default payment selection
+
+• /rider/profile
+  - Personal info
+  - Address
+  - Identity status
+
+• /rider/support
+  - Help
+  - Report issue
+  - Emergency contact info
+
+------------------------------------
+
+3) DASHBOARD BOXES → NAVIGATION ONLY
+
+On the Rider Home screen:
+
+- Each box/card/button must ONLY:
+  → Navigate to its page
+- NO inline logic
+- NO embedded feature rendering
+
+This improves clarity and performance.
+
+------------------------------------
+
+4) CONSISTENT BACK NAVIGATION
+
+Every Rider page MUST include:
+
+• A visible “Back” arrow
+• Or a consistent bottom navigation
+
+Returning users must never feel lost.
+
+------------------------------------
+
+5) REMOVE DRIVER / ADMIN UI REFERENCES
+
+Ensure Rider pages do NOT show:
+- Driver earnings
+- Driver status
+- Admin links
+- Role switches
+
+This app is RIDER-ONLY.
+
+------------------------------------
+
+6) UI POLISH RULES
+
+• Large tap targets
+• Clear icons + labels
+• Minimal text
+• Mobile-first layout
+• No overcrowding
+
+------------------------------------
+
+7) IMPORTANT RESTRICTIONS
+
+DO NOT:
+- Touch backend APIs
+- Touch database
+- Change ride logic
+- Add new features
+
+This phase is UI STRUCTURE ONLY.
+
+====================================
+EXPECTED RESULT
+====================================
+
+• Clean Rider navigation
+• One feature per page
+• Intuitive, store-friendly UX
+• Rider App clearly distinct from Driver App
+
+After completion, respond ONLY with:
+“Phase C — Rider UI Restructure complete.”
