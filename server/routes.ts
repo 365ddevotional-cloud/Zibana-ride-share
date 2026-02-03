@@ -123,15 +123,9 @@ export async function registerRoutes(
         return res.json(null);
       }
       
-      // RIDER APP: Block non-rider roles at session load
-      if (userRole.role !== "rider") {
-        console.warn(`[RIDER APP SECURITY] Non-rider session blocked: userId=${userId}, role=${userRole.role}, timestamp=${new Date().toISOString()}`);
-        return res.status(403).json({ 
-          message: "Please use the correct ZIBA app for your role.",
-          code: "ROLE_NOT_ALLOWED"
-        });
-      }
-      
+      // Return the role - client-side guards handle access control based on route
+      // Admin routes (/admin/*) allow admin roles
+      // Rider routes (/*) block non-rider roles via RiderAppGuard
       return res.json({ role: userRole.role });
     } catch (error) {
       console.error("Error getting user role:", error);
