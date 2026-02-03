@@ -14,6 +14,15 @@ Preferred communication style: Simple, everyday language.
 - **State Management**: TanStack React Query for server state; React hooks for local state.
 - **Styling**: Tailwind CSS integrated with shadcn/ui components.
 - **UI/UX**: Features role-based dashboards, a public landing page, dark/light mode, eye-safe color palettes, lazy loading, error boundaries, and loading skeletons to optimize performance.
+- **App Mode Separation**: Configurable APP_MODE flag (RIDER/DRIVER/UNIFIED) in `client/src/lib/app-mode.ts` enables building separate rider-only and driver-only apps from the same codebase.
+
+### Rider App (APP_MODE=RIDER)
+- **App Name**: ZIBA Ride
+- **Package Name**: com.ziba.rider
+- **Features**: Rider registration, ride requests, trip tracking, wallet, ratings, support, and SOS
+- **Route Guard**: RiderAppGuard enforces role restrictions - non-riders are logged out
+- **Removed Routes**: All driver, admin, coordinator, and support agent routes are excluded
+- **UI Copy**: Rider-focused language only, no driver/earning references
 
 ### Backend
 - **Runtime**: Node.js using Express.js.
