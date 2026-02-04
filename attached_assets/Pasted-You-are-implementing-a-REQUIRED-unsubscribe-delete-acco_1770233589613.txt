@@ -1,0 +1,115 @@
+You are implementing a REQUIRED unsubscribe (delete account) feature
+for both the ZIBA Rider App and ZIBA Driver App.
+
+THIS IS NOT OPTIONAL.
+THIS IS REQUIRED FOR ROLE RECOVERY.
+
+========================
+GOAL
+========================
+
+Allow users to permanently unsubscribe (delete their account) so that:
+- Emails previously forced into RIDER can be reused
+- Users can re-register correctly as DRIVER or RIDER
+- Sessions are fully cleared
+- Role separation remains intact
+
+========================
+PART 1: BACKEND – DELETE ACCOUNT API
+========================
+
+1. Create a secure API endpoint:
+   DELETE /api/account/delete
+
+2. The endpoint must:
+   - Require authentication
+   - Identify the current user by session
+   - Verify role (RIDER or DRIVER)
+   - Check for active trips
+     - If active trip exists → return error
+   - Delete the user safely:
+     OPTION A (preferred): hard delete user record
+     OPTION B: soft delete (isActive=false AND emailReleased=true)
+
+3. On success:
+   - Destroy session
+   - Clear cookies
+   - Return success response
+
+========================
+PART 2: RIDER APP UI
+========================
+
+4. In Rider App:
+   Location:
+   Profile → Settings → Account
+
+5. Add a button:
+   "Unsubscribe / Delete Account"
+
+6. Behavior:
+   - Show confirmation modal
+   - Warn user this is permanent
+   - Call DELETE /api/account/delete
+   - On success:
+     - Log out
+     - Redirect to Rider landing page
+
+========================
+PART 3: DRIVER APP UI
+========================
+
+7. In Driver App:
+   Location:
+   Profile → Settings → Account
+
+8. Add the SAME button:
+   "Unsubscribe / Delete Account"
+
+9. Behavior:
+   - Same confirmation flow
+   - Same backend endpoint
+   - On success:
+     - Log out
+     - Redirect to Driver landing page
+
+========================
+PART 4: EMAIL REUSE GUARANTEE
+========================
+
+10. Ensure deleted users:
+    - Do NOT block email reuse
+    - Do NOT appear in auth lookup
+    - Do NOT retain role bindings
+
+If soft delete is used:
+- Email must be cleared OR
+- User must be excluded from login queries
+
+========================
+PART 5: TESTING (MANDATORY)
+========================
+
+Test this EXACT flow:
+
+1. Login as Rider
+2. Unsubscribe
+3. Confirm logout
+4. Re-register SAME email as Driver
+5. Driver dashboard loads correctly
+
+Repeat:
+- Driver → Unsubscribe → Re-register as Rider
+
+========================
+PART 6: REPORT
+========================
+
+After completion, report:
+- Confirmation unsubscribe exists in Rider
+- Confirmation unsubscribe exists in Driver
+- Backend endpoint path
+- Whether delete is soft or hard
+- Files modified
+
+BEGIN NOW.

@@ -191,8 +191,8 @@ export async function registerRoutes(
         }
       }
 
-      // Delete the user role (soft delete approach)
-      await storage.deleteUserRole(userId);
+      // Hard delete: remove user from all tables to allow email reuse
+      await storage.deleteUserAccount(userId);
       
       console.log(`[ACCOUNT DELETION] User account deleted: userId=${userId}, role=${userRole.role}, timestamp=${new Date().toISOString()}`);
       
