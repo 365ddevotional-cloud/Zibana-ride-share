@@ -1,0 +1,94 @@
+Proceed with ZIBA Driver App separation.
+
+Context:
+- Rider App separation is already complete and live
+- Admin Dashboard exists but is currently blocked by routing guards (DO NOT touch admin now)
+- Shared production database is stable and correct
+- Role system already exists (driver, rider, admin, super_admin, etc.)
+
+GOAL:
+Create a fully separated ZIBA Driver App without breaking:
+- Rider App
+- Admin App
+- Authentication
+- Production data
+
+DO NOT:
+- Modify database schemas
+- Modify existing Rider or Admin routes
+- Change role definitions
+- Apply global route guards
+
+PHASE 1 — ROUTING SEPARATION
+1. Introduce a dedicated Driver App namespace:
+   - /driver
+   - /driver/*
+2. Driver routes must NOT be accessible from:
+   - /
+   - /rider/*
+   - /admin/*
+3. Driver routes must be isolated at the router level
+
+PHASE 2 — DRIVER ACCESS CONTROL
+1. Create DriverAppGuard that:
+   - Allows ONLY users with role = driver
+   - Blocks rider, admin, super_admin roles
+2. DriverAppGuard must apply ONLY to /driver/*
+3. If a non-driver accesses /driver/*:
+   - Show a clear error:
+     “This app is for Drivers only. Please use the correct ZIBA app for your role.”
+   - Do NOT redirect into rider or admin flows
+
+PHASE 3 — AUTH FLOW
+1. Driver login must:
+   - Authenticate normally
+   - Fetch role from /api/user/role
+   - Route user to /driver/dashboard if role = driver
+2. Do NOT auto-redirect drivers into rider or admin areas
+
+PHASE 4 — UI ISOLATION
+1. Driver App must have:
+   - Its own layout
+   - Its own navigation
+   - No Rider UI elements
+2. Branding stays ZIBA but UI context must clearly say “Driver”
+
+PHASE 5 — DATA ACCESS
+1. Driver App can read/write ONLY:
+   - Driver profile
+   - Assigned trips
+   - Earnings
+   - Availability status
+2. Driver App must NOT access:
+   - Rider management
+   - Admin tools
+   - System settings
+
+PHASE 6 — VERIFICATION
+Confirm the following URLs work correctly:
+
+- Rider App:
+  https://ziba-ride-share.replit.app
+  → Riders only
+
+- Driver App:
+  https://ziba-ride-share.replit.app/driver
+  → Drivers only
+
+- Admin App:
+  https://ziba-ride-share.replit.app/admin
+  → Leave untouched for now
+
+EXPECTED RESULT:
+- Three logically separate apps inside one deployment:
+  1. Rider App (/)
+  2. Driver App (/driver)
+  3. Admin App (/admin)
+- No role leakage
+- No routing conflicts
+- No regressions
+
+Do not mark this task complete until:
+- /driver loads independently
+- Non-driver roles are blocked from /driver
+- Rider and Admin apps remain unaffected
