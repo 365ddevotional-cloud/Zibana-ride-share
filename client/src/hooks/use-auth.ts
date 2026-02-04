@@ -21,13 +21,13 @@ async function fetchUser(): Promise<User | null> {
 function getLogoutRedirect(): string {
   const path = window.location.pathname;
   if (path.startsWith("/driver")) return "/driver";
-  if (path.startsWith("/admin")) return "/";
+  if (path.startsWith("/admin")) return "/admin";
   return "/";
 }
 
 async function logout(): Promise<void> {
-  // After logout, the server redirects to root, which will then show appropriate landing
-  window.location.href = "/api/logout";
+  const redirectPath = getLogoutRedirect();
+  window.location.href = `/api/logout?redirect=${encodeURIComponent(redirectPath)}`;
 }
 
 export function useAuth() {
