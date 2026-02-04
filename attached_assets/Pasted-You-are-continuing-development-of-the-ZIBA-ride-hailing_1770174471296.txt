@@ -1,0 +1,90 @@
+You are continuing development of the ZIBA ride-hailing platform.
+
+PHASE 1 GOAL:
+Create a fully isolated Driver App entry point with strict role-based access.
+Do NOT modify Rider App or Admin App logic.
+
+EXECUTE ALL STEPS BELOW IN ORDER WITHOUT SKIPPING.
+
+1. DRIVER ROUTE STRUCTURE
+Create the following frontend structure:
+
+/src
+  /driver
+    /pages
+      DriverLogin.tsx
+      DriverDashboard.tsx
+    /layout
+      DriverLayout.tsx
+    DriverApp.tsx
+
+2. DRIVER ROUTE REGISTRATION
+In the main router file (App.tsx or routes.tsx), register:
+
+<Route path="/driver/*" element={
+  <DriverAppGuard>
+    <DriverApp />
+  </DriverAppGuard>
+} />
+
+Do NOT reuse Rider routes or layouts.
+
+3. DRIVER APP CONTAINER
+Create /src/driver/DriverApp.tsx:
+
+import { Routes, Route } from "react-router-dom";
+import DriverLayout from "./layout/DriverLayout";
+import DriverDashboard from "./pages/DriverDashboard";
+
+export default function DriverApp() {
+  return (
+    <DriverLayout>
+      <Routes>
+        <Route path="/" element={<DriverDashboard />} />
+      </Routes>
+    </DriverLayout>
+  );
+}
+
+4. DRIVER APP GUARD (CRITICAL)
+Create /src/auth/DriverAppGuard.tsx:
+
+import { Navigate } from "react-router-dom";
+import { useAuth } from "@/auth/useAuth";
+
+export default function DriverAppGuard({ children }) {
+  const { user, loading } = useAuth();
+
+  if (loading) return null;
+
+  if (!user) return <Navigate to="/driver/login" />;
+
+  if (user.role !== "DRIVER") {
+    return <Navigate to="/unauthorized" />;
+  }
+
+  return children;
+}
+
+5. DRIVER LAYOUT (VISUAL SEPARATION)
+Create /src/driver/layout/DriverLayout.tsx:
+
+export default function DriverLayout({ children }) {
+  return (
+    <div className="driver-app">
+      <header>🚗 ZIBA Driver App</header>
+      <main>{children}</main>
+    </div>
+  );
+}
+
+6. VERIFICATION (MANDATORY)
+Confirm all checks:
+- Driver account can access /driver
+- Rider account is blocked from /driver
+- Admin account is blocked from /driver
+- Rider App still works normally
+- No console or runtime errors
+
+STOP AFTER COMPLETION.
+Do NOT proceed to Phase 2 until Phase 1 is confirmed complete.

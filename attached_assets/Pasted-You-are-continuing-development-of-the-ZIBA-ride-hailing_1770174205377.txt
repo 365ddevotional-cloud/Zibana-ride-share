@@ -1,0 +1,82 @@
+You are continuing development of the ZIBA ride-hailing platform.
+
+PHASE 2 GOAL:
+Make Driver authentication, session handling, and profile data fully independent and driver-specific.
+Do NOT modify Rider App or Admin App behavior.
+
+EXECUTE ALL STEPS BELOW IN ORDER WITHOUT SKIPPING.
+
+1. DRIVER LOGIN PAGE
+Ensure /src/driver/pages/DriverLogin.tsx exists and is used ONLY for drivers.
+
+- Driver login must:
+  - Authenticate using existing backend auth
+  - Enforce role = DRIVER after login
+  - Redirect to /driver after success
+  - Block RIDER and ADMIN accounts
+
+If a non-driver logs in, show an error or redirect to /unauthorized.
+
+2. DRIVER SESSION ISOLATION
+Ensure driver session:
+- Uses the same auth token system
+- But is validated by role on EVERY driver route
+- Never leaks rider state into driver views
+
+Confirm DriverAppGuard protects all /driver routes.
+
+3. DRIVER PROFILE MODEL (FRONTEND + BACKEND SAFE CHECK)
+Ensure driver profile data includes:
+
+- fullName
+- phoneNumber
+- vehicleMake
+- vehicleModel
+- vehiclePlate
+- driverStatus (ONLINE | OFFLINE)
+
+If backend already has a Driver table, reuse it.
+If not, safely extend schema WITHOUT affecting riders.
+
+Mock data is acceptable if backend fields are missing.
+
+4. DRIVER PROFILE FETCH
+On DriverDashboard load:
+- Fetch ONLY the authenticated driver’s profile
+- Never fetch all users
+- Never expose rider data
+
+Use driverId from authenticated session.
+
+5. DRIVER STATUS TOGGLE
+Add driver availability toggle:
+- ONLINE / OFFLINE
+- Stored in backend or mocked state
+- Default = OFFLINE
+
+Driver must NOT receive ride requests when OFFLINE.
+
+6. DRIVER DASHBOARD VALIDATION
+Confirm dashboard shows:
+- Driver name
+- Vehicle summary
+- Driver status toggle
+- No rider wallet, rider history, or rider UI elements
+
+7. SAFETY RULES (MANDATORY)
+- All role validation must be server-side enforced
+- No Rider component reuse
+- No Admin access to driver dashboard
+- No breaking changes to Rider App
+
+8. VERIFICATION CHECKLIST
+Confirm:
+- Driver logs in and lands on /driver
+- Rider cannot log in via driver login
+- Admin blocked from /driver
+- Driver profile loads correctly
+- Driver status toggle works
+- No console errors
+
+STOP AFTER COMPLETION.
+Do NOT proceed to Phase 3 until Phase 2 is confirmed complete.
