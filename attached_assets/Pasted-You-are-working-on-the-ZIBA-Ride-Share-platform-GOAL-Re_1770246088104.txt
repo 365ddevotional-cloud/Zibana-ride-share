@@ -1,0 +1,66 @@
+You are working on the ZIBA Ride Share platform.
+
+GOAL:
+Restore a true SUPER ADMIN system, permanently separate it from Appointed Admin, reintroduce the former “Testers” module as “Training”, and eliminate all delete/session contradictions across browser modes.
+
+CRITICAL RULES:
+- AUDIT the codebase first and list what already exists.
+- Do NOT re-implement anything already correct.
+- Apply changes ONLY where missing or incorrect.
+- All authority must be server-side (no client-state trust).
+
+SUPER ADMIN AUTHORITY:
+1. Create or confirm a role: SUPER_ADMIN.
+2. Bind SUPER_ADMIN strictly to this email:
+   mosesafonabi951@gmail.com
+3. Enforce server rules:
+   - If user.email === "mosesafonabi951@gmail.com" → role MUST be SUPER_ADMIN
+   - No UI action can promote any user to SUPER_ADMIN
+   - ADMIN users must never access SUPER_ADMIN routes
+
+ROUTING:
+4. Create a dedicated protected route:
+   /super-admin
+5. Deny access unless role === SUPER_ADMIN
+6. Keep /admin strictly for Appointed Admin
+
+DASHBOARD SEPARATION:
+7. SUPER ADMIN dashboard must include:
+   - Training (renamed from Testers)
+   - Admin role management
+   - System audits
+   - Environment status
+   - Emergency user cleanup
+8. Appointed Admin dashboard must NOT show Training or system tools
+
+TRAINING MODULE:
+9. Restore previous Testers logic as “Training”
+10. Training users must:
+    - Be isolated from production metrics
+    - Be flagged as TRAINING
+    - Never affect live users
+11. Training visibility is SUPER_ADMIN only
+
+DELETE & SESSION CONSISTENCY:
+12. Ensure delete behavior is identical across:
+    - Normal browser
+    - Incognito
+    - Admin dashboard
+13. All deletes must:
+    - Use the same server-side deleteUserAccount()
+    - Destroy active sessions
+    - Clear auth cookies
+    - Invalidate caches
+14. Deleted users must never reappear in Admin or Super Admin lists
+
+SAFETY GUARANTEES:
+15. No authority via localStorage, memory cache, or client flags
+16. All role checks enforced server-side
+17. Prevent future contradictions permanently
+
+FINAL STEP:
+18. Provide a confirmation report:
+    - What existed already
+    - What was fixed
+    - What was untouched
+    - A verification checklist for normal & incognito testing

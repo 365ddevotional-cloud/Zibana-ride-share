@@ -6487,13 +6487,13 @@ function TesterManagementSection() {
       return res.json();
     },
     onSuccess: () => {
-      toast({ title: "Rider Tester created with ₦45,000 credit" });
+      toast({ title: "Rider Trainee created with ₦45,000 credit" });
       refetch();
       setShowAddTesterDialog(false);
       setSelectedUserId(null);
     },
     onError: (error: Error) => {
-      toast({ title: "Failed to create tester", description: error.message, variant: "destructive" });
+      toast({ title: "Failed to create trainee", description: error.message, variant: "destructive" });
     },
   });
 
@@ -6503,13 +6503,13 @@ function TesterManagementSection() {
       return res.json();
     },
     onSuccess: () => {
-      toast({ title: "Driver Tester created with ₦45,000 credit" });
+      toast({ title: "Driver Trainee created with ₦45,000 credit" });
       refetch();
       setShowAddTesterDialog(false);
       setSelectedUserId(null);
     },
     onError: (error: Error) => {
-      toast({ title: "Failed to create tester", description: error.message, variant: "destructive" });
+      toast({ title: "Failed to create trainee", description: error.message, variant: "destructive" });
     },
   });
 
@@ -6519,11 +6519,11 @@ function TesterManagementSection() {
       return res.json();
     },
     onSuccess: () => {
-      toast({ title: "Tester status removed" });
+      toast({ title: "Training status removed" });
       refetch();
     },
     onError: (error: Error) => {
-      toast({ title: "Failed to remove tester", description: error.message, variant: "destructive" });
+      toast({ title: "Failed to remove trainee", description: error.message, variant: "destructive" });
     },
   });
 
@@ -6586,43 +6586,43 @@ function TesterManagementSection() {
         <div>
           <CardTitle className="flex items-center gap-2">
             <TestTube className="h-5 w-5" />
-            Tester Management
+            Training Management
           </CardTitle>
-          <CardDescription>Add rider and driver testers with ₦45,000 test credit</CardDescription>
+          <CardDescription>Add riders and drivers to training mode with ₦45,000 test credit</CardDescription>
         </div>
         <div className="flex gap-2">
           <Button
             onClick={() => openAddDialog("RIDER")}
-            data-testid="button-add-rider-tester"
+            data-testid="button-add-rider-trainee"
           >
             <Plus className="h-4 w-4 mr-2" />
-            Add Rider Tester
+            Add Rider Trainee
           </Button>
           <Button
             onClick={() => openAddDialog("DRIVER")}
             variant="outline"
-            data-testid="button-add-driver-tester"
+            data-testid="button-add-driver-trainee"
           >
             <Plus className="h-4 w-4 mr-2" />
-            Add Driver Tester
+            Add Driver Trainee
           </Button>
         </div>
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <div className="py-8 text-center text-muted-foreground">Loading testers...</div>
+          <div className="py-8 text-center text-muted-foreground">Loading trainees...</div>
         ) : testers.length === 0 ? (
           <EmptyState
             icon={TestTube}
-            title="No Testers Added"
-            description="Add testers to test the platform without real payments"
+            title="No Trainees Added"
+            description="Add trainees to test the platform without real payments"
           />
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Email</TableHead>
-                <TableHead>Tester Type</TableHead>
+                <TableHead>Training Type</TableHead>
                 <TableHead>Test Credits</TableHead>
                 <TableHead>Main Wallet</TableHead>
                 <TableHead>Created</TableHead>
@@ -6699,7 +6699,7 @@ function TesterManagementSection() {
       }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Add {testerType === "RIDER" ? "Rider" : "Driver"} Tester</DialogTitle>
+            <DialogTitle>Add {testerType === "RIDER" ? "Rider" : "Driver"} Trainee</DialogTitle>
             <DialogDescription>
               The user will receive ₦45,000 test wallet credit automatically
             </DialogDescription>
@@ -6728,7 +6728,7 @@ function TesterManagementSection() {
               disabled={!selectedUserId || createRiderTesterMutation.isPending || createDriverTesterMutation.isPending}
               data-testid="button-submit-add-tester"
             >
-              Add Tester
+              Add Trainee
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -6743,11 +6743,11 @@ function TesterManagementSection() {
       }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{adjustAction === "TOP_UP" ? "Top Up" : "Refund"} Tester Credit</DialogTitle>
+            <DialogTitle>{adjustAction === "TOP_UP" ? "Top Up" : "Refund"} Trainee Credit</DialogTitle>
             <DialogDescription>
               {adjustAction === "TOP_UP" 
-                ? "Add test credits to this tester's wallet" 
-                : "Remove test credits from this tester's wallet"}
+                ? "Add test credits to this trainee's wallet" 
+                : "Remove test credits from this trainee's wallet"}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">

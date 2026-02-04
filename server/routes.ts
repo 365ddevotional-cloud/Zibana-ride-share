@@ -115,9 +115,28 @@ export async function registerRoutes(
   await setupAuth(app);
   registerAuthRoutes(app);
 
+  // SUPER_ADMIN email binding - this email is always SUPER_ADMIN
+  const SUPER_ADMIN_EMAIL = "mosesafonabi951@gmail.com";
+
   app.get("/api/user/role", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      const userEmail = req.user.claims.email;
+      
+      // SERVER-SIDE SUPER_ADMIN ENFORCEMENT: If email matches, ensure super_admin role
+      if (userEmail === SUPER_ADMIN_EMAIL) {
+        const existingRole = await storage.getUserRole(userId);
+        if (!existingRole || existingRole.role !== "super_admin") {
+          // Auto-assign super_admin role - cannot be changed via UI
+          if (existingRole) {
+            await storage.deleteUserRole(userId);
+          }
+          await storage.createUserRole({ userId, role: "super_admin" });
+          console.log(`[SUPER_ADMIN ENFORCEMENT] Auto-assigned super_admin role to ${userEmail}`);
+        }
+        return res.json({ role: "super_admin" });
+      }
+      
       const userRole = await storage.getUserRole(userId);
       if (!userRole) {
         return res.json(null);
