@@ -3,7 +3,7 @@ import { userRoles } from "@shared/schema";
 import { db } from "../../db";
 import { eq } from "drizzle-orm";
 
-const SUPER_ADMIN_EMAIL = "365ddevotional@gmail.com";
+const SUPER_ADMIN_EMAIL = "mosesafonabi951@gmail.com";
 
 // Interface for auth storage operations
 // (IMPORTANT) These user operations are mandatory for Replit Auth.
