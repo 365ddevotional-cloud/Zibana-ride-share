@@ -122,7 +122,7 @@ function AdminLoginRequired() {
           Please sign in with your admin account to access the dashboard.
         </p>
         <a 
-          href="/api/login"
+          href="/api/login?role=admin"
           className="inline-block px-6 py-2 bg-primary text-primary-foreground rounded-md hover-elevate"
           data-testid="button-admin-login"
         >

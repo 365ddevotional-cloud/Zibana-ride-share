@@ -17,7 +17,16 @@ async function fetchUser(): Promise<User | null> {
   return response.json();
 }
 
+// Get landing page based on current app context
+function getLogoutRedirect(): string {
+  const path = window.location.pathname;
+  if (path.startsWith("/driver")) return "/driver";
+  if (path.startsWith("/admin")) return "/";
+  return "/";
+}
+
 async function logout(): Promise<void> {
+  // After logout, the server redirects to root, which will then show appropriate landing
   window.location.href = "/api/logout";
 }
 

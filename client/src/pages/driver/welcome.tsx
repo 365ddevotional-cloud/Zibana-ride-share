@@ -41,7 +41,7 @@ export default function DriverWelcome() {
         </div>
 
         <div className="space-y-4">
-          <a href="/api/login" className="block">
+          <a href="/api/login?role=driver" className="block">
             <Button 
               size="lg" 
               className="w-full bg-white text-emerald-700 hover:bg-emerald-50"
