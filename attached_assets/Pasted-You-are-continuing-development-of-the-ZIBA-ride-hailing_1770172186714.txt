@@ -1,0 +1,77 @@
+You are continuing development of the ZIBA ride-hailing platform.
+
+GOAL:
+Fully separate the Driver App from the Rider App while keeping a shared backend.
+
+CURRENT STATE:
+- ZIBA is a full-stack app (React + Node + Prisma).
+- Rider App separation is COMPLETE.
+- Driver features already exist but are still partially mixed with shared routes/components.
+- Backend already supports roles: RIDER, DRIVER, ADMIN.
+- Authentication and wallets exist.
+
+TASK:
+Proceed with ZIBA Driver App Separation.
+
+DO NOT touch Rider App logic or UI.
+
+SCOPE OF WORK (EXECUTE IN ORDER):
+
+1. ROUTING & STRUCTURE
+- Create isolated driver routes under `/driver`
+- Add a DriverAppGuard that allows ONLY users with role = DRIVER
+- Ensure Rider users cannot access any driver pages
+- Admin remains separate
+
+2. DRIVER AUTH & PROFILE
+- Ensure driver login/session is fully independent
+- Driver profile must include:
+  - Full name
+  - Phone number
+  - Vehicle details (can be mock/test data)
+  - Driver status: offline / online
+- Driver dashboard loads ONLY driver-specific data
+
+3. DRIVER DASHBOARD
+- Show:
+  - Driver availability toggle (online/offline)
+  - Incoming ride requests (real-time or simulated)
+  - Active trip view
+  - Earnings summary (mock data allowed)
+- NO rider components reused visually
+
+4. DRIVER TRIP FLOW
+- Accept / reject ride request
+- Start trip
+- End trip
+- Update trip status in backend
+- Sync with rider trip status
+
+5. DATA ISOLATION
+- Driver sees ONLY:
+  - Trips assigned to them
+  - Their earnings
+  - Their ratings
+- No access to rider wallets or rider history
+
+6. UI RULES
+- Driver UI must feel like a separate app
+- Different layout from Rider App
+- Clear “Driver Mode” labeling
+- Keep design consistent with ZIBA branding
+
+7. SAFETY RULES
+- No shared state leakage between Rider and Driver
+- All role checks must be server-side enforced
+- Do NOT break existing Rider App or Admin App
+
+OUTPUT EXPECTATION:
+- Fully isolated Driver App flow
+- Clean driver-only routes
+- Secure role enforcement
+- App should be previewable without errors
+
+IMPORTANT:
+- Work step-by-step
+- Do NOT skip steps
+- If a conflict is found, fix it before moving forward
