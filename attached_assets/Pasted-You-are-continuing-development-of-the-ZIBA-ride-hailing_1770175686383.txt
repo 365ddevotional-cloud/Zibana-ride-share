@@ -1,0 +1,88 @@
+You are continuing development of the ZIBA ride-hailing platform.
+
+PHASE 5 GOAL:
+Provide drivers with visibility into their earnings, ratings, and completed trip history,
+while enforcing strict data isolation and security.
+
+EXECUTE ALL STEPS BELOW IN ORDER WITHOUT SKIPPING.
+
+1. DRIVER EARNINGS MODEL
+Ensure each completed trip records:
+- tripFare
+- driverEarning (can equal fare or calculated share)
+- completedAt timestamp
+
+Aggregate driver earnings:
+- Today’s earnings
+- Total earnings
+- Total completed trips
+
+Mock calculations allowed.
+
+2. DRIVER EARNINGS VIEW
+On DriverDashboard or a dedicated Earnings page:
+Display:
+- Today’s earnings
+- Total earnings
+- Completed trips count
+
+Driver must ONLY see their own earnings.
+
+3. DRIVER TRIP HISTORY
+Create a Trip History section:
+- List completed trips assigned to the driver
+- Show:
+  - Date
+  - Pickup → Dropoff
+  - Fare
+  - Trip status (COMPLETED only)
+
+Do NOT include rider wallet or payment details.
+
+4. DRIVER RATINGS SYSTEM (BASIC)
+Implement a basic ratings model:
+- Each completed trip can have:
+  - rating (1–5)
+  - optional comment
+- Rating is linked to driverId
+
+If rider ratings are not yet implemented, mock ratings safely.
+
+5. DRIVER RATING DISPLAY
+Show on Driver Dashboard:
+- Average rating
+- Total number of rated trips
+
+No access to individual rider identities beyond minimal display.
+
+6. DATA ISOLATION (MANDATORY)
+Driver can:
+- View only their own trips
+- View only their own ratings
+- View only their own earnings
+
+Driver cannot:
+- View other drivers’ data
+- Modify ratings
+- Access rider payment info
+
+7. BACKEND SECURITY RULES
+- All earnings, ratings, and history queries must filter by driverId
+- Server must reject cross-driver access attempts
+- Role validation = DRIVER only
+
+8. UI RULES
+- Use DriverLayout
+- Clear “Earnings” and “Trip History” sections
+- No Rider or Admin components reused
+
+9. VERIFICATION CHECKLIST
+Confirm:
+- Earnings calculate correctly
+- Trip history shows only driver trips
+- Ratings display correctly
+- Rider/Admin blocked from this data
+- No console or runtime errors
+
+STOP AFTER COMPLETION.
+Do NOT proceed to Phase 6 until Phase 5 is confirmed complete.
