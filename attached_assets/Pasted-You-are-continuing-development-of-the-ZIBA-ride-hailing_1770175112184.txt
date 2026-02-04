@@ -1,0 +1,86 @@
+You are continuing development of the ZIBA ride-hailing platform.
+
+PHASE 3 GOAL:
+Build a complete driver-only dashboard that shows availability, trip activity, and earnings.
+This must feel like a separate Driver App, not an extension of the Rider App.
+
+EXECUTE ALL STEPS BELOW IN ORDER WITHOUT SKIPPING.
+
+1. DRIVER DASHBOARD LAYOUT
+Update /src/driver/pages/DriverDashboard.tsx
+
+Dashboard must include:
+- Driver welcome header (driver name)
+- Driver status toggle (ONLINE / OFFLINE)
+- Active trip panel
+- Incoming ride requests panel
+- Earnings summary panel
+
+NO rider UI elements allowed.
+
+2. DRIVER STATUS CONTROL
+- Driver can toggle ONLINE / OFFLINE
+- Status must be stored (backend or mocked)
+- When OFFLINE:
+  - Driver cannot receive ride requests
+- When ONLINE:
+  - Driver can receive ride requests
+
+3. INCOMING RIDE REQUESTS (SIMULATED OK)
+- Show a list of incoming ride requests
+- Each request includes:
+  - Pickup location
+  - Dropoff location
+  - Estimated fare
+- Provide Accept / Reject buttons
+- Requests must be driver-specific
+
+Mock data allowed if backend is incomplete.
+
+4. ACTIVE TRIP VIEW
+When a trip is accepted:
+- Show Active Trip section with:
+  - Rider name (minimal info)
+  - Pickup → Dropoff
+  - Trip status
+- Hide incoming requests once trip is active
+
+5. EARNINGS SUMMARY
+Show:
+- Today’s earnings
+- Total earnings (mock allowed)
+- Completed trips count
+
+Driver must ONLY see their own earnings.
+
+6. DATA ISOLATION (MANDATORY)
+- Driver must see ONLY:
+  - Trips assigned to them
+  - Their earnings
+- No access to:
+  - Rider wallets
+  - Rider trip history
+  - Other drivers' data
+
+7. UI SEPARATION RULES
+- Use DriverLayout only
+- Different spacing/colors from Rider App
+- Clear “Driver Dashboard” labeling
+
+8. SAFETY & VALIDATION
+- All data fetches must use driverId from session
+- Role checks must be enforced server-side
+- No shared global state with Rider App
+
+9. VERIFICATION CHECKLIST
+Confirm:
+- Driver dashboard loads correctly
+- Status toggle works
+- Incoming requests appear only when ONLINE
+- Active trip flow works
+- Earnings display correctly
+- Rider/Admin cannot access dashboard
+- No console or runtime errors
+
+STOP AFTER COMPLETION.
+Do NOT proceed to Phase 4 until Phase 3 is confirmed complete.
