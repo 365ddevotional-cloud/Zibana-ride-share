@@ -1,0 +1,79 @@
+You are continuing development of the ZIBA ride-hailing platform.
+
+PHASE 6 GOAL:
+Finalize the Driver App by enforcing security, cleaning technical debt,
+and ensuring the system is production-ready without breaking Rider or Admin apps.
+
+EXECUTE ALL STEPS BELOW IN ORDER WITHOUT SKIPPING.
+
+1. SERVER-SIDE ROLE ENFORCEMENT (CRITICAL)
+Audit ALL driver-related backend endpoints:
+- Accept ride
+- Start trip
+- End trip
+- Earnings fetch
+- Trip history fetch
+- Rating fetch
+
+Ensure each endpoint verifies:
+- Authenticated user exists
+- user.role === "DRIVER"
+- driverId matches authenticated user
+
+Reject all unauthorized requests.
+
+2. REMOVE CLIENT-SIDE TRUST
+- Do NOT trust client-sent role or driverId
+- Always derive driverId from session / token
+- Validate on every mutation and query
+
+3. DATA LEAK PREVENTION
+- Ensure no endpoint returns:
+  - Other drivers’ data
+  - Rider wallets
+  - Rider personal details beyond minimal trip info
+- Sanitize all API responses
+
+4. ERROR HANDLING & EDGE CASES
+Handle gracefully:
+- Driver going OFFLINE during active trip (block action)
+- Double accept attempts
+- Refresh during IN_PROGRESS trip
+- Network or API failure
+
+Show clean UI error messages (no crashes).
+
+5. STATE CONSISTENCY
+Ensure:
+- Driver status persists across refresh
+- Active trip resumes correctly on reload
+- Earnings recalculate accurately
+
+6. PERFORMANCE & CLEANUP
+- Remove unused imports and dead code
+- Ensure no Rider components are imported into Driver App
+- Optimize queries to fetch only required fields
+
+7. UI POLISH
+- Confirm DriverLayout is consistent
+- Clear Driver-only branding across all pages
+- Confirm spacing, labels, and button states are clean
+
+8. FINAL SECURITY CHECK
+Verify:
+- Rider cannot access /driver routes
+- Admin cannot access /driver routes
+- Driver cannot access rider-only routes
+- Server rejects all cross-role access
+
+9. FINAL VERIFICATION CHECKLIST
+Confirm:
+- Full Driver flow works end-to-end
+- No console or runtime errors
+- App is previewable and stable
+- Rider App unaffected
+- Admin App unaffected
+
+STOP AFTER COMPLETION.
+DO NOT add new features.
+This phase marks Driver App separation COMPLETE.

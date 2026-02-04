@@ -8,14 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Logo } from "@/components/logo";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { DriverLayout } from "@/components/driver/DriverLayout";
 import { FullPageLoading } from "@/components/loading-spinner";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { isUnauthorizedError } from "@/lib/auth-utils";
-import { ArrowLeft, Car, Phone, User } from "lucide-react";
+import { Car, Phone, User } from "lucide-react";
 import type { DriverProfile } from "@shared/schema";
 
 const driverProfileSchema = z.object({
@@ -72,7 +71,7 @@ export default function DriverProfilePage() {
         title: "Profile updated!",
         description: "Your changes have been saved.",
       });
-      setLocation("/driver");
+      setLocation("/driver/dashboard");
     },
     onError: (error: Error) => {
       if (isUnauthorizedError(error)) {
@@ -97,29 +96,12 @@ export default function DriverProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
-        <div className="container mx-auto flex h-16 items-center justify-between gap-4 px-4">
-          <div className="flex items-center gap-4">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => setLocation("/driver")}
-              data-testid="button-back"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <Logo />
-          </div>
-          <ThemeToggle />
-        </div>
-      </header>
-
-      <main className="container mx-auto max-w-lg px-4 py-8">
+    <DriverLayout>
+      <div className="p-4">
         <Card>
           <CardHeader className="text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
-              <Car className="h-7 w-7 text-primary" />
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30">
+              <Car className="h-7 w-7 text-emerald-600" />
             </div>
             <CardTitle className="text-2xl">Edit Profile</CardTitle>
             <CardDescription>
@@ -234,14 +216,14 @@ export default function DriverProfilePage() {
                     type="button" 
                     variant="outline" 
                     className="flex-1"
-                    onClick={() => setLocation("/driver")}
+                    onClick={() => setLocation("/driver/dashboard")}
                     data-testid="button-cancel"
                   >
                     Cancel
                   </Button>
                   <Button 
                     type="submit" 
-                    className="flex-1" 
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-700" 
                     disabled={updateProfileMutation.isPending}
                     data-testid="button-save-profile"
                   >
@@ -252,7 +234,7 @@ export default function DriverProfilePage() {
             </Form>
           </CardContent>
         </Card>
-      </main>
-    </div>
+      </div>
+    </DriverLayout>
   );
 }
