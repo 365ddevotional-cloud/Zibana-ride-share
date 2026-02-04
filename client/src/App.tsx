@@ -42,6 +42,7 @@ const DriverEarningsPage = lazy(() => import("@/pages/driver/earnings"));
 const DriverProfilePage = lazy(() => import("@/pages/driver/profile"));
 const DriverSettingsPage = lazy(() => import("@/pages/driver/settings"));
 const DriverWelcomePage = lazy(() => import("@/pages/driver/welcome"));
+const DriverRegisterPage = lazy(() => import("@/pages/driver/register"));
 
 const ADMIN_ROLES = ["super_admin", "admin", "finance_admin", "support_agent", "trip_coordinator", "director"];
 
@@ -185,9 +186,18 @@ function DriverRouter() {
   }
 
   const role = userRole?.role;
-  const isDriver = role === "driver";
 
-  if (!isDriver) {
+  // No role yet - show registration page for new users
+  if (!role) {
+    return (
+      <LazyComponent>
+        <DriverRegisterPage />
+      </LazyComponent>
+    );
+  }
+
+  // Has a role but not driver - show access denied
+  if (role !== "driver") {
     return <DriverAccessDenied />;
   }
 
@@ -213,6 +223,9 @@ function DriverRouter() {
       </Route>
       <Route path="/driver/welcome">
         <LazyComponent><DriverWelcomePage /></LazyComponent>
+      </Route>
+      <Route path="/driver/register">
+        <LazyComponent><DriverRegisterPage /></LazyComponent>
       </Route>
       <Route>
         <Redirect to="/driver/dashboard" />

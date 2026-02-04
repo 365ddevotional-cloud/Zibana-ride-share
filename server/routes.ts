@@ -164,6 +164,48 @@ export async function registerRoutes(
     }
   });
 
+  // Account deletion endpoint
+  app.delete("/api/user/account", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const userRole = await storage.getUserRole(userId);
+      
+      if (!userRole) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+
+      // Check for active trips based on role
+      if (userRole.role === "rider") {
+        const riderProfile = await storage.getRiderProfile(userId);
+        if (riderProfile?.activeTrip) {
+          return res.status(400).json({ 
+            message: "Cannot delete account with an active trip. Please complete or cancel your trip first." 
+          });
+        }
+      } else if (userRole.role === "driver") {
+        const driverProfile = await storage.getDriverProfile(userId);
+        if (driverProfile?.isOnline) {
+          return res.status(400).json({ 
+            message: "Cannot delete account while online. Please go offline first." 
+          });
+        }
+      }
+
+      // Delete the user role (soft delete approach)
+      await storage.deleteUserRole(userId);
+      
+      console.log(`[ACCOUNT DELETION] User account deleted: userId=${userId}, role=${userRole.role}, timestamp=${new Date().toISOString()}`);
+      
+      // Invalidate session
+      req.logout(() => {
+        return res.json({ message: "Account deleted successfully" });
+      });
+    } catch (error) {
+      console.error("Error deleting account:", error);
+      return res.status(500).json({ message: "Failed to delete account" });
+    }
+  });
+
   // Theme preference routes
   app.get("/api/user/theme-preference", isAuthenticated, async (req: any, res) => {
     try {
@@ -222,6 +264,39 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error seeding admin:", error);
       return res.status(500).json({ message: "Failed to seed admin" });
+    }
+  });
+
+  // Driver registration endpoint - creates driver role
+  app.post("/api/driver/register", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      const existingRole = await storage.getUserRole(userId);
+      if (existingRole) {
+        if (existingRole.role === "driver") {
+          return res.json({ role: existingRole.role, message: "Already registered as driver" });
+        }
+        return res.status(400).json({ message: `You already have a ${existingRole.role} account. Please use the appropriate ZIBA app.` });
+      }
+
+      const userRole = await storage.createUserRole({ userId, role: "driver" });
+      
+      // Create driver profile with minimal required fields
+      await storage.createDriverProfile({ 
+        userId,
+        fullName: "",
+        phone: "",
+        vehicleMake: "",
+        vehicleModel: "",
+        licensePlate: "",
+      });
+
+      console.log(`[DRIVER REGISTRATION] New driver registered: userId=${userId}, timestamp=${new Date().toISOString()}`);
+      return res.json({ role: userRole.role, message: "Successfully registered as driver" });
+    } catch (error) {
+      console.error("Error registering driver:", error);
+      return res.status(500).json({ message: "Failed to register as driver" });
     }
   });
 

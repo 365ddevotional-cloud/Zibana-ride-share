@@ -295,6 +295,7 @@ export interface TripFilter {
 export interface IStorage {
   getUserRole(userId: string): Promise<UserRole | undefined>;
   createUserRole(data: InsertUserRole): Promise<UserRole>;
+  deleteUserRole(userId: string): Promise<void>;
   getAdminCount(): Promise<number>;
   
   // Admin appointment methods (SUPER_ADMIN only)
@@ -878,6 +879,10 @@ export class DatabaseStorage implements IStorage {
   async createUserRole(data: InsertUserRole): Promise<UserRole> {
     const [role] = await db.insert(userRoles).values(data).returning();
     return role;
+  }
+
+  async deleteUserRole(userId: string): Promise<void> {
+    await db.delete(userRoles).where(eq(userRoles.userId, userId));
   }
 
   async getAdminCount(): Promise<number> {

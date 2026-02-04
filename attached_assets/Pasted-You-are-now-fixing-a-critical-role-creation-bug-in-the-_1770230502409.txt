@@ -1,0 +1,115 @@
+You are now fixing a critical role-creation bug in the ZIBA app.
+
+CRITICAL PROBLEM:
+ALL new users (RIDER, DRIVER, ADMIN) are being created with role = "RIDER",
+even when signing up or logging in as DRIVER or ADMIN.
+
+This is causing:
+- Driver accounts to be forced into Rider App
+- Admin accounts to be blocked from Admin Web
+- Guards and redirects to appear broken when they are not
+
+GOAL:
+Fix role assignment at ACCOUNT CREATION level so that:
+- RIDER accounts are created as RIDER
+- DRIVER accounts are created as DRIVER
+- ADMIN accounts are created as ADMIN
+Then verify routing, guards, and separation.
+
+DO NOT SKIP ANY STEP.
+
+========================
+PART 1: AUDIT & REMOVE FORCED ROLE
+========================
+
+1. Locate backend user creation logic (signup / register).
+2. Identify any forced or default role assignment such as:
+   - role: "RIDER"
+   - const role = "RIDER"
+   - role ?? "RIDER"
+3. REMOVE all unconditional role defaults.
+
+========================
+PART 2: ROLE-AWARE ACCOUNT CREATION
+========================
+
+4. Update backend to accept role ONLY from trusted sources:
+   - /auth/signup/rider   → role = "RIDER"
+   - /auth/signup/driver  → role = "DRIVER"
+   - /auth/signup/admin   → role = "ADMIN" (restricted / protected)
+
+5. Server-side validation:
+   - Allow ONLY "RIDER", "DRIVER", "ADMIN"
+   - Reject any other role
+   - Do NOT allow frontend to change role after creation
+
+6. Ensure role is persisted correctly in database and returned on login.
+
+========================
+PART 3: FRONTEND SIGNUP FLOWS
+========================
+
+7. Ensure dedicated signup routes exist:
+   - /signup           → RIDER
+   - /driver/signup    → DRIVER
+   - /admin/signup OR seeded admin (ADMIN)
+
+8. Each signup MUST explicitly submit its role.
+9. Prevent shared signup logic from overriding role.
+
+========================
+PART 4: LOGIN REDIRECT (VERIFY)
+========================
+
+10. After login, redirect strictly by role:
+    - RIDER  → /rider/home
+    - DRIVER → /driver/dashboard
+    - ADMIN  → /admin
+
+Remove any default redirect to "/".
+
+========================
+PART 5: ADD UNSUBSCRIBE / DELETE ACCOUNT
+========================
+
+11. Add "Delete Account" option for:
+    - Rider Profile
+    - Driver Profile
+    - Admin Profile (optional, protected)
+
+12. On delete:
+    - Soft-delete (isActive=false) OR hard-delete
+    - Invalidate session
+    - Prevent deletion if active trip exists
+
+========================
+PART 6: TESTING (MANDATORY)
+========================
+
+Create and test accounts:
+- Rider:  test_rider@gmail.com
+- Driver: obadriver26@gmail.com
+- Admin:  test_admin@gmail.com
+
+Verify:
+- Each account is created with correct role
+- Driver goes to /driver/dashboard
+- Admin goes to /admin
+- Rider goes to /rider/home
+- Cross-access is blocked
+- Account deletion works per role
+
+========================
+PART 7: REPORT
+========================
+
+After completion, report:
+- Confirmation role creation is fixed
+- Exact live URLs:
+  - Rider App
+  - Driver App
+  - Admin Web
+- Files modified
+- Any migrations applied
+
+BEGIN NOW.
