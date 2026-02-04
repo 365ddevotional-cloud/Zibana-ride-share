@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { NetworkStatusIndicator } from "@/components/network-status";
 import { RiderAppGuard } from "@/components/rider-app-guard";
+import { DriverAppGuard } from "@/components/driver-app-guard";
 import { APP_MODE, isRoleAllowedInAppMode } from "@/config/appMode";
 import { AppModeProvider, useAppMode } from "@/context/AppModeContext";
 import { useAuth } from "@/hooks/use-auth";
@@ -34,6 +35,13 @@ const AppearancePage = lazy(() => import("@/pages/settings/appearance"));
 
 const AdminDashboard = lazy(() => import("@/pages/admin/index"));
 const ApprovalsPage = lazy(() => import("@/pages/admin/approvals"));
+
+const DriverDashboard = lazy(() => import("@/pages/driver/dashboard"));
+const DriverTripsPage = lazy(() => import("@/pages/driver/trips"));
+const DriverEarningsPage = lazy(() => import("@/pages/driver/earnings"));
+const DriverProfilePage = lazy(() => import("@/pages/driver/profile"));
+const DriverSettingsPage = lazy(() => import("@/pages/driver/settings"));
+const DriverWelcomePage = lazy(() => import("@/pages/driver/welcome"));
 
 const ADMIN_ROLES = ["super_admin", "admin", "finance_admin", "support_agent", "trip_coordinator", "director"];
 
@@ -121,6 +129,95 @@ function AdminLoginRequired() {
         </a>
       </div>
     </div>
+  );
+}
+
+function DriverAccessDenied() {
+  const { logout } = useAuth();
+  
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="text-center max-w-md">
+        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-destructive/10 flex items-center justify-center">
+          <svg className="w-8 h-8 text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        <h1 className="text-2xl font-bold mb-2">Driver Access Required</h1>
+        <p className="text-muted-foreground mb-6">
+          ZIBA Driver is exclusively for registered drivers. If you're a rider, please use the ZIBA Rider app.
+        </p>
+        <button 
+          onClick={() => logout?.()} 
+          className="px-6 py-2 bg-primary text-primary-foreground rounded-md hover-elevate"
+          data-testid="button-logout-driver-denied"
+        >
+          Sign Out
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function DriverRouter() {
+  const { user, isLoading: authLoading } = useAuth();
+  
+  const { data: userRole, isLoading: roleLoading } = useQuery<{ role: string } | null>({
+    queryKey: ["/api/user/role"],
+    enabled: !!user,
+    retry: false,
+  });
+
+  if (authLoading) {
+    return <FullPageLoading text="Loading..." />;
+  }
+
+  if (!user) {
+    return (
+      <LazyComponent>
+        <DriverWelcomePage />
+      </LazyComponent>
+    );
+  }
+
+  if (roleLoading) {
+    return <FullPageLoading text="Verifying driver access..." />;
+  }
+
+  const role = userRole?.role;
+  const isDriver = role === "driver";
+
+  if (!isDriver) {
+    return <DriverAccessDenied />;
+  }
+
+  return (
+    <Switch>
+      <Route path="/driver">
+        <LazyComponent><DriverDashboard /></LazyComponent>
+      </Route>
+      <Route path="/driver/dashboard">
+        <LazyComponent><DriverDashboard /></LazyComponent>
+      </Route>
+      <Route path="/driver/trips">
+        <LazyComponent><DriverTripsPage /></LazyComponent>
+      </Route>
+      <Route path="/driver/earnings">
+        <LazyComponent><DriverEarningsPage /></LazyComponent>
+      </Route>
+      <Route path="/driver/profile">
+        <LazyComponent><DriverProfilePage /></LazyComponent>
+      </Route>
+      <Route path="/driver/settings">
+        <LazyComponent><DriverSettingsPage /></LazyComponent>
+      </Route>
+      <Route path="/driver/welcome">
+        <LazyComponent><DriverWelcomePage /></LazyComponent>
+      </Route>
+      <Route>
+        <Redirect to="/driver/dashboard" />
+      </Route>
+    </Switch>
   );
 }
 
@@ -354,7 +451,7 @@ function AppModeGuard({ children }: { children: React.ReactNode }) {
   const appMode = useAppMode();
   const [location] = useLocation();
   
-  if (location.startsWith("/admin")) {
+  if (location.startsWith("/admin") || location.startsWith("/driver")) {
     return <>{children}</>;
   }
   
@@ -377,6 +474,14 @@ function MainRouter() {
   
   if (location.startsWith("/admin")) {
     return <AdminRouter />;
+  }
+  
+  if (location.startsWith("/driver")) {
+    return (
+      <DriverAppGuard>
+        <DriverRouter />
+      </DriverAppGuard>
+    );
   }
   
   return (
