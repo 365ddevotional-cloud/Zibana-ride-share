@@ -1,0 +1,126 @@
+STOP.
+
+Before writing ANY code or running ANY task, you MUST FIRST AUDIT
+the existing codebase and REPORT what already exists.
+
+DO NOT IMPLEMENT ANYTHING YET.
+
+==============================
+STEP 1 — AUDIT & CONFIRM
+==============================
+
+Check and REPORT clearly (YES or NO) for EACH item below:
+
+1. Is there a visible "Unsubscribe / Delete Account" button
+   in the Rider App UI (actual rendered page, not code only)?
+
+2. Is there a visible "Unsubscribe / Delete Account" button
+   in the Driver App UI (actual rendered page)?
+
+3. Does an API endpoint already exist for account deletion
+   (unsubscribe, delete, deactivate, or reset)?
+
+4. Is there a `deleted`, `isActive`, or equivalent flag
+   in the user database model?
+
+5. Is Admin currently able to delete a Rider or Driver
+   from the Admin Dashboard?
+
+6. On logout, is routing role-aware
+   (Driver → driver landing, Rider → rider landing)?
+
+7. After logout or unsubscribe, can the SAME email
+   re-register cleanly without conflict?
+
+REPORT EACH ANSWER CLEARLY AS:
+✔ YES — already implemented
+❌ NO — missing
+
+DO NOT FIX ANYTHING YET.
+
+==============================
+STEP 2 — CONDITIONAL EXECUTION RULE
+==============================
+
+ONLY AFTER THE AUDIT:
+
+• Implement ONLY what is ❌ NO
+• SKIP anything marked ✔ YES
+• DO NOT rewrite existing working logic
+• DO NOT duplicate endpoints
+• DO NOT move UI components unnecessarily
+
+==============================
+STEP 3 — REQUIRED IMPLEMENTATIONS
+(ONLY IF MISSING)
+==============================
+
+A. USER-CONTROLLED UNSUBSCRIBE (RIDER + DRIVER)
+
+- Add a visible button labeled:
+  "Unsubscribe / Delete Account"
+
+- Location:
+  Rider → Profile / Settings
+  Driver → Settings
+
+- Behavior:
+  • Confirmation modal (irreversible warning)
+  • Calls backend unsubscribe endpoint
+  • Logs user out
+  • Redirects to correct public landing page
+
+B. BACKEND ACCOUNT RESET (REPLIT-SAFE)
+
+- Implement soft delete:
+  deleted = true
+
+- Remove ALL role bindings:
+  rider profile
+  driver profile
+  wallets
+  trips
+  sessions
+
+- Ensure login logic:
+  IF deleted === true
+  → treat login as NEW USER
+  → allow role selection again
+  → SAME email MUST work
+
+C. ADMIN-CONTROLLED DELETION
+
+- Admin Dashboard:
+  • Add "Delete User" action for Rider and Driver
+  • This performs the SAME soft delete
+  • Immediately removes user from Admin lists
+
+D. ADMIN VISIBILITY FIX
+
+- Exclude deleted users from:
+  Rider list
+  Driver list
+  Reports
+  Metrics
+
+E. LOGOUT ROUTING FIX
+
+- Rider logout → Rider public landing
+- Driver logout → Driver public landing
+- Admin logout → Admin login
+
+==============================
+STEP 4 — PROOF & CONFIRMATION
+==============================
+
+After implementation, CONFIRM with:
+
+1. Where the Unsubscribe button appears (exact page)
+2. Backend endpoint name
+3. Database field used for deletion
+4. Admin delete confirmation
+5. Email reuse tested and CONFIRMED
+
+DO NOT CLAIM COMPLETION WITHOUT VERIFYING UI VISIBILITY.
+
+BEGIN WITH AUDIT ONLY.
