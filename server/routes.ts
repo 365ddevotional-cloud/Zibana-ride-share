@@ -142,6 +142,13 @@ export async function registerRoutes(
         return res.json(null);
       }
       
+      // ENFORCE: Only the bound email can be super_admin - demote anyone else who has it
+      if (userRole.role === "super_admin" && userEmail !== SUPER_ADMIN_EMAIL) {
+        console.log(`[SUPER_ADMIN ENFORCEMENT] Revoking super_admin from unauthorized email: ${userEmail}`);
+        await storage.deleteUserRole(userId);
+        return res.json(null);
+      }
+      
       // Return the role - client-side guards handle access control based on route
       // Admin routes (/admin/*) allow admin roles
       // Rider routes (/*) block non-rider roles via RiderAppGuard
