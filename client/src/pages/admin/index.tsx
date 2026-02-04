@@ -7009,7 +7009,7 @@ function AdminManagementTab() {
         </CardContent>
       </Card>
 
-      <TesterManagementSection />
+      {isSuperAdmin && <TesterManagementSection />}
 
       <Dialog open={showAppointDialog} onOpenChange={setShowAppointDialog}>
         <DialogContent className="max-w-md">
