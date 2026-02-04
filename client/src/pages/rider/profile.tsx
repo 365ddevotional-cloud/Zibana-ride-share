@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { RiderLayout } from "@/components/rider/RiderLayout";
 import { RiderRouteGuard } from "@/components/rider/RiderRouteGuard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -5,9 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/hooks/use-auth";
-import { useQuery } from "@tanstack/react-query";
-import { User, Mail, Phone, Star, MapPin, Settings, LogOut, ChevronRight } from "lucide-react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { User, Mail, Phone, Star, MapPin, Settings, LogOut, ChevronRight, Trash2 } from "lucide-react";
 
 interface RiderProfile {
   rating: number | null;
@@ -17,10 +21,40 @@ interface RiderProfile {
 
 export default function RiderProfile() {
   const { user, logout } = useAuth();
+  const { toast } = useToast();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const { data: profile, isLoading } = useQuery<RiderProfile>({
     queryKey: ["/api/rider/profile"],
     enabled: !!user,
+  });
+
+  const deleteAccountMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("DELETE", "/api/user/account");
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to delete account");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Account deleted",
+        description: "Your account has been deleted. Redirecting...",
+      });
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 1500);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Cannot delete account",
+        description: error.message,
+        variant: "destructive",
+      });
+      setDeleteDialogOpen(false);
+    },
   });
 
   const getInitials = (name: string) => {
@@ -152,6 +186,41 @@ export default function RiderProfile() {
                 <LogOut className="h-5 w-5" />
                 <span className="font-medium">Log Out</span>
               </button>
+            </CardContent>
+          </Card>
+
+          <Card className="border-destructive/20">
+            <CardContent className="p-0">
+              <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <AlertDialogTrigger asChild>
+                  <button 
+                    className="w-full p-4 flex items-center gap-3 hover-elevate text-destructive"
+                    data-testid="button-delete-account"
+                  >
+                    <Trash2 className="h-5 w-5" />
+                    <span className="font-medium">Delete Account</span>
+                  </button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete your account?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. Your account, trip history, and all associated data will be permanently removed.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      onClick={() => deleteAccountMutation.mutate()}
+                      disabled={deleteAccountMutation.isPending}
+                      data-testid="button-confirm-delete"
+                    >
+                      {deleteAccountMutation.isPending ? "Deleting..." : "Delete Account"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </CardContent>
           </Card>
         </div>
