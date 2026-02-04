@@ -164,8 +164,8 @@ export async function registerRoutes(
     }
   });
 
-  // Account deletion endpoint
-  app.delete("/api/user/account", isAuthenticated, async (req: any, res) => {
+  // Account deletion endpoint (supports both paths)
+  const handleAccountDelete = async (req: any, res: any) => {
     try {
       const userId = req.user.claims.sub;
       const userRole = await storage.getUserRole(userId);
@@ -176,8 +176,9 @@ export async function registerRoutes(
 
       // Check for active trips based on role
       if (userRole.role === "rider") {
-        const riderProfile = await storage.getRiderProfile(userId);
-        if (riderProfile?.activeTrip) {
+        const trips = await storage.getTrips();
+        const activeTrip = trips.find(t => t.riderId === userId && ["pending", "accepted", "in_progress"].includes(t.status));
+        if (activeTrip) {
           return res.status(400).json({ 
             message: "Cannot delete account with an active trip. Please complete or cancel your trip first." 
           });
@@ -196,15 +197,19 @@ export async function registerRoutes(
       
       console.log(`[ACCOUNT DELETION] User account deleted: userId=${userId}, role=${userRole.role}, timestamp=${new Date().toISOString()}`);
       
-      // Invalidate session
+      // Invalidate session and clear cookies
       req.logout(() => {
-        return res.json({ message: "Account deleted successfully" });
+        res.clearCookie("connect.sid");
+        return res.json({ success: true, message: "Account deleted successfully" });
       });
     } catch (error) {
       console.error("Error deleting account:", error);
       return res.status(500).json({ message: "Failed to delete account" });
     }
-  });
+  };
+
+  app.delete("/api/account", isAuthenticated, handleAccountDelete);
+  app.delete("/api/user/account", isAuthenticated, handleAccountDelete);
 
   // Theme preference routes
   app.get("/api/user/theme-preference", isAuthenticated, async (req: any, res) => {

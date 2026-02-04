@@ -1,0 +1,117 @@
+You are implementing FINAL and PERMANENT fixes to the ZIBA app.
+This is NOT logout. This is ACCOUNT DELETION.
+
+DO NOT refactor auth.
+DO NOT change OAuth.
+DO NOT touch role logic.
+
+ONLY implement what is listed.
+
+========================
+PART 1: BACKEND — DELETE ACCOUNT (REQUIRED)
+========================
+
+1. Create API endpoint:
+
+DELETE /api/account
+
+2. Endpoint behavior:
+- Require authenticated session
+- Identify user by session (NOT email input)
+- Check for active trips
+  - If active trip exists → return error
+- PERMANENTLY delete the user record from database
+  (Hard delete — email must be released)
+
+3. On success:
+- Destroy session
+- Clear auth cookies
+- Return { success: true }
+
+========================
+PART 2: RIDER APP — UNSUBSCRIBE UI
+========================
+
+4. In Rider App:
+Route: /rider/profile or /rider/settings
+
+5. Add a NEW button (do not rename logout):
+
+🛑 "Unsubscribe / Delete Account"
+
+6. Button behavior:
+- Show confirmation modal:
+  "This will permanently delete your account and cannot be undone."
+- On confirm:
+  - Call DELETE /api/account
+  - On success:
+    - Redirect to / (ZIBA landing)
+    - Show success message
+
+Logout button must remain separate.
+
+========================
+PART 3: DRIVER APP — UNSUBSCRIBE UI
+========================
+
+7. In Driver App:
+Route: /driver/profile or /driver/settings
+
+8. Add SAME button:
+
+🛑 "Unsubscribe / Delete Account"
+
+9. Behavior MUST match Rider exactly:
+- Confirmation modal
+- DELETE /api/account
+- Session destroyed
+- Redirect to /driver (Driver landing page)
+
+========================
+PART 4: FIX SIGN OUT REDIRECTS (NO GUESSING)
+========================
+
+10. Update Sign Out behavior:
+
+- Rider Sign Out → redirect to /
+- Driver Sign Out → redirect to /driver
+- Admin Sign Out → redirect to /admin/login
+
+Sign Out must NOT reuse generic redirect.
+
+========================
+PART 5: EMAIL REUSE GUARANTEE
+========================
+
+11. Ensure deleted users:
+- Are fully removed from DB
+- Do not appear in auth lookup
+- Do not block email reuse
+- Can re-register immediately with same email
+
+========================
+PART 6: TESTING (MANDATORY)
+========================
+
+Test EXACTLY:
+
+1. Login as Rider
+2. Click Unsubscribe
+3. Account deleted
+4. Re-register SAME email as Driver
+5. Driver dashboard loads
+
+Repeat inverse:
+- Driver → Unsubscribe → Rider signup
+
+========================
+PART 7: REPORT (SHORT)
+========================
+
+After completion, report ONLY:
+- Rider unsubscribe location
+- Driver unsubscribe location
+- Backend delete endpoint
+- Confirmation email reuse works
+
+BEGIN NOW AND STOP.

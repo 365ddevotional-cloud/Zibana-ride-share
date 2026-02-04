@@ -28,7 +28,7 @@ export default function DriverSettings() {
 
   const deleteAccountMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("DELETE", "/api/user/account");
+      const response = await apiRequest("DELETE", "/api/account");
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || "Failed to delete account");
