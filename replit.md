@@ -19,10 +19,28 @@ Preferred communication style: Simple, everyday language.
 ### Rider App (APP_MODE=RIDER)
 - **App Name**: ZIBA Ride
 - **Package Name**: com.ziba.rider
+- **URL**: `/` (root)
 - **Features**: Rider registration, ride requests, trip tracking, wallet, ratings, support, and SOS
 - **Route Guard**: RiderAppGuard enforces role restrictions - non-riders are logged out
 - **Removed Routes**: All driver, admin, coordinator, and support agent routes are excluded
 - **UI Copy**: Rider-focused language only, no driver/earning references
+
+### Driver App
+- **App Name**: ZIBA Driver
+- **Package Name**: com.ziba.driver
+- **URL**: `/driver`
+- **Features**: Driver dashboard, online/offline toggle, ride requests, trip management, earnings tracking, withdrawals
+- **Route Guard**: DriverAppGuard enforces role restrictions - only users with `driver` role can access
+- **Pages**: dashboard, trips, earnings, profile, settings, welcome
+- **UI Theme**: Emerald color scheme (emerald-600) for visual distinction from Rider App
+- **Trip Flow**: Accept rides → Navigate to pickup → Start trip → Complete trip
+- **Earnings**: Real-time earnings tracking, wallet balance, withdrawal management
+
+### Admin Dashboard
+- **URL**: `/admin`
+- **Access**: Restricted to admin roles (super_admin, admin, finance_admin, support_agent, trip_coordinator, director)
+- **Route Guard**: AdminRouter with role-based access control
+- **Features**: User management, trip oversight, financial controls, approvals
 
 ### Backend
 - **Runtime**: Node.js using Express.js.
