@@ -1,0 +1,115 @@
+STOP. DO NOT WRITE ANY CODE YET.
+
+FIRST: AUDIT & CONFIRM
+Before changing anything, scan the codebase and explicitly CONFIRM (in writing) whether each of the following already exists. 
+If it already exists, DO NOT reimplement it — only reference it.
+Only implement what is missing.
+
+AUDIT CHECKLIST:
+1. Confirm whether ALL DELETE requests (admin, rider, driver) include:
+   - credentials: "include"
+2. Confirm whether backend delete endpoints return:
+   - 401/403 for auth failures (NOT 500)
+3. Confirm whether delete logic is centralized in ONE service function
+4. Confirm whether React Query invalidates admin lists AFTER delete
+5. Confirm whether auth/session refresh exists before destructive actions
+6. Confirm whether admin, rider, and driver delete paths call the SAME delete service
+7. Confirm whether deleted users are filtered server-side before being sent to admin lists
+
+ONLY AFTER CONFIRMATION, PROCEED WITH FIXES BELOW.
+
+------------------------------------------------
+
+IMPLEMENT THE FOLLOWING — MINIMAL, SAFE, AND FINAL FIXES:
+
+BACKEND (AUTHORITATIVE SOURCE OF TRUTH)
+1. Create ONE delete service:
+   deleteUserAccount(userId, { source })
+
+   This service MUST:
+   - Hard delete user from users, userRoles, riderProfiles, driverProfiles
+   - Be the ONLY place where deletion happens
+   - Throw 403 if requester is not authorized
+   - Never return 500 for auth issues
+
+2. Update ALL delete endpoints to call this service:
+   - /api/user/account
+   - /api/admin/users/:userId
+
+3. Ensure delete endpoints:
+   - Return explicit status codes:
+     200 success
+     401 unauthenticated
+     403 unauthorized
+     404 not found
+
+------------------------------------------------
+
+FRONTEND (ADMIN + RIDER + DRIVER)
+
+4. Before ANY delete request:
+   - Force auth/session refresh ONCE:
+     POST /api/auth/refresh (credentials included)
+
+5. Ensure ALL delete fetch calls include:
+   credentials: "include"
+
+6. After successful delete, FORCE cache invalidation:
+   - admin-riders
+   - admin-drivers
+   - admin-users
+   - rider-profile
+   - driver-profile
+
+   Do NOT rely on optimistic UI updates alone.
+
+7. If delete fails:
+   - Show backend error message exactly (no generic "500")
+
+------------------------------------------------
+
+PERMANENT SAFETY GUARD (PREVENT FUTURE CONTRADICTIONS)
+
+8. Add a shared utility:
+   assertFreshSession()
+
+   This MUST be called automatically before:
+   - delete
+   - refund
+   - ban
+   - suspend
+   - payout reversal
+
+9. Add a shared utility:
+   invalidateAfterMutation(entity)
+
+   This ensures no stale admin data EVER appears again.
+
+------------------------------------------------
+
+FINAL VALIDATION (MANDATORY)
+After implementation, VERIFY ALL of the following:
+
+- Delete works in:
+  ✔ Normal browser mode
+  ✔ Incognito mode
+  ✔ Admin dashboard
+  ✔ Rider app
+  ✔ Driver app
+
+- Deleted users:
+  ✔ Never reappear in admin lists
+  ✔ Cannot be deleted twice
+  ✔ Do not cause 500 errors
+
+- Admin behavior is IDENTICAL across browser modes
+
+DO NOT ADD NEW FEATURES.
+DO NOT REFACTOR UNRELATED CODE.
+DO NOT DUPLICATE EXISTING LOGIC.
+
+Reply ONLY with:
+1. What already existed
+2. What was added
+3. Exact files changed
+4. Confirmation that contradiction is permanently eliminated
