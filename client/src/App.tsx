@@ -483,6 +483,39 @@ function AppModeGuard({ children }: { children: React.ReactNode }) {
 
 function MainRouter() {
   const [location] = useLocation();
+  const { user, isLoading: authLoading } = useAuth();
+  
+  const { data: userRole, isLoading: roleLoading } = useQuery<{ role: string } | null>({
+    queryKey: ["/api/user/role"],
+    enabled: !!user,
+    retry: false,
+  });
+  
+  // Handle role-based redirect from root path BEFORE guards
+  if (location === "/") {
+    if (authLoading) {
+      return <FullPageLoading text="Loading..." />;
+    }
+    
+    if (user) {
+      if (roleLoading) {
+        return <FullPageLoading text="Loading your dashboard..." />;
+      }
+      
+      if (userRole?.role) {
+        const role = userRole.role;
+        
+        // Role-based redirect BEFORE guards can block
+        if (role === "driver") {
+          return <Redirect to="/driver/dashboard" />;
+        }
+        
+        if (ADMIN_ROLES.includes(role)) {
+          return <Redirect to="/admin" />;
+        }
+      }
+    }
+  }
   
   if (location.startsWith("/admin")) {
     return <AdminRouter />;
