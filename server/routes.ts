@@ -211,6 +211,35 @@ export async function registerRoutes(
   app.delete("/api/account", isAuthenticated, handleAccountDelete);
   app.delete("/api/user/account", isAuthenticated, handleAccountDelete);
 
+  // Admin delete user endpoint
+  app.delete("/api/admin/users/:userId", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      
+      // Check if user has active trips
+      const activeTrips = await storage.getActiveTripsByUser(userId);
+      if (activeTrips.length > 0) {
+        return res.status(400).json({ 
+          message: "Cannot delete user with active trips. Complete or cancel trips first." 
+        });
+      }
+      
+      // Check if driver is online
+      const driverProfile = await storage.getDriverProfile(userId);
+      if (driverProfile?.isOnline) {
+        return res.status(400).json({ 
+          message: "Cannot delete driver while online. Driver must go offline first." 
+        });
+      }
+      
+      await storage.deleteUserAccount(userId);
+      return res.json({ message: "User deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      return res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+
   // Theme preference routes
   app.get("/api/user/theme-preference", isAuthenticated, async (req: any, res) => {
     try {

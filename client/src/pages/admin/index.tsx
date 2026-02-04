@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserAvatar } from "@/components/user-avatar";
@@ -65,7 +66,8 @@ import {
   FileText,
   ChevronRight,
   Settings,
-  TestTube
+  TestTube,
+  Trash2
 } from "lucide-react";
 import type { DriverProfile, Trip, User } from "@shared/schema";
 import { NotificationBell } from "@/components/notification-bell";
@@ -1219,6 +1221,34 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
     },
   });
 
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const response = await apiRequest("DELETE", `/api/admin/users/${userId}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/drivers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/riders"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+      toast({
+        title: "User deleted",
+        description: "User has been permanently removed from the platform",
+      });
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({ title: "Session expired", description: "Please log in again", variant: "destructive" });
+        setTimeout(() => { window.location.href = "/api/login"; }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete user",
+        variant: "destructive",
+      });
+    },
+  });
+
   const cancelTripMutation = useMutation({
     mutationFn: async (tripId: string) => {
       const response = await apiRequest("POST", `/api/admin/trip/${tripId}/cancel`, {});
@@ -2043,6 +2073,38 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                                     Reinstate
                                   </Button>
                                 )}
+                                {!isDirector && (
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button
+                                        size="sm"
+                                        variant="destructive"
+                                        data-testid={`button-delete-driver-${driver.id}`}
+                                      >
+                                        <Trash2 className="h-4 w-4 mr-1" />
+                                        Delete
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Delete this driver?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          This will permanently remove {driver.fullName} from the platform. This action cannot be undone.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction
+                                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                          onClick={() => deleteUserMutation.mutate(driver.userId)}
+                                          disabled={deleteUserMutation.isPending}
+                                        >
+                                          {deleteUserMutation.isPending ? "Deleting..." : "Delete Driver"}
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                )}
                               </div>
                             </TableCell>
                           </TableRow>
@@ -2083,6 +2145,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                           <TableHead>Email</TableHead>
                           <TableHead>Phone</TableHead>
                           <TableHead>Joined</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -2095,6 +2158,40 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                               {rider.createdAt 
                                 ? new Date(rider.createdAt).toLocaleDateString() 
                                 : "-"}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {!isDirector && (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      data-testid={`button-delete-rider-${rider.id}`}
+                                    >
+                                      <Trash2 className="h-4 w-4 mr-1" />
+                                      Delete
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Delete this rider?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        This will permanently remove {rider.fullName || rider.email} from the platform. This action cannot be undone.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                        onClick={() => deleteUserMutation.mutate(rider.id)}
+                                        disabled={deleteUserMutation.isPending}
+                                      >
+                                        {deleteUserMutation.isPending ? "Deleting..." : "Delete Rider"}
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              )}
                             </TableCell>
                           </TableRow>
                         ))}
