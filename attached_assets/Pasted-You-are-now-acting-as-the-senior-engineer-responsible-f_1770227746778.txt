@@ -1,0 +1,77 @@
+You are now acting as the senior engineer responsible for fixing a role-based routing bug in the ZIBA app.
+
+PROBLEM:
+Whenever a user signs in as a DRIVER, the app incorrectly redirects them to the Rider App instead of the Driver App.
+
+GOAL:
+Fix all role-based redirect logic so that after successful authentication:
+- RIDER → Rider App
+- DRIVER → Driver App
+- ADMIN → Admin Web
+
+Then TEST and CONFIRM each separation works and report the correct URLs.
+
+EXECUTION INSTRUCTIONS (DO NOT SKIP STEPS):
+
+1. AUDIT AUTH FLOW
+- Inspect login logic for RiderLogin, DriverLogin, and shared auth handlers.
+- Locate any hardcoded redirects such as navigate("/") or navigate("/rider").
+- Identify any global redirect logic in AuthContext, useAuth, or similar.
+
+2. FIX ROLE-BASED REDIRECT (CRITICAL)
+- Implement explicit role-based routing AFTER login success:
+    - role === "RIDER"  → navigate("/")
+    - role === "DRIVER" → navigate("/driver")
+    - role === "ADMIN"  → navigate("/admin")
+- Remove any default redirect that forces all users to "/".
+
+3. FIX DRIVER LOGIN PAGE
+- Ensure DriverLogin.tsx:
+    - Blocks non-DRIVER roles
+    - Redirects ONLY to /driver on success
+    - Never redirects to "/" or rider routes
+
+4. VERIFY AUTH CONTEXT / SESSION LOGIC
+- Ensure user.role is read from backend response or token
+- Ensure role comparison uses exact values: "RIDER", "DRIVER", "ADMIN"
+- Ensure no lowercase or mismatched role strings
+
+5. VERIFY ROUTE GUARDS
+- Rider routes must block DRIVER and ADMIN
+- Driver routes must block RIDER and ADMIN
+- Admin routes must block RIDER and DRIVER
+- Guards must NOT redirect users to another role’s app
+
+6. TEST ALL THREE FLOWS
+Create or use test accounts for:
+- RIDER
+- DRIVER
+- ADMIN
+
+For each role:
+- Log in
+- Confirm correct redirect
+- Confirm other apps are inaccessible
+
+7. FINAL VALIDATION
+- No console errors
+- No redirect loops
+- Refreshing the page keeps the user in the correct app
+- Backend role checks remain enforced
+
+8. REPORT RESULTS
+After fixes and testing, respond with:
+- Confirmation that the bug is fixed
+- The exact working URLs for:
+    - Rider App
+    - Driver App
+    - Admin Web
+- Any files that were changed
+
+IMPORTANT RULES:
+- Do NOT refactor unrelated code
+- Do NOT break Rider or Admin apps
+- Make the minimal correct fix
+- Ensure production-safe behavior
+
+BEGIN NOW.

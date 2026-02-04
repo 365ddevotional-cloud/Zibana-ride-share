@@ -20,8 +20,9 @@ export default function RoleSelectionPage() {
       const response = await apiRequest("POST", "/api/user/role", { role });
       return response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user/role"] });
+      // Rider app only - always go to rider home
       setLocation("/rider/home");
     },
     onError: (error: Error) => {

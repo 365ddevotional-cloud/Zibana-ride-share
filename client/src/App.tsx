@@ -295,10 +295,22 @@ function AuthenticatedRoutes() {
     return <RoleSelectionPage />;
   }
 
-  if (APP_MODE === "RIDER" && !isRoleAllowedInAppMode(userRole.role)) {
+  const role = userRole.role;
+
+  // Role-based redirect after login
+  if (role === "driver") {
+    return <Redirect to="/driver/dashboard" />;
+  }
+  
+  if (ADMIN_ROLES.includes(role)) {
+    return <Redirect to="/admin" />;
+  }
+  
+  if (APP_MODE === "RIDER" && !isRoleAllowedInAppMode(role)) {
     return <AccessDeniedPage />;
   }
 
+  // Default: rider goes to rider home
   return <Redirect to="/rider/home" />;
 }
 
