@@ -1,0 +1,86 @@
+Do NOT audit again.
+Do NOT redesign.
+Apply ONLY the fixes below.
+
+==============================
+ISSUE 1 — DELETE FAILS IN NORMAL MODE
+==============================
+
+Problem:
+- Delete works in incognito
+- Fails in normal browser due to stale session / cookies
+
+FIX:
+
+1. On account delete success:
+   - Force server-side session destroy
+   - Explicitly clear auth cookies
+   - Do NOT rely on frontend state
+
+2. Backend delete endpoint must:
+   - Revalidate session on request
+   - Not depend on cached auth state
+
+3. Frontend:
+   - On delete success:
+     - Clear client auth state
+     - Hard redirect using:
+       window.location.href = "/"
+
+==============================
+ISSUE 2 — ADMIN DELETE DOES NOT WORK
+==============================
+
+Problem:
+- Admin delete calls self-delete logic
+- Backend expects req.user.id
+- Admin deletes other users → 500 error
+
+FIX:
+
+4. Create a dedicated admin delete endpoint:
+
+   DELETE /api/admin/users/:userId
+
+5. This endpoint must:
+   - Require admin role
+   - Accept target userId from params
+   - Call the SAME hard delete logic
+   - NOT depend on req.user.id
+
+6. Update Admin UI delete button to call:
+   /api/admin/users/:userId
+
+==============================
+ISSUE 3 — ADMIN LIST NOT UPDATING
+==============================
+
+7. On successful admin delete:
+   - Remove user from Admin list immediately
+   - Refetch list OR optimistic update
+
+8. If delete fails:
+   - Show real backend error
+   - Do NOT silently ignore
+
+==============================
+DO NOT DO
+==============================
+
+- Do NOT add soft delete
+- Do NOT change database schema
+- Do NOT modify Replit Auth
+- Do NOT refactor unrelated code
+
+==============================
+CONFIRM AFTER FIX
+==============================
+
+Confirm ALL of the following:
+
+1. Delete works in NORMAL browser (not incognito)
+2. Admin delete permanently removes user
+3. Deleted email no longer appears in Admin
+4. Same email can re-register successfully
+
+Proceed now.

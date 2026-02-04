@@ -1224,6 +1224,10 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
       const response = await apiRequest("DELETE", `/api/admin/users/${userId}`);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to delete user");
+      }
       return response.json();
     },
     onSuccess: () => {

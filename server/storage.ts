@@ -297,6 +297,7 @@ export interface IStorage {
   createUserRole(data: InsertUserRole): Promise<UserRole>;
   deleteUserRole(userId: string): Promise<void>;
   deleteUserAccount(userId: string): Promise<void>;
+  getActiveTripsByUser(userId: string): Promise<Trip[]>;
   getAdminCount(): Promise<number>;
   
   // Admin appointment methods (SUPER_ADMIN only)
@@ -891,6 +892,20 @@ export class DatabaseStorage implements IStorage {
     await db.delete(riderProfiles).where(eq(riderProfiles.userId, userId));
     await db.delete(userRoles).where(eq(userRoles.userId, userId));
     await db.delete(users).where(eq(users.id, userId));
+  }
+
+  async getActiveTripsByUser(userId: string): Promise<Trip[]> {
+    const activeStatuses = ["requested", "accepted", "in_progress"] as const;
+    const result = await db
+      .select()
+      .from(trips)
+      .where(
+        and(
+          or(eq(trips.riderId, userId), eq(trips.driverId, userId)),
+          inArray(trips.status, [...activeStatuses])
+        )
+      );
+    return result;
   }
 
   async getAdminCount(): Promise<number> {

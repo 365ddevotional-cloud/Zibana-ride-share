@@ -174,16 +174,16 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Account not found" });
       }
 
-      // Check for active trips based on role
-      if (userRole.role === "rider") {
-        const trips = await storage.getTrips();
-        const activeTrip = trips.find(t => t.riderId === userId && ["pending", "accepted", "in_progress"].includes(t.status));
-        if (activeTrip) {
-          return res.status(400).json({ 
-            message: "Cannot delete account with an active trip. Please complete or cancel your trip first." 
-          });
-        }
-      } else if (userRole.role === "driver") {
+      // Check for active trips
+      const activeTrips = await storage.getActiveTripsByUser(userId);
+      if (activeTrips.length > 0) {
+        return res.status(400).json({ 
+          message: "Cannot delete account with an active trip. Please complete or cancel your trip first." 
+        });
+      }
+      
+      // Check if driver is online
+      if (userRole.role === "driver") {
         const driverProfile = await storage.getDriverProfile(userId);
         if (driverProfile?.isOnline) {
           return res.status(400).json({ 
@@ -197,10 +197,15 @@ export async function registerRoutes(
       
       console.log(`[ACCOUNT DELETION] User account deleted: userId=${userId}, role=${userRole.role}, timestamp=${new Date().toISOString()}`);
       
-      // Invalidate session and clear cookies
+      // Destroy session completely and clear cookies
       req.logout(() => {
-        res.clearCookie("connect.sid");
-        return res.json({ success: true, message: "Account deleted successfully" });
+        req.session.destroy((err: any) => {
+          if (err) {
+            console.error("Session destroy error:", err);
+          }
+          res.clearCookie("connect.sid", { path: "/" });
+          return res.json({ success: true, message: "Account deleted successfully" });
+        });
       });
     } catch (error) {
       console.error("Error deleting account:", error);
