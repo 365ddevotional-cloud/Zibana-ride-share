@@ -1,0 +1,84 @@
+You are continuing development of the ZIBA ride-hailing platform.
+
+PHASE 4 GOAL:
+Implement the complete driver trip lifecycle:
+Accept → Start → End
+with backend synchronization and strict data isolation.
+
+EXECUTE ALL STEPS BELOW IN ORDER WITHOUT SKIPPING.
+
+1. TRIP STATUS MODEL
+Ensure trip status supports:
+- REQUESTED
+- ACCEPTED
+- IN_PROGRESS
+- COMPLETED
+- CANCELLED
+
+Trip must be linked to:
+- driverId
+- riderId
+
+2. ACCEPT RIDE FLOW
+When driver clicks “Accept”:
+- Assign trip to driverId
+- Update trip status → ACCEPTED
+- Hide other incoming requests
+- Sync change to backend
+
+Reject action:
+- Does NOT assign driver
+- Keeps trip available for other drivers
+
+3. START TRIP FLOW
+When driver clicks “Start Trip”:
+- Update trip status → IN_PROGRESS
+- Lock trip to driver
+- Prevent reassignment
+- Sync status with rider view
+
+4. END TRIP FLOW
+When driver clicks “End Trip”:
+- Update trip status → COMPLETED
+- Calculate trip fare (mock allowed)
+- Store completed trip under driver history
+- Update driver earnings
+
+5. DRIVER UI CONTROLS
+- Accept button visible only for REQUESTED
+- Start Trip button visible only for ACCEPTED
+- End Trip button visible only for IN_PROGRESS
+- No invalid actions allowed
+
+6. DATA ISOLATION (MANDATORY)
+Driver can:
+- View only trips assigned to them
+- Modify only their own trip statuses
+
+Driver cannot:
+- View or edit other drivers’ trips
+- Access rider wallet or payment details
+
+7. BACKEND SAFETY RULES
+- All trip mutations must verify:
+  - Authenticated user role = DRIVER
+  - driverId matches trip.driverId
+- Reject unauthorized actions server-side
+
+8. ERROR HANDLING
+- Handle invalid state transitions gracefully
+- Show clear UI feedback for failed actions
+- Prevent double submits
+
+9. VERIFICATION CHECKLIST
+Confirm:
+- Driver can accept a ride
+- Driver can start trip
+- Driver can end trip
+- Trip status updates correctly
+- Earnings update after completion
+- Rider/Admin cannot alter driver trips
+- No console or runtime errors
+
+STOP AFTER COMPLETION.
+Do NOT proceed to Phase 5 until Phase 4 is confirmed complete.
