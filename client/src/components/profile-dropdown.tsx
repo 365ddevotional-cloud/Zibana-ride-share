@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useLocation } from "wouter";
 import {
   DropdownMenu,
@@ -10,6 +11,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { UserAvatar } from "@/components/user-avatar";
 import { 
   LogOut, 
@@ -22,9 +24,13 @@ import {
   Moon,
   Monitor,
   Palette,
-  Check
+  Check,
+  Trash2
 } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import type { User as UserType } from "@shared/models/auth";
 
 interface ProfileDropdownProps {
@@ -36,6 +42,39 @@ interface ProfileDropdownProps {
 export function ProfileDropdown({ user, role, onLogout }: ProfileDropdownProps) {
   const [, navigate] = useLocation();
   const { theme, setTheme } = useTheme();
+  const { toast } = useToast();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
+  const deleteAccountMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("DELETE", "/api/account");
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to delete account");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Account deleted",
+        description: "Your account has been permanently deleted.",
+      });
+      const redirectUrl = role === "driver" ? "/driver" : role === "rider" ? "/" : "/admin/login";
+      setTimeout(() => {
+        window.location.href = redirectUrl;
+      }, 1000);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Cannot delete account",
+        description: error.message,
+        variant: "destructive",
+      });
+      setDeleteDialogOpen(false);
+    },
+  });
+
+  const showDeleteOption = role === "rider" || role === "driver";
 
   const getMenuItems = () => {
     switch (role) {
@@ -158,6 +197,7 @@ export function ProfileDropdown({ user, role, onLogout }: ProfileDropdownProps) 
   };
 
   return (
+    <>
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button className="cursor-pointer rounded-full focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2" data-testid="profile-dropdown-trigger">
@@ -206,7 +246,43 @@ export function ProfileDropdown({ user, role, onLogout }: ProfileDropdownProps) 
           <LogOut className="mr-2 h-4 w-4" />
           Sign Out
         </DropdownMenuItem>
+        {showDeleteOption && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem 
+              onClick={() => setDeleteDialogOpen(true)} 
+              className="text-destructive"
+              data-testid="menu-delete-account"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Unsubscribe / Delete Account
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
+
+    <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete your account?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This will permanently delete your account and cannot be undone. Your trip history, wallet, and all data will be removed. You can re-register with the same email afterward.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            onClick={() => deleteAccountMutation.mutate()}
+            disabled={deleteAccountMutation.isPending}
+            data-testid="button-confirm-delete"
+          >
+            {deleteAccountMutation.isPending ? "Deleting..." : "Delete Account"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
