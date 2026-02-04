@@ -102,19 +102,67 @@ export async function setupAuth(app: Express) {
   passport.serializeUser((user: Express.User, cb) => cb(null, user));
   passport.deserializeUser((user: Express.User, cb) => cb(null, user));
 
+  // Role-aware login: store intended role before OAuth
   app.get("/api/login", (req, res, next) => {
-    ensureStrategy(req.hostname);
-    passport.authenticate(`replitauth:${req.hostname}`, {
-      prompt: "login consent",
-      scope: ["openid", "email", "profile", "offline_access"],
-    })(req, res, next);
+    const authContext = req.query.role as string;
+    const validRoles = ["rider", "driver", "admin"];
+    
+    // Store auth context in session before OAuth redirect
+    if (authContext && validRoles.includes(authContext.toLowerCase())) {
+      (req.session as any).authContext = authContext.toLowerCase();
+    } else {
+      // Default to rider if no valid role specified
+      (req.session as any).authContext = "rider";
+    }
+    
+    req.session.save(() => {
+      ensureStrategy(req.hostname);
+      passport.authenticate(`replitauth:${req.hostname}`, {
+        prompt: "login consent",
+        scope: ["openid", "email", "profile", "offline_access"],
+      })(req, res, next);
+    });
   });
 
+  // Role-aware callback: redirect based on stored auth context
   app.get("/api/callback", (req, res, next) => {
     ensureStrategy(req.hostname);
     passport.authenticate(`replitauth:${req.hostname}`, {
-      successReturnToOrRedirect: "/",
       failureRedirect: "/api/login",
+    }, async (err: any, user: any, info: any) => {
+      if (err || !user) {
+        return res.redirect("/api/login");
+      }
+      
+      req.login(user, async (loginErr) => {
+        if (loginErr) {
+          return res.redirect("/api/login");
+        }
+        
+        // Get the auth context from session
+        const authContext = (req.session as any).authContext || "rider";
+        const userId = user.claims?.sub;
+        
+        // Store the auth context as the intended role in session
+        (req.session as any).intendedRole = authContext;
+        
+        // Role-locked redirects
+        let redirectUrl = "/";
+        if (authContext === "driver") {
+          redirectUrl = "/driver";
+        } else if (authContext === "admin") {
+          redirectUrl = "/admin";
+        } else {
+          redirectUrl = "/";
+        }
+        
+        // Clear authContext after use
+        delete (req.session as any).authContext;
+        
+        req.session.save(() => {
+          res.redirect(redirectUrl);
+        });
+      });
     })(req, res, next);
   });
 

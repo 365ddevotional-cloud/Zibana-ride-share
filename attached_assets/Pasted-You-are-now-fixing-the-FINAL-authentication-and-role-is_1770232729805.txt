@@ -1,0 +1,132 @@
+You are now fixing the FINAL authentication and role-isolation issues in the ZIBA app.
+
+CURRENT STATE:
+- Admin login works correctly
+- Driver login always redirects to Rider
+- Same browser cannot be used for Rider + Driver
+- OAuth session is shared globally
+- No unsubscribe / delete account option exists
+
+THIS IS A SESSION + OAUTH CONTEXT BUG.
+
+DO NOT REFACTOR RANDOMLY.
+FOLLOW STEPS EXACTLY.
+
+========================
+PART 1: ROLE-AWARE LOGIN CONTEXT (CRITICAL)
+========================
+
+1. Introduce a REQUIRED role context before OAuth begins.
+
+When user clicks:
+- /rider/login   → set authContext = "RIDER"
+- /driver/login  → set authContext = "DRIVER"
+- /admin/login   → set authContext = "ADMIN"
+
+Store authContext in:
+- secure, httpOnly cookie OR
+- signed state parameter passed into OAuth
+
+DO NOT rely on existing session role.
+
+========================
+PART 2: FIX OAUTH CALLBACK HANDLING
+========================
+
+2. In OAuth callback handler:
+- Read authContext
+- Fetch user by email
+- IF user exists:
+   - VERIFY stored role matches authContext
+   - If mismatch → show "Wrong role account" error
+- IF user does not exist:
+   - Create user with role = authContext
+
+3. NEVER default to RIDER.
+
+========================
+PART 3: ROLE-LOCKED REDIRECTS
+========================
+
+4. After successful login, redirect strictly:
+- RIDER  → /rider/home
+- DRIVER → /driver/dashboard
+- ADMIN  → /admin
+
+Remove any fallback redirect to "/".
+
+========================
+PART 4: MULTI-ROLE SAME BROWSER SUPPORT
+========================
+
+5. Support same browser usage by:
+- Namespacing session by role, OR
+- Allowing explicit role switching at login
+
+Example:
+- Rider session does NOT override Driver session
+- Driver login does NOT reuse Rider role
+
+If conflict detected:
+- Force re-authentication for that role only
+
+========================
+PART 5: LOGOUT (PER ROLE)
+========================
+
+6. Add Logout button for:
+- Rider
+- Driver
+- Admin
+
+Logout must:
+- Clear role-specific session
+- Preserve other roles if present
+- Redirect to correct landing page
+
+========================
+PART 6: UNSUBSCRIBE / DELETE ACCOUNT
+========================
+
+7. Add "Delete Account" option in:
+- Rider Profile
+- Driver Profile
+
+Behavior:
+- Confirm intent
+- Prevent deletion if active trip exists
+- Soft delete (isActive=false) OR hard delete
+- Immediately invalidate session
+- Redirect to landing page
+
+Admin deletion optional & protected.
+
+========================
+PART 7: TESTING (MANDATORY)
+========================
+
+Test on SAME browser:
+
+1. Login as Rider → works
+2. Login as Driver → works
+3. Login as Admin → works
+4. Switching roles does NOT override others
+5. obadriver26@gmail.com logs in ONLY as Driver
+6. Delete Rider account works
+7. Delete Driver account works
+
+========================
+PART 8: REPORT
+========================
+
+After completion, report:
+- Confirmation Driver login works
+- Confirmation same browser supports multiple roles
+- Confirmation unsubscribe exists
+- Exact URLs:
+  - Rider App
+  - Driver App
+  - Admin Web
+- Files changed
+
+BEGIN NOW.
