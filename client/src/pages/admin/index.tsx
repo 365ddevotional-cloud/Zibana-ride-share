@@ -1946,6 +1946,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                 Role Appointments
               </TabsTrigger>
             )}
+            {isSuperAdmin && (
+              <TabsTrigger value="training" className="admin-nav-trigger rounded-md" data-testid="tab-training">
+                <TestTube className="h-4 w-4 mr-2" />
+                Training
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="drivers">
@@ -6013,6 +6019,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <RoleAppointmentsTab />
             </TabsContent>
           )}
+
+          {isSuperAdmin && (
+            <TabsContent value="training">
+              <TesterManagementSection />
+            </TabsContent>
+          )}
         </Tabs>
         </div>
       </main>
@@ -7008,8 +7020,6 @@ function AdminManagementTab() {
           )}
         </CardContent>
       </Card>
-
-      {isSuperAdmin && <TesterManagementSection />}
 
       <Dialog open={showAppointDialog} onOpenChange={setShowAppointDialog}>
         <DialogContent className="max-w-md">
