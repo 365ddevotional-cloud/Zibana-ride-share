@@ -6500,10 +6500,11 @@ type AdminData = {
   adminEndAt?: string | null;
   adminPermissions?: string[] | null;
   appointedBy?: string | null;
-  user?: {
-    firstName?: string;
-    lastName?: string;
-    email?: string;
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
   };
 };
 
@@ -7023,8 +7024,8 @@ function AdminManagementTab() {
                 {admins.map((admin) => (
                   <TableRow key={admin.id} data-testid={`row-admin-${admin.userId}`}>
                     <TableCell className="font-medium">
-                      {admin.user?.firstName} {admin.user?.lastName}
-                      <div className="text-xs text-muted-foreground">{admin.user?.email || admin.userId}</div>
+                      {admin.user.firstName} {admin.user.lastName}
+                      <div className="text-xs text-muted-foreground">{admin.user.email}</div>
                     </TableCell>
                     <TableCell>{formatDate(admin.adminStartAt)}</TableCell>
                     <TableCell>{formatDate(admin.adminEndAt)}</TableCell>

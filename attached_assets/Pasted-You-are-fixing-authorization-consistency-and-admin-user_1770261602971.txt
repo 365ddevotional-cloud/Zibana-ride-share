@@ -1,0 +1,75 @@
+You are fixing authorization consistency and admin user resolution in the ZIBA Ride Share app.
+
+TASK 1 — FIX ADMIN MANAGEMENT USER DISPLAY (ALL ENVIRONMENTS):
+
+Problem:
+- Admin Management table sometimes shows numeric userId instead of name/email in Incognito and Published.
+- Preview works partially due to cached auth context.
+
+Fix:
+- Update the backend `getAllAdmins()` (or equivalent) to ALWAYS return a fully hydrated user object.
+- Enforce a required JOIN between Admin and User tables.
+- The API response MUST include:
+
+{
+  id,
+  role,
+  adminStartAt,
+  adminEndAt,
+  adminPermissions,
+  user: {
+    id,
+    firstName,
+    lastName,
+    email
+  }
+}
+
+- If a related user is missing, return a hard error (do NOT fall back to IDs).
+- Update frontend Admin Management table to:
+  - Render `${user.firstName} ${user.lastName}`
+  - Render `user.email`
+  - NEVER render raw numeric IDs.
+
+TASK 2 — FIX AUTH ROLE RESOLUTION (PREVIEW ≠ INCORRECT ANYMORE):
+
+Problem:
+- Replit Preview still auto-assigns Rider role to non-super-admin emails.
+- This causes `365ddevotional@gmail.com` to become Rider even after being rejected as admin.
+
+Fix:
+- Centralize role resolution in ONE function used by:
+  - Preview
+  - Incognito
+  - Published app
+
+Rules:
+- Define SUPER_ADMIN_EMAIL = "mosesafonabi951@gmail.com"
+- Role resolution logic MUST be:
+
+IF email === SUPER_ADMIN_EMAIL:
+  role = "super_admin"
+ELSE IF user has explicit admin record:
+  role = "admin"
+ELSE:
+  role = "user"   // DO NOT auto-assign rider
+
+- REMOVE any legacy logic that auto-creates rider profiles on login.
+- Rider role must ONLY be assigned through explicit rider signup flow.
+
+TASK 3 — ENFORCE ENVIRONMENT PARITY:
+
+- Remove any Preview-only overrides.
+- Auth, role, and admin checks must rely ONLY on:
+  - Database
+  - Email match
+- No environment-specific shortcuts allowed.
+
+FINAL VALIDATION:
+1. Incognito login as mosesafonabi951@gmail.com → full SUPER ADMIN access
+2. Incognito login as 365ddevotional@gmail.com → normal user, NO admin, NO rider
+3. Admin Management table shows names + emails everywhere
+4. No numeric IDs visible in UI
+5. Preview, Incognito, Published behave identically
+
+Apply fixes, run migrations if needed, and confirm.

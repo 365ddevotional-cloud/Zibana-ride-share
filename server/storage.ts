@@ -1071,6 +1071,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllAdmins(): Promise<any[]> {
+    // INNER JOIN enforces that user record MUST exist - no orphaned admin records allowed
     const admins = await db
       .select({
         id: userRoles.id,
@@ -1083,14 +1084,23 @@ export class DatabaseStorage implements IStorage {
         createdAt: userRoles.createdAt,
         updatedAt: userRoles.updatedAt,
         user: {
+          id: users.id,
           firstName: users.firstName,
           lastName: users.lastName,
           email: users.email,
         },
       })
       .from(userRoles)
-      .leftJoin(users, eq(userRoles.userId, users.id))
+      .innerJoin(users, eq(userRoles.userId, users.id))
       .where(or(eq(userRoles.role, "admin"), eq(userRoles.role, "super_admin")));
+    
+    // Validate all admins have complete user data
+    for (const admin of admins) {
+      if (!admin.user || !admin.user.email) {
+        throw new Error(`Admin record ${admin.id} has missing or incomplete user data`);
+      }
+    }
+    
     return admins;
   }
 
