@@ -3233,6 +3233,31 @@ export const insertComplianceConfirmationSchema = createInsertSchema(complianceC
   createdAt: true,
 });
 
+// Scheduled rating notifications table - delayed delivery for <3 star ratings
+export const scheduledRatingNotifications = pgTable("scheduled_rating_notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  ratingId: varchar("rating_id").notNull(),
+  tripId: varchar("trip_id").notNull(),
+  recipientUserId: varchar("recipient_user_id").notNull(),
+  recipientRole: notificationRoleEnum("recipient_role").notNull(),
+  title: varchar("title", { length: 200 }).notNull(),
+  message: text("message").notNull(),
+  sendAt: timestamp("send_at").notNull(),
+  sent: boolean("sent").notNull().default(false),
+  sentAt: timestamp("sent_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertScheduledRatingNotificationSchema = createInsertSchema(scheduledRatingNotifications).omit({
+  id: true,
+  sent: true,
+  sentAt: true,
+  createdAt: true,
+});
+
+export type InsertScheduledRatingNotification = z.infer<typeof insertScheduledRatingNotificationSchema>;
+export type ScheduledRatingNotification = typeof scheduledRatingNotifications.$inferSelect;
+
 // Types
 export type InsertLegalDocument = z.infer<typeof insertLegalDocumentSchema>;
 export type LegalDocument = typeof legalDocuments.$inferSelect;

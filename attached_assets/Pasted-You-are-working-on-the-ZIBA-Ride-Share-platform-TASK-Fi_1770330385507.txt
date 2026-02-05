@@ -1,0 +1,67 @@
+You are working on the ZIBA Ride Share platform.
+
+TASK:
+Finalize the ratings notification system by adding a 1-hour delayed,
+role-aware notification when a <3-star rating occurs.
+
+--------------------------------------------------
+TRIGGER CONDITION
+--------------------------------------------------
+When a rating is submitted with stars < 3:
+
+• This applies to BOTH:
+  - Driver → Rider
+  - Rider → Driver
+
+--------------------------------------------------
+DELAYED NOTIFICATION RULE (CRITICAL)
+--------------------------------------------------
+Notifications must be sent EXACTLY 1 hour after rating creation.
+
+Implementation requirements:
+• Use server-side scheduling (job queue / delayed task)
+• Do NOT rely on client timers
+• Must execute even if user is offline
+
+--------------------------------------------------
+MESSAGE CONTENT (DO NOT CHANGE TEXT)
+--------------------------------------------------
+If DRIVER rates RIDER < 3 stars:
+
+After 1 hour:
+
+Send to RIDER:
+"A driver has shared feedback on a recent trip. Ratings are mutual and help improve future matches."
+
+Send to DRIVER:
+"Thanks for your feedback. For safety reasons, you won’t be matched with this rider again. Ratings help us create safer rides for everyone."
+
+--------------------------------------------------
+DELIVERY CHANNEL
+--------------------------------------------------
+• In-app notification (required)
+• Persist to database (Notification table)
+• Mark as unread until viewed
+
+--------------------------------------------------
+AUDIT & SAFETY
+--------------------------------------------------
+• Log notification creation
+• Link to ratingId and tripId
+• Do not expose who rated whom
+• Do not include star count in message
+
+--------------------------------------------------
+VALIDATION
+--------------------------------------------------
+Confirm:
+1. Notification is delayed by ~1 hour
+2. Text matches exactly
+3. Works in Preview, Incognito, Production
+4. Does not trigger for ≥3 stars
+5. No frontend-only logic
+
+Provide confirmation with:
+• Files touched
+• Scheduling method used
+• How delay is enforced
