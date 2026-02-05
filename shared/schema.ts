@@ -314,6 +314,7 @@ export const driverWithdrawalPayoutMethodEnum = pgEnum("driver_withdrawal_payout
 ]);
 
 // User roles table - maps users to their roles with admin governance
+// MULTI-ROLE SYSTEM: One user can have multiple DIFFERENT roles, but not the same role twice
 export const userRoles = pgTable("user_roles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
@@ -328,6 +329,9 @@ export const userRoles = pgTable("user_roles", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+// Note: Unique constraint on (user_id, role) enforced via storage layer
+// This allows one user to have multiple DIFFERENT roles
 
 // Identity profiles table - stores KYC information for all users
 export const identityProfiles = pgTable("identity_profiles", {

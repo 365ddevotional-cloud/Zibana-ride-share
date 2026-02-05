@@ -300,9 +300,15 @@ export interface TripFilter {
 }
 
 export interface IStorage {
+  // Multi-role user system methods
   getUserRole(userId: string): Promise<UserRole | undefined>;
+  getAllUserRoles(userId: string): Promise<UserRole[]>;
+  hasRole(userId: string, role: string): Promise<boolean>;
+  addRoleToUser(userId: string, role: string, countryCode?: string): Promise<{ success: boolean; role?: UserRole; error?: string }>;
+  getUserRoleCount(userId: string): Promise<number>;
   createUserRole(data: InsertUserRole): Promise<UserRole>;
   deleteUserRole(userId: string): Promise<void>;
+  deleteSpecificRole(userId: string, role: string): Promise<void>;
   deleteUserAccount(userId: string): Promise<void>;
   getActiveTripsByUser(userId: string): Promise<Trip[]>;
   getAdminCount(): Promise<number>;
@@ -900,6 +906,45 @@ export class DatabaseStorage implements IStorage {
     return role;
   }
 
+  // MULTI-ROLE SYSTEM: Get ALL roles for a user
+  async getAllUserRoles(userId: string): Promise<UserRole[]> {
+    const roles = await db.select().from(userRoles).where(eq(userRoles.userId, userId));
+    return roles;
+  }
+
+  // MULTI-ROLE SYSTEM: Check if user has a specific role
+  async hasRole(userId: string, role: string): Promise<boolean> {
+    const [existingRole] = await db
+      .select()
+      .from(userRoles)
+      .where(and(eq(userRoles.userId, userId), eq(userRoles.role, role as any)));
+    return !!existingRole;
+  }
+
+  // MULTI-ROLE SYSTEM: Add a role to user (prevents duplicates)
+  async addRoleToUser(userId: string, role: string, countryCode: string = "NG"): Promise<{ success: boolean; role?: UserRole; error?: string }> {
+    // Check if user already has this role
+    const hasExistingRole = await this.hasRole(userId, role);
+    if (hasExistingRole) {
+      return { success: false, error: "You already have this account type." };
+    }
+
+    // Add the new role
+    const [newRole] = await db.insert(userRoles).values({
+      userId,
+      role: role as any,
+      countryCode: countryCode as any,
+    }).returning();
+
+    return { success: true, role: newRole };
+  }
+
+  // MULTI-ROLE SYSTEM: Get role count for a user
+  async getUserRoleCount(userId: string): Promise<number> {
+    const roles = await db.select().from(userRoles).where(eq(userRoles.userId, userId));
+    return roles.length;
+  }
+
   async createUserRole(data: InsertUserRole): Promise<UserRole> {
     const [role] = await db.insert(userRoles).values(data).returning();
     return role;
@@ -907,6 +952,11 @@ export class DatabaseStorage implements IStorage {
 
   async deleteUserRole(userId: string): Promise<void> {
     await db.delete(userRoles).where(eq(userRoles.userId, userId));
+  }
+
+  // MULTI-ROLE SYSTEM: Delete a specific role from user
+  async deleteSpecificRole(userId: string, role: string): Promise<void> {
+    await db.delete(userRoles).where(and(eq(userRoles.userId, userId), eq(userRoles.role, role as any)));
   }
 
   async deleteUserAccount(userId: string): Promise<void> {
@@ -1188,6 +1238,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Role Appointments (SUPER_ADMIN only)
+  // MULTI-ROLE SYSTEM: Get all users with ALL their roles (aggregated)
   async getAllUsersWithRoles(): Promise<any[]> {
     const result = await db
       .select({
@@ -1201,7 +1252,29 @@ export class DatabaseStorage implements IStorage {
       .from(users)
       .leftJoin(userRoles, eq(users.id, userRoles.userId))
       .orderBy(users.email);
-    return result;
+    
+    // MULTI-ROLE: Aggregate roles per user
+    const usersMap = new Map<string, any>();
+    for (const row of result) {
+      if (!usersMap.has(row.userId)) {
+        usersMap.set(row.userId, {
+          userId: row.userId,
+          email: row.email,
+          firstName: row.firstName,
+          lastName: row.lastName,
+          roles: [],
+          roleCount: 0,
+          createdAt: row.createdAt
+        });
+      }
+      const user = usersMap.get(row.userId);
+      if (row.role) {
+        user.roles.push(row.role);
+        user.roleCount = user.roles.length;
+      }
+    }
+    
+    return Array.from(usersMap.values());
   }
 
   async promoteToAdmin(userId: string, promotedBy: string): Promise<UserRole> {

@@ -1,0 +1,109 @@
+You are working on the ZIBA Ride Share platform.
+
+TASK:
+Implement a unified multi-role user system so that ONE person can own multiple ZIBA account types
+(Rider, Driver, Director, Admin, Super Admin) using the SAME email, phone number, and identity,
+while strictly preventing duplicate roles.
+
+GOAL:
+• One person = one User record
+• One User can have MANY roles
+• No User can have the SAME role twice
+• ZIBA must show how many roles a user has
+
+--------------------------------------------------
+NON-NEGOTIABLE RULES
+--------------------------------------------------
+1. Email and phone number must be globally unique per User.
+2. Roles must NOT create separate users.
+3. A User may register multiple DIFFERENT roles.
+4. A User may NOT register the SAME role twice.
+5. Login authenticates the User, not the role.
+6. All logic must be enforced SERVER-SIDE.
+
+--------------------------------------------------
+DATABASE STRUCTURE (REQUIRED)
+--------------------------------------------------
+Ensure these models exist or refactor safely:
+
+User
+- id
+- firstName
+- lastName
+- email (UNIQUE)
+- phone (UNIQUE)
+- createdAt
+
+UserRole
+- id
+- userId (FK → User.id)
+- role ENUM('rider','driver','director','admin','super_admin')
+- createdAt
+- UNIQUE(userId, role)
+
+--------------------------------------------------
+SIGN-UP FLOW (MANDATORY)
+--------------------------------------------------
+On sign-up request:
+
+1. Check if a User exists by email OR phone.
+2. IF User exists:
+   - Check if requested role already exists for this user.
+   - If role exists → BLOCK with message:
+     "You already have this account type."
+   - If role does not exist → Attach new role to existing user.
+3. IF User does NOT exist:
+   - Create User.
+   - Attach requested role.
+4. NEVER create a second User for the same email or phone.
+
+--------------------------------------------------
+LOGIN & SESSION LOGIC
+--------------------------------------------------
+• Login authenticates User only.
+• Fetch ALL roles for that user on login.
+• Store roles in session/JWT:
+  roles: ['rider','driver','director']
+• If user has:
+  - One role → auto-redirect
+  - Multiple roles → show role selector screen
+
+--------------------------------------------------
+ADMIN DASHBOARD REQUIREMENTS
+--------------------------------------------------
+Admin Dashboard must display:
+• User name
+• Email
+• Phone
+• List of roles (badges)
+• Role count (e.g. "3 roles")
+
+Implement helper:
+getUserRoleCount(userId)
+
+--------------------------------------------------
+ADMIN ROLE ASSIGNMENT RULES
+--------------------------------------------------
+• Admins may assign new roles to existing users.
+• Admins may NOT assign a role the user already has.
+• Same uniqueness rules must apply.
+
+--------------------------------------------------
+EDGE CASES TO HANDLE
+--------------------------------------------------
+• Same email/phone registering same role → BLOCK
+• Same email/phone registering different role → ALLOW
+• Existing users with legacy duplicate records → safely merge roles
+
+--------------------------------------------------
+FINAL REQUIREMENTS
+--------------------------------------------------
+• Do NOT break existing Rider or Driver flows
+• No duplicate users
+• No duplicate roles per user
+• Clean refactor only where necessary
+• Add minimal validation tests
+• Confirm completion with:
+  - Files changed
+  - What was refactored
+  - What was left untouched

@@ -126,6 +126,7 @@ export async function registerRoutes(
     return SUPER_ADMIN_EMAILS.includes(email);
   };
 
+  // MULTI-ROLE SYSTEM: Get all roles for the authenticated user
   app.get("/api/user/role", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -133,65 +134,91 @@ export async function registerRoutes(
       
       // SERVER-SIDE SUPER_ADMIN ENFORCEMENT: If email matches, ensure super_admin role
       if (isSuperAdminEmail(userEmail)) {
-        const existingRole = await storage.getUserRole(userId);
-        if (!existingRole || existingRole.role !== "super_admin") {
-          // Auto-assign super_admin role - cannot be changed via UI
-          if (existingRole) {
-            await storage.deleteUserRole(userId);
-          }
-          await storage.createUserRole({ userId, role: "super_admin" });
+        const hasSuperAdmin = await storage.hasRole(userId, "super_admin");
+        if (!hasSuperAdmin) {
+          await storage.addRoleToUser(userId, "super_admin");
           console.log(`[SUPER_ADMIN ENFORCEMENT] Auto-assigned super_admin role to ${userEmail}`);
         }
-        return res.json({ role: "super_admin" });
       }
       
-      const userRole = await storage.getUserRole(userId);
-      if (!userRole) {
+      // Get ALL roles for this user
+      const allRoles = await storage.getAllUserRoles(userId);
+      
+      if (!allRoles || allRoles.length === 0) {
         return res.json(null);
       }
       
-      // ENFORCE: Only the bound email can be super_admin - demote anyone else who has it
-      if (userRole.role === "super_admin" && !isSuperAdminEmail(userEmail)) {
+      // ENFORCE: Only the bound email can be super_admin - revoke from anyone else
+      const hasSuperAdminRole = allRoles.some(r => r.role === "super_admin");
+      if (hasSuperAdminRole && !isSuperAdminEmail(userEmail)) {
         console.log(`[SUPER_ADMIN ENFORCEMENT] Revoking super_admin from unauthorized email: ${userEmail}`);
-        await storage.deleteUserRole(userId);
-        return res.json(null);
+        await storage.deleteSpecificRole(userId, "super_admin");
+        const remainingRoles = await storage.getAllUserRoles(userId);
+        if (remainingRoles.length === 0) {
+          return res.json(null);
+        }
+        // Return remaining roles
+        return res.json({ 
+          role: remainingRoles[0].role,
+          roles: remainingRoles.map(r => r.role),
+          roleCount: remainingRoles.length
+        });
       }
       
-      // Return the role - client-side guards handle access control based on route
-      // Admin routes (/admin/*) allow admin roles
-      // Rider routes (/*) block non-rider roles via RiderAppGuard
-      return res.json({ role: userRole.role });
+      // MULTI-ROLE RESPONSE: Return primary role + all roles + count
+      // Primary role = first role or highest priority role
+      const rolesPriority = ["super_admin", "admin", "finance_admin", "director", "trip_coordinator", "support_agent", "driver", "rider"];
+      const sortedRoles = allRoles.sort((a, b) => {
+        const aPriority = rolesPriority.indexOf(a.role);
+        const bPriority = rolesPriority.indexOf(b.role);
+        return aPriority - bPriority;
+      });
+      
+      return res.json({ 
+        role: sortedRoles[0].role,  // Primary role (for backward compatibility)
+        roles: sortedRoles.map(r => r.role),  // All roles
+        roleCount: sortedRoles.length  // Total role count
+      });
     } catch (error) {
       console.error("Error getting user role:", error);
       return res.status(500).json({ message: "Failed to get user role" });
     }
   });
 
+  // MULTI-ROLE SYSTEM: Add a role to user (prevents duplicates)
   app.post("/api/user/role", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { role } = req.body;
+      const { role, countryCode = "NG" } = req.body;
 
-      // RIDER APP: Only allow rider role
+      // RIDER APP: Only allow rider role from this endpoint
       if (role !== "rider") {
         console.warn(`[RIDER APP SECURITY] Non-rider role selection blocked: userId=${userId}, attemptedRole=${role}, timestamp=${new Date().toISOString()}`);
         return res.status(403).json({ message: "This app is for Riders only" });
       }
 
-      const existingRole = await storage.getUserRole(userId);
-      if (existingRole) {
-        // If existing role is not rider, block access
-        if (existingRole.role !== "rider") {
-          console.warn(`[RIDER APP SECURITY] Existing non-rider role blocked: userId=${userId}, existingRole=${existingRole.role}, timestamp=${new Date().toISOString()}`);
-          return res.status(403).json({ message: "This app is for Riders only. Please use the correct ZIBA app for your role." });
-        }
-        return res.status(400).json({ message: "Role already assigned" });
+      // MULTI-ROLE: Check if user already has rider role
+      const hasRiderRole = await storage.hasRole(userId, "rider");
+      if (hasRiderRole) {
+        return res.status(400).json({ message: "You already have this account type." });
       }
 
-      const userRole = await storage.createUserRole({ userId, role });
+      // Add rider role using multi-role system
+      const result = await storage.addRoleToUser(userId, role, countryCode);
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
+      }
+
+      // Create rider profile
       await storage.createRiderProfile({ userId });
 
-      return res.json({ role: userRole.role });
+      // Return all roles for the user
+      const allRoles = await storage.getAllUserRoles(userId);
+      return res.json({ 
+        role: result.role?.role,
+        roles: allRoles.map(r => r.role),
+        roleCount: allRoles.length
+      });
     } catch (error) {
       console.error("Error setting user role:", error);
       return res.status(500).json({ message: "Failed to set user role" });
@@ -2012,6 +2039,117 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error getting users with roles:", error);
       return res.status(500).json({ message: "Failed to get users" });
+    }
+  });
+
+  // MULTI-ROLE SYSTEM: Admin endpoint to assign a role to a user (SUPER_ADMIN only)
+  app.post("/api/admin/assign-role", isAuthenticated, requireSuperAdmin, async (req: any, res) => {
+    try {
+      const { userId, role, countryCode = "NG" } = req.body;
+      const assignedBy = req.user.claims.sub;
+
+      if (!userId || !role) {
+        return res.status(400).json({ message: "userId and role are required" });
+      }
+
+      // Prevent assigning super_admin role via this endpoint
+      if (role === "super_admin") {
+        return res.status(403).json({ message: "Cannot assign super_admin role via this endpoint" });
+      }
+
+      // Check if user already has this role
+      const hasRole = await storage.hasRole(userId, role);
+      if (hasRole) {
+        return res.status(400).json({ message: "You already have this account type." });
+      }
+
+      // Add the role
+      const result = await storage.addRoleToUser(userId, role, countryCode);
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
+      }
+
+      // Create role-specific profiles if needed
+      if (role === "rider") {
+        const existingRiderProfile = await storage.getRiderProfile(userId);
+        if (!existingRiderProfile) {
+          await storage.createRiderProfile({ userId });
+        }
+      } else if (role === "driver") {
+        const existingDriverProfile = await storage.getDriverProfile(userId);
+        if (!existingDriverProfile) {
+          await storage.createDriverProfile({ userId, status: "pending" });
+        }
+      }
+
+      // Create audit log
+      await storage.createAuditLog({
+        action: "MULTI_ROLE_ASSIGN",
+        entityType: "user_role",
+        entityId: userId,
+        performedByUserId: assignedBy,
+        performedByRole: "super_admin",
+        metadata: JSON.stringify({ assignedRole: role, countryCode })
+      });
+
+      // Return all roles for the user
+      const allRoles = await storage.getAllUserRoles(userId);
+      return res.json({
+        success: true,
+        role: result.role,
+        roles: allRoles.map(r => r.role),
+        roleCount: allRoles.length
+      });
+    } catch (error) {
+      console.error("Error assigning role:", error);
+      return res.status(500).json({ message: "Failed to assign role" });
+    }
+  });
+
+  // MULTI-ROLE SYSTEM: Admin endpoint to remove a specific role from a user (SUPER_ADMIN only)
+  app.post("/api/admin/remove-role", isAuthenticated, requireSuperAdmin, async (req: any, res) => {
+    try {
+      const { userId, role } = req.body;
+      const removedBy = req.user.claims.sub;
+
+      if (!userId || !role) {
+        return res.status(400).json({ message: "userId and role are required" });
+      }
+
+      // Prevent removing super_admin role via this endpoint
+      if (role === "super_admin") {
+        return res.status(403).json({ message: "Cannot remove super_admin role via this endpoint" });
+      }
+
+      // Check if user has this role
+      const hasRole = await storage.hasRole(userId, role);
+      if (!hasRole) {
+        return res.status(400).json({ message: "User does not have this role" });
+      }
+
+      // Remove the specific role
+      await storage.deleteSpecificRole(userId, role);
+
+      // Create audit log
+      await storage.createAuditLog({
+        action: "MULTI_ROLE_REMOVE",
+        entityType: "user_role",
+        entityId: userId,
+        performedByUserId: removedBy,
+        performedByRole: "super_admin",
+        metadata: JSON.stringify({ removedRole: role })
+      });
+
+      // Return remaining roles for the user
+      const allRoles = await storage.getAllUserRoles(userId);
+      return res.json({
+        success: true,
+        roles: allRoles.map(r => r.role),
+        roleCount: allRoles.length
+      });
+    } catch (error) {
+      console.error("Error removing role:", error);
+      return res.status(500).json({ message: "Failed to remove role" });
     }
   });
 
