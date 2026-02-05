@@ -1056,18 +1056,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async revokeAdmin(userId: string): Promise<UserRole | undefined> {
-    const [updated] = await db
-      .update(userRoles)
-      .set({
-        role: "rider",
-        adminStartAt: null,
-        adminEndAt: null,
-        adminPermissions: null,
-        updatedAt: new Date()
-      })
+    // Delete the role record entirely - user becomes "user" (no role)
+    // Rider role must ONLY be assigned through explicit rider signup flow
+    const [deleted] = await db
+      .delete(userRoles)
       .where(eq(userRoles.userId, userId))
       .returning();
-    return updated;
+    return deleted;
   }
 
   async getAllAdmins(): Promise<any[]> {
@@ -1106,15 +1101,10 @@ export class DatabaseStorage implements IStorage {
 
   async checkAndExpireAdmins(): Promise<number> {
     const now = new Date();
+    // Delete expired admin role records entirely - user becomes "user" (no role)
+    // Rider role must ONLY be assigned through explicit rider signup flow
     const result = await db
-      .update(userRoles)
-      .set({
-        role: "rider",
-        adminStartAt: null,
-        adminEndAt: null,
-        adminPermissions: null,
-        updatedAt: now
-      })
+      .delete(userRoles)
       .where(
         and(
           eq(userRoles.role, "admin"),
@@ -1220,19 +1210,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async demoteToRider(userId: string): Promise<UserRole | undefined> {
-    const [updated] = await db
-      .update(userRoles)
-      .set({
-        role: "rider",
-        adminStartAt: null,
-        adminEndAt: null,
-        adminPermissions: null,
-        appointedBy: null,
-        updatedAt: new Date()
-      })
+    // Delete the role record entirely - user becomes "user" (no role)
+    // Rider role must ONLY be assigned through explicit rider signup flow
+    const [deleted] = await db
+      .delete(userRoles)
       .where(eq(userRoles.userId, userId))
       .returning();
-    return updated;
+    return deleted;
   }
 
   async updateThemePreference(userId: string, preference: "light" | "dark" | "system"): Promise<void> {
