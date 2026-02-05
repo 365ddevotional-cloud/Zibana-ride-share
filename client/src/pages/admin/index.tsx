@@ -21,6 +21,7 @@ import { FullPageLoading } from "@/components/loading-spinner";
 import { TripFilterBar } from "@/components/trip-filter-bar";
 import { TripDetailModal } from "@/components/trip-detail-modal";
 import { AdminReservationsPanel } from "@/components/admin/reservations-panel";
+import { AdminOverridePanel } from "@/components/admin/override-panel";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -2079,6 +2080,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <TabsTrigger value="pairing-blocks" className="admin-nav-trigger rounded-md" data-testid="tab-pairing-blocks">
                 <UserX className="h-4 w-4 mr-2" />
                 Pairing Blocks
+              </TabsTrigger>
+            )}
+            {(isSuperAdmin || userRole === "admin") && (
+              <TabsTrigger value="overrides" className="admin-nav-trigger rounded-md" data-testid="tab-overrides">
+                <ShieldAlert className="h-4 w-4 mr-2" />
+                Overrides
               </TabsTrigger>
             )}
           </TabsList>
@@ -6273,6 +6280,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                   )}
                 </CardContent>
               </Card>
+            </TabsContent>
+          )}
+
+          {(isSuperAdmin || userRole === "admin") && (
+            <TabsContent value="overrides">
+              <AdminOverridePanel />
             </TabsContent>
           )}
         </Tabs>
