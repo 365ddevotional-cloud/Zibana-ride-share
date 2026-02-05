@@ -231,6 +231,13 @@ import {
   type InsertUserTrustProfile,
   type TrustAuditLog,
   type InsertTrustAuditLog,
+  // Pairing blocks and admin rating audit
+  pairingBlocks,
+  adminRatingAudit,
+  type PairingBlock,
+  type InsertPairingBlock,
+  type AdminRatingAudit,
+  type InsertAdminRatingAudit,
   // Phase 4 - Safety & Incident Intelligence
   sosTriggers,
   incidents,
@@ -513,6 +520,21 @@ export interface IStorage {
     signals: BehaviorSignal[];
     auditLogs: TrustAuditLog[];
   }>;
+  
+  // Pairing blocks - prevent rider/driver re-matching
+  createPairingBlock(data: InsertPairingBlock): Promise<PairingBlock>;
+  getPairingBlock(riderId: string, driverId: string): Promise<PairingBlock | null>;
+  isDriverBlockedForRider(riderId: string, driverId: string): Promise<boolean>;
+  getBlockedDriversForRider(riderId: string): Promise<string[]>;
+  getBlockedRidersForDriver(driverId: string): Promise<string[]>;
+  removePairingBlock(riderId: string, driverId: string, adminId: string, reason: string): Promise<PairingBlock | null>;
+  getAllPairingBlocks(): Promise<PairingBlock[]>;
+  getPairingBlocksByUser(userId: string): Promise<PairingBlock[]>;
+  
+  // Admin rating audit - track super admin rating adjustments
+  createAdminRatingAudit(data: InsertAdminRatingAudit): Promise<AdminRatingAudit>;
+  getAdminRatingAuditForUser(targetUserId: string): Promise<AdminRatingAudit[]>;
+  getAllAdminRatingAudits(): Promise<AdminRatingAudit[]>;
 
   // =============================================
   // PHASE 4: SAFETY & INCIDENT INTELLIGENCE
@@ -6426,6 +6448,99 @@ export class DatabaseStorage implements IStorage {
       this.getUserTrustAuditLogs(userId),
     ]);
     return { profile, ratingsReceived, signals, auditLogs };
+  }
+
+  // =============================================
+  // PAIRING BLOCKS
+  // =============================================
+
+  async createPairingBlock(data: InsertPairingBlock): Promise<PairingBlock> {
+    const [block] = await db.insert(pairingBlocks).values(data).returning();
+    return block;
+  }
+
+  async getPairingBlock(riderId: string, driverId: string): Promise<PairingBlock | null> {
+    const [block] = await db.select().from(pairingBlocks)
+      .where(and(
+        eq(pairingBlocks.riderId, riderId),
+        eq(pairingBlocks.driverId, driverId),
+        eq(pairingBlocks.isActive, true)
+      ));
+    return block || null;
+  }
+
+  async isDriverBlockedForRider(riderId: string, driverId: string): Promise<boolean> {
+    const block = await this.getPairingBlock(riderId, driverId);
+    return !!block;
+  }
+
+  async getBlockedDriversForRider(riderId: string): Promise<string[]> {
+    const blocks = await db.select().from(pairingBlocks)
+      .where(and(
+        eq(pairingBlocks.riderId, riderId),
+        eq(pairingBlocks.isActive, true)
+      ));
+    return blocks.map(b => b.driverId);
+  }
+
+  async getBlockedRidersForDriver(driverId: string): Promise<string[]> {
+    const blocks = await db.select().from(pairingBlocks)
+      .where(and(
+        eq(pairingBlocks.driverId, driverId),
+        eq(pairingBlocks.isActive, true)
+      ));
+    return blocks.map(b => b.riderId);
+  }
+
+  async removePairingBlock(riderId: string, driverId: string, adminId: string, reason: string): Promise<PairingBlock | null> {
+    const [block] = await db.update(pairingBlocks)
+      .set({
+        isActive: false,
+        removedByAdminId: adminId,
+        removalReason: reason,
+        removedAt: new Date(),
+      })
+      .where(and(
+        eq(pairingBlocks.riderId, riderId),
+        eq(pairingBlocks.driverId, driverId),
+        eq(pairingBlocks.isActive, true)
+      ))
+      .returning();
+    return block || null;
+  }
+
+  async getAllPairingBlocks(): Promise<PairingBlock[]> {
+    return db.select().from(pairingBlocks)
+      .orderBy(desc(pairingBlocks.createdAt));
+  }
+
+  async getPairingBlocksByUser(userId: string): Promise<PairingBlock[]> {
+    return db.select().from(pairingBlocks)
+      .where(or(
+        eq(pairingBlocks.riderId, userId),
+        eq(pairingBlocks.driverId, userId)
+      ))
+      .orderBy(desc(pairingBlocks.createdAt));
+  }
+
+  // =============================================
+  // ADMIN RATING AUDIT
+  // =============================================
+
+  async createAdminRatingAudit(data: InsertAdminRatingAudit): Promise<AdminRatingAudit> {
+    const [audit] = await db.insert(adminRatingAudit).values(data).returning();
+    return audit;
+  }
+
+  async getAdminRatingAuditForUser(targetUserId: string): Promise<AdminRatingAudit[]> {
+    return db.select().from(adminRatingAudit)
+      .where(eq(adminRatingAudit.targetUserId, targetUserId))
+      .orderBy(desc(adminRatingAudit.createdAt));
+  }
+
+  async getAllAdminRatingAudits(): Promise<AdminRatingAudit[]> {
+    return db.select().from(adminRatingAudit)
+      .orderBy(desc(adminRatingAudit.createdAt));
   }
 
   // =============================================

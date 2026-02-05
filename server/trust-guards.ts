@@ -115,6 +115,70 @@ export async function submitRating(
 
   await recalculateTrustScore(rateeId);
 
+  // PAIRING BLOCK: Create permanent block if rider rates driver < 3 stars
+  if (ratingRole === "rider_to_driver" && score < 3) {
+    const existingBlock = await storage.getPairingBlock(raterId, rateeId);
+    if (!existingBlock) {
+      await storage.createPairingBlock({
+        riderId: raterId,
+        driverId: rateeId,
+        reason: "low_rating",
+        tripId,
+        ratingScore: score,
+      });
+      
+      // Send respectful notification to rider
+      await storage.createNotification({
+        userId: raterId,
+        role: "rider",
+        type: "info",
+        title: "Feedback Received",
+        message: "Thanks for your feedback. For your comfort, you won't be matched with this driver again. Ratings help us create safer rides for everyone.",
+      });
+      
+      // Send respectful notification to driver
+      await storage.createNotification({
+        userId: rateeId,
+        role: "driver",
+        type: "info",
+        title: "Trip Feedback",
+        message: "A rider has shared feedback on a recent trip. Ratings are mutual and help improve future matches.",
+      });
+    }
+  }
+  
+  // PAIRING BLOCK: Also apply same logic if driver rates rider < 3 (optional extension)
+  if (ratingRole === "driver_to_rider" && score < 3) {
+    const existingBlock = await storage.getPairingBlock(rateeId, raterId);
+    if (!existingBlock) {
+      await storage.createPairingBlock({
+        riderId: rateeId,
+        driverId: raterId,
+        reason: "low_rating_by_driver",
+        tripId,
+        ratingScore: score,
+      });
+      
+      // Send respectful notification to driver
+      await storage.createNotification({
+        userId: raterId,
+        role: "driver",
+        type: "info",
+        title: "Feedback Received",
+        message: "Thanks for your feedback. For your comfort, you won't be matched with this rider again. Ratings help us maintain quality service.",
+      });
+      
+      // Send respectful notification to rider
+      await storage.createNotification({
+        userId: rateeId,
+        role: "rider",
+        type: "info",
+        title: "Trip Feedback",
+        message: "A driver has shared feedback on a recent trip. Ratings are mutual and help improve future matches.",
+      });
+    }
+  }
+
   return {
     success: true,
     ratingId: rating.id,
@@ -302,7 +366,7 @@ export async function recalculateTrustScore(userId: string): Promise<UserTrustPr
   await storage.updateUserTrustProfile(userId, {
     trustScore: newTrustScore as number,
     trustScoreLevel,
-    averageRating: avgRating ? String(avgRating.toFixed(2)) : null,
+    averageRating: avgRating ? String(avgRating.toFixed(2)) : undefined,
     totalRatingsReceived: ratings.length as number,
     positiveSignalCount: positiveSignals as number,
     negativeSignalCount: negativeSignals as number,

@@ -1,5 +1,5 @@
 import { users, type User, type UpsertUser } from "@shared/models/auth";
-import { userRoles } from "@shared/schema";
+import { userRoles, userTrustProfiles } from "@shared/schema";
 import { db } from "../../db";
 import { eq } from "drizzle-orm";
 
@@ -45,6 +45,9 @@ class AuthStorage implements IAuthStorage {
       await this.ensureSuperAdminRole(user.id);
     }
     
+    // Ensure trust profile exists with default 5.0 rating for all users
+    await this.ensureUserTrustProfile(user.id);
+    
     return user;
   }
   
@@ -64,6 +67,20 @@ class AuthStorage implements IAuthStorage {
         .update(userRoles)
         .set({ role: "super_admin" })
         .where(eq(userRoles.userId, userId));
+    }
+  }
+  
+  private async ensureUserTrustProfile(userId: string): Promise<void> {
+    const [existingProfile] = await db
+      .select()
+      .from(userTrustProfiles)
+      .where(eq(userTrustProfiles.userId, userId));
+    
+    if (!existingProfile) {
+      await db.insert(userTrustProfiles).values({
+        userId,
+        // Default values from schema: trustScore=75, averageRating=5.00, trustScoreLevel="medium"
+      });
     }
   }
 }
