@@ -238,6 +238,9 @@ import {
   type InsertPairingBlock,
   type AdminRatingAudit,
   type InsertAdminRatingAudit,
+  scheduledRatingNotifications,
+  type ScheduledRatingNotification,
+  type InsertScheduledRatingNotification,
   // Phase 4 - Safety & Incident Intelligence
   sosTriggers,
   incidents,
@@ -537,6 +540,11 @@ export interface IStorage {
   getAllPairingBlocks(): Promise<PairingBlock[]>;
   getPairingBlocksByUser(userId: string): Promise<PairingBlock[]>;
   
+  // Scheduled rating notifications - delayed delivery for <3 star ratings
+  createScheduledRatingNotification(data: InsertScheduledRatingNotification): Promise<ScheduledRatingNotification>;
+  getDueScheduledRatingNotifications(): Promise<ScheduledRatingNotification[]>;
+  markScheduledRatingNotificationSent(id: string): Promise<void>;
+
   // Admin rating audit - track super admin rating adjustments
   createAdminRatingAudit(data: InsertAdminRatingAudit): Promise<AdminRatingAudit>;
   getAdminRatingAuditForUser(targetUserId: string): Promise<AdminRatingAudit[]>;
@@ -6614,6 +6622,29 @@ export class DatabaseStorage implements IStorage {
   async getAllAdminRatingAudits(): Promise<AdminRatingAudit[]> {
     return db.select().from(adminRatingAudit)
       .orderBy(desc(adminRatingAudit.createdAt));
+  }
+
+  // Scheduled rating notifications - delayed delivery
+  async createScheduledRatingNotification(data: InsertScheduledRatingNotification): Promise<ScheduledRatingNotification> {
+    const [notification] = await db.insert(scheduledRatingNotifications).values(data).returning();
+    console.log(`[SCHEDULED NOTIFICATION] Queued for ${data.recipientRole} user ${data.recipientUserId}, send at ${data.sendAt.toISOString()}`);
+    return notification;
+  }
+
+  async getDueScheduledRatingNotifications(): Promise<ScheduledRatingNotification[]> {
+    return db.select().from(scheduledRatingNotifications)
+      .where(
+        and(
+          eq(scheduledRatingNotifications.sent, false),
+          lte(scheduledRatingNotifications.sendAt, new Date())
+        )
+      );
+  }
+
+  async markScheduledRatingNotificationSent(id: string): Promise<void> {
+    await db.update(scheduledRatingNotifications)
+      .set({ sent: true, sentAt: new Date() })
+      .where(eq(scheduledRatingNotifications.id, id));
   }
 
   // =============================================
