@@ -719,8 +719,8 @@ export const userTrustProfiles = pgTable("user_trust_profiles", {
   trustScore: integer("trust_score").notNull().default(75),
   trustScoreLevel: text("trust_score_level").notNull().default("medium"),
   
-  // Rating components
-  averageRating: decimal("average_rating", { precision: 3, scale: 2 }),
+  // Rating components - default 5.0 star rating for new users
+  averageRating: decimal("average_rating", { precision: 3, scale: 2 }).notNull().default("5.00"),
   totalRatingsReceived: integer("total_ratings_received").notNull().default(0),
   totalRatingsGiven: integer("total_ratings_given").notNull().default(0),
   
@@ -765,6 +765,50 @@ export const trustAuditLog = pgTable("trust_audit_log", {
   // Anti-manipulation flags
   manipulationDetected: boolean("manipulation_detected").notNull().default(false),
   manipulationType: text("manipulation_type"),
+  
+  // Immutable timestamp
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Pairing blocks - prevents matching between specific rider/driver pairs
+export const pairingBlocks = pgTable("pairing_blocks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  riderId: varchar("rider_id").notNull(),
+  driverId: varchar("driver_id").notNull(),
+  
+  // Block reason
+  reason: text("reason").notNull(), // "low_rating", "rider_request", "admin_override", etc.
+  tripId: varchar("trip_id"), // Trip that triggered the block (if applicable)
+  ratingScore: integer("rating_score"), // The rating that triggered the block (if low_rating)
+  
+  // Block status
+  isActive: boolean("is_active").notNull().default(true),
+  
+  // Admin override tracking
+  removedByAdminId: varchar("removed_by_admin_id"),
+  removalReason: text("removal_reason"),
+  removedAt: timestamp("removed_at"),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Admin rating audit log - tracks super admin rating adjustments
+export const adminRatingAudit = pgTable("admin_rating_audit", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  adminEmail: varchar("admin_email", { length: 255 }).notNull(),
+  adminUserId: varchar("admin_user_id").notNull(),
+  targetUserId: varchar("target_user_id").notNull(),
+  
+  // Rating changes
+  oldRating: decimal("old_rating", { precision: 3, scale: 2 }).notNull(),
+  newRating: decimal("new_rating", { precision: 3, scale: 2 }).notNull(),
+  oldRatingCount: integer("old_rating_count").notNull(),
+  newRatingCount: integer("new_rating_count"),
+  
+  // Reason (required)
+  reason: text("reason").notNull(),
+  adminNote: text("admin_note"),
   
   // Immutable timestamp
   createdAt: timestamp("created_at").defaultNow(),
@@ -2655,6 +2699,28 @@ export type InsertUserTrustProfile = z.infer<typeof insertUserTrustProfileSchema
 export type UserTrustProfile = typeof userTrustProfiles.$inferSelect;
 export type InsertTrustAuditLog = z.infer<typeof insertTrustAuditLogSchema>;
 export type TrustAuditLog = typeof trustAuditLog.$inferSelect;
+
+// Pairing blocks schemas
+export const insertPairingBlockSchema = createInsertSchema(pairingBlocks).omit({
+  id: true,
+  isActive: true,
+  removedByAdminId: true,
+  removalReason: true,
+  removedAt: true,
+  createdAt: true,
+});
+
+export type InsertPairingBlock = z.infer<typeof insertPairingBlockSchema>;
+export type PairingBlock = typeof pairingBlocks.$inferSelect;
+
+// Admin rating audit schemas
+export const insertAdminRatingAuditSchema = createInsertSchema(adminRatingAudit).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertAdminRatingAudit = z.infer<typeof insertAdminRatingAuditSchema>;
+export type AdminRatingAudit = typeof adminRatingAudit.$inferSelect;
 
 // =============================================
 // PHASE 4: SAFETY & INCIDENT INTELLIGENCE

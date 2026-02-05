@@ -1,0 +1,110 @@
+You are implementing a rating, trust, and pairing control system for the ZIBA Ride Share app.
+
+GOAL:
+- Establish fair default ratings
+- Enforce mutual accountability
+- Give Super Admin full corrective authority
+- Prevent unsafe or uncomfortable re-pairings
+
+────────────────────────────
+TASK 1 — DEFAULT 5-STAR RATING AT SIGNUP
+────────────────────────────
+
+When ANY user is created (rider, driver, director, etc):
+
+- Initialize rating fields as:
+  ratingAverage = 5.0
+  ratingCount = 0
+
+- Apply this at:
+  - User signup
+  - Role upgrade (e.g. user → driver)
+
+- Ensure this logic runs server-side (not frontend).
+
+────────────────────────────
+TASK 2 — SUPER ADMIN STAR CONTROL
+────────────────────────────
+
+Create Super Admin–only actions:
+
+- Increase or restore ratingAverage
+- Reset ratingCount if needed
+- Add adminNote explaining reason
+
+All admin rating changes MUST:
+- Be logged in an audit table:
+  { adminEmail, targetUserId, oldRating, newRating, reason, timestamp }
+
+Expose controls in Admin Dashboard:
+- Button: “Adjust Rating”
+- Input: new star value (0.0 – 5.0)
+- Required reason field
+
+────────────────────────────
+TASK 3 — MUTUAL RATING AFTER EACH TRIP
+────────────────────────────
+
+After trip completion:
+
+- Rider rates Driver (1–5)
+- Driver rates Rider (1–5)
+- Store each rating with:
+  { raterId, targetId, tripId, stars, timestamp }
+
+Update rolling averages correctly.
+
+────────────────────────────
+TASK 4 — HARD BLOCK RE-PAIRING RULE (< 3 STARS)
+────────────────────────────
+
+If a Rider rates a Driver with stars < 3:
+
+- Create a permanent pairing block record:
+  { riderId, driverId, reason: "low_rating", createdAt }
+
+During driver matching:
+- EXCLUDE drivers where a pairing block exists
+- This rule is absolute unless overridden by Super Admin
+
+(Optional extension: apply same logic if driver rates rider < 3)
+
+────────────────────────────
+TASK 5 — RESPECTFUL NOTIFICATIONS
+────────────────────────────
+
+Send gentle in-app notifications:
+
+To Rider:
+"Thanks for your feedback. For your comfort, you won’t be matched with this driver again. Ratings help us create safer rides for everyone."
+
+To Driver:
+"A rider has shared feedback on a recent trip. Ratings are mutual and help improve future matches."
+
+Tone rules:
+- No blame
+- No warnings
+- No threat language
+
+────────────────────────────
+TASK 6 — ADMIN OVERRIDE (OPTIONAL BUT READY)
+────────────────────────────
+
+Allow Super Admin to:
+- Remove a pairing block
+- Restore matching manually
+- Log override reason
+
+────────────────────────────
+FINAL VALIDATION CHECKLIST
+────────────────────────────
+
+1. New users start at 5.0 stars
+2. Admin can restore or adjust stars
+3. <3 star rating blocks future pairing
+4. Matching engine respects block
+5. Users receive respectful notifications
+6. All actions are auditable
+7. No frontend-only logic allowed
+
+Implement cleanly, safely, and confirm when complete.
