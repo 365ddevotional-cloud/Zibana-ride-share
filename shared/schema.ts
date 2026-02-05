@@ -3258,6 +3258,61 @@ export const insertScheduledRatingNotificationSchema = createInsertSchema(schedu
 export type InsertScheduledRatingNotification = z.infer<typeof insertScheduledRatingNotificationSchema>;
 export type ScheduledRatingNotification = typeof scheduledRatingNotifications.$inferSelect;
 
+// =============================================
+// PHASE 3: ADMIN OVERRIDE CONTROL & SUPPORT SAFETY
+// =============================================
+
+export const adminOverrideActionEnum = pgEnum("admin_override_action", [
+  "FORCE_LOGOUT",
+  "RESET_SESSION",
+  "RESTORE_AUTO_LOGIN",
+  "ENABLE_DRIVER_ONLINE",
+  "DISABLE_DRIVER_ONLINE",
+  "CLEAR_CANCELLATION_FLAGS",
+  "RESTORE_DRIVER_ACCESS",
+  "CLEAR_RIDER_CANCELLATION_WARNING",
+  "RESTORE_RIDE_ACCESS"
+]);
+
+export const adminOverrideStatusEnum = pgEnum("admin_override_status", ["active", "expired", "reverted"]);
+
+export const adminOverrides = pgTable("admin_overrides", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  targetUserId: varchar("target_user_id").notNull(),
+  adminActorId: varchar("admin_actor_id").notNull(),
+  actionType: adminOverrideActionEnum("action_type").notNull(),
+  overrideReason: text("override_reason").notNull(),
+  status: adminOverrideStatusEnum("status").notNull().default("active"),
+  overrideExpiresAt: timestamp("override_expires_at"),
+  previousState: text("previous_state"),
+  newState: text("new_state"),
+  revertedAt: timestamp("reverted_at"),
+  revertedBy: varchar("reverted_by"),
+  revertReason: text("revert_reason"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const adminOverrideAuditLog = pgTable("admin_override_audit_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  overrideId: varchar("override_id"),
+  adminActorId: varchar("admin_actor_id").notNull(),
+  affectedUserId: varchar("affected_user_id").notNull(),
+  actionType: adminOverrideActionEnum("action_type").notNull(),
+  overrideReason: text("override_reason").notNull(),
+  previousState: text("previous_state"),
+  newState: text("new_state"),
+  metadata: text("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertAdminOverrideSchema = createInsertSchema(adminOverrides).omit({ id: true, status: true, revertedAt: true, revertedBy: true, revertReason: true, createdAt: true });
+export type InsertAdminOverride = z.infer<typeof insertAdminOverrideSchema>;
+export type AdminOverride = typeof adminOverrides.$inferSelect;
+
+export const insertAdminOverrideAuditLogSchema = createInsertSchema(adminOverrideAuditLog).omit({ id: true, createdAt: true });
+export type InsertAdminOverrideAuditLog = z.infer<typeof insertAdminOverrideAuditLogSchema>;
+export type AdminOverrideAuditLog = typeof adminOverrideAuditLog.$inferSelect;
+
 // Types
 export type InsertLegalDocument = z.infer<typeof insertLegalDocumentSchema>;
 export type LegalDocument = typeof legalDocuments.$inferSelect;

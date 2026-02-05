@@ -289,6 +289,12 @@ import {
   type InsertTestUserFlag,
   type ComplianceConfirmation,
   type InsertComplianceConfirmation,
+  adminOverrides,
+  adminOverrideAuditLog,
+  type AdminOverride,
+  type InsertAdminOverride,
+  type AdminOverrideAuditLog,
+  type InsertAdminOverrideAuditLog,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull } from "drizzle-orm";
@@ -906,6 +912,22 @@ export interface IStorage {
   cancelReservation(rideId: string, cancelledBy: string, reason?: string): Promise<Ride | null>;
   getReservationsInPrepWindow(): Promise<Ride[]>;
   applyEarlyArrivalBonus(rideId: string, bonusAmount: string): Promise<Ride | null>;
+
+  // =============================================
+  // PHASE 3: ADMIN OVERRIDE CONTROL & SUPPORT SAFETY
+  // =============================================
+  
+  createAdminOverride(data: InsertAdminOverride): Promise<AdminOverride>;
+  getAdminOverride(overrideId: string): Promise<AdminOverride | null>;
+  getActiveOverridesForUser(targetUserId: string): Promise<AdminOverride[]>;
+  getAllActiveOverrides(): Promise<AdminOverride[]>;
+  getOverrideHistory(targetUserId: string): Promise<AdminOverride[]>;
+  revertAdminOverride(overrideId: string, revertedBy: string, reason: string): Promise<AdminOverride | null>;
+  expireOverrides(): Promise<number>;
+  
+  createAdminOverrideAuditLog(data: InsertAdminOverrideAuditLog): Promise<AdminOverrideAuditLog>;
+  getAdminOverrideAuditLogs(affectedUserId?: string): Promise<AdminOverrideAuditLog[]>;
+  getAdminOverrideAuditLogsByAdmin(adminActorId: string): Promise<AdminOverrideAuditLog[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -7324,6 +7346,79 @@ export class DatabaseStorage implements IStorage {
   async hasComplianceConfirmation(userId: string, confirmationType: string): Promise<boolean> {
     const confirmations = await this.getUserComplianceConfirmations(userId);
     return confirmations.some(c => c.confirmationType === confirmationType);
+  }
+
+  // =============================================
+  // PHASE 3: ADMIN OVERRIDE CONTROL & SUPPORT SAFETY
+  // =============================================
+  
+  async createAdminOverride(data: InsertAdminOverride): Promise<AdminOverride> {
+    const [override] = await db.insert(adminOverrides).values(data).returning();
+    return override;
+  }
+  
+  async getAdminOverride(overrideId: string): Promise<AdminOverride | null> {
+    const [override] = await db.select().from(adminOverrides).where(eq(adminOverrides.id, overrideId));
+    return override || null;
+  }
+  
+  async getActiveOverridesForUser(targetUserId: string): Promise<AdminOverride[]> {
+    return db.select().from(adminOverrides)
+      .where(and(eq(adminOverrides.targetUserId, targetUserId), eq(adminOverrides.status, "active")))
+      .orderBy(desc(adminOverrides.createdAt));
+  }
+  
+  async getAllActiveOverrides(): Promise<AdminOverride[]> {
+    return db.select().from(adminOverrides)
+      .where(eq(adminOverrides.status, "active"))
+      .orderBy(desc(adminOverrides.createdAt));
+  }
+  
+  async getOverrideHistory(targetUserId: string): Promise<AdminOverride[]> {
+    return db.select().from(adminOverrides)
+      .where(eq(adminOverrides.targetUserId, targetUserId))
+      .orderBy(desc(adminOverrides.createdAt));
+  }
+  
+  async revertAdminOverride(overrideId: string, revertedBy: string, reason: string): Promise<AdminOverride | null> {
+    const [updated] = await db.update(adminOverrides)
+      .set({ status: "reverted" as const, revertedAt: new Date(), revertedBy, revertReason: reason })
+      .where(eq(adminOverrides.id, overrideId))
+      .returning();
+    return updated || null;
+  }
+  
+  async expireOverrides(): Promise<number> {
+    const now = new Date();
+    const expired = await db.update(adminOverrides)
+      .set({ status: "expired" as const })
+      .where(and(
+        eq(adminOverrides.status, "active"),
+        sql`${adminOverrides.overrideExpiresAt} IS NOT NULL AND ${adminOverrides.overrideExpiresAt} <= ${now}`
+      ))
+      .returning();
+    return expired.length;
+  }
+  
+  async createAdminOverrideAuditLog(data: InsertAdminOverrideAuditLog): Promise<AdminOverrideAuditLog> {
+    const [log] = await db.insert(adminOverrideAuditLog).values(data).returning();
+    return log;
+  }
+  
+  async getAdminOverrideAuditLogs(affectedUserId?: string): Promise<AdminOverrideAuditLog[]> {
+    if (affectedUserId) {
+      return db.select().from(adminOverrideAuditLog)
+        .where(eq(adminOverrideAuditLog.affectedUserId, affectedUserId))
+        .orderBy(desc(adminOverrideAuditLog.createdAt));
+    }
+    return db.select().from(adminOverrideAuditLog)
+      .orderBy(desc(adminOverrideAuditLog.createdAt));
+  }
+  
+  async getAdminOverrideAuditLogsByAdmin(adminActorId: string): Promise<AdminOverrideAuditLog[]> {
+    return db.select().from(adminOverrideAuditLog)
+      .where(eq(adminOverrideAuditLog.adminActorId, adminActorId))
+      .orderBy(desc(adminOverrideAuditLog.createdAt));
   }
 }
 

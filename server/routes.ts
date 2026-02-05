@@ -12244,5 +12244,236 @@ export async function registerRoutes(
     }
   });
 
+  // =============================================
+  // PHASE 3: ADMIN OVERRIDE CONTROL & SUPPORT SAFETY
+  // =============================================
+
+  const VALID_OVERRIDE_ACTIONS = [
+    "FORCE_LOGOUT", "RESET_SESSION", "RESTORE_AUTO_LOGIN",
+    "ENABLE_DRIVER_ONLINE", "DISABLE_DRIVER_ONLINE",
+    "CLEAR_CANCELLATION_FLAGS", "RESTORE_DRIVER_ACCESS",
+    "CLEAR_RIDER_CANCELLATION_WARNING", "RESTORE_RIDE_ACCESS"
+  ];
+
+  app.post("/api/admin/override/apply", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const { targetUserId, actionType, overrideReason, overrideExpiresAt } = req.body;
+
+      if (!targetUserId || !actionType || !overrideReason) {
+        return res.status(400).json({ message: "targetUserId, actionType, and overrideReason are required" });
+      }
+
+      if (!VALID_OVERRIDE_ACTIONS.includes(actionType)) {
+        return res.status(400).json({ message: `Invalid actionType. Allowed: ${VALID_OVERRIDE_ACTIONS.join(", ")}` });
+      }
+
+      let previousState: string | null = null;
+      let newState: string | null = null;
+
+      switch (actionType) {
+        case "FORCE_LOGOUT": {
+          previousState = JSON.stringify({ action: "FORCE_LOGOUT", note: "Session override recorded" });
+          newState = JSON.stringify({ action: "FORCE_LOGOUT", status: "active" });
+          break;
+        }
+        case "RESET_SESSION": {
+          previousState = JSON.stringify({ action: "RESET_SESSION", note: "Session reset override recorded" });
+          newState = JSON.stringify({ action: "RESET_SESSION", status: "active" });
+          break;
+        }
+        case "RESTORE_AUTO_LOGIN": {
+          previousState = JSON.stringify({ action: "RESTORE_AUTO_LOGIN", note: "Auto-login restore recorded" });
+          newState = JSON.stringify({ action: "RESTORE_AUTO_LOGIN", status: "active" });
+          break;
+        }
+        case "ENABLE_DRIVER_ONLINE": {
+          const driverProfile = await storage.getDriverProfile(targetUserId);
+          previousState = JSON.stringify({ isOnline: driverProfile?.isOnline ?? false });
+          await storage.updateDriverOnlineStatus(targetUserId, true);
+          newState = JSON.stringify({ isOnline: true });
+          break;
+        }
+        case "DISABLE_DRIVER_ONLINE": {
+          const driverProfile = await storage.getDriverProfile(targetUserId);
+          previousState = JSON.stringify({ isOnline: driverProfile?.isOnline ?? true });
+          await storage.updateDriverOnlineStatus(targetUserId, false);
+          newState = JSON.stringify({ isOnline: false });
+          break;
+        }
+        case "CLEAR_CANCELLATION_FLAGS": {
+          previousState = JSON.stringify({ action: "CLEAR_CANCELLATION_FLAGS", note: "Cancellation flags cleared" });
+          newState = JSON.stringify({ action: "CLEAR_CANCELLATION_FLAGS", status: "active" });
+          break;
+        }
+        case "RESTORE_DRIVER_ACCESS": {
+          const suspension = await storage.getActiveSuspensionForUser(targetUserId);
+          previousState = JSON.stringify({ suspensionId: suspension?.id ?? null, suspended: !!suspension });
+          if (suspension) {
+            await storage.liftSuspension(suspension.id, adminId, `Admin override: ${overrideReason}`);
+          }
+          newState = JSON.stringify({ suspended: false, liftedSuspensionId: suspension?.id ?? null });
+          break;
+        }
+        case "CLEAR_RIDER_CANCELLATION_WARNING": {
+          previousState = JSON.stringify({ action: "CLEAR_RIDER_CANCELLATION_WARNING", note: "Rider cancellation warning suppressed" });
+          newState = JSON.stringify({ action: "CLEAR_RIDER_CANCELLATION_WARNING", status: "active" });
+          break;
+        }
+        case "RESTORE_RIDE_ACCESS": {
+          const rideSuspension = await storage.getActiveSuspensionForUser(targetUserId);
+          previousState = JSON.stringify({ suspensionId: rideSuspension?.id ?? null, suspended: !!rideSuspension });
+          if (rideSuspension) {
+            await storage.liftSuspension(rideSuspension.id, adminId, `Admin override: ${overrideReason}`);
+          }
+          newState = JSON.stringify({ suspended: false, liftedSuspensionId: rideSuspension?.id ?? null });
+          break;
+        }
+      }
+
+      const override = await storage.createAdminOverride({
+        targetUserId,
+        adminActorId: adminId,
+        actionType,
+        overrideReason,
+        overrideExpiresAt: overrideExpiresAt ? new Date(overrideExpiresAt) : undefined,
+        previousState,
+        newState,
+      });
+
+      await storage.createAdminOverrideAuditLog({
+        overrideId: override.id,
+        adminActorId: adminId,
+        affectedUserId: targetUserId,
+        actionType,
+        overrideReason,
+        previousState,
+        newState,
+        metadata: JSON.stringify({ expiresAt: overrideExpiresAt || null }),
+      });
+
+      console.log(`[ADMIN OVERRIDE] ${actionType} applied to user ${targetUserId} by admin ${adminId}`);
+      return res.json({ success: true, override });
+    } catch (error) {
+      console.error("Error applying admin override:", error);
+      return res.status(500).json({ message: "Failed to apply admin override" });
+    }
+  });
+
+  app.get("/api/admin/overrides/active", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const overrides = await storage.getAllActiveOverrides();
+      return res.json(overrides);
+    } catch (error) {
+      console.error("Error fetching active overrides:", error);
+      return res.status(500).json({ message: "Failed to fetch active overrides" });
+    }
+  });
+
+  app.get("/api/admin/overrides/user/:userId", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const overrides = await storage.getOverrideHistory(userId);
+      return res.json(overrides);
+    } catch (error) {
+      console.error("Error fetching user override history:", error);
+      return res.status(500).json({ message: "Failed to fetch override history" });
+    }
+  });
+
+  app.post("/api/admin/override/:overrideId/revert", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const { overrideId } = req.params;
+      const { reason } = req.body;
+
+      if (!reason) {
+        return res.status(400).json({ message: "Revert reason is required" });
+      }
+
+      const existing = await storage.getAdminOverride(overrideId);
+      if (!existing) {
+        return res.status(404).json({ message: "Override not found" });
+      }
+      if (existing.status !== "active") {
+        return res.status(400).json({ message: `Cannot revert override with status: ${existing.status}` });
+      }
+
+      let revertNewState: string | null = null;
+
+      switch (existing.actionType) {
+        case "ENABLE_DRIVER_ONLINE": {
+          const prev = existing.previousState ? JSON.parse(existing.previousState) : {};
+          await storage.updateDriverOnlineStatus(existing.targetUserId, prev.isOnline ?? false);
+          revertNewState = JSON.stringify({ isOnline: prev.isOnline ?? false, reverted: true });
+          break;
+        }
+        case "DISABLE_DRIVER_ONLINE": {
+          const prev = existing.previousState ? JSON.parse(existing.previousState) : {};
+          await storage.updateDriverOnlineStatus(existing.targetUserId, prev.isOnline ?? true);
+          revertNewState = JSON.stringify({ isOnline: prev.isOnline ?? true, reverted: true });
+          break;
+        }
+        default: {
+          revertNewState = JSON.stringify({ reverted: true, note: "Override flag removed" });
+          break;
+        }
+      }
+
+      const reverted = await storage.revertAdminOverride(overrideId, adminId, reason);
+
+      await storage.createAdminOverrideAuditLog({
+        overrideId,
+        adminActorId: adminId,
+        affectedUserId: existing.targetUserId,
+        actionType: existing.actionType,
+        overrideReason: `REVERT: ${reason}`,
+        previousState: existing.newState,
+        newState: revertNewState,
+        metadata: JSON.stringify({ revertedAt: new Date().toISOString() }),
+      });
+
+      console.log(`[ADMIN OVERRIDE] Override ${overrideId} reverted by admin ${adminId}`);
+      return res.json({ success: true, override: reverted });
+    } catch (error) {
+      console.error("Error reverting admin override:", error);
+      return res.status(500).json({ message: "Failed to revert admin override" });
+    }
+  });
+
+  app.get("/api/admin/overrides/audit-log", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const logs = await storage.getAdminOverrideAuditLogs();
+      return res.json(logs);
+    } catch (error) {
+      console.error("Error fetching override audit logs:", error);
+      return res.status(500).json({ message: "Failed to fetch override audit logs" });
+    }
+  });
+
+  app.get("/api/admin/overrides/audit-log/:userId", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const logs = await storage.getAdminOverrideAuditLogs(userId);
+      return res.json(logs);
+    } catch (error) {
+      console.error("Error fetching user override audit logs:", error);
+      return res.status(500).json({ message: "Failed to fetch user override audit logs" });
+    }
+  });
+
+  // Admin Override Auto-Expiration Scheduler
+  setInterval(async () => {
+    try {
+      const expiredCount = await storage.expireOverrides();
+      if (expiredCount > 0) {
+        console.log(`[OVERRIDE SCHEDULER] Expired ${expiredCount} admin overrides`);
+      }
+    } catch (error) {
+      console.error("[OVERRIDE SCHEDULER] Error expiring overrides:", error);
+    }
+  }, 60000);
+  console.log("[OVERRIDE SCHEDULER] Started — polling every 60s for expired overrides");
+
   return httpServer;
 }

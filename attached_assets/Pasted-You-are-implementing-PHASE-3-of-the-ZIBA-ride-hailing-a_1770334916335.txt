@@ -1,0 +1,110 @@
+You are implementing PHASE 3 of the ZIBA ride-hailing app: ADMIN OVERRIDE CONTROL & SUPPORT SAFETY.
+
+This phase creates a controlled admin capability that allows authorized support staff
+to fix user issues WITHOUT deleting data, WITHOUT developer intervention, and WITHOUT abuse.
+
+ALL admin actions MUST be auditable.
+
+=====================================
+1) ADMIN ACCESS & PERMISSIONS
+=====================================
+
+• Create a dedicated Admin role with restricted privileges.
+• Only users with Admin role can perform override actions.
+• All admin actions must require re-authentication or confirmation.
+
+=====================================
+2) SUPPORTED ADMIN OVERRIDE ACTIONS
+=====================================
+
+Admins must be able to perform the following actions on a user account:
+
+Authentication & Session:
+- Force logout a user (invalidate auth token)
+- Reset a stuck or corrupted session token
+- Restore auto-login eligibility
+
+Driver Controls:
+- Temporarily enable driver online status
+- Temporarily disable driver online status
+- Clear incorrect cancellation or acceptance flags
+- Restore access after dispute resolution
+
+Rider Controls:
+- Clear false cancellation warnings
+- Restore ride access after dispute review
+
+=====================================
+3) OVERRIDE SAFETY RULES (NON-NEGOTIABLE)
+=====================================
+
+• Admin overrides MUST NOT:
+  - Delete user accounts
+  - Reset historical trip data
+  - Alter ratings directly
+  - Create duplicate accounts
+
+• Overrides MUST:
+  - Be temporary where applicable
+  - Have an expiration timestamp if temporary
+  - Respect account_status unless explicitly changed
+
+=====================================
+4) ADMIN OVERRIDE DATA FIELDS (MUST USE)
+=====================================
+
+Each override action must populate the following fields:
+
+- admin_override_flag (true/false)
+- override_reason (required, human-readable)
+- override_expires_at (nullable)
+- last_admin_action_at
+- admin_actor_id (which admin performed the action)
+
+=====================================
+5) AUDIT LOGGING (CRITICAL)
+=====================================
+
+• Create an immutable admin_audit_log.
+• Every override action must log:
+  - admin_actor_id
+  - affected_user_id
+  - action_type
+  - override_reason
+  - timestamp
+  - previous_state
+  - new_state
+
+• Audit logs must never be editable or deletable.
+
+=====================================
+6) UI & SUPPORT EXPERIENCE
+=====================================
+
+Admin Dashboard must:
+- Clearly label actions as "Temporary Override"
+- Show warning before applying override
+- Display active overrides on user profile
+- Auto-revert overrides when override_expires_at is reached
+
+=====================================
+7) FAIL-SAFE BEHAVIOR
+=====================================
+
+• If admin override expires:
+  - System must automatically restore normal rules
+• If override data is missing or corrupt:
+  - Default to SAFE behavior (no override)
+• System must never crash due to admin actions.
+
+=====================================
+8) FINAL VALIDATION REQUIREMENTS
+=====================================
+
+Before marking Phase 3 complete:
+- Admin can fix a stuck user without engineering help
+- All actions are logged and traceable
+- No override permanently alters core user data
+- Overrides expire correctly when set
+
+This phase must be fully implemented and tested before proceeding to Phase 4.
