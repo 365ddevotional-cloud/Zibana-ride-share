@@ -1,0 +1,147 @@
+You are working on the ZIBA Ride Share platform.
+
+TASK:
+Implement a complete ratings, star-blocking, and admin override system
+that enforces trust, safety, and fair matching across Riders, Drivers,
+and other roles.
+
+GOAL SUMMARY:
+• All users start at 5.0 stars on signup
+• Ratings are mutual after each trip
+• <3-star ratings permanently block re-pairing
+• Super Admin can restore or adjust stars
+• System must be server-enforced and auditable
+
+--------------------------------------------------
+NON-NEGOTIABLE RULES
+--------------------------------------------------
+1. All logic must be SERVER-SIDE.
+2. No frontend-only rating or blocking logic.
+3. Ratings must affect future matching.
+4. Super Admin overrides must be logged.
+5. Behavior must be identical in Preview, Incognito, and Production.
+
+--------------------------------------------------
+DEFAULT RATING AT SIGNUP
+--------------------------------------------------
+For EVERY new user (rider, driver, director, etc):
+
+Initialize:
+- ratingAverage = 5.0
+- ratingCount = 0
+
+Apply this:
+- At first signup
+- When a new role is added to an existing user
+
+--------------------------------------------------
+TRIP RATING FLOW (MANDATORY)
+--------------------------------------------------
+After a completed trip:
+
+1. Rider rates Driver (1–5 stars)
+2. Driver rates Rider (1–5 stars)
+
+Store ratings in:
+Rating {
+  id
+  tripId
+  raterUserId
+  targetUserId
+  stars (1–5)
+  createdAt
+}
+
+Update rolling average correctly:
+newAverage = ((oldAverage * oldCount) + stars) / (oldCount + 1)
+
+--------------------------------------------------
+HARD STAR-BLOCKING RULE (< 3 STARS)
+--------------------------------------------------
+If a Rider rates a Driver with stars < 3:
+
+• Create a permanent block record:
+PairingBlock {
+  id
+  riderUserId
+  driverUserId
+  reason: "low_rating"
+  createdAt
+}
+
+• During driver matching:
+  - EXCLUDE any driver with an existing PairingBlock
+  - This exclusion is ABSOLUTE
+
+(Optional but recommended)
+Apply the same rule if Driver rates Rider < 3.
+
+--------------------------------------------------
+SUPER ADMIN OVERRIDE & STAR CONTROL
+--------------------------------------------------
+Super Admin ONLY may:
+
+• Restore stars
+• Increase or decrease ratingAverage
+• Reset ratingCount (optional)
+• Remove a PairingBlock
+
+All admin actions MUST be logged:
+
+RatingAudit {
+  id
+  adminEmail
+  targetUserId
+  oldRating
+  newRating
+  actionType
+  reason
+  createdAt
+}
+
+Expose controls in Admin Dashboard:
+• Button: “Adjust Rating”
+• Input: new star value (0.0 – 5.0)
+• Reason field REQUIRED
+
+--------------------------------------------------
+USER NOTIFICATIONS (RESPECTFUL)
+--------------------------------------------------
+When a <3-star rating creates a block:
+
+Notify Rider:
+"Thanks for your feedback. For your comfort, you won’t be matched with this driver again. Ratings help us create safer rides for everyone."
+
+Notify Driver:
+"A rider has shared feedback on a recent trip. Ratings are mutual and help improve future matches."
+
+Tone rules:
+• No blame
+• No threats
+• No warnings
+
+--------------------------------------------------
+MATCHING ENGINE ENFORCEMENT
+--------------------------------------------------
+Before pairing Rider ↔ Driver:
+
+1. Check PairingBlock table
+2. If block exists → skip pairing
+3. No UI override allowed
+
+--------------------------------------------------
+FINAL VALIDATION CHECKLIST
+--------------------------------------------------
+1. New users start at 5.0 stars
+2. Ratings update averages correctly
+3. <3 stars blocks future pairing
+4. Block is enforced in matching logic
+5. Super Admin can restore or adjust stars
+6. Admin overrides are audited
+7. Notifications are respectful
+8. No frontend-only enforcement
+
+Confirm completion with:
+• Files changed
+• What was added
+• What was left untouched

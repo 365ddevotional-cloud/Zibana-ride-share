@@ -211,6 +211,9 @@ export async function registerRoutes(
 
       // Create rider profile
       await storage.createRiderProfile({ userId });
+      
+      // DEFAULT RATING: Create trust profile with 5.0 stars on signup
+      await storage.getOrCreateUserTrustProfile(userId);
 
       // Return all roles for the user
       const allRoles = await storage.getAllUserRoles(userId);
@@ -391,6 +394,9 @@ export async function registerRoutes(
         vehicleModel: "",
         licensePlate: "",
       });
+      
+      // DEFAULT RATING: Create trust profile with 5.0 stars on signup
+      await storage.getOrCreateUserTrustProfile(userId);
 
       console.log(`[DRIVER REGISTRATION] New driver registered: userId=${userId}, timestamp=${new Date().toISOString()}`);
       return res.json({ role: userRole.role, message: "Successfully registered as driver" });
@@ -2081,6 +2087,9 @@ export async function registerRoutes(
           await storage.createDriverProfile({ userId, status: "pending" });
         }
       }
+      
+      // DEFAULT RATING: Create trust profile with 5.0 stars on role assignment
+      await storage.getOrCreateUserTrustProfile(userId);
 
       // Create audit log
       await storage.createAuditLog({
