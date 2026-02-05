@@ -7416,12 +7416,15 @@ function AdminManagementTab() {
   );
 }
 
+// MULTI-ROLE SYSTEM: Updated type to support multiple roles per user
 type UserWithRole = {
   userId: string;
   email: string | null;
   firstName: string | null;
   lastName: string | null;
-  role: string | null;
+  role: string | null;  // Primary role (backward compatibility)
+  roles: string[];  // All roles for this user
+  roleCount: number;  // Total number of roles
   createdAt: string | null;
 };
 
@@ -7544,7 +7547,8 @@ function RoleAppointmentsTab() {
                 <TableRow>
                   <TableHead>Email</TableHead>
                   <TableHead>Name</TableHead>
-                  <TableHead>Current Role</TableHead>
+                  <TableHead>Roles</TableHead>
+                  <TableHead>Count</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -7558,8 +7562,21 @@ function RoleAppointmentsTab() {
                         : "N/A"}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={getRoleBadgeVariant(user.role)}>
-                        {user.role ? user.role.replace("_", " ").toUpperCase() : "NO ROLE"}
+                      <div className="flex flex-wrap gap-1">
+                        {(user.roles && user.roles.length > 0) ? (
+                          user.roles.map((role: string) => (
+                            <Badge key={role} variant={getRoleBadgeVariant(role)} className="text-xs">
+                              {role.replace("_", " ").toUpperCase()}
+                            </Badge>
+                          ))
+                        ) : (
+                          <Badge variant="outline">NO ROLE</Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="font-mono">
+                        {user.roleCount || 0} {(user.roleCount || 0) === 1 ? "role" : "roles"}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
