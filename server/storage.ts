@@ -303,7 +303,7 @@ export interface IStorage {
   // Admin appointment methods (SUPER_ADMIN only)
   appointAdmin(userId: string, adminStartAt: Date, adminEndAt: Date, adminPermissions: string[], appointedBy: string): Promise<UserRole>;
   revokeAdmin(userId: string): Promise<UserRole | undefined>;
-  getAllAdmins(): Promise<UserRole[]>;
+  getAllAdmins(): Promise<any[]>;
   checkAndExpireAdmins(): Promise<number>;
   isAdminValid(userId: string): Promise<{ valid: boolean; role: UserRole | null; reason?: string }>;
   updateAdminPermissions(userId: string, adminPermissions: string[], adminEndAt?: Date): Promise<UserRole | undefined>;
@@ -1070,11 +1070,28 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  async getAllAdmins(): Promise<UserRole[]> {
-    return db
-      .select()
+  async getAllAdmins(): Promise<any[]> {
+    const admins = await db
+      .select({
+        id: userRoles.id,
+        userId: userRoles.userId,
+        role: userRoles.role,
+        adminStartAt: userRoles.adminStartAt,
+        adminEndAt: userRoles.adminEndAt,
+        adminPermissions: userRoles.adminPermissions,
+        appointedBy: userRoles.appointedBy,
+        createdAt: userRoles.createdAt,
+        updatedAt: userRoles.updatedAt,
+        user: {
+          firstName: users.firstName,
+          lastName: users.lastName,
+          email: users.email,
+        },
+      })
       .from(userRoles)
+      .leftJoin(users, eq(userRoles.userId, users.id))
       .where(or(eq(userRoles.role, "admin"), eq(userRoles.role, "super_admin")));
+    return admins;
   }
 
   async checkAndExpireAdmins(): Promise<number> {
