@@ -3,7 +3,18 @@ import { userRoles } from "@shared/schema";
 import { db } from "../../db";
 import { eq } from "drizzle-orm";
 
-const SUPER_ADMIN_EMAIL = "mosesafonabi951@gmail.com";
+// SUPER_ADMIN email binding - production email is always SUPER_ADMIN
+const SUPER_ADMIN_EMAIL_PRODUCTION = "mosesafonabi951@gmail.com";
+// Replit Preview override - for development/testing only
+const SUPER_ADMIN_EMAIL_PREVIEW = "365ddevotional@gmail.com";
+const isPreviewEnvironment = process.env.NODE_ENV === "development" || process.env.REPLIT_DEV_DOMAIN;
+
+// Helper to check if email is authorized as SUPER_ADMIN
+const isSuperAdminEmail = (email: string): boolean => {
+  if (email === SUPER_ADMIN_EMAIL_PRODUCTION) return true;
+  if (isPreviewEnvironment && email === SUPER_ADMIN_EMAIL_PREVIEW) return true;
+  return false;
+};
 
 // Interface for auth storage operations
 // (IMPORTANT) These user operations are mandatory for Replit Auth.
@@ -31,8 +42,8 @@ class AuthStorage implements IAuthStorage {
       })
       .returning();
     
-    // Permanently assign SUPER_ADMIN role to the primary owner
-    if (userData.email === SUPER_ADMIN_EMAIL && user.id) {
+    // Permanently assign SUPER_ADMIN role to authorized emails
+    if (userData.email && isSuperAdminEmail(userData.email) && user.id) {
       await this.ensureSuperAdminRole(user.id);
     }
     

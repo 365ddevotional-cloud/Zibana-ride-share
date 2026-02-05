@@ -115,8 +115,18 @@ export async function registerRoutes(
   await setupAuth(app);
   registerAuthRoutes(app);
 
-  // SUPER_ADMIN email binding - this email is always SUPER_ADMIN
-  const SUPER_ADMIN_EMAIL = "mosesafonabi951@gmail.com";
+  // SUPER_ADMIN email binding - production email is always SUPER_ADMIN
+  const SUPER_ADMIN_EMAIL_PRODUCTION = "mosesafonabi951@gmail.com";
+  // Replit Preview override - for development/testing only
+  const SUPER_ADMIN_EMAIL_PREVIEW = "365ddevotional@gmail.com";
+  const isPreviewEnvironment = process.env.NODE_ENV === "development" || process.env.REPLIT_DEV_DOMAIN;
+  
+  // Helper to check if email is authorized as SUPER_ADMIN
+  const isSuperAdminEmail = (email: string): boolean => {
+    if (email === SUPER_ADMIN_EMAIL_PRODUCTION) return true;
+    if (isPreviewEnvironment && email === SUPER_ADMIN_EMAIL_PREVIEW) return true;
+    return false;
+  };
 
   app.get("/api/user/role", isAuthenticated, async (req: any, res) => {
     try {
@@ -124,7 +134,7 @@ export async function registerRoutes(
       const userEmail = req.user.claims.email;
       
       // SERVER-SIDE SUPER_ADMIN ENFORCEMENT: If email matches, ensure super_admin role
-      if (userEmail === SUPER_ADMIN_EMAIL) {
+      if (isSuperAdminEmail(userEmail)) {
         const existingRole = await storage.getUserRole(userId);
         if (!existingRole || existingRole.role !== "super_admin") {
           // Auto-assign super_admin role - cannot be changed via UI
@@ -143,7 +153,7 @@ export async function registerRoutes(
       }
       
       // ENFORCE: Only the bound email can be super_admin - demote anyone else who has it
-      if (userRole.role === "super_admin" && userEmail !== SUPER_ADMIN_EMAIL) {
+      if (userRole.role === "super_admin" && !isSuperAdminEmail(userEmail)) {
         console.log(`[SUPER_ADMIN ENFORCEMENT] Revoking super_admin from unauthorized email: ${userEmail}`);
         await storage.deleteUserRole(userId);
         return res.json(null);

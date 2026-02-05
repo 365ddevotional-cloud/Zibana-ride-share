@@ -1,0 +1,139 @@
+You are working on the ZIBA Ride Share platform.
+
+ABSOLUTE GOAL:
+Restore and ENFORCE a true SUPER ADMIN experience inside the existing /admin dashboard,
+including Roles, Appointments, and Training (formerly Testers),
+with zero contradictions across Preview, Incognito, or Production.
+
+CRITICAL EXECUTION RULES (NON-NEGOTIABLE):
+1. FIRST perform a full AUDIT of the codebase.
+2. LIST what already exists.
+3. DO NOT re-implement anything that already exists.
+4. ONLY restore, re-wire, or expose what is missing or incorrectly gated.
+5. ALL authority MUST be server-side. No client trust. No UI tricks.
+
+────────────────────────────────
+SUPER ADMIN IDENTITY (AUTHORITATIVE)
+────────────────────────────────
+
+PRIMARY SUPER ADMIN EMAIL (PRODUCTION):
+- mosesafonabi951@gmail.com
+
+REPLIT PREVIEW OVERRIDE (BY DESIGN, REQUIRED):
+- Replit Preview ALWAYS authenticates as: 365ddevotional@gmail.com
+- This CANNOT be changed by UI or OAuth settings.
+
+ENFORCEMENT RULE:
+- In PRODUCTION / INCOGNITO:
+    user.email === "mosesafonabi951@gmail.com" → SUPER_ADMIN
+- In REPLIT PREVIEW ENVIRONMENT ONLY:
+    user.email === "365ddevotional@gmail.com" → SUPER_ADMIN
+
+This mapping MUST:
+- Be server-side only
+- Be environment-aware
+- Never affect production users
+- Never create a second real Super Admin
+
+────────────────────────────────
+ROLES & AUTHORITY
+────────────────────────────────
+
+CONFIRM OR RESTORE ROLES:
+- SUPER_ADMIN
+- ADMIN (Appointed Admin)
+- DRIVER
+- RIDER
+- TRAINING (isolated users)
+
+HARD RULES:
+- NO UI action may promote SUPER_ADMIN
+- SUPER_ADMIN is EMAIL-BOUND only
+- ADMINs must NEVER access SUPER_ADMIN features
+- ALL checks enforced server-side (middleware)
+
+────────────────────────────────
+DASHBOARD STRUCTURE (NO NEW APP)
+────────────────────────────────
+
+DO NOT create a 4th app.
+DO NOT create a separate frontend.
+
+STRUCTURE:
+- /admin → single dashboard
+- SUPER_ADMIN sees extended sections via role visibility
+- ADMIN sees limited sections only
+
+────────────────────────────────
+SUPER ADMIN MUST SEE (RESTORE & ENFORCE)
+────────────────────────────────
+
+Inside /admin, when role === SUPER_ADMIN, RESTORE and VERIFY visibility of:
+
+1. Roles & Appointments
+   - Assign ADMIN role
+   - Revoke ADMIN role
+   - View role audit history
+   - ADMIN cannot self-promote or promote others to SUPER_ADMIN
+
+2. Training (RESTORED from Testers)
+   - Rename Testers → Training
+   - Training users must be:
+       • Flagged as TRAINING
+       • Isolated from production metrics
+       • Excluded from revenue, payouts, analytics
+   - Training section visible ONLY to SUPER_ADMIN
+
+3. System / Safety Controls
+   - Emergency user cleanup
+   - Auth/session invalidation
+   - Environment status (Preview vs Production)
+
+ADMIN (Appointed Admin) MUST NOT SEE:
+- Training
+- Role management
+- System authority panels
+
+────────────────────────────────
+DELETE CONSISTENCY (MANDATORY FIX)
+────────────────────────────────
+
+Enforce ONE delete pipeline:
+- deleteUserAccount()
+
+ALL deletes MUST:
+- Work identically in:
+    • Normal browser
+    • Incognito
+    • Preview
+    • Admin
+    • Super Admin
+- Destroy sessions
+- Clear cookies
+- Invalidate caches
+- Remove DB records permanently
+- Re-fetch lists from DB (no stale UI state)
+
+NO deleted user may EVER reappear.
+
+────────────────────────────────
+VERIFICATION PHASE (REQUIRED OUTPUT)
+────────────────────────────────
+
+After execution, produce a CONFIRMATION REPORT with:
+
+1. What already existed
+2. What was restored
+3. What was re-wired
+4. What was untouched
+5. Verification checklist:
+   - Incognito login → Super Admin sees Training + Roles
+   - Preview login → Super Admin sees Training + Roles
+   - ADMIN login → does NOT see Training or Roles
+   - Delete works everywhere consistently
+
+FAIL IF:
+- Any client-side role logic exists
+- Preview and Incognito behave differently
+- Training appears for ADMIN
+- SUPER_ADMIN features are hidden again
