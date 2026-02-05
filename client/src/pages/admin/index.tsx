@@ -1803,6 +1803,68 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
           </div>
         </div>
 
+        {/* Super Admin Tools Section */}
+        {isSuperAdmin && (
+          <div className="mb-8">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <Shield className="h-5 w-5 text-muted-foreground" />
+              Super Admin Tools
+            </h2>
+            <div className="grid gap-4 md:grid-cols-3">
+              <Card 
+                className="cursor-pointer hover-elevate transition-all" 
+                onClick={() => setActiveTab("training")}
+                data-testid="card-super-admin-training"
+              >
+                <CardContent className="flex items-center gap-4 pt-6">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-900/30">
+                    <TestTube className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-lg font-semibold">Training</p>
+                    <p className="text-sm text-muted-foreground">Manage training users</p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                </CardContent>
+              </Card>
+
+              <Card 
+                className="cursor-pointer hover-elevate transition-all" 
+                onClick={() => setActiveTab("role-appointments")}
+                data-testid="card-super-admin-role-appointments"
+              >
+                <CardContent className="flex items-center gap-4 pt-6">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                    <UserCheck className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-lg font-semibold">Role Appointments</p>
+                    <p className="text-sm text-muted-foreground">Assign admin roles</p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                </CardContent>
+              </Card>
+
+              <Card 
+                className="cursor-pointer hover-elevate transition-all" 
+                onClick={() => setActiveTab("admin-management")}
+                data-testid="card-super-admin-admin-management"
+              >
+                <CardContent className="flex items-center gap-4 pt-6">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-red-100 dark:bg-red-900/30">
+                    <Shield className="h-6 w-6 text-red-600 dark:text-red-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-lg font-semibold">Admin Management</p>
+                    <p className="text-sm text-muted-foreground">Manage admin accounts</p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
+
         {/* Primary Navigation Section */}
         <div className="mb-8">
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
