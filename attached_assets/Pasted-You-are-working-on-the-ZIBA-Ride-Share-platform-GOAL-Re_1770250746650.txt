@@ -1,0 +1,85 @@
+You are working on the ZIBA Ride Share platform.
+
+GOAL:
+Restore full SUPER ADMIN capabilities inside the existing Admin Dashboard,
+including role assignment and the former “Testers” module renamed to “Training”,
+WITHOUT creating a new app, new login flow, or new frontend route.
+
+ABSOLUTE RULES (NON-NEGOTIABLE):
+- DO NOT create a fourth app or fourth separation.
+- DO NOT create a new /super-admin frontend route.
+- SUPER ADMIN lives inside /admin and is revealed by role-based visibility only.
+- Server-side authority is the single source of truth.
+
+AUDIT FIRST:
+1. Audit the entire codebase and explicitly list:
+   - Existing roles
+   - Existing role middleware
+   - Existing admin feature flags
+   - Existing tester/training logic
+2. DO NOT reimplement anything that already exists.
+3. Modify ONLY what is missing, disabled, or incorrectly gated.
+
+SUPER ADMIN AUTHORITY (SERVER-SIDE):
+4. Confirm role: SUPER_ADMIN already exists.
+5. Bind SUPER_ADMIN strictly to this email:
+   mosesafonabi951@gmail.com
+6. Enforce on the server:
+   - If user.email === "mosesafonabi951@gmail.com", role MUST be SUPER_ADMIN.
+   - No UI action may promote any user to SUPER_ADMIN.
+   - Appointed Admins must NEVER gain SUPER_ADMIN privileges.
+
+ADMIN DASHBOARD VISIBILITY (CRITICAL FIX):
+7. Keep a single Admin route:
+   /admin
+8. Implement role-based UI rendering:
+   - If role === SUPER_ADMIN:
+       Show Super Admin sections
+   - If role === ADMIN:
+       Hide Super Admin sections entirely
+9. This must be enforced by server-validated role data, not client state.
+
+SUPER ADMIN SECTIONS (RESTORE):
+10. Restore and mount these sections inside Admin Dashboard
+    ONLY when role === SUPER_ADMIN:
+    - Training (renamed from Testers)
+    - Admin Role Assignment
+    - System Audits
+    - Environment / Health Status
+    - Emergency User Cleanup
+11. Appointed Admin UI must remain unchanged and must NOT see Training.
+
+TRAINING MODULE (FORMER TESTERS):
+12. Restore previous Testers logic as “Training”.
+13. Training users must:
+    - Be clearly flagged as TRAINING
+    - Be isolated from production analytics, payouts, and metrics
+    - Never affect live riders, drivers, or revenue
+14. Training visibility and controls must be SUPER_ADMIN ONLY.
+
+DELETE CONSISTENCY (LOCK IT PERMANENTLY):
+15. Ensure ALL user deletion paths use the SAME server-side function:
+    deleteUserAccount()
+16. Deletes must:
+    - Remove database records
+    - Destroy sessions
+    - Clear auth cookies
+    - Invalidate caches
+    - Prevent ghost users from reappearing
+17. Admin lists must re-fetch directly from the database after delete.
+
+SECURITY GUARANTEES:
+18. No client-side storage (localStorage, memory, cache) may grant authority.
+19. All role checks must be server-side and authoritative.
+20. Behavior must be identical in:
+    - Normal browser
+    - Incognito
+    - Fresh sessions
+
+FINAL REQUIREMENT:
+21. Provide a confirmation report with:
+    - What already existed
+    - What was added
+    - What was only re-enabled or re-gated
+    - What was intentionally left untouched
+    - A step-by-step verification checklist
