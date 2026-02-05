@@ -115,12 +115,15 @@ export async function registerRoutes(
   await setupAuth(app);
   registerAuthRoutes(app);
 
-  // SUPER_ADMIN email binding - only this email can be SUPER_ADMIN
-  const SUPER_ADMIN_EMAIL = "mosesafonabi951@gmail.com";
+  // SUPER_ADMIN email binding - both emails have super admin access
+  const SUPER_ADMIN_EMAILS = [
+    "mosesafonabi951@gmail.com",  // Primary super admin (public/incognito)
+    "365ddevotional@gmail.com"    // Replit account owner (preview)
+  ];
   
   // Helper to check if email is authorized as SUPER_ADMIN
   const isSuperAdminEmail = (email: string): boolean => {
-    return email === SUPER_ADMIN_EMAIL;
+    return SUPER_ADMIN_EMAILS.includes(email);
   };
 
   app.get("/api/user/role", isAuthenticated, async (req: any, res) => {
