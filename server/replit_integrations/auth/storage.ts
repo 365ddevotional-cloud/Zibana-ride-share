@@ -4,7 +4,7 @@ import { db } from "../../db";
 import { eq } from "drizzle-orm";
 
 // SUPER_ADMIN email binding - only this email can be SUPER_ADMIN
-const SUPER_ADMIN_EMAIL = "mosesafonabi951@gmail.com";
+const SUPER_ADMIN_EMAIL = "365ddevotional@gmail.com";
 
 // Helper to check if email is authorized as SUPER_ADMIN
 const isSuperAdminEmail = (email: string): boolean => {
