@@ -729,6 +729,22 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Already have an active trip" });
       }
 
+      // Get trip first to check pairing block
+      const tripToCheck = await storage.getTrip(tripId);
+      if (!tripToCheck) {
+        return res.status(404).json({ message: "Trip not found" });
+      }
+      
+      // PAIRING BLOCK ENFORCEMENT: Prevent driver from accepting if blocked by/with rider
+      const isBlocked = await storage.isDriverBlockedForRider(tripToCheck.riderId, userId);
+      if (isBlocked) {
+        console.log(`[PAIRING BLOCK] Driver ${userId} attempted to accept ride from blocked rider ${tripToCheck.riderId}`);
+        return res.status(403).json({ 
+          message: "This ride is no longer available.",
+          code: "PAIRING_BLOCKED"
+        });
+      }
+
       const trip = await storage.acceptTrip(tripId, userId);
       if (!trip) {
         return res.status(404).json({ message: "Trip not found or already accepted" });

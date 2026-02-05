@@ -17,8 +17,18 @@ export const notificationService = {
   async sendRideOfferToDrivers(ride: Ride, nearbyDriverIds: string[]): Promise<RideOffer[]> {
     const offers: RideOffer[] = [];
     const expiresAt = new Date(Date.now() + RIDE_OFFER_TIMEOUT_SECONDS * 1000);
+    
+    // PAIRING BLOCK ENFORCEMENT: Get blocked drivers for this rider
+    const blockedDrivers = await storage.getBlockedDriversForRider(ride.riderId);
+    const blockedDriverSet = new Set(blockedDrivers);
 
     for (const driverId of nearbyDriverIds) {
+      // PAIRING BLOCK ENFORCEMENT: Skip blocked drivers (absolute exclusion)
+      if (blockedDriverSet.has(driverId)) {
+        console.log(`[PAIRING BLOCK] Skipping blocked driver ${driverId} for rider ${ride.riderId}`);
+        continue;
+      }
+      
       const driver = await storage.getDriverProfile(driverId);
       if (!driver || driver.status !== "approved" || !driver.isOnline) continue;
 
