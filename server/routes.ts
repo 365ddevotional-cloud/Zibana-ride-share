@@ -115,17 +115,12 @@ export async function registerRoutes(
   await setupAuth(app);
   registerAuthRoutes(app);
 
-  // SUPER_ADMIN email binding - production email is always SUPER_ADMIN
-  const SUPER_ADMIN_EMAIL_PRODUCTION = "mosesafonabi951@gmail.com";
-  // Replit Preview override - for development/testing only
-  const SUPER_ADMIN_EMAIL_PREVIEW = "365ddevotional@gmail.com";
-  const isPreviewEnvironment = process.env.NODE_ENV === "development" || process.env.REPLIT_DEV_DOMAIN;
+  // SUPER_ADMIN email binding - only this email can be SUPER_ADMIN
+  const SUPER_ADMIN_EMAIL = "mosesafonabi951@gmail.com";
   
   // Helper to check if email is authorized as SUPER_ADMIN
   const isSuperAdminEmail = (email: string): boolean => {
-    if (email === SUPER_ADMIN_EMAIL_PRODUCTION) return true;
-    if (isPreviewEnvironment && email === SUPER_ADMIN_EMAIL_PREVIEW) return true;
-    return false;
+    return email === SUPER_ADMIN_EMAIL;
   };
 
   app.get("/api/user/role", isAuthenticated, async (req: any, res) => {
