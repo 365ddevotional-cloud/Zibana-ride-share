@@ -127,27 +127,31 @@ export async function submitRating(
         ratingScore: score,
       });
       
-      // Send respectful notification to rider
-      await storage.createNotification({
-        userId: raterId,
-        role: "rider",
-        type: "info",
+      const sendAt = new Date(Date.now() + 60 * 60 * 1000);
+
+      await storage.createScheduledRatingNotification({
+        ratingId: rating.id,
+        tripId,
+        recipientUserId: raterId,
+        recipientRole: "rider",
         title: "Feedback Received",
-        message: "Thanks for your feedback. For your comfort, you won't be matched with this driver again. Ratings help us create safer rides for everyone.",
+        message: "Thanks for your feedback. For safety reasons, you won't be matched with this driver again. Ratings help us create safer rides for everyone.",
+        sendAt,
       });
-      
-      // Send respectful notification to driver
-      await storage.createNotification({
-        userId: rateeId,
-        role: "driver",
-        type: "info",
+
+      await storage.createScheduledRatingNotification({
+        ratingId: rating.id,
+        tripId,
+        recipientUserId: rateeId,
+        recipientRole: "driver",
         title: "Trip Feedback",
         message: "A rider has shared feedback on a recent trip. Ratings are mutual and help improve future matches.",
+        sendAt,
       });
     }
   }
   
-  // PAIRING BLOCK: Also apply same logic if driver rates rider < 3 (optional extension)
+  // PAIRING BLOCK: Also apply same logic if driver rates rider < 3
   if (ratingRole === "driver_to_rider" && score < 3) {
     const existingBlock = await storage.getPairingBlock(rateeId, raterId);
     if (!existingBlock) {
@@ -159,22 +163,26 @@ export async function submitRating(
         ratingScore: score,
       });
       
-      // Send respectful notification to driver
-      await storage.createNotification({
-        userId: raterId,
-        role: "driver",
-        type: "info",
+      const sendAt = new Date(Date.now() + 60 * 60 * 1000);
+
+      await storage.createScheduledRatingNotification({
+        ratingId: rating.id,
+        tripId,
+        recipientUserId: raterId,
+        recipientRole: "driver",
         title: "Feedback Received",
-        message: "Thanks for your feedback. For your comfort, you won't be matched with this rider again. Ratings help us maintain quality service.",
+        message: "Thanks for your feedback. For safety reasons, you won't be matched with this rider again. Ratings help us create safer rides for everyone.",
+        sendAt,
       });
-      
-      // Send respectful notification to rider
-      await storage.createNotification({
-        userId: rateeId,
-        role: "rider",
-        type: "info",
+
+      await storage.createScheduledRatingNotification({
+        ratingId: rating.id,
+        tripId,
+        recipientUserId: rateeId,
+        recipientRole: "rider",
         title: "Trip Feedback",
         message: "A driver has shared feedback on a recent trip. Ratings are mutual and help improve future matches.",
+        sendAt,
       });
     }
   }
