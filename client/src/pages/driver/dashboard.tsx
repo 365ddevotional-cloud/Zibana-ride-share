@@ -9,6 +9,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { FullPageLoading } from "@/components/loading-spinner";
 import type { DriverProfile, Trip } from "@shared/schema";
+import { CancellationWarning } from "@/components/cancellation-warning";
 
 function cn(...classes: (string | boolean | undefined)[]) {
   return classes.filter(Boolean).join(" ");
@@ -140,6 +141,7 @@ export default function DriverDashboard() {
 
   return (
     <DriverLayout>
+      <CancellationWarning role="driver" />
       <div className="p-4 space-y-6">
         <div className="text-center py-4">
           <h1 className="text-2xl font-bold" data-testid="text-driver-greeting">

@@ -1,0 +1,125 @@
+You are upgrading the ZIBA ride-hailing app to production-grade authentication, session persistence, and return-user experience.
+
+STRICT REQUIREMENTS — DO NOT IGNORE:
+
+=====================================
+1) AUTHENTICATION & SESSION PERSISTENCE
+=====================================
+
+• After a rider or driver successfully signs up for the FIRST time, they must be automatically logged in.
+• Persist authentication using a secure long-lived session token (JWT or equivalent).
+• Store the token securely (SecureStorage / Keychain / HttpOnly cookie depending on platform).
+• On app launch:
+  - Validate token with backend.
+  - If token is valid → bypass signup/login and route directly into the app.
+  - If token is expired or invalid → route to SIGN IN screen (NOT sign up).
+
+• Closing the app, backgrounding, phone restart → user remains logged in.
+• ONLY explicit LOGOUT clears the session and forces SIGN IN next time.
+• App deletion + reinstall:
+  - User must SIGN IN (OTP/email/phone).
+  - NEVER force re-signup.
+  - NEVER create duplicate accounts.
+• One user identity can have multiple roles (rider, driver, director) but ONE login.
+
+=====================================
+2) RETURN USER EXPERIENCE (WELCOME BACK)
+=====================================
+
+After auto-login, DO NOT drop users directly on the map.
+
+Instead, show a lightweight “Welcome Back” screen ONCE per return session.
+
+Driver version:
+• Title (bold): “Welcome back 👋”
+• Body: “Ready to earn today? Riders are nearby.”
+• Primary CTA button (large, centered, rounded): “GO ONLINE”
+
+Rider version:
+• Title (bold): “Welcome back 👋”
+• Body: “Need a ride? Drivers are available around you.”
+• Primary CTA button: “REQUEST A RIDE”
+
+• This screen must be skippable only by pressing the primary CTA.
+• Display duration should feel instant (<2 seconds if auto-advance is used).
+
+=====================================
+3) GO ONLINE / REQUEST RIDE ACTION SCREEN
+=====================================
+
+After Welcome Back, show a focused action screen with ONE primary button.
+
+• Large, bold, high-contrast rounded button.
+• No clutter. No secondary actions.
+• Sub-text optional:
+  - Driver: “Start earning now”
+  - Rider: “Find a nearby driver”
+
+On tap:
+• Driver → set status ONLINE, begin trip search.
+• Rider → open ride request flow.
+
+=====================================
+4) CANCELLATION & ACCEPTANCE WARNING SYSTEM
+=====================================
+
+When a user goes ONLINE, immediately evaluate behavior metrics.
+
+If thresholds are breached, show a RESPECTFUL warning card (NOT a blocking popup).
+
+Driver warning (example):
+• Title (bold): “Your cancellation rate is increasing”
+• Body:
+  “You’ve been canceling more trips recently.
+   This can affect rider trust and your access to rewards.”
+• Footer:
+  “Staying consistent helps you earn more.”
+
+Rider warning (example):
+• Title: “Your cancellations are increasing”
+• Body:
+  “Canceling after a driver accepts delays pickups for others.”
+• Footer:
+  “Request rides only when ready to go.”
+
+RULES:
+• Do NOT shame.
+• Do NOT threaten.
+• Do NOT block immediately.
+• Use calm amber/gold UI styling.
+• Card auto-dismisses or can be swiped away.
+
+=====================================
+5) METRIC THRESHOLDS (CONFIGURABLE)
+=====================================
+
+• Driver cancellation rate warning ≥ configurable threshold (e.g., 12–15%).
+• Rider cancellation rate warning ≥ configurable threshold.
+• Acceptance rate trend detection allowed (compare last N trips).
+• Show warnings only once per session to avoid spam.
+
+=====================================
+6) UI / FONT GUIDELINES
+=====================================
+
+• Use clean, modern sans-serif fonts (Uber-style weight and spacing, not copied).
+• Headings: Bold
+• Body text: Regular
+• Numbers: Clear and prominent
+• Buttons: Confident, readable, touch-friendly
+
+=====================================
+7) FINAL FLOW VALIDATION
+=====================================
+
+On app open:
+1. Validate auth token
+2. Auto-login if valid
+3. Show Welcome Back screen
+4. Show GO ONLINE / REQUEST RIDE button
+5. On online:
+   - Evaluate cancellation/acceptance metrics
+   - Show warning card if needed
+6. Enter map + trip flow
+
+This implementation must prevent duplicate accounts, preserve user sessions, improve retention, and match modern ride-hailing UX standards.

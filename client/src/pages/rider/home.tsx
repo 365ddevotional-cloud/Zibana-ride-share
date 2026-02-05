@@ -10,6 +10,7 @@ import { MapPin, Navigation, Calendar, ChevronRight, Wallet, Beaker, AlertCircle
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { CancellationWarning } from "@/components/cancellation-warning";
 
 interface WalletInfo {
   mainBalance: string;
@@ -66,6 +67,7 @@ export default function RiderHome() {
     <RiderRouteGuard>
       {showDisclosure && <LocationDisclosure onAccept={acceptDisclosure} />}
       <RiderLayout>
+        <CancellationWarning role="rider" />
         <div className="p-4 space-y-6">
           <div className="pt-4 pb-2">
             <h1 className="text-2xl font-bold" data-testid="text-greeting">

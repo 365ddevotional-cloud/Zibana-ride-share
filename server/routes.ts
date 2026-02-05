@@ -462,6 +462,31 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/driver/cancellation-metrics", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const profile = await storage.getDriverProfile(userId);
+      if (!profile) {
+        return res.status(404).json({ message: "Driver profile not found" });
+      }
+      const allTrips = await storage.getDriverTripHistory(profile.id);
+      const totalTrips = allTrips.length;
+      const cancelledTrips = allTrips.filter((t: any) => t.status === "cancelled" && t.cancelledBy === "driver").length;
+      const cancellationRate = totalTrips > 0 ? (cancelledTrips / totalTrips) * 100 : 0;
+      const warningThreshold = 12;
+      return res.json({
+        cancellationRate: Math.round(cancellationRate * 10) / 10,
+        recentCancellations: cancelledTrips,
+        totalTrips,
+        warningThreshold,
+        shouldWarn: totalTrips >= 5 && cancellationRate >= warningThreshold,
+      });
+    } catch (error) {
+      console.error("Error getting driver cancellation metrics:", error);
+      return res.status(500).json({ message: "Failed to get cancellation metrics" });
+    }
+  });
+
   app.post("/api/driver/toggle-online", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -1806,6 +1831,27 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error requesting ride:", error);
       return res.status(500).json({ message: "Failed to request ride" });
+    }
+  });
+
+  app.get("/api/rider/cancellation-metrics", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const allTrips = await storage.getRiderTripHistory(userId);
+      const totalTrips = allTrips.length;
+      const cancelledTrips = allTrips.filter((t: any) => t.status === "cancelled" && t.cancelledBy === "rider").length;
+      const cancellationRate = totalTrips > 0 ? (cancelledTrips / totalTrips) * 100 : 0;
+      const warningThreshold = 15;
+      return res.json({
+        cancellationRate: Math.round(cancellationRate * 10) / 10,
+        recentCancellations: cancelledTrips,
+        totalTrips,
+        warningThreshold,
+        shouldWarn: totalTrips >= 5 && cancellationRate >= warningThreshold,
+      });
+    } catch (error) {
+      console.error("Error getting rider cancellation metrics:", error);
+      return res.status(500).json({ message: "Failed to get cancellation metrics" });
     }
   });
 

@@ -43,6 +43,8 @@ const DriverProfilePage = lazy(() => import("@/pages/driver/profile"));
 const DriverSettingsPage = lazy(() => import("@/pages/driver/settings"));
 const DriverWelcomePage = lazy(() => import("@/pages/driver/welcome"));
 const DriverRegisterPage = lazy(() => import("@/pages/driver/register"));
+const DriverWelcomeBackPage = lazy(() => import("@/pages/driver/welcome-back"));
+const RiderWelcomeBackPage = lazy(() => import("@/pages/rider/welcome-back"));
 
 const ADMIN_ROLES = ["super_admin", "admin", "finance_admin", "support_agent", "trip_coordinator", "director"];
 
@@ -201,13 +203,21 @@ function DriverRouter() {
     return <DriverAccessDenied />;
   }
 
+  const welcomeShown = typeof window !== "undefined" && sessionStorage.getItem("ziba-driver-welcome-shown") === "true";
+
   return (
     <Switch>
       <Route path="/driver">
-        <LazyComponent><DriverDashboard /></LazyComponent>
+        {welcomeShown 
+          ? <LazyComponent><DriverDashboard /></LazyComponent>
+          : <LazyComponent><DriverWelcomeBackPage /></LazyComponent>
+        }
       </Route>
       <Route path="/driver/dashboard">
         <LazyComponent><DriverDashboard /></LazyComponent>
+      </Route>
+      <Route path="/driver/welcome-back">
+        <LazyComponent><DriverWelcomeBackPage /></LazyComponent>
       </Route>
       <Route path="/driver/trips">
         <LazyComponent><DriverTripsPage /></LazyComponent>
@@ -323,7 +333,10 @@ function AuthenticatedRoutes() {
     return <AccessDeniedPage />;
   }
 
-  // Default: rider goes to rider home
+  const riderWelcomeShown = typeof window !== "undefined" && sessionStorage.getItem("ziba-rider-welcome-shown") === "true";
+  if (!riderWelcomeShown) {
+    return <Redirect to="/rider/welcome-back" />;
+  }
   return <Redirect to="/rider/home" />;
 }
 
@@ -399,6 +412,12 @@ function RiderRouter() {
       
       <Route path="/role-select">
         {user ? <RoleSelectionPage /> : <Redirect to="/welcome" />}
+      </Route>
+      
+      <Route path="/rider/welcome-back">
+        <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["rider"]}>
+          <LazyComponent><RiderWelcomeBackPage /></LazyComponent>
+        </ProtectedRoute>
       </Route>
       
       <Route path="/rider">
