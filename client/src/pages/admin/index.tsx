@@ -1476,6 +1476,24 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
   const reportedChargebacks = allChargebacks.filter(c => c.status === "reported");
   const manualReviewReconciliations = allReconciliations.filter(r => r.status === "manual_review");
 
+  // Pairing blocks query (Super Admin only)
+  const { data: pairingBlocks = [], isLoading: pairingBlocksLoading, refetch: refetchPairingBlocks } = useQuery<{
+    id: string;
+    riderId: string;
+    driverId: string;
+    reason: string;
+    tripId?: string;
+    ratingScore?: number;
+    isActive: boolean;
+    removedByAdminId?: string;
+    removalReason?: string;
+    removedAt?: string;
+    createdAt: string;
+  }[]>({
+    queryKey: ["/api/admin/pairing-blocks"],
+    enabled: !!user && isSuperAdmin,
+  });
+
   const fetchChargebackAudit = async (chargebackId: string) => {
     try {
       const res = await fetch(`/api/chargebacks/${chargebackId}/audit`, { credentials: "include" });
@@ -1505,6 +1523,49 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
         return;
       }
       toast({ title: "Error", description: error.message || "Failed to update chargeback", variant: "destructive" });
+    },
+  });
+
+  // Remove pairing block mutation (Super Admin only)
+  const removePairingBlockMutation = useMutation({
+    mutationFn: async ({ riderId, driverId, reason }: { riderId: string; driverId: string; reason: string }) => {
+      const response = await apiRequest("POST", "/api/admin/pairing-blocks/remove", { riderId, driverId, reason });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/pairing-blocks"] });
+      toast({ title: "Block removed", description: "The pairing block has been removed" });
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({ title: "Session expired", description: "Please log in again", variant: "destructive" });
+        setTimeout(() => { window.location.href = "/api/login"; }, 500);
+        return;
+      }
+      toast({ title: "Error", description: error.message || "Failed to remove pairing block", variant: "destructive" });
+    },
+  });
+
+  // Adjust user rating mutation (Super Admin only)
+  const adjustRatingMutation = useMutation({
+    mutationFn: async ({ targetUserId, newRating, reason, adminNote, resetRatingCount }: { targetUserId: string; newRating: number; reason: string; adminNote?: string; resetRatingCount?: boolean }) => {
+      const response = await apiRequest("POST", "/api/admin/trust/adjust-rating", { targetUserId, newRating, reason, adminNote, resetRatingCount });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/trust/profiles"] });
+      toast({ 
+        title: "Rating adjusted", 
+        description: `Rating changed from ${data.oldRating} to ${data.newRating}` 
+      });
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({ title: "Session expired", description: "Please log in again", variant: "destructive" });
+        setTimeout(() => { window.location.href = "/api/login"; }, 500);
+        return;
+      }
+      toast({ title: "Error", description: error.message || "Failed to adjust rating", variant: "destructive" });
     },
   });
 
@@ -2012,6 +2073,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <TabsTrigger value="training" className="admin-nav-trigger rounded-md" data-testid="tab-training">
                 <TestTube className="h-4 w-4 mr-2" />
                 Training
+              </TabsTrigger>
+            )}
+            {isSuperAdmin && (
+              <TabsTrigger value="pairing-blocks" className="admin-nav-trigger rounded-md" data-testid="tab-pairing-blocks">
+                <UserX className="h-4 w-4 mr-2" />
+                Pairing Blocks
               </TabsTrigger>
             )}
           </TabsList>
@@ -6085,6 +6152,127 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
           {isSuperAdmin && (
             <TabsContent value="training">
               <TesterManagementSection />
+            </TabsContent>
+          )}
+
+          {/* Pairing Blocks Tab - Super Admin Only */}
+          {isSuperAdmin && (
+            <TabsContent value="pairing-blocks">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <UserX className="h-5 w-5" />
+                    Pairing Blocks
+                  </CardTitle>
+                  <CardDescription>
+                    Manage rider-driver pairing blocks. Blocks are automatically created when a rider rates a driver with less than 3 stars.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {pairingBlocksLoading ? (
+                    <div className="py-8 text-center text-muted-foreground">
+                      Loading pairing blocks...
+                    </div>
+                  ) : pairingBlocks.length === 0 ? (
+                    <EmptyState
+                      icon={CheckCircle}
+                      title="No pairing blocks"
+                      description="No pairing blocks have been created yet"
+                    />
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Rider ID</TableHead>
+                            <TableHead>Driver ID</TableHead>
+                            <TableHead>Reason</TableHead>
+                            <TableHead>Rating</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Created</TableHead>
+                            <TableHead>Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {pairingBlocks.map((block) => (
+                            <TableRow key={block.id} data-testid={`pairing-block-row-${block.id}`}>
+                              <TableCell className="font-mono text-xs">{block.riderId.slice(0, 8)}...</TableCell>
+                              <TableCell className="font-mono text-xs">{block.driverId.slice(0, 8)}...</TableCell>
+                              <TableCell>
+                                <Badge variant={block.reason === "low_rating" ? "destructive" : "secondary"}>
+                                  {block.reason.replace(/_/g, " ")}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {block.ratingScore ? (
+                                  <div className="flex items-center gap-1">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                      <Star
+                                        key={star}
+                                        className={`h-3 w-3 ${
+                                          star <= block.ratingScore!
+                                            ? "fill-yellow-400 text-yellow-400"
+                                            : "text-muted-foreground"
+                                        }`}
+                                      />
+                                    ))}
+                                  </div>
+                                ) : "-"}
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant={block.isActive ? "destructive" : "secondary"}>
+                                  {block.isActive ? "Active" : "Removed"}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                {new Date(block.createdAt).toLocaleDateString()}
+                              </TableCell>
+                              <TableCell>
+                                {block.isActive && (
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button variant="outline" size="sm" data-testid={`remove-block-${block.id}`}>
+                                        <XCircle className="h-4 w-4 mr-1" />
+                                        Remove
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Remove Pairing Block</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          This will allow this rider and driver to be matched again. Are you sure you want to remove this block?
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction
+                                          onClick={() => removePairingBlockMutation.mutate({
+                                            riderId: block.riderId,
+                                            driverId: block.driverId,
+                                            reason: "Admin override - block removed manually"
+                                          })}
+                                          data-testid={`confirm-remove-block-${block.id}`}
+                                        >
+                                          Remove Block
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                )}
+                                {!block.isActive && (
+                                  <span className="text-xs text-muted-foreground">
+                                    Removed by admin
+                                  </span>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </TabsContent>
           )}
         </Tabs>
