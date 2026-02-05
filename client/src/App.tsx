@@ -265,7 +265,7 @@ function AdminRouter() {
   return (
     <Switch>
       <Route path="/admin">
-        <LazyComponent><AdminDashboard /></LazyComponent>
+        <LazyComponent><AdminDashboard userRole={role as "super_admin" | "admin" | "director" | "finance" | "trip_coordinator"} /></LazyComponent>
       </Route>
       <Route path="/admin/approvals">
         <LazyComponent><ApprovalsPage /></LazyComponent>
