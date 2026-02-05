@@ -57,6 +57,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Core Features
 - **Authentication & Authorization**: Integrates Replit Auth and implements Role-Based Access Control (RBAC).
+- **Multi-Role User System**: One user can have multiple DIFFERENT roles (rider, driver, director, admin) while preventing duplicate roles. Login authenticates the user (not the role), and users with multiple roles see all their roles. Admin dashboard shows role counts and badges per user. Super Admin can assign/remove roles via dedicated endpoints.
 - **User & Trip Management**: Manages the full lifecycle of users and trips, including identity verification.
 - **Financial Operations**: Handles fare calculation, commission, driver payouts, a simulated payment system with virtual wallets, and detailed audit logging.
 - **Notifications**: Provides in-app notifications for real-time updates and safety checks.
