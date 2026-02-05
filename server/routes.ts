@@ -10749,6 +10749,152 @@ export async function registerRoutes(
   });
 
   // =============================================
+  // SUPER ADMIN RATING CONTROL ENDPOINTS
+  // =============================================
+
+  // Super Admin: Adjust user rating
+  app.post("/api/admin/trust/adjust-rating", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const adminEmail = req.user.claims.email;
+      const adminUserId = req.user.claims.sub;
+      const { targetUserId, newRating, reason, adminNote, resetRatingCount } = req.body;
+
+      if (!targetUserId || newRating === undefined || !reason) {
+        return res.status(400).json({ message: "Target user ID, new rating, and reason are required" });
+      }
+
+      const ratingValue = parseFloat(newRating);
+      if (isNaN(ratingValue) || ratingValue < 0 || ratingValue > 5) {
+        return res.status(400).json({ message: "Rating must be between 0 and 5" });
+      }
+
+      // Get current user trust profile
+      const profile = await storage.getUserTrustProfile(targetUserId);
+      if (!profile) {
+        return res.status(404).json({ message: "User trust profile not found" });
+      }
+
+      const oldRating = parseFloat(profile.averageRating || "5.00");
+      const oldRatingCount = profile.totalRatingsReceived;
+
+      // Update the user's rating
+      await storage.updateUserTrustProfile(targetUserId, {
+        averageRating: ratingValue.toFixed(2),
+        totalRatingsReceived: resetRatingCount ? 0 : profile.totalRatingsReceived,
+      });
+
+      // Create audit log entry
+      await storage.createAdminRatingAudit({
+        adminEmail,
+        adminUserId,
+        targetUserId,
+        oldRating: String(oldRating.toFixed(2)),
+        newRating: String(ratingValue.toFixed(2)),
+        oldRatingCount,
+        newRatingCount: resetRatingCount ? 0 : oldRatingCount,
+        reason,
+        adminNote: adminNote || null,
+      });
+
+      return res.json({ 
+        success: true, 
+        message: "Rating adjusted successfully",
+        oldRating: oldRating.toFixed(2),
+        newRating: ratingValue.toFixed(2),
+      });
+    } catch (error) {
+      console.error("Error adjusting user rating:", error);
+      return res.status(500).json({ message: "Failed to adjust rating" });
+    }
+  });
+
+  // Super Admin: Get rating audit history for a user
+  app.get("/api/admin/trust/rating-audit/:userId", isAuthenticated, requireRole(["super_admin"]), async (req, res) => {
+    try {
+      const audits = await storage.getAdminRatingAuditForUser(req.params.userId);
+      return res.json(audits);
+    } catch (error) {
+      console.error("Error getting rating audit history:", error);
+      return res.status(500).json({ message: "Failed to get rating audit history" });
+    }
+  });
+
+  // Super Admin: Get all rating audits
+  app.get("/api/admin/trust/rating-audits", isAuthenticated, requireRole(["super_admin"]), async (req, res) => {
+    try {
+      const audits = await storage.getAllAdminRatingAudits();
+      return res.json(audits);
+    } catch (error) {
+      console.error("Error getting all rating audits:", error);
+      return res.status(500).json({ message: "Failed to get rating audits" });
+    }
+  });
+
+  // =============================================
+  // PAIRING BLOCK MANAGEMENT ENDPOINTS
+  // =============================================
+
+  // Admin: Get all pairing blocks
+  app.get("/api/admin/pairing-blocks", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const blocks = await storage.getAllPairingBlocks();
+      return res.json(blocks);
+    } catch (error) {
+      console.error("Error getting pairing blocks:", error);
+      return res.status(500).json({ message: "Failed to get pairing blocks" });
+    }
+  });
+
+  // Admin: Get pairing blocks for a specific user
+  app.get("/api/admin/pairing-blocks/user/:userId", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const blocks = await storage.getPairingBlocksByUser(req.params.userId);
+      return res.json(blocks);
+    } catch (error) {
+      console.error("Error getting user pairing blocks:", error);
+      return res.status(500).json({ message: "Failed to get user pairing blocks" });
+    }
+  });
+
+  // Super Admin: Remove pairing block (override)
+  app.post("/api/admin/pairing-blocks/remove", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const { riderId, driverId, reason } = req.body;
+
+      if (!riderId || !driverId || !reason) {
+        return res.status(400).json({ message: "Rider ID, driver ID, and reason are required" });
+      }
+
+      const removedBlock = await storage.removePairingBlock(riderId, driverId, adminId, reason);
+      
+      if (!removedBlock) {
+        return res.status(404).json({ message: "No active pairing block found between these users" });
+      }
+
+      return res.json({ 
+        success: true, 
+        message: "Pairing block removed successfully",
+        block: removedBlock,
+      });
+    } catch (error) {
+      console.error("Error removing pairing block:", error);
+      return res.status(500).json({ message: "Failed to remove pairing block" });
+    }
+  });
+
+  // Driver matching: Check if driver is blocked for rider
+  app.get("/api/matching/blocked-drivers/:riderId", isAuthenticated, async (req, res) => {
+    try {
+      const blockedDrivers = await storage.getBlockedDriversForRider(req.params.riderId);
+      return res.json({ blockedDrivers });
+    } catch (error) {
+      console.error("Error getting blocked drivers:", error);
+      return res.status(500).json({ message: "Failed to get blocked drivers" });
+    }
+  });
+
+  // =============================================
   // PHASE 4: SAFETY & INCIDENT INTELLIGENCE ENDPOINTS
   // =============================================
 
