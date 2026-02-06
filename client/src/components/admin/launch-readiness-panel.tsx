@@ -995,16 +995,21 @@ export function LaunchReadinessPanel() {
                               />
                             </TableCell>
                             <TableCell>
-                              <Button
-                                size="sm"
-                                variant={hasChanges ? "default" : "outline"}
-                                onClick={() => handleSaveState(state.stateCode, state)}
-                                disabled={!hasChanges || stateConfigMutation.isPending}
-                                data-testid={`button-save-state-${state.stateCode}`}
-                              >
-                                <Save className="h-4 w-4 mr-1" />
-                                Save
-                              </Button>
+                              {hasChanges ? (
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleSaveState(state.stateCode, state)}
+                                  disabled={stateConfigMutation.isPending}
+                                  data-testid={`button-save-state-${state.stateCode}`}
+                                >
+                                  {stateConfigMutation.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
+                                  Save
+                                </Button>
+                              ) : (
+                                <span className="text-xs text-muted-foreground" data-testid={`text-no-changes-${state.stateCode}`}>
+                                  Edit to save
+                                </span>
+                              )}
                             </TableCell>
                           </TableRow>
                         );
