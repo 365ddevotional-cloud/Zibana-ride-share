@@ -1,0 +1,33 @@
+PHASE 1 — DRIVER HUB STRUCTURE
+Create a Driver Hub with exactly five bottom tabs only: Home, Trips, Earnings, Wallet, Help. No hamburger menu. No hidden tabs.
+
+PHASE 2 — HOME TAB
+Display driver photo, name, Trust Score (0–100), driver tier, persistent Online/Offline toggle, today’s summary (trips, earnings, tips, online time), a large primary Go Online / Go Offline button, welcome-back experience for returning drivers, and a system messages preview limited to three items.
+
+PHASE 3 — TRIPS TAB
+Show a list of trips with date, time, pickup and drop-off, earnings and tip shown separately, and trip status.
+Trip detail view must include route map, distance, duration, full fare breakdown (base, distance, time, tip, platform fee), driver notes, rider trust indicator, and a report trip button.
+
+PHASE 4 — EARNINGS TAB
+Show earnings for Today, This Week, and Last 30 Days. Display trips count, average tip, acceptance rate, cancellation rate, and supportive non-punitive insight messages.
+
+PHASE 5 — WALLET TAB
+Show available balance, pending balance, withdraw button, transaction history (trips, tips, withdrawals, adjustments). Platform fee must be visible per trip. Tips must never be touched by the platform.
+
+PHASE 6 — HELP TAB
+Create a Help Center with categories: Getting Paid, Trips & Ratings, Safety, App Usage, Incentives.
+Include a Safety Center with trip recording status, SOS button, report history with status, and ability to submit reports with audio attachment.
+
+PHASE 7 — AUTH & RETURN LOGIC
+Implement token-based auto login. Driver stays logged in when app is closed. Login is required only if the driver logs out or deletes the app. Persist authToken, refreshToken, lastLoginAt, and logoutAt.
+
+PHASE 8 — BEHAVIOR & CAUTION SYSTEM
+When a driver goes online, analyze acceptance and cancellation trends. Show respectful advisory messages when behavior degrades. No threats. No instant blocking.
+
+PHASE 9 — ADMIN OVERRIDES
+Admin can override trust score, reset cancellation metrics, adjust wallet balances, resolve disputes, and remove pairing blocks. Only one override control per driver.
+
+PHASE 10 — ANALYTICS
+Track new vs returning drivers, daily active drivers, online time versus earnings, tip frequency, and incentive effectiveness.
+
+Build exactly as specified above. No additional features. Confirm when implementation is complete.

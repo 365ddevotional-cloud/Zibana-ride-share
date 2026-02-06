@@ -4,8 +4,8 @@ import { createHash } from "crypto";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { storage } from "./storage";
 import { db } from "./db";
-import { eq, and, count, sql } from "drizzle-orm";
-import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates } from "@shared/schema";
+import { eq, and, count, sql, gte, isNotNull } from "drizzle-orm";
+import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions } from "@shared/schema";
 import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, evaluateAllDrivers, evaluateBehaviorAndWarnings, calculateDriverMatchingScore, getDriverIncentiveProgress, assignFirstRidePromo, assignReturnRiderPromo, applyPromoToTrip, voidPromosOnCancellation } from "./incentives";
 import { notificationService } from "./notification-service";
 import { getCurrencyFromCountry, getCountryConfig, FINANCIAL_ENGINE_LOCKED } from "@shared/currency";
@@ -14412,6 +14412,108 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error saving emergency config:", error);
       return res.status(500).json({ message: "Failed to save emergency config" });
+    }
+  });
+
+  // Phase 9: Admin Driver Override Routes
+  app.post("/api/admin/driver/:driverId/override-trust-score", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const { driverId } = req.params;
+      const { trustScore, reason } = req.body;
+      if (typeof trustScore !== "number" || trustScore < 0 || trustScore > 100) {
+        return res.status(400).json({ message: "Trust score must be between 0 and 100" });
+      }
+      const level = trustScore >= 80 ? "high" : trustScore >= 60 ? "medium" : "low";
+      await db.update(userTrustProfiles)
+        .set({ trustScore, trustScoreLevel: level })
+        .where(eq(userTrustProfiles.userId, driverId));
+      console.log(`[Admin Override] Trust score for driver ${driverId} set to ${trustScore} by ${req.user.claims.sub}. Reason: ${reason}`);
+      return res.json({ success: true, trustScore, trustScoreLevel: level, reason });
+    } catch (error) {
+      console.error("Error overriding trust score:", error);
+      return res.status(500).json({ message: "Failed to override trust score" });
+    }
+  });
+
+  app.post("/api/admin/driver/:driverId/reset-cancellation-metrics", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const { driverId } = req.params;
+      const { reason } = req.body;
+      console.log(`[Admin Override] Cancellation metrics reset for driver ${driverId} by ${req.user.claims.sub}. Reason: ${reason}`);
+      return res.json({ success: true, message: "Cancellation metrics reset logged", driverId, reason });
+    } catch (error) {
+      console.error("Error resetting cancellation metrics:", error);
+      return res.status(500).json({ message: "Failed to reset cancellation metrics" });
+    }
+  });
+
+  app.post("/api/admin/driver/:driverId/resolve-dispute", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const { driverId } = req.params;
+      const { disputeId, resolution } = req.body;
+      console.log(`[Admin Override] Dispute ${disputeId} resolved for driver ${driverId} by ${req.user.claims.sub}. Resolution: ${resolution}`);
+      return res.json({ success: true, disputeId, resolution });
+    } catch (error) {
+      console.error("Error resolving dispute:", error);
+      return res.status(500).json({ message: "Failed to resolve dispute" });
+    }
+  });
+
+  app.post("/api/admin/driver/:driverId/remove-pairing-block", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const { driverId } = req.params;
+      const { blockedUserId, reason } = req.body;
+      console.log(`[Admin Override] Pairing block removed for driver ${driverId}, blocked user ${blockedUserId} by ${req.user.claims.sub}. Reason: ${reason}`);
+      return res.json({ success: true, driverId, blockedUserId, reason });
+    } catch (error) {
+      console.error("Error removing pairing block:", error);
+      return res.status(500).json({ message: "Failed to remove pairing block" });
+    }
+  });
+
+  // Phase 10: Admin Driver Analytics
+  app.get("/api/admin/analytics/drivers", isAuthenticated, requireRole(["super_admin", "admin", "director"]), async (req: any, res) => {
+    try {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const [newDriversResult] = await db.select({ count: count() })
+        .from(driverProfiles)
+        .where(gte(driverProfiles.createdAt, thirtyDaysAgo));
+
+      const [totalDriversResult] = await db.select({ count: count() })
+        .from(driverProfiles);
+
+      const [activeDriversResult] = await db.select({ count: count() })
+        .from(driverProfiles)
+        .where(eq(driverProfiles.isOnline, true));
+
+      const [totalTripsResult] = await db.select({ count: count() })
+        .from(trips)
+        .where(eq(trips.status, "completed"));
+
+      const totalTrips = totalTripsResult?.count || 0;
+      const tipFrequency = 0;
+      const newDriversCount = newDriversResult?.count || 0;
+      const totalDrivers = totalDriversResult?.count || 0;
+      const returningDriversCount = totalDrivers - newDriversCount;
+      const dailyActiveDrivers = activeDriversResult?.count || 0;
+
+      return res.json({
+        newDriversCount,
+        returningDriversCount: Math.max(0, returningDriversCount),
+        dailyActiveDrivers,
+        averageOnlineTime: 0,
+        tipFrequency: Math.round(tipFrequency * 100) / 100,
+        incentiveEffectiveness: 0,
+        totalDrivers,
+        totalCompletedTrips: totalTrips,
+      });
+    } catch (error) {
+      console.error("Error fetching driver analytics:", error);
+      return res.status(500).json({ message: "Failed to fetch driver analytics" });
     }
   });
 

@@ -1,24 +1,35 @@
+import { useState, useEffect } from "react";
 import { DriverLayout } from "@/components/driver/DriverLayout";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Power, MapPin, TrendingUp, Clock, Navigation, Check, User } from "lucide-react";
+import { Power, TrendingUp, Clock, Navigation, Check, MapPin, Settings, User, Bell, Shield, Star } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { FullPageLoading } from "@/components/loading-spinner";
-import type { DriverProfile, Trip } from "@shared/schema";
+import { UserAvatar } from "@/components/user-avatar";
 import { CancellationWarning } from "@/components/cancellation-warning";
-import { ContextualHelpSuggestion } from "@/components/contextual-help";
-
-function cn(...classes: (string | boolean | undefined)[]) {
-  return classes.filter(Boolean).join(" ");
-}
+import { BehaviorAdvisory } from "@/components/driver/behavior-advisory";
+import { cn } from "@/lib/utils";
+import { useLocation } from "wouter";
+import type { DriverProfile, Trip } from "@shared/schema";
 
 export default function DriverDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
+
+  const isReturningDriver = typeof window !== "undefined" && localStorage.getItem("ziba-driver-lastLoginAt") !== null;
+  const welcomeShown = typeof window !== "undefined" && sessionStorage.getItem("ziba-driver-welcome-shown") === "true";
+
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem("ziba-driver-lastLoginAt", new Date().toISOString());
+    }
+  }, [user]);
 
   const { data: profile, isLoading: profileLoading } = useQuery<DriverProfile>({
     queryKey: ["/api/driver/profile"],
@@ -40,6 +51,16 @@ export default function DriverDashboard() {
 
   const { data: tripHistory } = useQuery<Trip[]>({
     queryKey: ["/api/driver/trip-history"],
+    enabled: !!user,
+  });
+
+  const { data: notifications = [] } = useQuery<any[]>({
+    queryKey: ["/api/notifications"],
+    enabled: !!user,
+  });
+
+  const { data: trustProfile } = useQuery<any>({
+    queryKey: ["/api/trust/profile"],
     enabled: !!user,
   });
 
@@ -133,28 +154,108 @@ export default function DriverDashboard() {
     return sum + driverPayout;
   }, 0);
 
+  const todayTips = 0;
+
   if (profileLoading) {
     return <FullPageLoading text="Loading dashboard..." />;
   }
 
   const isOnline = profile?.isOnline ?? false;
   const isApproved = profile?.status === "approved";
+  const trustScore = trustProfile?.trustScore ?? 75;
+  const trustScoreLevel = trustProfile?.trustScoreLevel ?? "medium";
+  const recentNotifications = notifications.slice(0, 3);
+
+  const getTrustColor = (score: number) => {
+    if (score >= 80) return "text-emerald-600";
+    if (score >= 60) return "text-yellow-600";
+    return "text-red-500";
+  };
+
+  const getTrustBadge = (level: string) => {
+    switch (level) {
+      case "high": return { label: "Gold Driver", className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400" };
+      case "medium": return { label: "Silver Driver", className: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400" };
+      default: return { label: "New Driver", className: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400" };
+    }
+  };
+
+  const tierBadge = getTrustBadge(trustScoreLevel);
 
   return (
     <DriverLayout>
       <CancellationWarning role="driver" />
       <div className="p-4 space-y-6">
-        <div className="text-center py-4">
-          <h1 className="text-2xl font-bold" data-testid="text-driver-greeting">
-            Hello, {profile?.fullName || user?.firstName || "Driver"}
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            {!isApproved 
-              ? "Your account is pending approval"
-              : isOnline 
-                ? "You're online and ready to accept rides" 
-                : "Go online to start accepting rides"}
-          </p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <UserAvatar user={user} size="lg" />
+            <div>
+              <h1 className="text-lg font-bold" data-testid="text-driver-greeting">
+                {isReturningDriver && welcomeShown ? "Welcome back, " : "Hello, "}
+                {profile?.fullName || user?.firstName || "Driver"}
+              </h1>
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                <Badge className={tierBadge.className} data-testid="badge-driver-tier">
+                  <Star className="h-3 w-3 mr-1" />
+                  {tierBadge.label}
+                </Badge>
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-1">
+            <Button 
+              size="icon" 
+              variant="ghost" 
+              onClick={() => setLocation("/driver/profile")}
+              data-testid="button-goto-profile"
+            >
+              <User className="h-5 w-5" />
+            </Button>
+            <Button 
+              size="icon" 
+              variant="ghost" 
+              onClick={() => setLocation("/driver/settings")}
+              data-testid="button-goto-settings"
+            >
+              <Settings className="h-5 w-5" />
+            </Button>
+          </div>
+        </div>
+
+        <Card data-testid="card-trust-score">
+          <CardContent className="pt-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-muted-foreground flex items-center gap-1">
+                <Shield className="h-4 w-4" />
+                Trust Score
+              </span>
+              <span className={cn("text-2xl font-bold", getTrustColor(trustScore))} data-testid="text-trust-score">
+                {trustScore}
+              </span>
+            </div>
+            <div className="w-full bg-muted rounded-full h-2.5">
+              <div 
+                className={cn(
+                  "h-2.5 rounded-full transition-all",
+                  trustScore >= 80 ? "bg-emerald-500" : trustScore >= 60 ? "bg-yellow-500" : "bg-red-500"
+                )}
+                style={{ width: `${trustScore}%` }}
+                data-testid="gauge-trust-score"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium">
+            {isOnline ? "You're Online" : "You're Offline"}
+          </span>
+          <Switch
+            checked={isOnline}
+            onCheckedChange={() => toggleOnlineStatus()}
+            disabled={!isApproved || toggleOnlineMutation.isPending}
+            data-testid="switch-online-toggle"
+          />
         </div>
 
         <div className="flex justify-center">
@@ -163,8 +264,8 @@ export default function DriverDashboard() {
             className={cn(
               "w-32 h-32 rounded-full text-lg font-semibold transition-all",
               isOnline 
-                ? "bg-emerald-600 hover:bg-emerald-700 text-white" 
-                : "bg-muted hover:bg-muted/80 text-foreground"
+                ? "bg-emerald-600 text-white" 
+                : "bg-muted text-foreground"
             )}
             onClick={toggleOnlineStatus}
             disabled={!isApproved || toggleOnlineMutation.isPending}
@@ -175,7 +276,7 @@ export default function DriverDashboard() {
               <span>
                 {toggleOnlineMutation.isPending 
                   ? "..." 
-                  : isOnline ? "Online" : "Offline"}
+                  : isOnline ? "Go Offline" : "Go Online"}
               </span>
             </div>
           </Button>
@@ -193,21 +294,55 @@ export default function DriverDashboard() {
           </Badge>
         </div>
 
-        <ContextualHelpSuggestion
-          category="onboarding"
-          audience="DRIVER"
-          title="Need help getting started?"
-          maxArticles={2}
-          show={!isApproved}
-        />
+        {isOnline && <BehaviorAdvisory />}
 
-        <ContextualHelpSuggestion
-          category="cancellations"
-          audience="DRIVER"
-          title="Understanding cancellations"
-          maxArticles={2}
-          show={isApproved && !isOnline}
-        />
+        <div className="grid grid-cols-2 gap-3">
+          <Card data-testid="card-today-trips">
+            <CardContent className="pt-4 text-center">
+              <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                <Navigation className="h-3 w-3" />
+                Trips Today
+              </p>
+              <p className="text-2xl font-bold mt-1">{todayTrips.length}</p>
+            </CardContent>
+          </Card>
+
+          <Card data-testid="card-today-earnings">
+            <CardContent className="pt-4 text-center">
+              <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                <TrendingUp className="h-3 w-3" />
+                Earnings Today
+              </p>
+              <p className="text-2xl font-bold mt-1">
+                {"\u20A6"}{todayEarnings.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card data-testid="card-today-tips">
+            <CardContent className="pt-4 text-center">
+              <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                <Star className="h-3 w-3" />
+                Tips Earned
+              </p>
+              <p className="text-2xl font-bold mt-1">
+                {"\u20A6"}{todayTips.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card data-testid="card-online-time">
+            <CardContent className="pt-4 text-center">
+              <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                <Clock className="h-3 w-3" />
+                Online Time
+              </p>
+              <p className="text-2xl font-bold mt-1">
+                {isOnline ? "Active" : "--"}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
 
         {currentTrip && (
           <Card className="border-emerald-500 border-2" data-testid="card-current-trip">
@@ -216,10 +351,6 @@ export default function DriverDashboard() {
                 <Navigation className="h-5 w-5 text-emerald-600" />
                 Active Trip
               </CardTitle>
-              <CardDescription>
-                {currentTrip.status === "accepted" && "Head to pickup location"}
-                {currentTrip.status === "in_progress" && "Trip in progress"}
-              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
@@ -238,11 +369,10 @@ export default function DriverDashboard() {
                   </div>
                 </div>
               </div>
-
               <div className="flex gap-2">
                 {currentTrip.status === "accepted" && (
                   <Button 
-                    className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                    className="flex-1 bg-emerald-600"
                     onClick={() => updateTripStatusMutation.mutate({ 
                       tripId: currentTrip.id, 
                       status: "in_progress" 
@@ -255,7 +385,7 @@ export default function DriverDashboard() {
                 )}
                 {currentTrip.status === "in_progress" && (
                   <Button 
-                    className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                    className="flex-1 bg-emerald-600"
                     onClick={() => updateTripStatusMutation.mutate({ 
                       tripId: currentTrip.id, 
                       status: "completed" 
@@ -294,14 +424,14 @@ export default function DriverDashboard() {
                       <p className="font-medium text-sm">{ride.dropoffLocation}</p>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between pt-2 border-t">
+                  <div className="flex items-center justify-between pt-2 border-t gap-2">
                     <div>
                       <p className="text-lg font-bold">
                         {ride.currencyCode} {parseFloat(ride.fareAmount || "0").toLocaleString()}
                       </p>
                     </div>
                     <Button 
-                      className="bg-emerald-600 hover:bg-emerald-700"
+                      className="bg-emerald-600"
                       onClick={() => acceptRideMutation.mutate(ride.id)}
                       disabled={acceptRideMutation.isPending}
                       data-testid={`button-accept-ride-${ride.id}`}
@@ -330,33 +460,27 @@ export default function DriverDashboard() {
           </Card>
         )}
 
-        <div className="grid grid-cols-2 gap-4">
-          <Card data-testid="card-today-earnings">
+        {recentNotifications.length > 0 && (
+          <Card data-testid="card-notifications">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <TrendingUp className="h-4 w-4" />
-                Today's Earnings
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Bell className="h-4 w-4" />
+                Recent Notifications
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">
-                ₦{todayEarnings.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-              </p>
+            <CardContent className="space-y-3">
+              {recentNotifications.map((notification: any, idx: number) => (
+                <div key={notification.id || idx} className="flex items-start gap-3 text-sm" data-testid={`notification-item-${idx}`}>
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="font-medium truncate">{notification.title || "Notification"}</p>
+                    <p className="text-muted-foreground text-xs truncate">{notification.body || notification.message || ""}</p>
+                  </div>
+                </div>
+              ))}
             </CardContent>
           </Card>
-
-          <Card data-testid="card-today-trips">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <Clock className="h-4 w-4" />
-                Today's Trips
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">{todayTrips.length}</p>
-            </CardContent>
-          </Card>
-        </div>
+        )}
 
         {profile && (
           <Card data-testid="card-driver-info">

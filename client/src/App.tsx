@@ -41,6 +41,8 @@ const DriverTripsPage = lazy(() => import("@/pages/driver/trips"));
 const DriverEarningsPage = lazy(() => import("@/pages/driver/earnings"));
 const DriverProfilePage = lazy(() => import("@/pages/driver/profile"));
 const DriverSettingsPage = lazy(() => import("@/pages/driver/settings"));
+const DriverWalletPage = lazy(() => import("@/pages/driver/wallet"));
+const DriverHelpPage = lazy(() => import("@/pages/driver/help"));
 const DriverWelcomePage = lazy(() => import("@/pages/driver/welcome"));
 const DriverRegisterPage = lazy(() => import("@/pages/driver/register"));
 const DriverWelcomeBackPage = lazy(() => import("@/pages/driver/welcome-back"));
@@ -240,8 +242,11 @@ function DriverRouter() {
       <Route path="/driver/register">
         <LazyComponent><DriverRegisterPage /></LazyComponent>
       </Route>
+      <Route path="/driver/wallet">
+        <LazyComponent><DriverWalletPage /></LazyComponent>
+      </Route>
       <Route path="/driver/help">
-        <LazyComponent><HelpCenterPage audience="DRIVER" /></LazyComponent>
+        <LazyComponent><DriverHelpPage /></LazyComponent>
       </Route>
       <Route>
         <Redirect to="/driver/dashboard" />

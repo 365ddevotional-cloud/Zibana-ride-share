@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { DriverLayout } from "@/components/driver/DriverLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -5,14 +6,20 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Car, Clock, MapPin, Navigation, Check } from "lucide-react";
+import { Car, Clock, MapPin, Navigation, Check, FileWarning } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { TripDetailModal } from "@/components/trip-detail-modal";
+import { IncidentReportModal } from "@/components/ride/incident-report-modal";
 import type { Trip } from "@shared/schema";
 
 export default function DriverTrips() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [incidentOpen, setIncidentOpen] = useState(false);
+  const [incidentTrip, setIncidentTrip] = useState<Trip | null>(null);
 
   const { data: tripHistory, isLoading } = useQuery<Trip[]>({
     queryKey: ["/api/driver/trip-history"],
@@ -80,14 +87,14 @@ export default function DriverTrips() {
   const completedTrips = tripHistory?.filter(t => t.status === "completed") || [];
   const cancelledTrips = tripHistory?.filter(t => t.status === "cancelled") || [];
 
-  const formatDate = (date: Date | string | null) => {
-    if (!date) return "N/A";
-    return new Date(date).toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+  const handleTripClick = (trip: Trip) => {
+    setSelectedTrip(trip);
+    setDetailOpen(true);
+  };
+
+  const handleReportTrip = (trip: Trip) => {
+    setIncidentTrip(trip);
+    setIncidentOpen(true);
   };
 
   return (
@@ -98,7 +105,7 @@ export default function DriverTrips() {
         {currentTrip && (
           <Card className="border-emerald-500 border-2" data-testid="card-current-trip">
             <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Navigation className="h-5 w-5 text-emerald-600" />
                   Current Trip
@@ -128,7 +135,7 @@ export default function DriverTrips() {
               <div className="flex gap-2">
                 {currentTrip.status === "accepted" && (
                   <Button 
-                    className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                    className="flex-1 bg-emerald-600"
                     onClick={() => updateTripStatusMutation.mutate({ 
                       tripId: currentTrip.id, 
                       status: "in_progress" 
@@ -141,7 +148,7 @@ export default function DriverTrips() {
                 )}
                 {currentTrip.status === "in_progress" && (
                   <Button 
-                    className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                    className="flex-1 bg-emerald-600"
                     onClick={() => updateTripStatusMutation.mutate({ 
                       tripId: currentTrip.id, 
                       status: "completed" 
@@ -176,13 +183,13 @@ export default function DriverTrips() {
                     <div className="w-2 h-2 rounded-full bg-primary mt-2" />
                     <p className="text-sm flex-1">{ride.dropoffLocation}</p>
                   </div>
-                  <div className="flex items-center justify-between pt-2">
+                  <div className="flex items-center justify-between pt-2 gap-2">
                     <span className="font-bold">
                       {ride.currencyCode} {parseFloat(ride.fareAmount || "0").toLocaleString()}
                     </span>
                     <Button 
                       size="sm"
-                      className="bg-emerald-600 hover:bg-emerald-700"
+                      className="bg-emerald-600"
                       onClick={() => acceptRideMutation.mutate(ride.id)}
                       disabled={acceptRideMutation.isPending}
                       data-testid={`button-accept-${ride.id}`}
@@ -219,7 +226,7 @@ export default function DriverTrips() {
               />
             ) : (
               activeTrips.map((trip) => (
-                <TripCard key={trip.id} trip={trip} />
+                <TripCard key={trip.id} trip={trip} onClick={() => handleTripClick(trip)} />
               ))
             )}
           </TabsContent>
@@ -233,7 +240,13 @@ export default function DriverTrips() {
               />
             ) : (
               completedTrips.slice(0, 20).map((trip) => (
-                <TripCard key={trip.id} trip={trip} showEarnings />
+                <TripCard 
+                  key={trip.id} 
+                  trip={trip} 
+                  showEarnings 
+                  onClick={() => handleTripClick(trip)}
+                  onReport={() => handleReportTrip(trip)}
+                />
               ))
             )}
           </TabsContent>
@@ -247,17 +260,49 @@ export default function DriverTrips() {
               />
             ) : (
               cancelledTrips.slice(0, 20).map((trip) => (
-                <TripCard key={trip.id} trip={trip} />
+                <TripCard 
+                  key={trip.id} 
+                  trip={trip} 
+                  onClick={() => handleTripClick(trip)}
+                  onReport={() => handleReportTrip(trip)}
+                />
               ))
             )}
           </TabsContent>
         </Tabs>
       </div>
+
+      <TripDetailModal 
+        trip={selectedTrip} 
+        open={detailOpen} 
+        onOpenChange={setDetailOpen}
+        userRole="driver"
+      />
+
+      {incidentTrip && (
+        <IncidentReportModal
+          open={incidentOpen}
+          onOpenChange={setIncidentOpen}
+          tripId={incidentTrip.id}
+          role="driver"
+          accusedUserId={incidentTrip.riderId || ""}
+        />
+      )}
     </DriverLayout>
   );
 }
 
-function TripCard({ trip, showEarnings }: { trip: Trip; showEarnings?: boolean }) {
+function TripCard({ 
+  trip, 
+  showEarnings,
+  onClick,
+  onReport,
+}: { 
+  trip: Trip; 
+  showEarnings?: boolean;
+  onClick?: () => void;
+  onReport?: () => void;
+}) {
   const formatDate = (date: Date | string | null) => {
     if (!date) return "N/A";
     return new Date(date).toLocaleDateString(undefined, {
@@ -269,18 +314,25 @@ function TripCard({ trip, showEarnings }: { trip: Trip; showEarnings?: boolean }
   };
 
   const statusColors: Record<string, string> = {
-    requested: "bg-yellow-500",
-    accepted: "bg-blue-500",
-    in_progress: "bg-emerald-600",
-    completed: "bg-green-600",
-    cancelled: "bg-red-500",
+    requested: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+    accepted: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+    in_progress: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
+    completed: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+    cancelled: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
   };
 
+  const driverPayout = trip.driverPayout ? parseFloat(trip.driverPayout) : 0;
+  const commissionAmount = trip.commissionAmount ? parseFloat(trip.commissionAmount) : 0;
+
   return (
-    <Card data-testid={`card-trip-${trip.id}`}>
+    <Card 
+      className="hover-elevate cursor-pointer" 
+      data-testid={`card-trip-${trip.id}`}
+      onClick={onClick}
+    >
       <CardContent className="pt-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <Badge className={statusColors[trip.status] || "bg-gray-500"}>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <Badge className={statusColors[trip.status] || "bg-gray-100 text-gray-800"}>
             {trip.status.replace("_", " ").toUpperCase()}
           </Badge>
           <span className="text-sm text-muted-foreground">
@@ -297,11 +349,28 @@ function TripCard({ trip, showEarnings }: { trip: Trip; showEarnings?: boolean }
             <p className="text-sm flex-1">{trip.dropoffLocation}</p>
           </div>
         </div>
-        {showEarnings && trip.driverPayout && (
-          <div className="pt-2 border-t">
-            <p className="font-bold text-emerald-600">
-              +{trip.currencyCode} {parseFloat(trip.driverPayout).toLocaleString()}
-            </p>
+        {showEarnings && (
+          <div className="pt-2 border-t flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-3">
+              <p className="font-bold text-emerald-600">
+                +{trip.currencyCode} {driverPayout.toLocaleString()}
+              </p>
+              {commissionAmount > 0 && (
+                <Badge variant="secondary" className="text-xs">
+                  Fee: {trip.currencyCode} {commissionAmount.toLocaleString()}
+                </Badge>
+              )}
+            </div>
+            {onReport && (
+              <Button 
+                size="sm" 
+                variant="ghost"
+                onClick={(e) => { e.stopPropagation(); onReport(); }}
+                data-testid={`button-report-trip-${trip.id}`}
+              >
+                <FileWarning className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         )}
       </CardContent>
