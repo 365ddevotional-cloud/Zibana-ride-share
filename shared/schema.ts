@@ -22,6 +22,7 @@ export const adminPermissionScopeEnum = pgEnum("admin_permission_scope", [
   "FRAUD_DETECTION"
 ]);
 export const directorStatusEnum = pgEnum("director_status", ["active", "inactive"]);
+export const rolloutStatusEnum = pgEnum("rollout_status", ["PLANNED", "PREP", "PILOT", "LIMITED_LIVE", "FULL_LIVE", "PAUSED"]);
 export const driverStatusEnum = pgEnum("driver_status", ["pending", "approved", "suspended"]);
 
 // Navigation and GPS setup enums for driver mandatory setup
@@ -1282,6 +1283,16 @@ export const countries = pgTable("countries", {
   systemModeChangedAt: timestamp("system_mode_changed_at"),
   paymentsEnabled: boolean("payments_enabled").notNull().default(false),
   paymentProvider: varchar("payment_provider", { length: 50 }),
+  rolloutStatus: rolloutStatusEnum("rollout_status").notNull().default("PLANNED"),
+  rolloutStatusChangedBy: varchar("rollout_status_changed_by"),
+  rolloutStatusChangedAt: timestamp("rollout_status_changed_at"),
+  pilotMaxDailyTrips: integer("pilot_max_daily_trips").notNull().default(100),
+  pilotMaxConcurrentDrivers: integer("pilot_max_concurrent_drivers").notNull().default(20),
+  pilotSurgeEnabled: boolean("pilot_surge_enabled").notNull().default(false),
+  maxAvgPickupMinutes: integer("max_avg_pickup_minutes").notNull().default(15),
+  minTripCompletionRate: integer("min_trip_completion_rate").notNull().default(80),
+  maxCancellationRate: integer("max_cancellation_rate").notNull().default(20),
+  lastIncidentAt: timestamp("last_incident_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

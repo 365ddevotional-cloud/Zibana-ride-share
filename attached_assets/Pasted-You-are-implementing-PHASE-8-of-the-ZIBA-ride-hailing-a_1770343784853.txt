@@ -1,0 +1,164 @@
+You are implementing PHASE 8 of the ZIBA ride-hailing app: MULTI-COUNTRY ROLLOUT PLAYBOOK.
+
+This phase defines a repeatable, safe, step-by-step process to launch ZIBA
+in any new country using the existing global launch controls, pricing, and kill-switches.
+
+NO COUNTRY MAY LAUNCH WITHOUT PASSING ALL GATES.
+
+=====================================
+1) COUNTRY ROLLOUT STATES (LIFECYCLE)
+=====================================
+
+Define rollout_status per country:
+
+- PLANNED
+- PREP
+- PILOT
+- LIMITED_LIVE
+- FULL_LIVE
+- PAUSED
+
+Rules:
+• Country_enabled can only be true in PILOT or later
+• Rollout_status controls feature exposure and limits
+
+=====================================
+2) PREP STAGE CHECKLIST (REQUIRED)
+=====================================
+
+Before moving a country to PILOT, verify:
+
+• Country config exists (Phase 6B)
+• Currency defined
+• Default pricing set (Phase 7)
+• At least one SubRegion configured
+• Kill-switches verified
+• Admin access confirmed
+
+System must BLOCK rollout if any item is missing.
+
+=====================================
+3) PILOT LAUNCH RULES
+=====================================
+
+PILOT scope:
+• 1–2 SubRegions only
+• Hard caps on:
+  - max daily trips
+  - max concurrent drivers
+• Surge disabled by default
+• Incentives limited to activation only
+
+Rules:
+• Real users only (no test bypass)
+• Pilot metrics must be collected
+
+=====================================
+4) PILOT SUCCESS METRICS (GATES)
+=====================================
+
+Country may move from PILOT → LIMITED_LIVE only if:
+
+• Avg pickup time ≤ configured limit
+• Trip completion rate ≥ threshold
+• Cancellation rates within limits
+• No critical incidents in last 7 days
+
+If metrics fail → auto PAUSE country.
+
+=====================================
+5) LIMITED_LIVE RULES
+=====================================
+
+LIMITED_LIVE scope:
+• More SubRegions allowed
+• Surge allowed (capped)
+• Incentives expanded cautiously
+• Marketing allowed (controlled)
+
+Rules:
+• Daily monitoring required
+• Kill-switches remain armed
+
+=====================================
+6) FULL_LIVE PROMOTION
+=====================================
+
+Country may move to FULL_LIVE only if:
+
+• D7 retention acceptable
+• Driver supply stable
+• Support ticket volume manageable
+• No emergency kill-switch use in last 14 days
+
+FULL_LIVE unlocks:
+• Full incentives
+• Normal surge rules
+• Wider marketing
+
+=====================================
+7) AUTOMATIC PAUSE & ROLLBACK
+=====================================
+
+System must auto-PAUSE a country if:
+
+• Emergency mode triggered
+• Payment failures spike
+• Safety incidents detected
+• Avg wait time exceeds hard cap
+
+Rollback behavior:
+• New trips blocked
+• Existing trips complete safely
+• Admin alerted immediately
+
+=====================================
+8) COUNTRY-SPECIFIC OVERRIDES
+=====================================
+
+Allow per-country overrides for:
+• Incentive caps
+• Commission ranges
+• Vehicle availability
+• Surge limits
+
+Rules:
+• Overrides must be logged
+• Overrides must not break global safety rules
+
+=====================================
+9) ADMIN ROLLOUT DASHBOARD
+=====================================
+
+Admin must see, per country:
+• Rollout status
+• Active SubRegions
+• Live drivers count
+• Avg pickup time
+• Active kill-switches
+• Last incident timestamp
+
+=====================================
+10) ADDING A NEW COUNTRY (NO CODE)
+=====================================
+
+To add a new country:
+• Create country record
+• Define SubRegions
+• Set pricing defaults
+• Verify kill-switches
+• Move to PREP
+
+No redeploy required.
+
+=====================================
+11) PHASE COMPLETION CRITERIA
+=====================================
+
+Phase 8 is complete only when:
+• Countries can be launched sequentially
+• Bad launches auto-pause safely
+• Admin can promote or rollback countries
+• Global expansion requires configuration, not code
+
+This phase enables ZIBA to scale internationally with control and confidence.
