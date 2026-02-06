@@ -21,46 +21,44 @@ export interface TaxDocumentData {
   currency: string;
 }
 
+export interface CountryTaxRules {
+  documentLabel: string;
+  documentType: string;
+  mileageDisclosureEnabled: boolean;
+  withholdingEnabled: boolean;
+  complianceNotes: string | null;
+  driverClassificationLabel: string;
+  reportableIncomeIncludesFees: boolean;
+}
+
+const DEFAULT_RULES: CountryTaxRules = {
+  documentLabel: "Annual Earnings & Tax Summary",
+  documentType: "annual_statement",
+  mileageDisclosureEnabled: true,
+  withholdingEnabled: false,
+  complianceNotes: "This document is provided for tax reporting purposes. Driver is responsible for filing applicable taxes.",
+  driverClassificationLabel: "Independent Contractor",
+  reportableIncomeIncludesFees: false,
+};
+
 function formatCurrency(amount: number, currency: string): string {
   return `${currency} ${amount.toFixed(2)}`;
 }
 
-function classificationLabel(classification: string): string {
-  switch (classification) {
-    case "independent_contractor":
-      return "Independent Contractor";
-    case "self_employed":
-      return "Self-Employed";
-    case "sole_proprietor":
-      return "Sole Proprietor";
-    default:
-      return classification.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-  }
-}
-
-function documentTitle(docType: string, year: number): string {
-  switch (docType) {
-    case "annual_statement":
-      return `Annual Earnings & Tax Summary`;
-    case "1099":
-      return `Form 1099 Equivalent`;
-    case "country_equivalent":
-      return `Annual Tax Statement`;
-    default:
-      return `Annual Earnings & Tax Summary`;
-  }
-}
-
 export function generateTaxPDF(
   data: TaxDocumentData,
-  docType: string = "annual_statement"
+  docType: string = "annual_statement",
+  countryRules?: CountryTaxRules
 ): InstanceType<typeof PDFDocument> {
+  const rules = countryRules || DEFAULT_RULES;
+  const title = rules.documentLabel;
+
   const doc = new PDFDocument({
     size: "LETTER",
     margins: { top: 50, bottom: 50, left: 60, right: 60 },
     bufferPages: true,
     info: {
-      Title: `ZIBA ${documentTitle(docType, data.taxYear)} - ${data.taxYear}`,
+      Title: `ZIBA ${title} - ${data.taxYear}`,
       Author: "ZIBA Technologies",
       Subject: `Tax Year ${data.taxYear} - ${data.legalName}`,
       Creator: "ZIBA Platform",
@@ -83,7 +81,6 @@ export function generateTaxPDF(
   doc.moveTo(leftX, y).lineTo(leftX + pageWidth, y).strokeColor(COLOR_LIGHT_GRAY).lineWidth(1).stroke();
   y += 15;
 
-  const title = documentTitle(docType, data.taxYear);
   doc.fontSize(16).font("Helvetica-Bold").fillColor(COLOR_BLACK).text(title, leftX, y);
   y += 24;
 
@@ -105,7 +102,7 @@ export function generateTaxPDF(
     ["Legal Name", data.legalName],
     ["Driver ID", data.driverId.substring(0, 8).toUpperCase()],
     ["Country", data.country],
-    ["Tax Classification", classificationLabel(data.taxClassification)],
+    ["Classification", rules.driverClassificationLabel],
     ["Tax ID", data.maskedTaxId ? `****${data.maskedTaxId}` : "Not provided"],
   ];
 
@@ -169,20 +166,22 @@ export function generateTaxPDF(
   );
   y += 25;
 
-  doc.moveTo(leftX, y).lineTo(leftX + pageWidth, y).strokeColor(COLOR_LIGHT_GRAY).lineWidth(0.5).stroke();
-  y += 20;
+  if (rules.mileageDisclosureEnabled) {
+    doc.moveTo(leftX, y).lineTo(leftX + pageWidth, y).strokeColor(COLOR_LIGHT_GRAY).lineWidth(0.5).stroke();
+    y += 20;
 
-  doc.fontSize(11).font("Helvetica-Bold").fillColor(COLOR_BLACK).text("MILEAGE DISCLOSURE", leftX, y);
-  y += 18;
+    doc.fontSize(11).font("Helvetica-Bold").fillColor(COLOR_BLACK).text("MILEAGE DISCLOSURE", leftX, y);
+    y += 18;
 
-  doc.rect(leftX - 5, y - 3, pageWidth + 10, 20).fill(COLOR_BG_SECTION);
-  doc.font("Helvetica-Bold").fillColor(COLOR_BLACK).fontSize(9);
-  doc.text("Total miles driven while online (for tax reporting purposes)", leftX, y);
-  doc.text(`${data.totalMilesDriven.toFixed(1)} miles`, leftX + pageWidth - 150, y, {
-    width: 150,
-    align: "right",
-  });
-  y += 30;
+    doc.rect(leftX - 5, y - 3, pageWidth + 10, 20).fill(COLOR_BG_SECTION);
+    doc.font("Helvetica-Bold").fillColor(COLOR_BLACK).fontSize(9);
+    doc.text("Total miles driven while online (for tax reporting purposes)", leftX, y);
+    doc.text(`${data.totalMilesDriven.toFixed(1)} miles`, leftX + pageWidth - 150, y, {
+      width: 150,
+      align: "right",
+    });
+    y += 30;
+  }
 
   doc.moveTo(leftX, y).lineTo(leftX + pageWidth, y).strokeColor(COLOR_LIGHT_GRAY).lineWidth(0.5).stroke();
   y += 20;
@@ -200,12 +199,9 @@ export function generateTaxPDF(
   y += 30;
 
   doc.font("Helvetica").fillColor(COLOR_MID_GRAY).fontSize(8);
-  doc.text(
-    "Taxes are not withheld. Driver is responsible for filing applicable taxes.",
-    leftX,
-    y,
-    { width: pageWidth }
-  );
+  const complianceText = rules.complianceNotes ||
+    "Taxes are not withheld. Driver is responsible for filing applicable taxes.";
+  doc.text(complianceText, leftX, y, { width: pageWidth });
   y += 30;
 
   const footerY = doc.page.height - doc.page.margins.bottom - 60;

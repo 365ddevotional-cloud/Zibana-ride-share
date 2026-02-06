@@ -385,6 +385,7 @@ import {
   driverTaxYearSummaries,
   driverTaxDocuments,
   taxGenerationAuditLog,
+  countryTaxConfigs,
   type DriverTaxProfile,
   type InsertDriverTaxProfile,
   type DriverTaxYearSummary,
@@ -392,6 +393,8 @@ import {
   type DriverTaxDocument,
   type InsertDriverTaxDocument,
   type TaxGenerationAuditLog,
+  type CountryTaxConfig,
+  type InsertCountryTaxConfig,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull } from "drizzle-orm";
@@ -9308,6 +9311,105 @@ export class DatabaseStorage implements IStorage {
         eq(taxGenerationAuditLog.taxYear, taxYear)
       ))
       .orderBy(desc(taxGenerationAuditLog.createdAt));
+  }
+
+  async getAllCountryTaxConfigs(): Promise<CountryTaxConfig[]> {
+    return db.select().from(countryTaxConfigs).orderBy(countryTaxConfigs.countryCode);
+  }
+
+  async getCountryTaxConfig(countryCode: string): Promise<CountryTaxConfig | undefined> {
+    const [config] = await db.select().from(countryTaxConfigs)
+      .where(eq(countryTaxConfigs.countryCode, countryCode.toUpperCase()));
+    return config;
+  }
+
+  async upsertCountryTaxConfig(data: InsertCountryTaxConfig): Promise<CountryTaxConfig> {
+    const existing = await this.getCountryTaxConfig(data.countryCode);
+    if (existing) {
+      const [updated] = await db.update(countryTaxConfigs)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(countryTaxConfigs.id, existing.id))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(countryTaxConfigs)
+      .values(data)
+      .returning();
+    return created;
+  }
+
+  async deleteCountryTaxConfig(countryCode: string): Promise<boolean> {
+    const result = await db.delete(countryTaxConfigs)
+      .where(eq(countryTaxConfigs.countryCode, countryCode.toUpperCase()));
+    return true;
+  }
+
+  async seedDefaultCountryTaxConfigs(): Promise<void> {
+    const defaults: InsertCountryTaxConfig[] = [
+      {
+        countryCode: "US",
+        countryName: "United States",
+        taxDocumentsEnabled: true,
+        documentType: "1099",
+        documentLabel: "IRS Form 1099-NEC Equivalent",
+        currency: "USD",
+        deliveryMethod: "in_app",
+        mileageDisclosureEnabled: true,
+        withholdingEnabled: false,
+        complianceNotes: "ZIBA does not withhold federal or state taxes. Driver is responsible for filing as an independent contractor.",
+        driverClassificationLabel: "Independent Contractor",
+        reportableIncomeIncludesFees: false,
+      },
+      {
+        countryCode: "NG",
+        countryName: "Nigeria",
+        taxDocumentsEnabled: true,
+        documentType: "annual_statement",
+        documentLabel: "Annual Earnings Statement",
+        currency: "NGN",
+        deliveryMethod: "in_app",
+        mileageDisclosureEnabled: true,
+        withholdingEnabled: false,
+        complianceNotes: "Statement is for personal tax filing reference. ZIBA does not act as tax agent unless configured.",
+        driverClassificationLabel: "Independent Contractor",
+        reportableIncomeIncludesFees: false,
+      },
+      {
+        countryCode: "CA",
+        countryName: "Canada",
+        taxDocumentsEnabled: true,
+        documentType: "annual_statement",
+        documentLabel: "Annual Earnings Statement (T4A-style)",
+        currency: "CAD",
+        deliveryMethod: "in_app",
+        mileageDisclosureEnabled: true,
+        withholdingEnabled: false,
+        complianceNotes: "Driver responsible for CRA filing. No automatic deductions.",
+        driverClassificationLabel: "Independent Contractor",
+        reportableIncomeIncludesFees: false,
+      },
+      {
+        countryCode: "GH",
+        countryName: "Ghana",
+        taxDocumentsEnabled: true,
+        documentType: "annual_statement",
+        documentLabel: "Annual Earnings Summary",
+        currency: "GHS",
+        deliveryMethod: "in_app",
+        mileageDisclosureEnabled: true,
+        withholdingEnabled: false,
+        complianceNotes: "ZIBA provides records only. Driver responsible for tax declaration.",
+        driverClassificationLabel: "Independent Contractor",
+        reportableIncomeIncludesFees: false,
+      },
+    ];
+
+    for (const config of defaults) {
+      const existing = await this.getCountryTaxConfig(config.countryCode);
+      if (!existing) {
+        await db.insert(countryTaxConfigs).values(config);
+      }
+    }
   }
 }
 

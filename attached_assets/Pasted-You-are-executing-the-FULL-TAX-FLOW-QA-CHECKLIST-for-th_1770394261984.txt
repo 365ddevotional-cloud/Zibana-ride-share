@@ -1,0 +1,124 @@
+You are executing the FULL TAX FLOW QA CHECKLIST for the ZIBA platform.
+This checklist validates correctness, compliance, safety, and driver trust
+across the entire tax system from data collection to document issuance.
+
+NO FEATURE IS COMPLETE UNTIL ALL CHECKS PASS.
+
+==============================
+A. DATA COLLECTION QA
+==============================
+✓ Driver earnings ledger is immutable
+✓ Trip earnings, tips, and incentives are recorded correctly
+✓ Platform fees are calculated internally per trip but hidden from daily UI
+✓ Mileage is tracked only while driver status = ONLINE
+✓ Mileage excludes offline and personal driving
+✓ GPS anomalies are filtered (speed, jumps, noise)
+✓ Daily mileage rolls up correctly to yearly totals
+
+==============================
+B. VISIBILITY & UI QA
+==============================
+✓ Riders never see platform fees anywhere
+✓ Drivers never see platform fees per trip
+✓ Drivers never see mileage in daily UI
+✓ Drivers see ONLY earnings per trip (fare + tip)
+✓ Platform fee appears ONLY in statements and tax documents
+✓ Mileage appears ONLY in annual tax views
+✓ Daily driver experience is earnings-focused
+
+==============================
+C. MONTHLY STATEMENT QA
+==============================
+✓ Monthly statement shows:
+  - Total driver earnings
+  - Trips completed
+  - Online hours
+✓ Platform fee is aggregated monthly
+✓ Platform fee section is collapsed by default
+✓ No per-trip platform fee shown
+✓ PDF and CSV values match database totals
+
+==============================
+D. YEARLY TAX STATEMENT QA
+==============================
+✓ Tax year correctly selected
+✓ Total gross earnings accurate
+✓ Total tips and incentives included
+✓ Aggregated annual platform fee included
+✓ Total miles driven while online included
+✓ Mileage label clearly states “for tax reporting purposes”
+✓ Reportable income equals gross earnings
+✓ Tax ID is masked correctly
+✓ Currency matches country
+
+==============================
+E. COUNTRY-SPECIFIC COMPLIANCE QA
+==============================
+US:
+✓ 1099 shows gross earnings (no fee deduction)
+✓ Mileage included informationally
+✓ Independent contractor language present
+
+Nigeria / Other Countries:
+✓ Annual earnings statement generated
+✓ No withholding implied
+✓ Neutral compliance language used
+
+Canada:
+✓ Earnings summary correct
+✓ Mileage included
+✓ CAD currency used
+
+==============================
+F. ADMIN WORKFLOW QA
+==============================
+✓ Only authorized admins can access tax controls
+✓ Draft → Finalize → Issue flow enforced
+✓ Missing data blocks generation
+✓ Issued documents are read-only
+✓ Regeneration creates new version
+✓ All admin actions audited
+
+==============================
+G. DOCUMENT QA (PDF / CSV)
+==============================
+✓ PDFs printable and readable
+✓ CSV values numeric and consistent
+✓ No per-trip rows in CSV
+✓ No UI-only fields included
+✓ Document versions tracked
+
+==============================
+H. SECURITY & PRIVACY QA
+==============================
+✓ Tax IDs encrypted at rest
+✓ Files stored securely
+✓ Documents accessible only to owner + admin
+✓ No public links exposed
+✓ Session expiry handled safely
+
+==============================
+I. FAIL-SAFE & EDGE CASE QA
+==============================
+✓ Missing mileage defaults conservatively
+✓ Missing earnings block issuance
+✓ Partial failures do not issue documents
+✓ System recovers gracefully after interruption
+
+==============================
+J. DRIVER TRUST QA
+==============================
+✓ No resentment-triggering UI
+✓ Platform gains not repeatedly surfaced
+✓ Language calm and factual
+✓ Drivers understand earnings without confusion
+
+==============================
+FINAL SIGN-OFF
+==============================
+✓ All checks passed
+✓ Tax flow compliant
+✓ Driver trust preserved
+✓ System ready for production
+
+Confirm completion only when every item above passes.

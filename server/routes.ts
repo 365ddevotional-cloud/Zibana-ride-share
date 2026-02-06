@@ -10,7 +10,7 @@ import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, e
 import { notificationService } from "./notification-service";
 import { getCurrencyFromCountry, getCountryConfig, FINANCIAL_ENGINE_LOCKED } from "@shared/currency";
 import { getPayoutProviderForCountry, generatePayoutReference, validatePaystackWebhook, validateFlutterwaveWebhook, type TransferStatus } from "./payout-provider";
-import { generateTaxPDF, generateTaxCSV, generateBulkTaxCSV, type TaxDocumentData } from "./tax-document-generator";
+import { generateTaxPDF, generateTaxCSV, generateBulkTaxCSV, type TaxDocumentData, type CountryTaxRules } from "./tax-document-generator";
 import { validateRideRequest, assertFinancialEngineLocked } from "./financial-guards";
 import { 
   IDENTITY_ENGINE_LOCKED, 
@@ -13415,6 +13415,15 @@ export async function registerRoutes(
     }
   })();
 
+  (async () => {
+    try {
+      await storage.seedDefaultCountryTaxConfigs();
+      console.log("[TAX COMPLIANCE] Seeded default country tax configurations");
+    } catch (error) {
+      console.error("[TAX COMPLIANCE] Error seeding tax configs:", error);
+    }
+  })();
+
   // Public endpoint - check if service available in area
   app.get("/api/launch/check", async (req, res) => {
     try {
@@ -14797,6 +14806,30 @@ export async function registerRoutes(
     }
   });
 
+  async function getCountryTaxRules(countryCode: string): Promise<CountryTaxRules> {
+    const config = await storage.getCountryTaxConfig(countryCode);
+    if (config) {
+      return {
+        documentLabel: config.documentLabel,
+        documentType: config.documentType,
+        mileageDisclosureEnabled: config.mileageDisclosureEnabled,
+        withholdingEnabled: config.withholdingEnabled,
+        complianceNotes: config.complianceNotes,
+        driverClassificationLabel: config.driverClassificationLabel,
+        reportableIncomeIncludesFees: config.reportableIncomeIncludesFees,
+      };
+    }
+    return {
+      documentLabel: "Annual Earnings & Tax Summary",
+      documentType: "annual_statement",
+      mileageDisclosureEnabled: true,
+      withholdingEnabled: false,
+      complianceNotes: "This document is provided for tax reporting purposes. Driver is responsible for filing applicable taxes.",
+      driverClassificationLabel: "Independent Contractor",
+      reportableIncomeIncludesFees: false,
+    };
+  }
+
   async function buildTaxDocumentData(driverUserId: string, year: number): Promise<TaxDocumentData> {
     const driverProfile = await storage.getDriverProfile(driverUserId);
     const taxProfile = await storage.getDriverTaxProfile(driverUserId);
@@ -14851,6 +14884,7 @@ export async function registerRoutes(
       if (isNaN(year)) return res.status(400).json({ message: "Invalid year" });
 
       const docData = await buildTaxDocumentData(userId, year);
+      const rules = await getCountryTaxRules(docData.country);
 
       if (format === "csv") {
         const csv = generateTaxCSV(docData);
@@ -14859,7 +14893,7 @@ export async function registerRoutes(
         return res.send(csv);
       }
 
-      const pdfDoc = generateTaxPDF(docData, "annual_statement");
+      const pdfDoc = generateTaxPDF(docData, rules.documentType, rules);
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Disposition", `attachment; filename="ziba-annual-tax-${year}.pdf"`);
       pdfDoc.pipe(res);
@@ -15004,7 +15038,11 @@ export async function registerRoutes(
       const summary = await storage.issueTaxYearSummary(driverId, year, adminId);
       await storage.logTaxGenerationEvent(driverId, year, "issued", adminId);
 
-      const docType = "annual_statement";
+      const taxProfile = await storage.getDriverTaxProfile(driverId);
+      const driverCountry = taxProfile?.country || "NG";
+      const countryConfig = await storage.getCountryTaxConfig(driverCountry);
+      const docType = (countryConfig?.documentType === "1099" ? "1099" : 
+                       countryConfig?.documentType === "country_equivalent" ? "country_equivalent" : "annual_statement") as "1099" | "annual_statement" | "country_equivalent";
       const doc = await storage.createTaxDocument({
         driverUserId: driverId,
         taxYear: year,
@@ -15165,6 +15203,7 @@ export async function registerRoutes(
       if (isNaN(year)) return res.status(400).json({ message: "Invalid year" });
 
       const docData = await buildTaxDocumentData(driverId, year);
+      const rules = await getCountryTaxRules(docData.country);
 
       if (format === "csv") {
         const csv = generateTaxCSV(docData);
@@ -15173,7 +15212,7 @@ export async function registerRoutes(
         return res.send(csv);
       }
 
-      const pdfDoc = generateTaxPDF(docData, docType);
+      const pdfDoc = generateTaxPDF(docData, rules.documentType, rules);
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Disposition", `attachment; filename="ziba-tax-${driverId.substring(0, 8)}-${year}.pdf"`);
       pdfDoc.pipe(res);
@@ -15196,6 +15235,51 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error fetching tax audit logs:", error);
       return res.status(500).json({ message: "Failed to fetch audit logs" });
+    }
+  });
+
+  // ============================================================
+  // COUNTRY TAX COMPLIANCE CONFIGURATION (Admin)
+  // ============================================================
+
+  app.get("/api/admin/tax/country-configs", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const configs = await storage.getAllCountryTaxConfigs();
+      return res.json(configs);
+    } catch (error) {
+      console.error("Error fetching country tax configs:", error);
+      return res.status(500).json({ message: "Failed to fetch country tax configurations" });
+    }
+  });
+
+  app.get("/api/admin/tax/country-configs/:countryCode", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const config = await storage.getCountryTaxConfig(req.params.countryCode);
+      if (!config) return res.status(404).json({ message: "No tax configuration found for this country" });
+      return res.json(config);
+    } catch (error) {
+      console.error("Error fetching country tax config:", error);
+      return res.status(500).json({ message: "Failed to fetch country tax configuration" });
+    }
+  });
+
+  app.post("/api/admin/tax/country-configs", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const config = await storage.upsertCountryTaxConfig(req.body);
+      return res.json(config);
+    } catch (error) {
+      console.error("Error saving country tax config:", error);
+      return res.status(500).json({ message: "Failed to save country tax configuration" });
+    }
+  });
+
+  app.delete("/api/admin/tax/country-configs/:countryCode", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      await storage.deleteCountryTaxConfig(req.params.countryCode);
+      return res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting country tax config:", error);
+      return res.status(500).json({ message: "Failed to delete country tax configuration" });
     }
   });
 

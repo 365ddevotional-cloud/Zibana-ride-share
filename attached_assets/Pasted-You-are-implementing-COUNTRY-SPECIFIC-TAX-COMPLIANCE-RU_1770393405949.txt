@@ -1,0 +1,121 @@
+You are implementing COUNTRY-SPECIFIC TAX COMPLIANCE RULES for the ZIBA platform.
+This module governs how tax statements, disclosures, and documents behave per country.
+
+THIS IS A COMPLIANCE LAYER ONLY.
+NO UI MARKETING.
+NO DAILY DRIVER SURFACING.
+
+==============================
+GLOBAL PRINCIPLES (APPLY TO ALL COUNTRIES)
+==============================
+• Drivers are independent contractors unless explicitly configured otherwise
+• ZIBA does not withhold taxes by default
+• Platform provides summaries for filing purposes only
+• All tax documents are read-only once issued
+• Platform fee is shown only in aggregated statements
+• Mileage is disclosed only in tax documents
+
+==============================
+UNITED STATES (US)
+==============================
+Document Type:
+• IRS Form 1099-NEC
+
+Requirements:
+• Report total gross earnings (before platform fees)
+• Include total miles driven while online (informational)
+• Do NOT deduct platform fees from reportable income
+• Show platform fees as aggregated disclosure only
+• Mask Tax ID (SSN/EIN) except last 4 digits
+
+Delivery:
+• In-app download
+• Optional email delivery (admin-controlled)
+
+Compliance Notes:
+• ZIBA does not withhold federal or state taxes
+• Driver responsible for filing
+• Statement language must reference “independent contractor”
+
+==============================
+NIGERIA (NG)
+==============================
+Document Type:
+• Annual Earnings Statement
+
+Requirements:
+• Show total annual earnings
+• Show total miles driven while online (informational)
+• Platform fee shown only as aggregated annual value
+• No tax withholding shown by default
+
+Compliance Notes:
+• Statement is for personal tax filing reference
+• ZIBA does not act as tax agent unless configured
+• Currency must be NGN
+
+==============================
+CANADA (CA)
+==============================
+Document Type:
+• Annual Earnings Statement (T4A-style equivalent if required later)
+
+Requirements:
+• Show total gross earnings
+• Aggregated platform fees disclosed
+• Mileage included for expense calculation support
+• Currency must be CAD
+
+Compliance Notes:
+• Driver responsible for CRA filing
+• No automatic deductions
+
+==============================
+GHANA (GH)
+==============================
+Document Type:
+• Annual Earnings Summary
+
+Requirements:
+• Total earnings
+• Aggregated platform fees
+• Mileage disclosure optional but enabled by default
+
+Compliance Notes:
+• ZIBA provides records only
+• Driver responsible for tax declaration
+
+==============================
+OTHER COUNTRIES (DEFAULT RULE)
+==============================
+If country has no explicit tax form:
+• Generate Annual Earnings & Tax Summary
+• Include earnings, aggregated platform fees, mileage
+• Use local currency
+• Use neutral compliance language
+
+==============================
+ADMIN CONFIGURATION
+==============================
+Admin must be able to:
+• Enable / disable tax documents per country
+• Configure document type per country
+• Configure currency per country
+• Configure delivery method (in-app / email)
+
+==============================
+FAIL-SAFE & LEGAL SAFETY
+==============================
+• If country tax rules are missing → generate generic annual statement
+• Never guess tax withholding
+• Never auto-deduct taxes
+• Never expose sensitive tax data publicly
+
+==============================
+FINAL REQUIREMENT
+==============================
+Tax compliance must be conservative, configurable, auditable,
+and respectful of driver independence across all countries.
+
+Implement exactly as specified.
+Confirm when complete.

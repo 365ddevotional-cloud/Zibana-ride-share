@@ -4073,6 +4073,33 @@ export const insertTaxGenerationAuditLogSchema = createInsertSchema(taxGeneratio
 export type InsertTaxGenerationAuditLog = z.infer<typeof insertTaxGenerationAuditLogSchema>;
 export type TaxGenerationAuditLog = typeof taxGenerationAuditLog.$inferSelect;
 
+// =============================================
+// COUNTRY-SPECIFIC TAX COMPLIANCE CONFIGURATION
+// =============================================
+export const taxDeliveryMethodEnum = pgEnum("tax_delivery_method", ["in_app", "email", "both"]);
+
+export const countryTaxConfigs = pgTable("country_tax_configs", {
+  id: serial("id").primaryKey(),
+  countryCode: varchar("country_code", { length: 3 }).notNull().unique(),
+  countryName: varchar("country_name", { length: 100 }).notNull(),
+  taxDocumentsEnabled: boolean("tax_documents_enabled").notNull().default(true),
+  documentType: varchar("document_type", { length: 100 }).notNull().default("annual_statement"),
+  documentLabel: varchar("document_label", { length: 200 }).notNull().default("Annual Earnings & Tax Summary"),
+  currency: varchar("currency", { length: 3 }).notNull(),
+  deliveryMethod: taxDeliveryMethodEnum("delivery_method").notNull().default("in_app"),
+  mileageDisclosureEnabled: boolean("mileage_disclosure_enabled").notNull().default(true),
+  withholdingEnabled: boolean("withholding_enabled").notNull().default(false),
+  complianceNotes: text("compliance_notes"),
+  driverClassificationLabel: varchar("driver_classification_label", { length: 100 }).notNull().default("Independent Contractor"),
+  reportableIncomeIncludesFees: boolean("reportable_income_includes_fees").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertCountryTaxConfigSchema = createInsertSchema(countryTaxConfigs).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertCountryTaxConfig = z.infer<typeof insertCountryTaxConfigSchema>;
+export type CountryTaxConfig = typeof countryTaxConfigs.$inferSelect;
+
 export type GrowthSafetyStatus = {
   viralityEnabled: boolean;
   shareMomentsEnabled: boolean;
