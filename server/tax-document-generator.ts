@@ -54,7 +54,7 @@ function documentTitle(docType: string, year: number): string {
 export function generateTaxPDF(
   data: TaxDocumentData,
   docType: string = "annual_statement"
-): PDFDocument {
+): InstanceType<typeof PDFDocument> {
   const doc = new PDFDocument({
     size: "LETTER",
     margins: { top: 50, bottom: 50, left: 60, right: 60 },

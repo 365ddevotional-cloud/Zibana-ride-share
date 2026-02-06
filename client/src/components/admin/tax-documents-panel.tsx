@@ -21,6 +21,8 @@ import {
   Eye,
   Clock,
   Search,
+  FileDown,
+  FileSpreadsheet,
 } from "lucide-react";
 
 type TaxDriverEntry = {
@@ -242,15 +244,37 @@ export function TaxDocumentsPanel() {
                         {driver.reportableIncome !== null ? driver.reportableIncome.toFixed(2) : "-"}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setSelectedDriver(driver.driverId)}
-                          data-testid={`button-view-tax-${driver.driverId}`}
-                        >
-                          <Eye className="h-3 w-3 mr-1" />
-                          View
-                        </Button>
+                        <div className="flex items-center gap-1 justify-end">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setSelectedDriver(driver.driverId)}
+                            data-testid={`button-view-tax-${driver.driverId}`}
+                          >
+                            <Eye className="h-3 w-3 mr-1" />
+                            View
+                          </Button>
+                          {(driver.status === "finalized" || driver.status === "issued") && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => window.open(`/api/admin/tax/download/${driver.driverId}/${year}?format=pdf`, "_blank")}
+                                data-testid={`button-pdf-${driver.driverId}`}
+                              >
+                                <FileDown className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => window.open(`/api/admin/tax/download/${driver.driverId}/${year}?format=csv`, "_blank")}
+                                data-testid={`button-csv-${driver.driverId}`}
+                              >
+                                <FileSpreadsheet className="h-3 w-3" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -352,6 +376,27 @@ export function TaxDocumentsPanel() {
                     <p className="text-sm">Tax ID: {driverDetail.taxProfile.taxId || "Not provided"}</p>
                     <p className="text-sm">Classification: {driverDetail.taxProfile.taxClassification}</p>
                     <p className="text-sm">Country: {driverDetail.taxProfile.country}</p>
+                  </div>
+                )}
+
+                {(driverDetail.status === "finalized" || driverDetail.status === "issued") && (
+                  <div className="flex items-center gap-2 pt-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => window.open(`/api/admin/tax/download/${selectedDriver}/${year}?format=pdf`, "_blank")}
+                      data-testid="button-download-pdf"
+                    >
+                      <FileDown className="h-4 w-4 mr-2" />
+                      Download PDF
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => window.open(`/api/admin/tax/download/${selectedDriver}/${year}?format=csv`, "_blank")}
+                      data-testid="button-download-csv"
+                    >
+                      <FileSpreadsheet className="h-4 w-4 mr-2" />
+                      Download CSV
+                    </Button>
                   </div>
                 )}
 

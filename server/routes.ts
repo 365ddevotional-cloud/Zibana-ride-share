@@ -10,6 +10,7 @@ import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, e
 import { notificationService } from "./notification-service";
 import { getCurrencyFromCountry, getCountryConfig, FINANCIAL_ENGINE_LOCKED } from "@shared/currency";
 import { getPayoutProviderForCountry, generatePayoutReference, validatePaystackWebhook, validateFlutterwaveWebhook, type TransferStatus } from "./payout-provider";
+import { generateTaxPDF, generateTaxCSV, generateBulkTaxCSV, type TaxDocumentData } from "./tax-document-generator";
 import { validateRideRequest, assertFinancialEngineLocked } from "./financial-guards";
 import { 
   IDENTITY_ENGINE_LOCKED, 
@@ -14796,66 +14797,73 @@ export async function registerRoutes(
     }
   });
 
+  async function buildTaxDocumentData(driverUserId: string, year: number): Promise<TaxDocumentData> {
+    const driverProfile = await storage.getDriverProfile(driverUserId);
+    const taxProfile = await storage.getDriverTaxProfile(driverUserId);
+    const storedSummary = await storage.getDriverTaxYearSummary(driverUserId, year);
+    const docs = await storage.getDriverTaxDocuments(driverUserId, year);
+    const latestDoc = docs.find(d => d.isLatest);
+
+    let earnings;
+    if (storedSummary && (storedSummary.status === "finalized" || storedSummary.status === "issued")) {
+      earnings = {
+        totalGrossEarnings: parseFloat(storedSummary.totalGrossEarnings),
+        totalTips: parseFloat(storedSummary.totalTips),
+        totalIncentives: parseFloat(storedSummary.totalIncentives),
+        totalPlatformFees: parseFloat(storedSummary.totalPlatformFees),
+        totalMilesDriven: parseFloat(storedSummary.totalMilesDriven),
+        reportableIncome: parseFloat(storedSummary.reportableIncome),
+        currency: storedSummary.currency,
+      };
+    } else {
+      earnings = await computeTaxYearData(driverUserId, year);
+    }
+
+    const totalTripEarnings = earnings.totalGrossEarnings - earnings.totalTips - earnings.totalIncentives;
+    const maskedTaxId = taxProfile?.taxId ? taxProfile.taxId.slice(-4) : null;
+
+    return {
+      driverId: driverUserId,
+      legalName: taxProfile?.legalName || driverProfile?.fullName || "Driver",
+      country: taxProfile?.country || "NG",
+      taxClassification: taxProfile?.taxClassification || "independent_contractor",
+      maskedTaxId,
+      taxYear: year,
+      documentVersion: latestDoc?.version || 1,
+      issueDate: new Date().toISOString().split("T")[0],
+      totalGrossEarnings: earnings.totalGrossEarnings,
+      totalTripEarnings: Math.round(totalTripEarnings * 100) / 100,
+      totalTips: earnings.totalTips,
+      totalIncentives: earnings.totalIncentives,
+      totalPlatformFees: earnings.totalPlatformFees,
+      totalMilesDriven: earnings.totalMilesDriven,
+      reportableIncome: earnings.reportableIncome,
+      currency: earnings.currency,
+    };
+  }
+
   app.get("/api/driver/statements/annual/:year/download", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const year = parseInt(req.params.year);
-      const format = req.query.format || "csv";
+      const format = (req.query.format || "pdf").toLowerCase();
 
       if (isNaN(year)) return res.status(400).json({ message: "Invalid year" });
 
-      const driverProfile = await storage.getDriverProfile(userId);
-      const taxProfile = await storage.getDriverTaxProfile(userId);
-      const storedSummary = await storage.getDriverTaxYearSummary(userId, year);
-
-      let data;
-      if (storedSummary && (storedSummary.status === "finalized" || storedSummary.status === "issued")) {
-        data = {
-          totalGrossEarnings: parseFloat(storedSummary.totalGrossEarnings),
-          totalTips: parseFloat(storedSummary.totalTips),
-          totalIncentives: parseFloat(storedSummary.totalIncentives),
-          totalPlatformFees: parseFloat(storedSummary.totalPlatformFees),
-          totalMilesDriven: parseFloat(storedSummary.totalMilesDriven),
-          reportableIncome: parseFloat(storedSummary.reportableIncome),
-          currency: storedSummary.currency,
-        };
-      } else {
-        data = await computeTaxYearData(userId, year);
-      }
-
-      const driverName = taxProfile?.legalName || driverProfile?.fullName || "Driver";
+      const docData = await buildTaxDocumentData(userId, year);
 
       if (format === "csv") {
-        const csvLines = [
-          `ZIBA Annual Tax Statement`,
-          `Tax Year,${year}`,
-          `Driver,${driverName}`,
-          `Driver ID,${userId.substring(0, 8).toUpperCase()}`,
-          `Tax Classification,${taxProfile?.taxClassification || "independent_contractor"}`,
-          `Country,${taxProfile?.country || "NG"}`,
-          `Currency,${data.currency}`,
-          ``,
-          `Total Gross Earnings,${data.totalGrossEarnings.toFixed(2)}`,
-          `Total Tips,${data.totalTips.toFixed(2)}`,
-          `Total Incentives,${data.totalIncentives.toFixed(2)}`,
-          `Total Service Fees (aggregated),${data.totalPlatformFees.toFixed(2)}`,
-          `Reportable Income,${data.reportableIncome.toFixed(2)}`,
-          ``,
-          `Total miles driven while online (for tax reporting purposes),${data.totalMilesDriven.toFixed(2)}`,
-          ``,
-          `Generated,${new Date().toISOString()}`,
-          `This statement is provided for informational purposes. Consult a tax professional for filing guidance.`,
-        ];
-        res.setHeader("Content-Type", "text/csv");
+        const csv = generateTaxCSV(docData);
+        res.setHeader("Content-Type", "text/csv; charset=utf-8");
         res.setHeader("Content-Disposition", `attachment; filename="ziba-annual-tax-${year}.csv"`);
-        return res.send(csvLines.join("\n"));
+        return res.send(csv);
       }
 
-      return res.json({
-        message: "PDF generation is not yet available. Please download CSV.",
-        format: "csv",
-        downloadUrl: `/api/driver/statements/annual/${year}/download?format=csv`,
-      });
+      const pdfDoc = generateTaxPDF(docData, "annual_statement");
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="ziba-annual-tax-${year}.pdf"`);
+      pdfDoc.pipe(res);
+      pdfDoc.end();
     } catch (error) {
       console.error("Error downloading annual statement:", error);
       return res.status(500).json({ message: "Failed to download annual statement" });
@@ -15001,7 +15009,7 @@ export async function registerRoutes(
         driverUserId: driverId,
         taxYear: year,
         documentType: docType,
-        fileUrl: `/api/driver/statements/annual/${year}/download?format=csv`,
+        fileUrl: `/api/driver/statements/annual/${year}/download?format=pdf`,
         generatedBy: adminId,
       });
 
@@ -15101,26 +15109,78 @@ export async function registerRoutes(
     }
   });
 
-  // Admin: bulk export tax summaries as CSV
+  // Admin: bulk export tax summaries as CSV (spec-compliant format)
   app.get("/api/admin/tax/export/:year", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {
       const year = parseInt(req.params.year);
       if (isNaN(year)) return res.status(400).json({ message: "Invalid year" });
 
       const summaries = await storage.getAllTaxYearSummariesForYear(year);
-      const csvLines = [
-        `Driver ID,Tax Year,Gross Earnings,Tips,Incentives,Platform Fees,Miles Driven,Reportable Income,Currency,Status,Generated At`,
-        ...summaries.map(s =>
-          `${s.driverUserId},${s.taxYear},${parseFloat(s.totalGrossEarnings).toFixed(2)},${parseFloat(s.totalTips).toFixed(2)},${parseFloat(s.totalIncentives).toFixed(2)},${parseFloat(s.totalPlatformFees).toFixed(2)},${parseFloat(s.totalMilesDriven).toFixed(2)},${parseFloat(s.reportableIncome).toFixed(2)},${s.currency},${s.status},${s.generatedAt?.toISOString() || ""}`
-        ),
-      ];
+      const rows: TaxDocumentData[] = [];
 
-      res.setHeader("Content-Type", "text/csv");
+      for (const s of summaries) {
+        const taxProfile = await storage.getDriverTaxProfile(s.driverUserId);
+        const driverProfile = await storage.getDriverProfile(s.driverUserId);
+        const ge = parseFloat(s.totalGrossEarnings);
+        const ti = parseFloat(s.totalTips);
+        const inc = parseFloat(s.totalIncentives);
+        rows.push({
+          driverId: s.driverUserId,
+          legalName: taxProfile?.legalName || driverProfile?.fullName || "Driver",
+          country: taxProfile?.country || "NG",
+          taxClassification: taxProfile?.taxClassification || "independent_contractor",
+          maskedTaxId: taxProfile?.taxId ? taxProfile.taxId.slice(-4) : null,
+          taxYear: s.taxYear,
+          documentVersion: 1,
+          issueDate: new Date().toISOString().split("T")[0],
+          totalGrossEarnings: ge,
+          totalTripEarnings: Math.round((ge - ti - inc) * 100) / 100,
+          totalTips: ti,
+          totalIncentives: inc,
+          totalPlatformFees: parseFloat(s.totalPlatformFees),
+          totalMilesDriven: parseFloat(s.totalMilesDriven),
+          reportableIncome: parseFloat(s.reportableIncome),
+          currency: s.currency,
+        });
+      }
+
+      const csv = generateBulkTaxCSV(rows);
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
       res.setHeader("Content-Disposition", `attachment; filename="ziba-tax-summaries-${year}.csv"`);
-      return res.send(csvLines.join("\n"));
+      return res.send(csv);
     } catch (error) {
       console.error("Error exporting tax summaries:", error);
       return res.status(500).json({ message: "Failed to export tax summaries" });
+    }
+  });
+
+  // Admin: download individual driver tax document as PDF or CSV
+  app.get("/api/admin/tax/download/:driverId/:year", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const driverId = req.params.driverId;
+      const year = parseInt(req.params.year);
+      const format = (req.query.format || "pdf").toLowerCase();
+      const docType = (req.query.type || "annual_statement") as string;
+
+      if (isNaN(year)) return res.status(400).json({ message: "Invalid year" });
+
+      const docData = await buildTaxDocumentData(driverId, year);
+
+      if (format === "csv") {
+        const csv = generateTaxCSV(docData);
+        res.setHeader("Content-Type", "text/csv; charset=utf-8");
+        res.setHeader("Content-Disposition", `attachment; filename="ziba-tax-${driverId.substring(0, 8)}-${year}.csv"`);
+        return res.send(csv);
+      }
+
+      const pdfDoc = generateTaxPDF(docData, docType);
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="ziba-tax-${driverId.substring(0, 8)}-${year}.pdf"`);
+      pdfDoc.pipe(res);
+      pdfDoc.end();
+    } catch (error) {
+      console.error("Error downloading admin tax document:", error);
+      return res.status(500).json({ message: "Failed to download tax document" });
     }
   });
 
