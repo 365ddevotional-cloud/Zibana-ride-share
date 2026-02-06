@@ -1,5 +1,5 @@
 import { sql, relations } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer, boolean, pgEnum, decimal } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer, boolean, pgEnum, decimal, serial } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -3949,6 +3949,19 @@ export type MarketingAttribution = typeof marketingAttributions.$inferSelect;
 export type CampaignWithDetails = MarketingCampaign & {
   details?: CampaignDetail;
 };
+
+export const driverMileageLogs = pgTable("driver_mileage_logs", {
+  id: serial("id").primaryKey(),
+  driverUserId: varchar("driver_user_id").notNull(),
+  taxYear: integer("tax_year").notNull(),
+  totalMilesOnline: decimal("total_miles_online", { precision: 12, scale: 2 }).notNull().default("0.00"),
+  lastUpdatedAt: timestamp("last_updated_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertDriverMileageLogSchema = createInsertSchema(driverMileageLogs).omit({ id: true, createdAt: true, lastUpdatedAt: true });
+export type InsertDriverMileageLog = z.infer<typeof insertDriverMileageLogSchema>;
+export type DriverMileageLog = typeof driverMileageLogs.$inferSelect;
 
 export type GrowthSafetyStatus = {
   viralityEnabled: boolean;
