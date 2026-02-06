@@ -5,9 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -33,6 +35,9 @@ import {
 type KillSwitchStatus = {
   id: string;
   switchName: string;
+  scope: string;
+  scopeCountryCode?: string | null;
+  scopeSubregionCode?: string | null;
   isActive: boolean;
   activatedAt?: string;
   activatedBy?: string;
@@ -43,6 +48,7 @@ type StateConfig = {
   id: string;
   stateCode: string;
   stateName: string;
+  subregionType: string;
   stateEnabled: boolean;
   countryCode: string;
   minOnlineDriversCar: number;
@@ -54,11 +60,29 @@ type StateConfig = {
   autoDisableOnWaitExceed: boolean;
 };
 
+type CountryData = {
+  id: string;
+  isoCode: string;
+  name: string;
+  currency: string;
+  countryEnabled: boolean;
+  defaultSystemMode: string;
+  systemModeReason?: string | null;
+};
+
 type ReadinessData = {
+  country: CountryData | null;
   countryEnabled: boolean;
   systemMode: string;
   systemModeReason: string | null;
-  killSwitches: KillSwitchStatus[];
+  globalSystemMode: string;
+  globalSystemModeReason: string | null;
+  killSwitches: {
+    global: KillSwitchStatus[];
+    country: KillSwitchStatus[];
+    subregion: KillSwitchStatus[];
+    all: KillSwitchStatus[];
+  };
   activeKillSwitchCount: number;
   states: StateConfig[];
 };
@@ -78,16 +102,33 @@ const MODE_META: Record<string, { label: string; description: string; variant: "
   EMERGENCY: { label: "Emergency", description: "Critical safety mode - minimal operations only", variant: "destructive" },
 };
 
+const SUBREGION_LABELS: Record<string, string> = {
+  state: "State",
+  province: "Province",
+  region: "Region",
+};
+
 export function LaunchReadinessPanel() {
   const { toast } = useToast();
+  const [selectedCountry, setSelectedCountry] = useState("NG");
   const [confirmAction, setConfirmAction] = useState<{ type: string; payload: Record<string, unknown> } | null>(null);
   const [actionReason, setActionReason] = useState("");
   const [editingState, setEditingState] = useState<Record<string, { minCar: string; minBike: string; maxWait: string }>>({});
+  const [killSwitchScope, setKillSwitchScope] = useState<"GLOBAL" | "COUNTRY">("GLOBAL");
+
+  const { data: countries } = useQuery<CountryData[]>({
+    queryKey: ["/api/admin/launch/countries"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/launch/countries", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch countries");
+      return res.json();
+    },
+  });
 
   const { data: readiness, isLoading } = useQuery<ReadinessData>({
-    queryKey: ["/api/admin/launch/readiness", "NG"],
+    queryKey: ["/api/admin/launch/readiness", selectedCountry],
     queryFn: async () => {
-      const res = await fetch("/api/admin/launch/readiness?countryCode=NG", { credentials: "include" });
+      const res = await fetch(`/api/admin/launch/readiness?countryCode=${selectedCountry}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch readiness data");
       return res.json();
     },
@@ -101,6 +142,7 @@ export function LaunchReadinessPanel() {
     onSuccess: () => {
       toast({ title: "Country Updated", description: "Country status has been updated." });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/launch/readiness"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/launch/countries"] });
     },
     onError: (error: Error) => {
       toast({ title: "Update Failed", description: error.message, variant: "destructive" });
@@ -113,7 +155,7 @@ export function LaunchReadinessPanel() {
       return res.json();
     },
     onSuccess: () => {
-      toast({ title: "System Mode Changed", description: "System mode has been updated." });
+      toast({ title: "Global System Mode Changed", description: "Global system mode has been updated." });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/launch/readiness"] });
       setConfirmAction(null);
       setActionReason("");
@@ -123,8 +165,25 @@ export function LaunchReadinessPanel() {
     },
   });
 
+  const countryModeMutation = useMutation({
+    mutationFn: async (data: { countryCode: string; mode: string; reason: string }) => {
+      const res = await apiRequest("POST", "/api/admin/launch/country/system-mode", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Country Mode Changed", description: "Country system mode has been updated." });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/launch/readiness"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/launch/countries"] });
+      setConfirmAction(null);
+      setActionReason("");
+    },
+    onError: (error: Error) => {
+      toast({ title: "Mode Change Failed", description: error.message, variant: "destructive" });
+    },
+  });
+
   const killSwitchMutation = useMutation({
-    mutationFn: async (data: { switchName: string; activate: boolean; reason: string }) => {
+    mutationFn: async (data: { switchName: string; activate: boolean; reason: string; scope: string; countryCode?: string }) => {
       const res = await apiRequest("POST", "/api/admin/launch/kill-switch/toggle", data);
       return res.json();
     },
@@ -145,11 +204,11 @@ export function LaunchReadinessPanel() {
       return res.json();
     },
     onSuccess: () => {
-      toast({ title: "State Updated", description: "State launch status has been updated." });
+      toast({ title: "Subregion Updated", description: "Subregion launch status has been updated." });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/launch/readiness"] });
     },
     onError: (error: Error) => {
-      toast({ title: "State Toggle Failed", description: error.message, variant: "destructive" });
+      toast({ title: "Toggle Failed", description: error.message, variant: "destructive" });
     },
   });
 
@@ -160,7 +219,7 @@ export function LaunchReadinessPanel() {
       return res.json();
     },
     onSuccess: (_data, variables) => {
-      toast({ title: "State Config Saved", description: "Threshold settings have been saved." });
+      toast({ title: "Config Saved", description: "Threshold settings have been saved." });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/launch/readiness"] });
       setEditingState((prev) => {
         const next = { ...prev };
@@ -173,31 +232,47 @@ export function LaunchReadinessPanel() {
     },
   });
 
-  function handleModeChange(mode: string) {
+  function handleGlobalModeChange(mode: string) {
     if (mode === "EMERGENCY") {
-      setConfirmAction({ type: "mode", payload: { mode } });
+      setConfirmAction({ type: "globalMode", payload: { mode } });
     } else {
       systemModeMutation.mutate({ mode, reason: "" });
     }
   }
 
-  function handleKillSwitchToggle(switchName: string, currentActive: boolean) {
-    if (!currentActive) {
-      setConfirmAction({ type: "killswitch", payload: { switchName, activate: true } });
+  function handleCountryModeChange(mode: string) {
+    if (mode === "EMERGENCY") {
+      setConfirmAction({ type: "countryMode", payload: { mode, countryCode: selectedCountry } });
     } else {
-      killSwitchMutation.mutate({ switchName, activate: false, reason: "" });
+      countryModeMutation.mutate({ countryCode: selectedCountry, mode, reason: "" });
+    }
+  }
+
+  function handleKillSwitchToggle(switchName: string, currentActive: boolean, scope: string, countryCode?: string) {
+    if (!currentActive) {
+      setConfirmAction({ type: "killswitch", payload: { switchName, activate: true, scope, countryCode } });
+    } else {
+      killSwitchMutation.mutate({ switchName, activate: false, reason: "", scope, countryCode });
     }
   }
 
   function handleConfirm() {
     if (!confirmAction) return;
-    if (confirmAction.type === "mode") {
+    if (confirmAction.type === "globalMode") {
       systemModeMutation.mutate({ mode: confirmAction.payload.mode as string, reason: actionReason });
+    } else if (confirmAction.type === "countryMode") {
+      countryModeMutation.mutate({
+        countryCode: confirmAction.payload.countryCode as string,
+        mode: confirmAction.payload.mode as string,
+        reason: actionReason,
+      });
     } else if (confirmAction.type === "killswitch") {
       killSwitchMutation.mutate({
         switchName: confirmAction.payload.switchName as string,
         activate: confirmAction.payload.activate as boolean,
         reason: actionReason,
+        scope: confirmAction.payload.scope as string,
+        countryCode: confirmAction.payload.countryCode as string | undefined,
       });
     }
   }
@@ -222,7 +297,7 @@ export function LaunchReadinessPanel() {
     const editing = getStateEditing(stateCode, state);
     stateConfigMutation.mutate({
       stateCode,
-      countryCode: "NG",
+      countryCode: selectedCountry,
       minOnlineDriversCar: parseInt(editing.minCar) || 0,
       minOnlineDriversBike: parseInt(editing.minBike) || 0,
       maxPickupWaitMinutes: parseInt(editing.maxWait) || 15,
@@ -245,9 +320,17 @@ export function LaunchReadinessPanel() {
     );
   }
 
-  const activeKillSwitches = readiness.killSwitches?.filter((ks) => ks.isActive).length || 0;
-  const currentMode = readiness.systemMode || "NORMAL";
-  const modeInfo = MODE_META[currentMode] || MODE_META.NORMAL;
+  const globalSwitches = readiness.killSwitches?.global || [];
+  const countrySwitches = readiness.killSwitches?.country || [];
+  const activeGlobal = globalSwitches.filter(s => s.isActive).length;
+  const activeCountry = countrySwitches.filter(s => s.isActive).length;
+  const globalMode = readiness.globalSystemMode || "NORMAL";
+  const countryMode = readiness.systemMode || "NORMAL";
+  const globalModeInfo = MODE_META[globalMode] || MODE_META.NORMAL;
+  const countryModeInfo = MODE_META[countryMode] || MODE_META.NORMAL;
+  const subregionType = readiness.states?.[0]?.subregionType || "state";
+  const subregionLabel = SUBREGION_LABELS[subregionType] || "Subregion";
+  const selectedCountryName = countries?.find(c => c.isoCode === selectedCountry)?.name || selectedCountry;
 
   return (
     <div className="space-y-6" data-testid="launch-readiness-panel">
@@ -255,27 +338,40 @@ export function LaunchReadinessPanel() {
         <CardContent className="py-4">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-3">
-              <Activity className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <div className="text-sm font-medium">System Mode</div>
-                <Badge variant={modeInfo.variant} data-testid="badge-system-mode">
-                  {modeInfo.label}
-                </Badge>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <ShieldAlert className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <div className="text-sm font-medium">Active Kill Switches</div>
-                <Badge variant={activeKillSwitches > 0 ? "destructive" : "secondary"} data-testid="badge-active-kill-switches">
-                  {activeKillSwitches} / {readiness.killSwitches?.length || 6}
-                </Badge>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
               <Globe className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <div className="text-sm font-medium">Country Status</div>
+              <Select value={selectedCountry} onValueChange={setSelectedCountry}>
+                <SelectTrigger className="w-[200px]" data-testid="select-country">
+                  <SelectValue placeholder="Select country" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(countries || []).map((c) => (
+                    <SelectItem key={c.isoCode} value={c.isoCode} data-testid={`option-country-${c.isoCode}`}>
+                      {c.name} ({c.isoCode})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Activity className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Global:</span>
+                <Badge variant={globalModeInfo.variant} data-testid="badge-global-mode">{globalModeInfo.label}</Badge>
+              </div>
+              <div className="flex items-center gap-2">
+                <Shield className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Country:</span>
+                <Badge variant={countryModeInfo.variant} data-testid="badge-country-mode">{countryModeInfo.label}</Badge>
+              </div>
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Active KS:</span>
+                <Badge variant={readiness.activeKillSwitchCount > 0 ? "destructive" : "secondary"} data-testid="badge-active-kill-switches">
+                  {readiness.activeKillSwitchCount}
+                </Badge>
+              </div>
+              <div className="flex items-center gap-2">
+                <Globe className="h-4 w-4 text-muted-foreground" />
                 <Badge variant={readiness.countryEnabled ? "default" : "secondary"} data-testid="badge-country-status">
                   {readiness.countryEnabled ? "Active" : "Disabled"}
                 </Badge>
@@ -285,241 +381,394 @@ export function LaunchReadinessPanel() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Globe className="h-5 w-5" />
-              Country Control
-            </CardTitle>
-            <CardDescription>Enable or disable Nigeria (NG) operations</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <div className="font-medium" data-testid="text-country-name">Nigeria</div>
-                <div className="text-sm text-muted-foreground">Country Code: NG</div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Badge variant={readiness.countryEnabled ? "default" : "secondary"}>
-                  {readiness.countryEnabled ? "Enabled" : "Disabled"}
-                </Badge>
-                <Switch
-                  checked={readiness.countryEnabled || false}
-                  onCheckedChange={(checked) => countryToggleMutation.mutate({ countryCode: "NG", enabled: checked })}
-                  disabled={countryToggleMutation.isPending}
-                  data-testid="switch-country-toggle"
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <Tabs defaultValue="countries" className="space-y-4">
+        <TabsList data-testid="tabs-launch-control">
+          <TabsTrigger value="countries" data-testid="tab-countries">Countries</TabsTrigger>
+          <TabsTrigger value="modes" data-testid="tab-modes">System Modes</TabsTrigger>
+          <TabsTrigger value="killswitches" data-testid="tab-killswitches">Kill Switches</TabsTrigger>
+          <TabsTrigger value="subregions" data-testid="tab-subregions">{subregionLabel}s</TabsTrigger>
+        </TabsList>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5" />
-              System Mode
-            </CardTitle>
-            <CardDescription>Control the operational mode of the platform</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col gap-3">
-              {Object.entries(MODE_META).map(([mode, meta]) => (
-                <div key={mode} className="flex items-center justify-between gap-4">
-                  <div>
-                    <div className="font-medium text-sm">{meta.label}</div>
-                    <div className="text-xs text-muted-foreground">{meta.description}</div>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant={currentMode === mode ? "default" : "outline"}
-                    onClick={() => handleModeChange(mode)}
-                    disabled={currentMode === mode || systemModeMutation.isPending}
-                    data-testid={`button-mode-${mode.toLowerCase()}`}
-                  >
-                    {mode === "NORMAL" && <Shield className="h-4 w-4 mr-1" />}
-                    {mode === "LIMITED" && <ShieldAlert className="h-4 w-4 mr-1" />}
-                    {mode === "EMERGENCY" && <ShieldOff className="h-4 w-4 mr-1" />}
-                    {currentMode === mode ? "Current" : "Activate"}
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Power className="h-5 w-5" />
-            Kill Switches
-          </CardTitle>
-          <CardDescription>Emergency controls to disable specific platform features</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {(readiness.killSwitches || []).map((ks) => {
-              const meta = KILL_SWITCH_META[ks.switchName] || { label: ks.switchName, description: "", icon: Zap };
-              const IconComp = meta.icon;
-              return (
-                <Card key={ks.switchName}>
-                  <CardContent className="pt-4 pb-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-start gap-3">
-                        <div className={`p-2 rounded-md ${ks.isActive ? "bg-destructive/10" : "bg-muted"}`}>
-                          <IconComp className={`h-4 w-4 ${ks.isActive ? "text-destructive" : "text-muted-foreground"}`} />
+        <TabsContent value="countries">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Globe className="h-5 w-5" />
+                Country Launch Control
+              </CardTitle>
+              <CardDescription>Enable or disable operations by country</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Country</TableHead>
+                    <TableHead>Code</TableHead>
+                    <TableHead>Currency</TableHead>
+                    <TableHead>System Mode</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(countries || []).map((c) => (
+                    <TableRow key={c.isoCode} data-testid={`row-country-${c.isoCode}`}>
+                      <TableCell className="font-medium" data-testid={`text-country-name-${c.isoCode}`}>{c.name}</TableCell>
+                      <TableCell>{c.isoCode}</TableCell>
+                      <TableCell>{c.currency}</TableCell>
+                      <TableCell>
+                        <Badge variant={MODE_META[c.defaultSystemMode || "NORMAL"]?.variant || "default"}>
+                          {c.defaultSystemMode || "NORMAL"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            checked={c.countryEnabled || false}
+                            onCheckedChange={(checked) => countryToggleMutation.mutate({ countryCode: c.isoCode, enabled: checked })}
+                            disabled={countryToggleMutation.isPending}
+                            data-testid={`switch-country-${c.isoCode}`}
+                          />
+                          <span className="text-sm text-muted-foreground">{c.countryEnabled ? "Enabled" : "Disabled"}</span>
                         </div>
-                        <div>
-                          <div className="font-medium text-sm" data-testid={`text-killswitch-${ks.switchName}`}>{meta.label}</div>
-                          <div className="text-xs text-muted-foreground">{meta.description}</div>
-                          {ks.isActive && ks.reason && (
-                            <div className="text-xs text-destructive mt-1">Reason: {ks.reason}</div>
-                          )}
-                        </div>
-                      </div>
-                      <Switch
-                        checked={ks.isActive}
-                        onCheckedChange={() => handleKillSwitchToggle(ks.switchName, ks.isActive)}
-                        disabled={killSwitchMutation.isPending}
-                        data-testid={`switch-killswitch-${ks.switchName}`}
-                      />
-                    </div>
-                    <div className="mt-2">
-                      <Badge
-                        variant={ks.isActive ? "destructive" : "secondary"}
-                        data-testid={`badge-killswitch-status-${ks.switchName}`}
-                      >
-                        {ks.isActive ? "ACTIVE" : "Inactive"}
-                      </Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MapPin className="h-5 w-5" />
-            State Launch Control
-          </CardTitle>
-          <CardDescription>Manage which Nigerian states are active and configure thresholds</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>State</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>
-                    <div className="flex items-center gap-1">
-                      <Car className="h-3 w-3" />
-                      Min Car Drivers
-                    </div>
-                  </TableHead>
-                  <TableHead>
-                    <div className="flex items-center gap-1">
-                      <Bike className="h-3 w-3" />
-                      Min Bike Drivers
-                    </div>
-                  </TableHead>
-                  <TableHead>
-                    <div className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      Max Wait (min)
-                    </div>
-                  </TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(readiness.states || []).map((state) => {
-                  const editing = getStateEditing(state.stateCode, state);
-                  const hasChanges = editingState[state.stateCode] !== undefined;
-                  return (
-                    <TableRow key={state.stateCode} data-testid={`row-state-${state.stateCode}`}>
-                      <TableCell>
-                        <div className="font-medium" data-testid={`text-state-name-${state.stateCode}`}>{state.stateName}</div>
-                        <div className="text-xs text-muted-foreground">{state.stateCode}</div>
-                      </TableCell>
-                      <TableCell>
-                        <Switch
-                          checked={state.stateEnabled}
-                          onCheckedChange={(checked) =>
-                            stateToggleMutation.mutate({ stateCode: state.stateCode, countryCode: "NG", enabled: checked })
-                          }
-                          disabled={stateToggleMutation.isPending}
-                          data-testid={`switch-state-${state.stateCode}`}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          value={editing.minCar}
-                          onChange={(e) => setStateField(state.stateCode, "minCar", e.target.value, state)}
-                          className="w-20"
-                          min={0}
-                          data-testid={`input-min-car-${state.stateCode}`}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          value={editing.minBike}
-                          onChange={(e) => setStateField(state.stateCode, "minBike", e.target.value, state)}
-                          className="w-20"
-                          min={0}
-                          data-testid={`input-min-bike-${state.stateCode}`}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          value={editing.maxWait}
-                          onChange={(e) => setStateField(state.stateCode, "maxWait", e.target.value, state)}
-                          className="w-20"
-                          min={1}
-                          data-testid={`input-max-wait-${state.stateCode}`}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          size="sm"
-                          variant={hasChanges ? "default" : "outline"}
-                          onClick={() => handleSaveState(state.stateCode, state)}
-                          disabled={!hasChanges || stateConfigMutation.isPending}
-                          data-testid={`button-save-state-${state.stateCode}`}
-                        >
-                          <Save className="h-4 w-4 mr-1" />
-                          Save
-                        </Button>
                       </TableCell>
                     </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="modes">
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="h-5 w-5" />
+                  Global System Mode
+                </CardTitle>
+                <CardDescription>Controls the entire platform across all countries</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col gap-3">
+                  {Object.entries(MODE_META).map(([mode, meta]) => (
+                    <div key={mode} className="flex items-center justify-between gap-4">
+                      <div>
+                        <div className="font-medium text-sm">{meta.label}</div>
+                        <div className="text-xs text-muted-foreground">{meta.description}</div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant={globalMode === mode ? "default" : "outline"}
+                        onClick={() => handleGlobalModeChange(mode)}
+                        disabled={globalMode === mode || systemModeMutation.isPending}
+                        data-testid={`button-global-mode-${mode.toLowerCase()}`}
+                      >
+                        {mode === "NORMAL" && <Shield className="h-4 w-4 mr-1" />}
+                        {mode === "LIMITED" && <ShieldAlert className="h-4 w-4 mr-1" />}
+                        {mode === "EMERGENCY" && <ShieldOff className="h-4 w-4 mr-1" />}
+                        {globalMode === mode ? "Current" : "Activate"}
+                      </Button>
+                    </div>
+                  ))}
+                  {readiness.globalSystemModeReason && (
+                    <div className="text-xs text-muted-foreground mt-2">
+                      Reason: {readiness.globalSystemModeReason}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Globe className="h-5 w-5" />
+                  {selectedCountryName} Mode
+                </CardTitle>
+                <CardDescription>Country-specific mode for {selectedCountryName} ({selectedCountry})</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col gap-3">
+                  {Object.entries(MODE_META).map(([mode, meta]) => (
+                    <div key={mode} className="flex items-center justify-between gap-4">
+                      <div>
+                        <div className="font-medium text-sm">{meta.label}</div>
+                        <div className="text-xs text-muted-foreground">{meta.description}</div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant={countryMode === mode ? "default" : "outline"}
+                        onClick={() => handleCountryModeChange(mode)}
+                        disabled={countryMode === mode || countryModeMutation.isPending}
+                        data-testid={`button-country-mode-${mode.toLowerCase()}`}
+                      >
+                        {mode === "NORMAL" && <Shield className="h-4 w-4 mr-1" />}
+                        {mode === "LIMITED" && <ShieldAlert className="h-4 w-4 mr-1" />}
+                        {mode === "EMERGENCY" && <ShieldOff className="h-4 w-4 mr-1" />}
+                        {countryMode === mode ? "Current" : "Activate"}
+                      </Button>
+                    </div>
+                  ))}
+                  {readiness.systemModeReason && (
+                    <div className="text-xs text-muted-foreground mt-2">
+                      Reason: {readiness.systemModeReason}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        </CardContent>
-      </Card>
+        </TabsContent>
+
+        <TabsContent value="killswitches">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Power className="h-5 w-5" />
+                Kill Switches
+              </CardTitle>
+              <CardDescription>
+                Emergency controls scoped by level. Global switches affect all countries; Country switches affect only {selectedCountryName}.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-4">
+                <Select value={killSwitchScope} onValueChange={(v) => setKillSwitchScope(v as "GLOBAL" | "COUNTRY")}>
+                  <SelectTrigger className="w-[240px]" data-testid="select-killswitch-scope">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="GLOBAL">Global Scope</SelectItem>
+                    <SelectItem value="COUNTRY">Country: {selectedCountryName}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {killSwitchScope === "GLOBAL" && (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {Object.entries(KILL_SWITCH_META).map(([switchName, meta]) => {
+                    const ks = globalSwitches.find(s => s.switchName === switchName);
+                    const isActive = ks?.isActive || false;
+                    const IconComp = meta.icon;
+                    return (
+                      <Card key={switchName}>
+                        <CardContent className="pt-4 pb-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-start gap-3">
+                              <div className={`p-2 rounded-md ${isActive ? "bg-destructive/10" : "bg-muted"}`}>
+                                <IconComp className={`h-4 w-4 ${isActive ? "text-destructive" : "text-muted-foreground"}`} />
+                              </div>
+                              <div>
+                                <div className="font-medium text-sm" data-testid={`text-killswitch-global-${switchName}`}>{meta.label}</div>
+                                <div className="text-xs text-muted-foreground">{meta.description}</div>
+                                {isActive && ks?.reason && (
+                                  <div className="text-xs text-destructive mt-1">Reason: {ks.reason}</div>
+                                )}
+                              </div>
+                            </div>
+                            <Switch
+                              checked={isActive}
+                              onCheckedChange={() => handleKillSwitchToggle(switchName, isActive, "GLOBAL")}
+                              disabled={killSwitchMutation.isPending}
+                              data-testid={`switch-killswitch-global-${switchName}`}
+                            />
+                          </div>
+                          <div className="mt-2 flex items-center gap-2">
+                            <Badge variant="outline">Global</Badge>
+                            <Badge variant={isActive ? "destructive" : "secondary"}>
+                              {isActive ? "ACTIVE" : "Inactive"}
+                            </Badge>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+
+              {killSwitchScope === "COUNTRY" && (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {Object.entries(KILL_SWITCH_META).map(([switchName, meta]) => {
+                    const ks = countrySwitches.find(s => s.switchName === switchName);
+                    const isActive = ks?.isActive || false;
+                    const globalKs = globalSwitches.find(s => s.switchName === switchName);
+                    const globalActive = globalKs?.isActive || false;
+                    const IconComp = meta.icon;
+                    return (
+                      <Card key={switchName}>
+                        <CardContent className="pt-4 pb-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-start gap-3">
+                              <div className={`p-2 rounded-md ${isActive || globalActive ? "bg-destructive/10" : "bg-muted"}`}>
+                                <IconComp className={`h-4 w-4 ${isActive || globalActive ? "text-destructive" : "text-muted-foreground"}`} />
+                              </div>
+                              <div>
+                                <div className="font-medium text-sm" data-testid={`text-killswitch-country-${switchName}`}>{meta.label}</div>
+                                <div className="text-xs text-muted-foreground">{meta.description}</div>
+                                {globalActive && (
+                                  <div className="text-xs text-destructive mt-1">Overridden by Global kill switch</div>
+                                )}
+                                {isActive && ks?.reason && (
+                                  <div className="text-xs text-destructive mt-1">Reason: {ks.reason}</div>
+                                )}
+                              </div>
+                            </div>
+                            <Switch
+                              checked={isActive}
+                              onCheckedChange={() => handleKillSwitchToggle(switchName, isActive, "COUNTRY", selectedCountry)}
+                              disabled={killSwitchMutation.isPending}
+                              data-testid={`switch-killswitch-country-${switchName}`}
+                            />
+                          </div>
+                          <div className="mt-2 flex items-center gap-2">
+                            <Badge variant="outline">{selectedCountry}</Badge>
+                            <Badge variant={isActive ? "destructive" : "secondary"}>
+                              {isActive ? "ACTIVE" : "Inactive"}
+                            </Badge>
+                            {globalActive && <Badge variant="destructive">Global Override</Badge>}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="subregions">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="h-5 w-5" />
+                {subregionLabel} Launch Control - {selectedCountryName}
+              </CardTitle>
+              <CardDescription>Manage which {subregionLabel.toLowerCase()}s are active and configure thresholds for {selectedCountryName}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {(readiness.states || []).length === 0 ? (
+                <div className="py-8 text-center text-muted-foreground">
+                  No {subregionLabel.toLowerCase()}s configured for {selectedCountryName}
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{subregionLabel}</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>
+                          <div className="flex items-center gap-1">
+                            <Car className="h-3 w-3" />
+                            Min Car Drivers
+                          </div>
+                        </TableHead>
+                        <TableHead>
+                          <div className="flex items-center gap-1">
+                            <Bike className="h-3 w-3" />
+                            Min Bike Drivers
+                          </div>
+                        </TableHead>
+                        <TableHead>
+                          <div className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            Max Wait (min)
+                          </div>
+                        </TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(readiness.states || []).map((state) => {
+                        const editing = getStateEditing(state.stateCode, state);
+                        const hasChanges = editingState[state.stateCode] !== undefined;
+                        return (
+                          <TableRow key={state.stateCode} data-testid={`row-state-${state.stateCode}`}>
+                            <TableCell>
+                              <div className="font-medium" data-testid={`text-state-name-${state.stateCode}`}>{state.stateName}</div>
+                              <div className="text-xs text-muted-foreground">{state.stateCode}</div>
+                            </TableCell>
+                            <TableCell>
+                              <Switch
+                                checked={state.stateEnabled}
+                                onCheckedChange={(checked) =>
+                                  stateToggleMutation.mutate({ stateCode: state.stateCode, countryCode: selectedCountry, enabled: checked })
+                                }
+                                disabled={stateToggleMutation.isPending}
+                                data-testid={`switch-state-${state.stateCode}`}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                value={editing.minCar}
+                                onChange={(e) => setStateField(state.stateCode, "minCar", e.target.value, state)}
+                                className="w-20"
+                                min={0}
+                                data-testid={`input-min-car-${state.stateCode}`}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                value={editing.minBike}
+                                onChange={(e) => setStateField(state.stateCode, "minBike", e.target.value, state)}
+                                className="w-20"
+                                min={0}
+                                data-testid={`input-min-bike-${state.stateCode}`}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                value={editing.maxWait}
+                                onChange={(e) => setStateField(state.stateCode, "maxWait", e.target.value, state)}
+                                className="w-20"
+                                min={1}
+                                data-testid={`input-max-wait-${state.stateCode}`}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                size="sm"
+                                variant={hasChanges ? "default" : "outline"}
+                                onClick={() => handleSaveState(state.stateCode, state)}
+                                disabled={!hasChanges || stateConfigMutation.isPending}
+                                data-testid={`button-save-state-${state.stateCode}`}
+                              >
+                                <Save className="h-4 w-4 mr-1" />
+                                Save
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       <AlertDialog open={confirmAction !== null} onOpenChange={(open) => { if (!open) { setConfirmAction(null); setActionReason(""); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-destructive" />
-              {confirmAction?.type === "mode" ? "Confirm Mode Change" : "Confirm Kill Switch Activation"}
+              {confirmAction?.type === "globalMode" || confirmAction?.type === "countryMode"
+                ? "Confirm Mode Change"
+                : "Confirm Kill Switch Activation"}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {confirmAction?.type === "mode"
-                ? "You are about to switch to EMERGENCY mode. This will severely restrict platform operations. Are you sure?"
-                : `You are about to activate the ${KILL_SWITCH_META[(confirmAction?.payload?.switchName as string) || ""]?.label || confirmAction?.payload?.switchName} kill switch. This will immediately disable this feature.`}
+              {confirmAction?.type === "globalMode"
+                ? "You are about to switch to EMERGENCY mode globally. This will severely restrict platform operations across all countries."
+                : confirmAction?.type === "countryMode"
+                  ? `You are about to switch ${selectedCountryName} to EMERGENCY mode. This will severely restrict operations in this country.`
+                  : `You are about to activate the ${KILL_SWITCH_META[(confirmAction?.payload?.switchName as string) || ""]?.label || confirmAction?.payload?.switchName} kill switch at ${confirmAction?.payload?.scope || "GLOBAL"} scope.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="py-2">
@@ -534,7 +783,7 @@ export function LaunchReadinessPanel() {
             <AlertDialogCancel data-testid="button-cancel-action">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirm}
-              disabled={!actionReason.trim() || systemModeMutation.isPending || killSwitchMutation.isPending}
+              disabled={!actionReason.trim() || systemModeMutation.isPending || killSwitchMutation.isPending || countryModeMutation.isPending}
               className="bg-destructive text-destructive-foreground"
               data-testid="button-confirm-action"
             >
