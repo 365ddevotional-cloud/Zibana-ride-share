@@ -1,12 +1,6 @@
 import { storage } from "./storage";
 import type { StateLaunchConfig } from "@shared/schema";
 
-// =============================================
-// PHASE 6: LAUNCH READINESS & SAFETY KILL-SWITCHES
-// =============================================
-// FAIL-SAFE: Missing config → default to SAFE (disabled)
-// Kill-switches override incentives, pricing, and matching
-
 export const KILL_SWITCH_NAMES = {
   TRIP_REQUESTS: "KILL_TRIP_REQUESTS",
   TRIP_ACCEPTANCE: "KILL_TRIP_ACCEPTANCE",
@@ -18,58 +12,189 @@ export const KILL_SWITCH_NAMES = {
 
 export type KillSwitchName = typeof KILL_SWITCH_NAMES[keyof typeof KILL_SWITCH_NAMES];
 
-const NIGERIA_STATES = [
-  { code: "EN", name: "Enugu" },
-  { code: "LA", name: "Lagos" },
-  { code: "AB", name: "Abia" },
-  { code: "PH", name: "Rivers" },
-  { code: "FC", name: "FCT Abuja" },
-  { code: "KN", name: "Kano" },
-  { code: "OG", name: "Ogun" },
-  { code: "OY", name: "Oyo" },
-  { code: "AN", name: "Anambra" },
-  { code: "IM", name: "Imo" },
-  { code: "DE", name: "Delta" },
-  { code: "ED", name: "Edo" },
-  { code: "KW", name: "Kwara" },
-  { code: "OS", name: "Osun" },
-  { code: "ON", name: "Ondo" },
-  { code: "EK", name: "Ekiti" },
-  { code: "CR", name: "Cross River" },
-  { code: "AK", name: "Akwa Ibom" },
-  { code: "BE", name: "Benue" },
-  { code: "EB", name: "Ebonyi" },
-  { code: "KD", name: "Kaduna" },
-  { code: "PL", name: "Plateau" },
-  { code: "NA", name: "Nasarawa" },
-  { code: "NI", name: "Niger" },
-  { code: "AD", name: "Adamawa" },
-  { code: "BA", name: "Bauchi" },
-  { code: "BO", name: "Borno" },
-  { code: "GO", name: "Gombe" },
-  { code: "JI", name: "Jigawa" },
-  { code: "KT", name: "Katsina" },
-  { code: "KB", name: "Kebbi" },
-  { code: "SO", name: "Sokoto" },
-  { code: "TA", name: "Taraba" },
-  { code: "YO", name: "Yobe" },
-  { code: "ZA", name: "Zamfara" },
-  { code: "BY", name: "Bayelsa" },
+export type SubregionType = "state" | "province" | "region";
+
+interface SubregionDef {
+  code: string;
+  name: string;
+}
+
+interface CountryDef {
+  isoCode: string;
+  name: string;
+  currency: string;
+  timezone: string;
+  subregionType: SubregionType;
+  subregions: SubregionDef[];
+}
+
+const COUNTRY_DEFINITIONS: CountryDef[] = [
+  {
+    isoCode: "NG",
+    name: "Nigeria",
+    currency: "NGN",
+    timezone: "Africa/Lagos",
+    subregionType: "state",
+    subregions: [
+      { code: "EN", name: "Enugu" },
+      { code: "LA", name: "Lagos" },
+      { code: "AB", name: "Abia" },
+      { code: "PH", name: "Rivers" },
+      { code: "FC", name: "FCT Abuja" },
+      { code: "KN", name: "Kano" },
+      { code: "OG", name: "Ogun" },
+      { code: "OY", name: "Oyo" },
+      { code: "AN", name: "Anambra" },
+      { code: "IM", name: "Imo" },
+      { code: "DE", name: "Delta" },
+      { code: "ED", name: "Edo" },
+      { code: "KW", name: "Kwara" },
+      { code: "OS", name: "Osun" },
+      { code: "ON", name: "Ondo" },
+      { code: "EK", name: "Ekiti" },
+      { code: "CR", name: "Cross River" },
+      { code: "AK", name: "Akwa Ibom" },
+      { code: "BE", name: "Benue" },
+      { code: "EB", name: "Ebonyi" },
+      { code: "KD", name: "Kaduna" },
+      { code: "PL", name: "Plateau" },
+      { code: "NA", name: "Nasarawa" },
+      { code: "NI", name: "Niger" },
+      { code: "AD", name: "Adamawa" },
+      { code: "BA", name: "Bauchi" },
+      { code: "BO", name: "Borno" },
+      { code: "GO", name: "Gombe" },
+      { code: "JI", name: "Jigawa" },
+      { code: "KT", name: "Katsina" },
+      { code: "KB", name: "Kebbi" },
+      { code: "SO", name: "Sokoto" },
+      { code: "TA", name: "Taraba" },
+      { code: "YO", name: "Yobe" },
+      { code: "ZA", name: "Zamfara" },
+      { code: "BY", name: "Bayelsa" },
+    ],
+  },
+  {
+    isoCode: "US",
+    name: "United States",
+    currency: "USD",
+    timezone: "America/New_York",
+    subregionType: "state",
+    subregions: [
+      { code: "CA", name: "California" },
+      { code: "NY", name: "New York" },
+      { code: "TX", name: "Texas" },
+      { code: "FL", name: "Florida" },
+      { code: "IL", name: "Illinois" },
+      { code: "GA", name: "Georgia" },
+      { code: "MD", name: "Maryland" },
+      { code: "VA", name: "Virginia" },
+      { code: "NJ", name: "New Jersey" },
+      { code: "PA", name: "Pennsylvania" },
+    ],
+  },
+  {
+    isoCode: "ZA",
+    name: "South Africa",
+    currency: "ZAR",
+    timezone: "Africa/Johannesburg",
+    subregionType: "province",
+    subregions: [
+      { code: "GP", name: "Gauteng" },
+      { code: "WC", name: "Western Cape" },
+      { code: "KZN", name: "KwaZulu-Natal" },
+      { code: "EC", name: "Eastern Cape" },
+      { code: "FS", name: "Free State" },
+      { code: "LP", name: "Limpopo" },
+      { code: "MP", name: "Mpumalanga" },
+      { code: "NW", name: "North West" },
+      { code: "NC", name: "Northern Cape" },
+    ],
+  },
+  {
+    isoCode: "GH",
+    name: "Ghana",
+    currency: "GHS",
+    timezone: "Africa/Accra",
+    subregionType: "region",
+    subregions: [
+      { code: "AA", name: "Greater Accra" },
+      { code: "AH", name: "Ashanti" },
+      { code: "WP", name: "Western" },
+      { code: "CP", name: "Central" },
+      { code: "EP", name: "Eastern" },
+      { code: "VR", name: "Volta" },
+      { code: "NR", name: "Northern" },
+    ],
+  },
+  {
+    isoCode: "CA",
+    name: "Canada",
+    currency: "CAD",
+    timezone: "America/Toronto",
+    subregionType: "province",
+    subregions: [
+      { code: "ON", name: "Ontario" },
+      { code: "QC", name: "Quebec" },
+      { code: "BC", name: "British Columbia" },
+      { code: "AB", name: "Alberta" },
+      { code: "MB", name: "Manitoba" },
+      { code: "SK", name: "Saskatchewan" },
+    ],
+  },
+  {
+    isoCode: "LR",
+    name: "Liberia",
+    currency: "LRD",
+    timezone: "Africa/Monrovia",
+    subregionType: "region",
+    subregions: [
+      { code: "MO", name: "Montserrado" },
+      { code: "MA", name: "Margibi" },
+      { code: "NI", name: "Nimba" },
+      { code: "BO", name: "Bong" },
+      { code: "GB", name: "Grand Bassa" },
+    ],
+  },
 ];
 
-export async function isKillSwitchActive(switchName: string): Promise<boolean> {
+export function getCountryDefinitions(): CountryDef[] {
+  return COUNTRY_DEFINITIONS;
+}
+
+export async function isScopedKillSwitchActive(
+  switchName: string,
+  countryCode?: string,
+  subregionCode?: string
+): Promise<boolean> {
   try {
-    const state = await storage.getKillSwitchState(switchName);
-    return state?.isActive ?? false;
+    const globalState = await storage.getScopedKillSwitchState(switchName, "GLOBAL");
+    if (globalState?.isActive) return true;
+
+    if (countryCode) {
+      const countryState = await storage.getScopedKillSwitchState(switchName, "COUNTRY", countryCode);
+      if (countryState?.isActive) return true;
+    }
+
+    if (countryCode && subregionCode) {
+      const subregionState = await storage.getScopedKillSwitchState(switchName, "SUBREGION", countryCode, subregionCode);
+      if (subregionState?.isActive) return true;
+    }
+
+    return false;
   } catch {
     return false;
   }
 }
 
+export async function isKillSwitchActive(switchName: string): Promise<boolean> {
+  return isScopedKillSwitchActive(switchName);
+}
+
 export async function isCountryEnabled(countryCode: string): Promise<boolean> {
   try {
-    const setting = await storage.getLaunchSetting(`COUNTRY_ENABLED_${countryCode}`);
-    return setting?.settingValue ?? false;
+    const country = await storage.getCountryByCode(countryCode);
+    return country?.countryEnabled ?? false;
   } catch {
     return false;
   }
@@ -93,6 +218,24 @@ export async function getSystemMode(): Promise<"NORMAL" | "LIMITED" | "EMERGENCY
   }
 }
 
+export async function getEffectiveSystemMode(countryCode?: string): Promise<"NORMAL" | "LIMITED" | "EMERGENCY"> {
+  try {
+    const globalMode = await getSystemMode();
+    if (globalMode === "EMERGENCY") return "EMERGENCY";
+
+    if (countryCode) {
+      const country = await storage.getCountryByCode(countryCode);
+      const countryMode = country?.defaultSystemMode as "NORMAL" | "LIMITED" | "EMERGENCY" || "NORMAL";
+      if (countryMode === "EMERGENCY") return "EMERGENCY";
+      if (countryMode === "LIMITED" && globalMode === "NORMAL") return "LIMITED";
+    }
+
+    return globalMode;
+  } catch {
+    return "NORMAL";
+  }
+}
+
 export type TripBlockResult = {
   allowed: boolean;
   reason?: string;
@@ -103,30 +246,25 @@ export async function checkTripRequestAllowed(
   countryCode: string = "NG",
   stateCode?: string
 ): Promise<TripBlockResult> {
-  // 1. Check global kill switch for trip requests
-  if (await isKillSwitchActive(KILL_SWITCH_NAMES.TRIP_REQUESTS)) {
+  if (await isScopedKillSwitchActive(KILL_SWITCH_NAMES.TRIP_REQUESTS, countryCode, stateCode)) {
     return { allowed: false, reason: "Trip requests are temporarily disabled.", code: "KILL_TRIP_REQUESTS" };
   }
 
-  // 2. Check system mode
-  const mode = await getSystemMode();
+  const mode = await getEffectiveSystemMode(countryCode);
   if (mode === "EMERGENCY") {
     return { allowed: false, reason: "System is in emergency mode. No new trips allowed.", code: "EMERGENCY_MODE" };
   }
 
-  // 3. Check country enabled
   if (!(await isCountryEnabled(countryCode))) {
     return { allowed: false, reason: "Service is not yet available in your country.", code: "COUNTRY_DISABLED" };
   }
 
-  // 4. Check state enabled (if state code provided)
   if (stateCode) {
     const stateConfig = await storage.getStateLaunchConfig(stateCode, countryCode);
     if (!stateConfig || !stateConfig.stateEnabled) {
       return { allowed: false, reason: "Service is not yet available in your state.", code: "STATE_DISABLED" };
     }
 
-    // 5. Check driver supply thresholds
     if (
       stateConfig.currentOnlineDriversCar < stateConfig.minOnlineDriversCar &&
       stateConfig.currentOnlineDriversBike < stateConfig.minOnlineDriversBike
@@ -134,7 +272,6 @@ export async function checkTripRequestAllowed(
       return { allowed: false, reason: "Drivers unavailable in your area. Please try again shortly.", code: "INSUFFICIENT_DRIVERS" };
     }
 
-    // 6. Check wait time safety
     const avgWait = parseFloat(String(stateConfig.avgPickupTimeMinutes || 0));
     if (stateConfig.autoDisableOnWaitExceed && avgWait > stateConfig.maxPickupWaitMinutes) {
       return { allowed: false, reason: "Wait times are currently too high. Please try again shortly.", code: "WAIT_TIME_EXCEEDED" };
@@ -144,12 +281,12 @@ export async function checkTripRequestAllowed(
   return { allowed: true };
 }
 
-export async function checkTripAcceptanceAllowed(): Promise<TripBlockResult> {
-  if (await isKillSwitchActive(KILL_SWITCH_NAMES.TRIP_ACCEPTANCE)) {
+export async function checkTripAcceptanceAllowed(countryCode?: string): Promise<TripBlockResult> {
+  if (await isScopedKillSwitchActive(KILL_SWITCH_NAMES.TRIP_ACCEPTANCE, countryCode)) {
     return { allowed: false, reason: "Trip acceptance is temporarily disabled.", code: "KILL_TRIP_ACCEPTANCE" };
   }
 
-  const mode = await getSystemMode();
+  const mode = await getEffectiveSystemMode(countryCode);
   if (mode === "EMERGENCY") {
     return { allowed: false, reason: "System is in emergency mode. No new trips can be accepted.", code: "EMERGENCY_MODE" };
   }
@@ -157,10 +294,10 @@ export async function checkTripAcceptanceAllowed(): Promise<TripBlockResult> {
   return { allowed: true };
 }
 
-export async function checkIncentivesAllowed(): Promise<boolean> {
+export async function checkIncentivesAllowed(countryCode?: string): Promise<boolean> {
   try {
-    if (await isKillSwitchActive(KILL_SWITCH_NAMES.INCENTIVES)) return false;
-    const mode = await getSystemMode();
+    if (await isScopedKillSwitchActive(KILL_SWITCH_NAMES.INCENTIVES, countryCode)) return false;
+    const mode = await getEffectiveSystemMode(countryCode);
     if (mode === "LIMITED" || mode === "EMERGENCY") return false;
     return true;
   } catch {
@@ -168,10 +305,10 @@ export async function checkIncentivesAllowed(): Promise<boolean> {
   }
 }
 
-export async function checkPayoutsAllowed(): Promise<boolean> {
+export async function checkPayoutsAllowed(countryCode?: string): Promise<boolean> {
   try {
-    if (await isKillSwitchActive(KILL_SWITCH_NAMES.WALLET_PAYOUTS)) return false;
-    const mode = await getSystemMode();
+    if (await isScopedKillSwitchActive(KILL_SWITCH_NAMES.WALLET_PAYOUTS, countryCode)) return false;
+    const mode = await getEffectiveSystemMode(countryCode);
     if (mode === "EMERGENCY") return false;
     return true;
   } catch {
@@ -179,73 +316,117 @@ export async function checkPayoutsAllowed(): Promise<boolean> {
   }
 }
 
-export async function checkDriverOnboardingAllowed(): Promise<boolean> {
+export async function checkDriverOnboardingAllowed(countryCode?: string): Promise<boolean> {
   try {
-    return !(await isKillSwitchActive(KILL_SWITCH_NAMES.DRIVER_ONBOARDING));
+    return !(await isScopedKillSwitchActive(KILL_SWITCH_NAMES.DRIVER_ONBOARDING, countryCode));
   } catch {
     return true;
   }
 }
 
-export async function checkRiderOnboardingAllowed(): Promise<boolean> {
+export async function checkRiderOnboardingAllowed(countryCode?: string): Promise<boolean> {
   try {
-    return !(await isKillSwitchActive(KILL_SWITCH_NAMES.RIDER_ONBOARDING));
+    return !(await isScopedKillSwitchActive(KILL_SWITCH_NAMES.RIDER_ONBOARDING, countryCode));
   } catch {
     return true;
   }
 }
 
 export async function getLaunchReadinessStatus(countryCode: string = "NG"): Promise<any> {
-  const [countryEnabled, mode, states, killSwitches] = await Promise.all([
-    isCountryEnabled(countryCode),
+  const [country, globalMode, states, allKillSwitches] = await Promise.all([
+    storage.getCountryByCode(countryCode),
     storage.getCurrentSystemMode(),
     storage.getStateLaunchConfigsByCountry(countryCode),
-    storage.getAllActiveKillSwitches(),
+    storage.getAllKillSwitchStates(),
   ]);
 
-  const allKillSwitches = await storage.getAllKillSwitchStates();
+  const globalSwitches = allKillSwitches.filter(s => s.scope === "GLOBAL");
+  const countrySwitches = allKillSwitches.filter(s => s.scope === "COUNTRY" && s.scopeCountryCode === countryCode);
+  const subregionSwitches = allKillSwitches.filter(s => s.scope === "SUBREGION" && s.scopeCountryCode === countryCode);
+
+  const activeCount = allKillSwitches.filter(s => s.isActive).length;
 
   return {
-    countryEnabled,
-    systemMode: mode?.currentMode ?? "NORMAL",
-    systemModeReason: mode?.reason ?? null,
+    country: country || null,
+    countryEnabled: country?.countryEnabled ?? false,
+    systemMode: country?.defaultSystemMode ?? "NORMAL",
+    systemModeReason: country?.systemModeReason ?? null,
+    globalSystemMode: globalMode?.currentMode ?? "NORMAL",
+    globalSystemModeReason: globalMode?.reason ?? null,
     states,
-    killSwitches: allKillSwitches,
-    activeKillSwitchCount: killSwitches.length,
+    killSwitches: {
+      global: globalSwitches,
+      country: countrySwitches,
+      subregion: subregionSwitches,
+      all: allKillSwitches,
+    },
+    activeKillSwitchCount: activeCount,
   };
 }
 
-export async function seedNigeriaStates(): Promise<void> {
-  for (const state of NIGERIA_STATES) {
-    const existing = await storage.getStateLaunchConfig(state.code, "NG");
+export async function seedAllCountries(): Promise<void> {
+  for (const def of COUNTRY_DEFINITIONS) {
+    const existing = await storage.getCountryByCode(def.isoCode);
     if (!existing) {
-      await storage.createStateLaunchConfig({
-        countryCode: "NG",
-        stateCode: state.code,
-        stateName: state.name,
-        stateEnabled: false,
-        minOnlineDriversCar: 3,
-        minOnlineDriversBike: 2,
-        maxPickupWaitMinutes: 15,
-        autoDisableOnWaitExceed: true,
-      });
+      try {
+        await storage.createCountry({
+          name: def.name,
+          isoCode: def.isoCode,
+          currency: def.currency,
+          timezone: def.timezone,
+          active: true,
+          countryEnabled: false,
+          defaultSystemMode: "NORMAL",
+          paymentsEnabled: false,
+        } as any);
+      } catch (e: any) {
+        if (!e.message?.includes("duplicate")) {
+          console.error(`Failed to seed country ${def.isoCode}:`, e.message);
+        }
+      }
+    } else {
+      if (!existing.countryEnabled && existing.countryEnabled === undefined) {
+        await storage.updateCountry(existing.id, { countryEnabled: false });
+      }
+    }
+  }
+}
+
+export async function seedSubregions(): Promise<void> {
+  for (const def of COUNTRY_DEFINITIONS) {
+    for (const sub of def.subregions) {
+      const existing = await storage.getStateLaunchConfig(sub.code, def.isoCode);
+      if (!existing) {
+        await storage.createStateLaunchConfig({
+          countryCode: def.isoCode,
+          stateCode: sub.code,
+          stateName: sub.name,
+          subregionType: def.subregionType,
+          stateEnabled: false,
+          minOnlineDriversCar: 3,
+          minOnlineDriversBike: 2,
+          maxPickupWaitMinutes: 15,
+          autoDisableOnWaitExceed: true,
+        });
+      }
     }
   }
 }
 
 export async function seedKillSwitches(): Promise<void> {
   for (const switchName of Object.values(KILL_SWITCH_NAMES)) {
-    const existing = await storage.getKillSwitchState(switchName);
+    const existing = await storage.getScopedKillSwitchState(switchName, "GLOBAL");
     if (!existing) {
-      await storage.activateKillSwitch(switchName, "Initial seed - inactive", "system");
-      await storage.deactivateKillSwitch(switchName, "system");
+      await storage.activateScopedKillSwitch(switchName, "GLOBAL", "Initial seed - inactive", "system");
+      await storage.deactivateScopedKillSwitch(switchName, "GLOBAL", "system");
     }
   }
 }
 
 export async function seedCountryLaunch(): Promise<void> {
-  const setting = await storage.getLaunchSetting("COUNTRY_ENABLED_NG");
-  if (!setting) {
-    await storage.setLaunchSetting("COUNTRY_ENABLED_NG", false, "system", "Nigeria country-level launch flag");
-  }
+  await seedAllCountries();
+  await seedSubregions();
+  await seedKillSwitches();
 }
+
+export { seedSubregions as seedNigeriaStates };

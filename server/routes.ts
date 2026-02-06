@@ -12840,7 +12840,10 @@ export async function registerRoutes(
       const { countryCode, enabled } = req.body;
       if (!countryCode) return res.status(400).json({ message: "countryCode is required" });
 
-      await storage.setLaunchSetting(`COUNTRY_ENABLED_${countryCode}`, enabled, adminId, `Country ${countryCode} ${enabled ? "enabled" : "disabled"}`);
+      const country = await storage.getCountryByCode(countryCode);
+      if (!country) return res.status(404).json({ message: "Country not found" });
+
+      await storage.updateCountry(country.id, { countryEnabled: enabled });
 
       await storage.createComplianceAuditLog({
         category: "LAUNCH_MODE_CHANGE",
@@ -12853,6 +12856,44 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error toggling country:", error);
       return res.status(500).json({ message: "Failed to toggle country" });
+    }
+  });
+
+  // Get all countries for launch control
+  app.get("/api/admin/launch/countries", isAuthenticated, requireRole(["super_admin", "admin", "director"]), async (req: any, res) => {
+    try {
+      const countries = await storage.getCountriesForLaunch();
+      return res.json(countries);
+    } catch (error) {
+      console.error("Error getting countries:", error);
+      return res.status(500).json({ message: "Failed to get countries" });
+    }
+  });
+
+  // Set country-specific system mode
+  app.post("/api/admin/launch/country/system-mode", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const { countryCode, mode, reason } = req.body;
+      if (!countryCode || !mode) return res.status(400).json({ message: "countryCode and mode are required" });
+      if (!["NORMAL", "LIMITED", "EMERGENCY"].includes(mode)) {
+        return res.status(400).json({ message: "Valid mode (NORMAL, LIMITED, EMERGENCY) is required" });
+      }
+
+      const result = await storage.setCountrySystemMode(countryCode, mode, reason || "", adminId);
+      if (!result) return res.status(404).json({ message: "Country not found" });
+
+      await storage.createComplianceAuditLog({
+        category: "LAUNCH_MODE_CHANGE",
+        actionBy: adminId,
+        eventType: "COUNTRY_SYSTEM_MODE_CHANGE",
+        eventData: JSON.stringify({ countryCode, mode, reason }),
+      });
+
+      return res.json(result);
+    } catch (error) {
+      console.error("Error setting country system mode:", error);
+      return res.status(500).json({ message: "Failed to set country system mode" });
     }
   });
 
@@ -12905,21 +12946,28 @@ export async function registerRoutes(
   app.post("/api/admin/launch/kill-switch/toggle", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
     try {
       const adminId = req.user.claims.sub;
-      const { switchName, activate, reason } = req.body;
+      const { switchName, activate, reason, scope, countryCode, subregionCode } = req.body;
       if (!switchName) return res.status(400).json({ message: "switchName is required" });
 
+      const switchScope = scope || "GLOBAL";
       let result;
       if (activate) {
-        result = await storage.activateKillSwitch(switchName, reason || "Activated via Launch Control", adminId);
+        result = await storage.activateScopedKillSwitch(
+          switchName, switchScope, reason || "Activated via Launch Control", adminId,
+          countryCode || undefined, subregionCode || undefined
+        );
       } else {
-        result = await storage.deactivateKillSwitch(switchName, adminId);
+        result = await storage.deactivateScopedKillSwitch(
+          switchName, switchScope, adminId,
+          countryCode || undefined, subregionCode || undefined
+        );
       }
 
       await storage.createComplianceAuditLog({
         category: "KILL_SWITCH_TOGGLE",
         actionBy: adminId,
         eventType: activate ? "KILL_SWITCH_ACTIVATED" : "KILL_SWITCH_DEACTIVATED",
-        eventData: JSON.stringify({ switchName, reason }),
+        eventData: JSON.stringify({ switchName, reason, scope: switchScope, countryCode, subregionCode }),
       });
 
       return res.json({ success: true, state: result });
@@ -12929,14 +12977,12 @@ export async function registerRoutes(
     }
   });
 
-  // Seed Nigeria states on startup
+  // Seed all countries, subregions, and kill switches on startup
   (async () => {
     try {
-      const { seedNigeriaStates, seedKillSwitches, seedCountryLaunch } = await import("./launch-control");
+      const { seedCountryLaunch } = await import("./launch-control");
       await seedCountryLaunch();
-      await seedNigeriaStates();
-      await seedKillSwitches();
-      console.log("[LAUNCH CONTROL] Seeded Nigeria states, kill switches, and country launch settings");
+      console.log("[LAUNCH CONTROL] Seeded countries, subregions, and kill switches for all markets");
     } catch (error) {
       console.error("[LAUNCH CONTROL] Error seeding launch data:", error);
     }
