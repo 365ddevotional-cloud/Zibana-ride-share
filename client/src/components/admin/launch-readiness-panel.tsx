@@ -12,6 +12,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
   Globe,
   Shield,
@@ -30,6 +32,9 @@ import {
   Gift,
   UserPlus,
   Save,
+  Plus,
+  X,
+  Loader2,
 } from "lucide-react";
 
 type KillSwitchStatus = {
@@ -115,6 +120,12 @@ export function LaunchReadinessPanel() {
   const [actionReason, setActionReason] = useState("");
   const [editingState, setEditingState] = useState<Record<string, { minCar: string; minBike: string; maxWait: string }>>({});
   const [killSwitchScope, setKillSwitchScope] = useState<"GLOBAL" | "COUNTRY">("GLOBAL");
+  const [showAddCountry, setShowAddCountry] = useState(false);
+  const [newCountry, setNewCountry] = useState({ name: "", isoCode: "", currency: "", timezone: "", subregionType: "state" });
+  const [newSubregions, setNewSubregions] = useState<{ code: string; name: string }[]>([]);
+  const [newSubInput, setNewSubInput] = useState({ code: "", name: "" });
+  const [showAddSubregion, setShowAddSubregion] = useState(false);
+  const [addSubregionInput, setAddSubregionInput] = useState({ stateCode: "", stateName: "", subregionType: "state" });
 
   const { data: countries } = useQuery<CountryData[]>({
     queryKey: ["/api/admin/launch/countries"],
@@ -231,6 +242,69 @@ export function LaunchReadinessPanel() {
       toast({ title: "Config Save Failed", description: error.message, variant: "destructive" });
     },
   });
+
+  const createCountryMutation = useMutation({
+    mutationFn: async (data: { name: string; isoCode: string; currency: string; timezone: string; subregionType: string; subregions: { code: string; name: string }[] }) => {
+      const res = await apiRequest("POST", "/api/admin/launch/country/create", data);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({ title: "Country Created", description: `${newCountry.name} (${newCountry.isoCode.toUpperCase()}) has been added.` });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/launch/countries"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/launch/readiness"] });
+      setShowAddCountry(false);
+      setNewCountry({ name: "", isoCode: "", currency: "", timezone: "", subregionType: "state" });
+      setNewSubregions([]);
+      setNewSubInput({ code: "", name: "" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to Create Country", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const addSubregionMutation = useMutation({
+    mutationFn: async (data: { countryCode: string; stateCode: string; stateName: string; subregionType: string }) => {
+      const res = await apiRequest("POST", "/api/admin/launch/country/add-subregion", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Subregion Added", description: `${addSubregionInput.stateName} has been added to ${selectedCountry}.` });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/launch/readiness"] });
+      setShowAddSubregion(false);
+      setAddSubregionInput({ stateCode: "", stateName: "", subregionType: "state" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to Add Subregion", description: error.message, variant: "destructive" });
+    },
+  });
+
+  function handleCreateCountry() {
+    if (!newCountry.name || !newCountry.isoCode || !newCountry.currency || !newCountry.timezone) return;
+    createCountryMutation.mutate({
+      ...newCountry,
+      subregions: newSubregions,
+    });
+  }
+
+  function handleAddSubregionToList() {
+    if (!newSubInput.code || !newSubInput.name) return;
+    setNewSubregions(prev => [...prev, { code: newSubInput.code, name: newSubInput.name }]);
+    setNewSubInput({ code: "", name: "" });
+  }
+
+  function handleRemoveSubregionFromList(idx: number) {
+    setNewSubregions(prev => prev.filter((_, i) => i !== idx));
+  }
+
+  function handleAddSubregionToCountry() {
+    if (!addSubregionInput.stateCode || !addSubregionInput.stateName) return;
+    addSubregionMutation.mutate({
+      countryCode: selectedCountry,
+      stateCode: addSubregionInput.stateCode,
+      stateName: addSubregionInput.stateName,
+      subregionType: addSubregionInput.subregionType,
+    });
+  }
 
   function handleGlobalModeChange(mode: string) {
     if (mode === "EMERGENCY") {
@@ -392,11 +466,137 @@ export function LaunchReadinessPanel() {
         <TabsContent value="countries">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Globe className="h-5 w-5" />
-                Country Launch Control
-              </CardTitle>
-              <CardDescription>Enable or disable operations by country</CardDescription>
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Globe className="h-5 w-5" />
+                    Country Launch Control
+                  </CardTitle>
+                  <CardDescription>Enable or disable operations by country</CardDescription>
+                </div>
+                <Dialog open={showAddCountry} onOpenChange={setShowAddCountry}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" data-testid="button-add-country">
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Country
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-lg">
+                    <DialogHeader>
+                      <DialogTitle>Add New Country</DialogTitle>
+                      <DialogDescription>Add a new country to the launch control system. You can also define its subregions.</DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-2">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="country-name">Country Name</Label>
+                          <Input
+                            id="country-name"
+                            placeholder="e.g. Kenya"
+                            value={newCountry.name}
+                            onChange={(e) => setNewCountry(p => ({ ...p, name: e.target.value }))}
+                            data-testid="input-new-country-name"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="country-iso">ISO Code (2-3 chars)</Label>
+                          <Input
+                            id="country-iso"
+                            placeholder="e.g. KE"
+                            maxLength={3}
+                            value={newCountry.isoCode}
+                            onChange={(e) => setNewCountry(p => ({ ...p, isoCode: e.target.value.toUpperCase() }))}
+                            data-testid="input-new-country-iso"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="country-currency">Currency Code</Label>
+                          <Input
+                            id="country-currency"
+                            placeholder="e.g. KES"
+                            maxLength={3}
+                            value={newCountry.currency}
+                            onChange={(e) => setNewCountry(p => ({ ...p, currency: e.target.value.toUpperCase() }))}
+                            data-testid="input-new-country-currency"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="country-timezone">Timezone</Label>
+                          <Input
+                            id="country-timezone"
+                            placeholder="e.g. Africa/Nairobi"
+                            value={newCountry.timezone}
+                            onChange={(e) => setNewCountry(p => ({ ...p, timezone: e.target.value }))}
+                            data-testid="input-new-country-timezone"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Subregion Type</Label>
+                        <Select value={newCountry.subregionType} onValueChange={(v) => setNewCountry(p => ({ ...p, subregionType: v }))}>
+                          <SelectTrigger data-testid="select-new-subregion-type">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="state">State</SelectItem>
+                            <SelectItem value="province">Province</SelectItem>
+                            <SelectItem value="region">Region</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Subregions (optional)</Label>
+                        <div className="flex items-end gap-2">
+                          <div className="flex-1">
+                            <Input
+                              placeholder="Code (e.g. NBO)"
+                              value={newSubInput.code}
+                              onChange={(e) => setNewSubInput(p => ({ ...p, code: e.target.value.toUpperCase() }))}
+                              data-testid="input-new-sub-code"
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <Input
+                              placeholder="Name (e.g. Nairobi)"
+                              value={newSubInput.name}
+                              onChange={(e) => setNewSubInput(p => ({ ...p, name: e.target.value }))}
+                              data-testid="input-new-sub-name"
+                            />
+                          </div>
+                          <Button size="sm" variant="outline" onClick={handleAddSubregionToList} data-testid="button-add-sub-to-list">
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        {newSubregions.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {newSubregions.map((sub, idx) => (
+                              <Badge key={idx} variant="secondary" className="gap-1">
+                                {sub.code} - {sub.name}
+                                <button onClick={() => handleRemoveSubregionFromList(idx)} className="ml-1">
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setShowAddCountry(false)} data-testid="button-cancel-add-country">Cancel</Button>
+                      <Button
+                        onClick={handleCreateCountry}
+                        disabled={!newCountry.name || !newCountry.isoCode || !newCountry.currency || !newCountry.timezone || createCountryMutation.isPending}
+                        data-testid="button-submit-add-country"
+                      >
+                        {createCountryMutation.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                        Create Country
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </CardHeader>
             <CardContent>
               <Table>
@@ -641,11 +841,75 @@ export function LaunchReadinessPanel() {
         <TabsContent value="subregions">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MapPin className="h-5 w-5" />
-                {subregionLabel} Launch Control - {selectedCountryName}
-              </CardTitle>
-              <CardDescription>Manage which {subregionLabel.toLowerCase()}s are active and configure thresholds for {selectedCountryName}</CardDescription>
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <MapPin className="h-5 w-5" />
+                    {subregionLabel} Launch Control - {selectedCountryName}
+                  </CardTitle>
+                  <CardDescription>Manage which {subregionLabel.toLowerCase()}s are active and configure thresholds for {selectedCountryName}</CardDescription>
+                </div>
+                <Dialog open={showAddSubregion} onOpenChange={setShowAddSubregion}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" data-testid="button-add-subregion">
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add {subregionLabel}
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add {subregionLabel} to {selectedCountryName}</DialogTitle>
+                      <DialogDescription>Add a new {subregionLabel.toLowerCase()} for {selectedCountryName} ({selectedCountry})</DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="sub-code">{subregionLabel} Code</Label>
+                        <Input
+                          id="sub-code"
+                          placeholder="e.g. LAG"
+                          value={addSubregionInput.stateCode}
+                          onChange={(e) => setAddSubregionInput(p => ({ ...p, stateCode: e.target.value.toUpperCase() }))}
+                          data-testid="input-add-subregion-code"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="sub-name">{subregionLabel} Name</Label>
+                        <Input
+                          id="sub-name"
+                          placeholder="e.g. Lagos"
+                          value={addSubregionInput.stateName}
+                          onChange={(e) => setAddSubregionInput(p => ({ ...p, stateName: e.target.value }))}
+                          data-testid="input-add-subregion-name"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Type</Label>
+                        <Select value={addSubregionInput.subregionType} onValueChange={(v) => setAddSubregionInput(p => ({ ...p, subregionType: v }))}>
+                          <SelectTrigger data-testid="select-add-subregion-type">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="state">State</SelectItem>
+                            <SelectItem value="province">Province</SelectItem>
+                            <SelectItem value="region">Region</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setShowAddSubregion(false)} data-testid="button-cancel-add-subregion">Cancel</Button>
+                      <Button
+                        onClick={handleAddSubregionToCountry}
+                        disabled={!addSubregionInput.stateCode || !addSubregionInput.stateName || addSubregionMutation.isPending}
+                        data-testid="button-submit-add-subregion"
+                      >
+                        {addSubregionMutation.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                        Add {subregionLabel}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </CardHeader>
             <CardContent>
               {(readiness.states || []).length === 0 ? (
