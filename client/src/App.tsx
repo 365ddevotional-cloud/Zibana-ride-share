@@ -45,6 +45,7 @@ const DriverWelcomePage = lazy(() => import("@/pages/driver/welcome"));
 const DriverRegisterPage = lazy(() => import("@/pages/driver/register"));
 const DriverWelcomeBackPage = lazy(() => import("@/pages/driver/welcome-back"));
 const RiderWelcomeBackPage = lazy(() => import("@/pages/rider/welcome-back"));
+const HelpCenterPage = lazy(() => import("@/pages/help-center"));
 
 const ADMIN_ROLES = ["super_admin", "admin", "finance_admin", "support_agent", "trip_coordinator", "director"];
 
@@ -236,6 +237,9 @@ function DriverRouter() {
       </Route>
       <Route path="/driver/register">
         <LazyComponent><DriverRegisterPage /></LazyComponent>
+      </Route>
+      <Route path="/driver/help">
+        <LazyComponent><HelpCenterPage audience="DRIVER" /></LazyComponent>
       </Route>
       <Route>
         <Redirect to="/driver/dashboard" />
@@ -459,6 +463,12 @@ function RiderRouter() {
       <Route path="/rider/support">
         <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["rider"]}>
           <LazyComponent><RiderSupportPage /></LazyComponent>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/rider/help">
+        <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["rider"]}>
+          <LazyComponent><HelpCenterPage audience="RIDER" /></LazyComponent>
         </ProtectedRoute>
       </Route>
       

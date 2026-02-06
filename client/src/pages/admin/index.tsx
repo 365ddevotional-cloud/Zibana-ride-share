@@ -26,6 +26,7 @@ import { UserGrowthPanel } from "@/components/admin/user-growth-panel";
 import { IncentivesPanel } from "@/components/admin/incentives-panel";
 import { LaunchReadinessPanel } from "@/components/admin/launch-readiness-panel";
 import { AcquisitionPanel } from "@/components/admin/acquisition-panel";
+import { HelpCenterPanel } from "@/components/admin/help-center-panel";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -74,7 +75,8 @@ import {
   TestTube,
   Trash2,
   Rocket,
-  UserPlus
+  UserPlus,
+  BookOpen
 } from "lucide-react";
 import type { DriverProfile, Trip, User } from "@shared/schema";
 import { NotificationBell } from "@/components/notification-bell";
@@ -2110,6 +2112,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <TabsTrigger value="acquisition" className="admin-nav-trigger rounded-md" data-testid="tab-acquisition">
                 <UserPlus className="h-4 w-4 mr-2" />
                 Acquisition
+              </TabsTrigger>
+            )}
+            {(isSuperAdmin || userRole === "admin" || userRole === "support_agent") && (
+              <TabsTrigger value="help-center" className="admin-nav-trigger rounded-md" data-testid="tab-help-center">
+                <BookOpen className="h-4 w-4 mr-2" />
+                Help Center
               </TabsTrigger>
             )}
           </TabsList>
@@ -5963,6 +5971,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
           {(isSuperAdmin || userRole === "admin") && (
             <TabsContent value="acquisition">
               <AcquisitionPanel />
+            </TabsContent>
+          )}
+
+          {(isSuperAdmin || userRole === "admin" || userRole === "support_agent") && (
+            <TabsContent value="help-center">
+              <HelpCenterPanel />
             </TabsContent>
           )}
         </Tabs>
