@@ -13733,6 +13733,36 @@ export async function registerRoutes(
     }
   });
 
+  // Public: Get most viewed help articles
+  app.get("/api/help/articles/most-viewed", async (req: any, res) => {
+    try {
+      const { audience, limit } = req.query;
+      const articles = await storage.getMostViewedHelpArticles(
+        audience as string,
+        limit ? parseInt(limit as string, 10) : undefined,
+      );
+      return res.json(articles);
+    } catch (error) {
+      console.error("Error fetching most viewed help articles:", error);
+      return res.status(500).json({ message: "Failed to fetch most viewed help articles" });
+    }
+  });
+
+  // Public: Get recently updated help articles
+  app.get("/api/help/articles/recently-updated", async (req: any, res) => {
+    try {
+      const { audience, limit } = req.query;
+      const articles = await storage.getRecentlyUpdatedHelpArticles(
+        audience as string,
+        limit ? parseInt(limit as string, 10) : undefined,
+      );
+      return res.json(articles);
+    } catch (error) {
+      console.error("Error fetching recently updated help articles:", error);
+      return res.status(500).json({ message: "Failed to fetch recently updated help articles" });
+    }
+  });
+
   // Public: Get article by slug and increment view
   app.get("/api/help/articles/slug/:slug", async (req: any, res) => {
     try {

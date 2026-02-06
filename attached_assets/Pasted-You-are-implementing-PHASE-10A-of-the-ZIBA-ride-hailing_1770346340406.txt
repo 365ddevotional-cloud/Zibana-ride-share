@@ -1,0 +1,137 @@
+You are implementing PHASE 10A of the ZIBA ride-hailing app: IN-APP Q&A & HELP CENTER
+for Riders, Drivers, and Admin management.
+
+This phase creates a structured, searchable, admin-managed Help Center
+that reduces support tickets and improves user confidence.
+
+THE HELP CENTER MUST BE DYNAMIC, ROLE-AWARE, AND COUNTRY-AWARE.
+NO HARDCODED FAQ CONTENT.
+
+=====================================
+1) HELP CENTER CORE MODEL
+=====================================
+
+Create a HelpContent entity with fields:
+
+- help_id
+- title
+- content_body (rich text / markdown)
+- audience_type (rider | driver | both)
+- category (account | trips | payments | incentives | safety | onboarding | ratings | cancellations)
+- country_code (nullable = global)
+- status (published | draft | archived)
+- display_priority
+- created_at
+- updated_at
+
+Rules:
+• Content can be global or country-specific
+• Only published content is visible in apps
+
+=====================================
+2) ROLE-AWARE VISIBILITY
+=====================================
+
+Rules:
+• Riders see only Rider + Both content
+• Drivers see only Driver + Both content
+• Admins see all content (including drafts)
+
+=====================================
+3) APP PLACEMENT (MANDATORY)
+=====================================
+
+Rider App:
+• Profile → Help / Q&A
+• Contextual links:
+  - Trip issues
+  - Payment issues
+  - Cancellation explanations
+
+Driver App:
+• Menu → Help / Q&A
+• Contextual links:
+  - Incentives status
+  - Why can’t I go online?
+  - Cancellation warnings
+
+=====================================
+4) SMART CONTEXTUAL HELP
+=====================================
+
+The app must auto-suggest help articles when:
+
+• A warning is shown (cancellation, acceptance)
+• Incentive is denied or paused
+• Driver cannot go online
+• Rider sees “No drivers available”
+• Trip is cancelled automatically
+
+Rules:
+• Help links must explain WHY, not just WHAT
+• No blame language
+
+=====================================
+5) SEARCH & DISCOVERY
+=====================================
+
+Implement:
+• Keyword search
+• Category browsing
+• Most-viewed articles
+• Recently updated articles
+
+Rules:
+• Search must be fast
+• Results must respect role and country filters
+
+=====================================
+6) ADMIN HELP CENTER MANAGEMENT
+=====================================
+
+Admin Dashboard must allow:
+
+• Create / edit / publish help articles
+• Set role visibility
+• Set country scope
+• Reorder by priority
+• Archive outdated content
+• Preview content as Rider or Driver
+
+Rules:
+• No redeploy required for content changes
+• All edits must be logged
+
+=====================================
+7) ANALYTICS & IMPROVEMENT SIGNALS
+=====================================
+
+Track:
+• Article views
+• Search queries with no results
+• Most accessed articles after warnings
+• Help usage per country
+
+Rules:
+• Use data to improve content
+• Identify missing explanations
+
+=====================================
+8) FAIL-SAFE & UX RULES
+=====================================
+
+• If Help Center fails to load → show fallback contact message
+• Help Center must not block app usage
+• Content must load even on poor network
+
+=====================================
+9) PHASE COMPLETION CRITERIA
+=====================================
+
+Phase 10A is complete only when:
+• Riders and Drivers can self-solve common issues
+• Support tickets reduce significantly
+• Admin can update help content without code changes
+• Help is context-aware and respectful
+
+This phase must be completed before scaling support or adding advanced safety tools.

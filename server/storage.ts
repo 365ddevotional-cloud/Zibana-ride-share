@@ -1078,6 +1078,9 @@ export interface IStorage {
   rateArticleHelpful(id: string, helpful: boolean): Promise<void>;
   searchHelpArticles(query: string, audience?: string): Promise<HelpArticleWithCategory[]>;
 
+  getMostViewedHelpArticles(audience?: string, limit?: number): Promise<HelpArticleWithCategory[]>;
+  getRecentlyUpdatedHelpArticles(audience?: string, limit?: number): Promise<HelpArticleWithCategory[]>;
+
   createHelpSearchLog(data: InsertHelpSearchLog): Promise<HelpSearchLog>;
   getHelpSearchLogs(limit?: number): Promise<HelpSearchLog[]>;
 }
@@ -8545,6 +8548,90 @@ export class DatabaseStorage implements IStorage {
     .where(and(...conditions))
     .orderBy(helpArticles.sortOrder)
     .limit(20);
+
+    return results.map(r => ({
+      ...r,
+      categoryName: r.categoryName ?? undefined,
+      categorySlug: r.categorySlug ?? undefined,
+    }));
+  }
+
+  async getMostViewedHelpArticles(audience?: string, limit: number = 10): Promise<HelpArticleWithCategory[]> {
+    const conditions = [eq(helpArticles.status, "PUBLISHED" as any)];
+    if (audience && audience !== "ALL") {
+      conditions.push(or(eq(helpArticles.audience, audience as any), eq(helpArticles.audience, "ALL"))!);
+    }
+
+    const results = await db.select({
+      id: helpArticles.id,
+      categoryId: helpArticles.categoryId,
+      title: helpArticles.title,
+      slug: helpArticles.slug,
+      summary: helpArticles.summary,
+      content: helpArticles.content,
+      audience: helpArticles.audience,
+      status: helpArticles.status,
+      tags: helpArticles.tags,
+      viewCount: helpArticles.viewCount,
+      helpfulYes: helpArticles.helpfulYes,
+      helpfulNo: helpArticles.helpfulNo,
+      sortOrder: helpArticles.sortOrder,
+      featured: helpArticles.featured,
+      countryCode: helpArticles.countryCode,
+      createdBy: helpArticles.createdBy,
+      updatedBy: helpArticles.updatedBy,
+      createdAt: helpArticles.createdAt,
+      updatedAt: helpArticles.updatedAt,
+      categoryName: helpCategories.name,
+      categorySlug: helpCategories.slug,
+    })
+    .from(helpArticles)
+    .leftJoin(helpCategories, eq(helpArticles.categoryId, helpCategories.id))
+    .where(and(...conditions))
+    .orderBy(desc(helpArticles.viewCount))
+    .limit(limit);
+
+    return results.map(r => ({
+      ...r,
+      categoryName: r.categoryName ?? undefined,
+      categorySlug: r.categorySlug ?? undefined,
+    }));
+  }
+
+  async getRecentlyUpdatedHelpArticles(audience?: string, limit: number = 10): Promise<HelpArticleWithCategory[]> {
+    const conditions = [eq(helpArticles.status, "PUBLISHED" as any)];
+    if (audience && audience !== "ALL") {
+      conditions.push(or(eq(helpArticles.audience, audience as any), eq(helpArticles.audience, "ALL"))!);
+    }
+
+    const results = await db.select({
+      id: helpArticles.id,
+      categoryId: helpArticles.categoryId,
+      title: helpArticles.title,
+      slug: helpArticles.slug,
+      summary: helpArticles.summary,
+      content: helpArticles.content,
+      audience: helpArticles.audience,
+      status: helpArticles.status,
+      tags: helpArticles.tags,
+      viewCount: helpArticles.viewCount,
+      helpfulYes: helpArticles.helpfulYes,
+      helpfulNo: helpArticles.helpfulNo,
+      sortOrder: helpArticles.sortOrder,
+      featured: helpArticles.featured,
+      countryCode: helpArticles.countryCode,
+      createdBy: helpArticles.createdBy,
+      updatedBy: helpArticles.updatedBy,
+      createdAt: helpArticles.createdAt,
+      updatedAt: helpArticles.updatedAt,
+      categoryName: helpCategories.name,
+      categorySlug: helpCategories.slug,
+    })
+    .from(helpArticles)
+    .leftJoin(helpCategories, eq(helpArticles.categoryId, helpCategories.id))
+    .where(and(...conditions))
+    .orderBy(desc(helpArticles.updatedAt))
+    .limit(limit);
 
     return results.map(r => ({
       ...r,
