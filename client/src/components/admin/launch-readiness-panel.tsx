@@ -36,6 +36,14 @@ import {
   X,
   Loader2,
   Truck,
+  CheckCircle2,
+  XCircle,
+  ArrowRight,
+  ArrowLeft,
+  Pause,
+  Play,
+  BarChart3,
+  Settings2,
 } from "lucide-react";
 
 type KillSwitchStatus = {
@@ -59,11 +67,50 @@ type StateConfig = {
   countryCode: string;
   minOnlineDriversCar: number;
   minOnlineDriversBike: number;
+  minOnlineDriversKeke?: number;
   maxPickupWaitMinutes: number;
   avgPickupTimeMinutes: string;
   currentOnlineDriversCar: number;
   currentOnlineDriversBike: number;
+  currentOnlineDriversKeke?: number;
   autoDisableOnWaitExceed: boolean;
+};
+
+type RolloutDashboard = {
+  country: {
+    id: string;
+    name: string;
+    isoCode: string;
+    currency: string;
+    rolloutStatus: string;
+    rolloutStatusChangedBy?: string;
+    rolloutStatusChangedAt?: string;
+    countryEnabled: boolean;
+    pilotMaxDailyTrips: number;
+    pilotMaxConcurrentDrivers: number;
+    pilotSurgeEnabled: boolean;
+    maxAvgPickupMinutes: number;
+    minTripCompletionRate: number;
+    maxCancellationRate: number;
+    lastIncidentAt?: string;
+  };
+  prepChecklist: {
+    hasCurrency: boolean;
+    hasSubregions: boolean;
+    hasPricing: boolean;
+    killSwitchesClean: boolean;
+  };
+  metrics: {
+    totalTrips: number;
+    completedTrips: number;
+    cancelledTrips: number;
+    completionRate: number;
+    cancellationRate: number;
+    avgPickupTime: number;
+  };
+  activeSubregions: number;
+  liveDriversCount: number;
+  activeKillSwitches: number;
 };
 
 type CountryData = {
@@ -143,6 +190,70 @@ export function LaunchReadinessPanel() {
       const res = await fetch(`/api/admin/launch/readiness?countryCode=${selectedCountry}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch readiness data");
       return res.json();
+    },
+  });
+
+  const { data: rolloutDashboard, isLoading: rolloutLoading } = useQuery<RolloutDashboard>({
+    queryKey: ["/api/admin/rollout/dashboard", selectedCountry],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/rollout/dashboard?countryCode=${selectedCountry}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch rollout data");
+      return res.json();
+    },
+  });
+
+  const [rolloutReason, setRolloutReason] = useState("");
+  const [showPromoteDialog, setShowPromoteDialog] = useState(false);
+  const [showDemoteDialog, setShowDemoteDialog] = useState(false);
+  const [demoteTarget, setDemoteTarget] = useState("PAUSED");
+
+  const rolloutPromoteMutation = useMutation({
+    mutationFn: async (data: { countryCode: string; reason: string }) => {
+      const res = await apiRequest("POST", "/api/admin/rollout/promote", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Country Promoted", description: "Rollout status has been advanced." });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/rollout/dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/launch/countries"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/launch/readiness"] });
+      setShowPromoteDialog(false);
+      setRolloutReason("");
+    },
+    onError: (error: Error) => {
+      toast({ title: "Promotion Failed", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const rolloutDemoteMutation = useMutation({
+    mutationFn: async (data: { countryCode: string; reason: string; targetStatus: string }) => {
+      const res = await apiRequest("POST", "/api/admin/rollout/demote", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Country Rolled Back", description: "Rollout status has been reverted." });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/rollout/dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/launch/countries"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/launch/readiness"] });
+      setShowDemoteDialog(false);
+      setRolloutReason("");
+    },
+    onError: (error: Error) => {
+      toast({ title: "Rollback Failed", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const rolloutConfigMutation = useMutation({
+    mutationFn: async (data: Record<string, unknown>) => {
+      const res = await apiRequest("POST", "/api/admin/rollout/config", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Config Updated", description: "Rollout configuration has been saved." });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/rollout/dashboard"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Config Update Failed", description: error.message, variant: "destructive" });
     },
   });
 
@@ -464,6 +575,7 @@ export function LaunchReadinessPanel() {
           <TabsTrigger value="modes" data-testid="tab-modes">System Modes</TabsTrigger>
           <TabsTrigger value="killswitches" data-testid="tab-killswitches">Kill Switches</TabsTrigger>
           <TabsTrigger value="subregions" data-testid="tab-subregions">{subregionLabel}s</TabsTrigger>
+          <TabsTrigger value="rollout" data-testid="tab-rollout">Rollout</TabsTrigger>
         </TabsList>
 
         <TabsContent value="countries">
@@ -1039,6 +1151,325 @@ export function LaunchReadinessPanel() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="rollout">
+          <div className="grid gap-6">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between gap-4 flex-wrap">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5" />
+                      Rollout Dashboard - {selectedCountryName}
+                    </CardTitle>
+                    <CardDescription>Manage the rollout lifecycle for {selectedCountryName}. Promote through stages when requirements are met.</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {rolloutLoading ? (
+                  <div className="py-8 text-center text-muted-foreground" data-testid="loading-rollout">Loading rollout data...</div>
+                ) : !rolloutDashboard ? (
+                  <div className="py-8 text-center text-muted-foreground" data-testid="error-rollout">Failed to load rollout data</div>
+                ) : (
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {["PLANNED", "PREP", "PILOT", "LIMITED_LIVE", "FULL_LIVE"].map((stage, idx, arr) => {
+                        const current = rolloutDashboard.country.rolloutStatus;
+                        const isPaused = current === "PAUSED";
+                        const stageOrder = ["PLANNED", "PREP", "PILOT", "LIMITED_LIVE", "FULL_LIVE"];
+                        const currentIdx = stageOrder.indexOf(current);
+                        const stageIdx = idx;
+                        const isComplete = !isPaused && currentIdx > stageIdx;
+                        const isCurrent = !isPaused && current === stage;
+                        const stageLabels: Record<string, string> = {
+                          PLANNED: "Planned",
+                          PREP: "Prep",
+                          PILOT: "Pilot",
+                          LIMITED_LIVE: "Limited",
+                          FULL_LIVE: "Full Live",
+                        };
+                        return (
+                          <div key={stage} className="flex items-center gap-2">
+                            <Badge
+                              variant={isCurrent ? "default" : isComplete ? "secondary" : "outline"}
+                              className={isCurrent ? "" : ""}
+                              data-testid={`badge-rollout-stage-${stage}`}
+                            >
+                              {isComplete && <CheckCircle2 className="h-3 w-3 mr-1" />}
+                              {stageLabels[stage]}
+                            </Badge>
+                            {idx < arr.length - 1 && <ArrowRight className="h-3 w-3 text-muted-foreground" />}
+                          </div>
+                        );
+                      })}
+                      {rolloutDashboard.country.rolloutStatus === "PAUSED" && (
+                        <Badge variant="destructive" data-testid="badge-rollout-paused">
+                          <Pause className="h-3 w-3 mr-1" />
+                          PAUSED
+                        </Badge>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {rolloutDashboard.country.rolloutStatus !== "FULL_LIVE" && rolloutDashboard.country.rolloutStatus !== "PAUSED" && (
+                        <Dialog open={showPromoteDialog} onOpenChange={setShowPromoteDialog}>
+                          <DialogTrigger asChild>
+                            <Button size="sm" data-testid="button-promote-country">
+                              <ArrowRight className="h-4 w-4 mr-1" />
+                              Promote
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Promote {selectedCountryName}</DialogTitle>
+                              <DialogDescription>
+                                Advance from {rolloutDashboard.country.rolloutStatus} to the next stage. Gate checks will be verified automatically.
+                              </DialogDescription>
+                            </DialogHeader>
+                            <div className="py-2">
+                              <Label>Reason</Label>
+                              <Textarea
+                                placeholder="Provide a reason for this promotion..."
+                                value={rolloutReason}
+                                onChange={(e) => setRolloutReason(e.target.value)}
+                                data-testid="input-promote-reason"
+                              />
+                            </div>
+                            <DialogFooter>
+                              <Button variant="outline" onClick={() => setShowPromoteDialog(false)} data-testid="button-cancel-promote">Cancel</Button>
+                              <Button
+                                onClick={() => rolloutPromoteMutation.mutate({ countryCode: selectedCountry, reason: rolloutReason })}
+                                disabled={!rolloutReason.trim() || rolloutPromoteMutation.isPending}
+                                data-testid="button-confirm-promote"
+                              >
+                                {rolloutPromoteMutation.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                                Promote
+                              </Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                      )}
+                      {rolloutDashboard.country.rolloutStatus !== "PLANNED" && (
+                        <Dialog open={showDemoteDialog} onOpenChange={setShowDemoteDialog}>
+                          <DialogTrigger asChild>
+                            <Button size="sm" variant="outline" data-testid="button-demote-country">
+                              <ArrowLeft className="h-4 w-4 mr-1" />
+                              Rollback
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Rollback {selectedCountryName}</DialogTitle>
+                              <DialogDescription>Revert the rollout status to an earlier stage or pause the country.</DialogDescription>
+                            </DialogHeader>
+                            <div className="grid gap-4 py-2">
+                              <div className="space-y-2">
+                                <Label>Target Status</Label>
+                                <Select value={demoteTarget} onValueChange={setDemoteTarget}>
+                                  <SelectTrigger data-testid="select-demote-target">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="PAUSED">Paused</SelectItem>
+                                    <SelectItem value="PLANNED">Planned</SelectItem>
+                                    <SelectItem value="PREP">Prep</SelectItem>
+                                    {["PILOT", "LIMITED_LIVE", "FULL_LIVE"].indexOf(rolloutDashboard.country.rolloutStatus) > 0 && (
+                                      <SelectItem value="PILOT">Pilot</SelectItem>
+                                    )}
+                                    {rolloutDashboard.country.rolloutStatus === "FULL_LIVE" && (
+                                      <SelectItem value="LIMITED_LIVE">Limited Live</SelectItem>
+                                    )}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-2">
+                                <Label>Reason</Label>
+                                <Textarea
+                                  placeholder="Provide a reason for this rollback..."
+                                  value={rolloutReason}
+                                  onChange={(e) => setRolloutReason(e.target.value)}
+                                  data-testid="input-demote-reason"
+                                />
+                              </div>
+                            </div>
+                            <DialogFooter>
+                              <Button variant="outline" onClick={() => setShowDemoteDialog(false)} data-testid="button-cancel-demote">Cancel</Button>
+                              <Button
+                                variant="destructive"
+                                onClick={() => rolloutDemoteMutation.mutate({ countryCode: selectedCountry, reason: rolloutReason, targetStatus: demoteTarget })}
+                                disabled={!rolloutReason.trim() || rolloutDemoteMutation.isPending}
+                                data-testid="button-confirm-demote"
+                              >
+                                {rolloutDemoteMutation.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                                Rollback
+                              </Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                      )}
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                      <Card>
+                        <CardContent className="pt-4">
+                          <div className="text-sm text-muted-foreground">Active Subregions</div>
+                          <div className="text-2xl font-bold" data-testid="text-active-subregions">{rolloutDashboard.activeSubregions}</div>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="pt-4">
+                          <div className="text-sm text-muted-foreground">Live Drivers</div>
+                          <div className="text-2xl font-bold" data-testid="text-live-drivers">{rolloutDashboard.liveDriversCount}</div>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="pt-4">
+                          <div className="text-sm text-muted-foreground">Active Kill Switches</div>
+                          <div className="text-2xl font-bold" data-testid="text-active-ks">{rolloutDashboard.activeKillSwitches}</div>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="pt-4">
+                          <div className="text-sm text-muted-foreground">Last Incident</div>
+                          <div className="text-sm font-medium" data-testid="text-last-incident">
+                            {rolloutDashboard.country.lastIncidentAt
+                              ? new Date(rolloutDashboard.country.lastIncidentAt).toLocaleDateString()
+                              : "None"}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-sm flex items-center gap-2">
+                            <CheckCircle2 className="h-4 w-4" />
+                            Prep Checklist
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-2">
+                            {[
+                              { key: "hasCurrency", label: "Currency defined" },
+                              { key: "hasSubregions", label: "Subregions configured" },
+                              { key: "hasPricing", label: "Pricing rules set" },
+                              { key: "killSwitchesClean", label: "Kill switches clear" },
+                            ].map((item) => (
+                              <div key={item.key} className="flex items-center gap-2" data-testid={`checklist-${item.key}`}>
+                                {rolloutDashboard.prepChecklist[item.key as keyof typeof rolloutDashboard.prepChecklist] ? (
+                                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                ) : (
+                                  <XCircle className="h-4 w-4 text-destructive" />
+                                )}
+                                <span className="text-sm">{item.label}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-sm flex items-center gap-2">
+                            <Activity className="h-4 w-4" />
+                            Trip Metrics
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-muted-foreground">Total Trips</span>
+                              <span className="text-sm font-medium" data-testid="text-total-trips">{rolloutDashboard.metrics.totalTrips}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-muted-foreground">Completion Rate</span>
+                              <Badge variant={rolloutDashboard.metrics.completionRate >= rolloutDashboard.country.minTripCompletionRate ? "default" : "destructive"} data-testid="text-completion-rate">
+                                {rolloutDashboard.metrics.completionRate}%
+                              </Badge>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-muted-foreground">Cancellation Rate</span>
+                              <Badge variant={rolloutDashboard.metrics.cancellationRate <= rolloutDashboard.country.maxCancellationRate ? "default" : "destructive"} data-testid="text-cancel-rate">
+                                {rolloutDashboard.metrics.cancellationRate}%
+                              </Badge>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-muted-foreground">Avg Pickup Time</span>
+                              <Badge variant={rolloutDashboard.metrics.avgPickupTime <= rolloutDashboard.country.maxAvgPickupMinutes ? "default" : "destructive"} data-testid="text-avg-pickup">
+                                {rolloutDashboard.metrics.avgPickupTime} min
+                              </Badge>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Settings2 className="h-4 w-4" />
+                          Rollout Configuration
+                        </CardTitle>
+                        <CardDescription>Configure pilot caps and promotion thresholds for {selectedCountryName}</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid gap-4 md:grid-cols-3">
+                          <div className="space-y-2">
+                            <Label>Max Daily Trips (Pilot)</Label>
+                            <Input
+                              type="number"
+                              defaultValue={rolloutDashboard.country.pilotMaxDailyTrips}
+                              onBlur={(e) => rolloutConfigMutation.mutate({ countryCode: selectedCountry, pilotMaxDailyTrips: parseInt(e.target.value) || 100 })}
+                              data-testid="input-pilot-max-trips"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Max Concurrent Drivers (Pilot)</Label>
+                            <Input
+                              type="number"
+                              defaultValue={rolloutDashboard.country.pilotMaxConcurrentDrivers}
+                              onBlur={(e) => rolloutConfigMutation.mutate({ countryCode: selectedCountry, pilotMaxConcurrentDrivers: parseInt(e.target.value) || 20 })}
+                              data-testid="input-pilot-max-drivers"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Max Avg Pickup (min)</Label>
+                            <Input
+                              type="number"
+                              defaultValue={rolloutDashboard.country.maxAvgPickupMinutes}
+                              onBlur={(e) => rolloutConfigMutation.mutate({ countryCode: selectedCountry, maxAvgPickupMinutes: parseInt(e.target.value) || 15 })}
+                              data-testid="input-max-pickup"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Min Completion Rate (%)</Label>
+                            <Input
+                              type="number"
+                              defaultValue={rolloutDashboard.country.minTripCompletionRate}
+                              onBlur={(e) => rolloutConfigMutation.mutate({ countryCode: selectedCountry, minTripCompletionRate: parseInt(e.target.value) || 80 })}
+                              data-testid="input-min-completion"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Max Cancellation Rate (%)</Label>
+                            <Input
+                              type="number"
+                              defaultValue={rolloutDashboard.country.maxCancellationRate}
+                              onBlur={(e) => rolloutConfigMutation.mutate({ countryCode: selectedCountry, maxCancellationRate: parseInt(e.target.value) || 20 })}
+                              data-testid="input-max-cancel"
+                            />
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
 
