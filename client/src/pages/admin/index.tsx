@@ -33,6 +33,7 @@ import { SafetyPanel } from "@/components/admin/safety-panel";
 import { TaxDocumentsPanel } from "@/components/admin/tax-documents-panel";
 import { TaxComplianceConfig } from "@/components/admin/tax-compliance-config";
 import { CashSettlementPanel } from "@/components/admin/cash-settlement-panel";
+import { CashDisputesPanel } from "@/components/admin/cash-disputes-panel";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -2321,6 +2322,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <TabsTrigger value="cash-settlements" className="admin-nav-trigger rounded-md" data-testid="tab-cash-settlements">
                 <Briefcase className="h-4 w-4 mr-2" />
                 Cash Settlements
+              </TabsTrigger>
+            )}
+            {(isSuperAdmin || userRole === "admin") && (
+              <TabsTrigger value="cash-disputes" className="admin-nav-trigger rounded-md" data-testid="tab-cash-disputes">
+                <ShieldAlert className="h-4 w-4 mr-2" />
+                Cash Disputes
               </TabsTrigger>
             )}
           </TabsList>
@@ -6632,6 +6639,11 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
           {(isSuperAdmin || userRole === "admin") && (
             <TabsContent value="cash-settlements">
               <CashSettlementPanel />
+            </TabsContent>
+          )}
+          {(isSuperAdmin || userRole === "admin") && (
+            <TabsContent value="cash-disputes">
+              <CashDisputesPanel />
             </TabsContent>
           )}
         </Tabs>

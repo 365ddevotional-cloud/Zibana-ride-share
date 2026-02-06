@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { MapPin, User, Car, Clock, DollarSign, XCircle, Banknote } from "lucide-react";
 import { RatingForm } from "./rating-form";
 import { DisputeForm } from "./dispute-form";
+import { CashTripConfirmation } from "./cash-trip-confirmation";
 
 interface TripDetailModalProps {
   trip: any | null;
@@ -155,6 +156,15 @@ export function TripDetailModal({ trip, open, onOpenChange, userRole }: TripDeta
                 )}
               </CardContent>
             </Card>
+          )}
+
+          {trip.status === "completed" && trip.paymentSource === "CASH" && (userRole === "rider" || userRole === "driver") && (
+            <CashTripConfirmation
+              tripId={trip.id}
+              role={userRole as "rider" | "driver"}
+              fareAmount={trip.fareAmount}
+              currencyCode={trip.currencyCode}
+            />
           )}
 
           <Card>

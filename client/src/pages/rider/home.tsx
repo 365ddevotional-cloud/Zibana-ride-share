@@ -12,6 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { CancellationWarning } from "@/components/cancellation-warning";
 import { ContextualHelpSuggestion } from "@/components/contextual-help";
+import { PaymentOnboardingModal } from "@/components/payment-onboarding-modal";
 
 interface WalletInfo {
   mainBalance: string;
@@ -67,6 +68,7 @@ export default function RiderHome() {
   return (
     <RiderRouteGuard>
       {showDisclosure && <LocationDisclosure onAccept={acceptDisclosure} />}
+      <PaymentOnboardingModal />
       <RiderLayout>
         <CancellationWarning role="rider" />
         <div className="p-4 space-y-6">

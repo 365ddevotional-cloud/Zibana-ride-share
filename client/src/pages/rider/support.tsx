@@ -295,7 +295,7 @@ function RiderPaymentFAQ() {
               <Banknote className="h-5 w-5 text-primary" />
             </div>
             <div className="text-left">
-              <p className="font-medium">What's the difference between cash and card payments?</p>
+              <p className="font-medium">How do I pay for my trip?</p>
               <p className="text-sm text-muted-foreground">Payment options explained</p>
             </div>
           </div>
@@ -308,10 +308,7 @@ function RiderPaymentFAQ() {
         {expanded && (
           <div className="mt-4 pt-4 border-t space-y-2">
             <p className="text-sm">
-              With cash payments, you pay the driver directly at the end of the trip.
-            </p>
-            <p className="text-sm">
-              With card payments, payment is handled securely in the app.
+              You can pay with a card in the app or pay the driver directly in cash.
             </p>
             <p className="text-sm text-muted-foreground">
               Both options are supported for your convenience.

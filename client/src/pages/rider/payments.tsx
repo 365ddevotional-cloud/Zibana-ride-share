@@ -32,6 +32,12 @@ export default function RiderPayments() {
     queryKey: ["/api/rider/wallet-info"],
   });
 
+  const { data: onboardingStatus } = useQuery<{ seen: boolean; cashAccessRestricted: boolean }>({
+    queryKey: ["/api/rider/payment-onboarding"],
+  });
+
+  const cashRestricted = onboardingStatus?.cashAccessRestricted || false;
+
   useEffect(() => {
     if (walletData?.defaultPaymentMethod) {
       setSelectedMethod(walletData.defaultPaymentMethod as PaymentMethod);
@@ -166,12 +172,14 @@ export default function RiderPayments() {
                 </Card>
 
                 <Card 
-                  className={`cursor-pointer transition-all ${
-                    selectedMethod === "CASH" 
-                      ? "ring-2 ring-emerald-500 border-emerald-500" 
-                      : "hover-elevate"
+                  className={`transition-all ${
+                    cashRestricted 
+                      ? "opacity-50 cursor-not-allowed" 
+                      : `cursor-pointer ${selectedMethod === "CASH" 
+                        ? "ring-2 ring-emerald-500 border-emerald-500" 
+                        : "hover-elevate"}`
                   }`}
-                  onClick={() => handleSelectMethod("CASH")}
+                  onClick={() => !cashRestricted && handleSelectMethod("CASH")}
                   data-testid="payment-method-cash"
                 >
                   <CardContent className="p-4">
@@ -182,12 +190,18 @@ export default function RiderPayments() {
                         </div>
                         <div>
                           <p className="font-semibold">Cash</p>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            Pay the driver directly in cash
-                          </p>
+                          {cashRestricted ? (
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Cash payments are temporarily unavailable
+                            </p>
+                          ) : (
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Pay the driver directly in cash
+                            </p>
+                          )}
                         </div>
                       </div>
-                      {selectedMethod === "CASH" && (
+                      {selectedMethod === "CASH" && !cashRestricted && (
                         <div className="flex items-center gap-2">
                           <Badge className="bg-emerald-500 text-white">
                             Default
