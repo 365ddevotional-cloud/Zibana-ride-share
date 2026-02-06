@@ -330,6 +330,17 @@ import {
   type DriverAutoMessage,
   type InsertDriverAutoMessage,
   type DriverAcquisitionAnalytics,
+  // Phase 10A - Help Center
+  helpCategories,
+  helpArticles,
+  helpSearchLogs,
+  type HelpCategory,
+  type InsertHelpCategory,
+  type HelpArticle,
+  type InsertHelpArticle,
+  type HelpArticleWithCategory,
+  type HelpSearchLog,
+  type InsertHelpSearchLog,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull } from "drizzle-orm";
@@ -1049,6 +1060,26 @@ export interface IStorage {
   getDriverAutoMessages(driverUserId: string): Promise<DriverAutoMessage[]>;
   
   getDriverAcquisitionAnalytics(countryCode?: string): Promise<DriverAcquisitionAnalytics>;
+
+  // Phase 10A - Help Center
+  createHelpCategory(data: InsertHelpCategory): Promise<HelpCategory>;
+  updateHelpCategory(id: string, data: Partial<InsertHelpCategory>): Promise<HelpCategory | null>;
+  deleteHelpCategory(id: string): Promise<boolean>;
+  getHelpCategories(audience?: string): Promise<HelpCategory[]>;
+  getHelpCategoryBySlug(slug: string): Promise<HelpCategory | null>;
+
+  createHelpArticle(data: InsertHelpArticle): Promise<HelpArticle>;
+  updateHelpArticle(id: string, data: Partial<InsertHelpArticle>): Promise<HelpArticle | null>;
+  deleteHelpArticle(id: string): Promise<boolean>;
+  getHelpArticles(filters?: { categoryId?: string; audience?: string; status?: string; featured?: boolean; countryCode?: string }): Promise<HelpArticleWithCategory[]>;
+  getHelpArticleBySlug(slug: string): Promise<HelpArticleWithCategory | null>;
+  getHelpArticleById(id: string): Promise<HelpArticle | null>;
+  incrementArticleView(id: string): Promise<void>;
+  rateArticleHelpful(id: string, helpful: boolean): Promise<void>;
+  searchHelpArticles(query: string, audience?: string): Promise<HelpArticleWithCategory[]>;
+
+  createHelpSearchLog(data: InsertHelpSearchLog): Promise<HelpSearchLog>;
+  getHelpSearchLogs(limit?: number): Promise<HelpSearchLog[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -8323,6 +8354,214 @@ export class DatabaseStorage implements IStorage {
       activeSupplyAlerts: activeAlerts[0]?.count || 0,
       onboardingPipeline,
     };
+  }
+
+  // Phase 10A - Help Center implementations
+  async createHelpCategory(data: InsertHelpCategory): Promise<HelpCategory> {
+    const [result] = await db.insert(helpCategories).values(data).returning();
+    return result;
+  }
+
+  async updateHelpCategory(id: string, data: Partial<InsertHelpCategory>): Promise<HelpCategory | null> {
+    const [result] = await db.update(helpCategories).set({ ...data, updatedAt: new Date() }).where(eq(helpCategories.id, id)).returning();
+    return result || null;
+  }
+
+  async deleteHelpCategory(id: string): Promise<boolean> {
+    const result = await db.delete(helpCategories).where(eq(helpCategories.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getHelpCategories(audience?: string): Promise<HelpCategory[]> {
+    const conditions = [];
+    conditions.push(eq(helpCategories.active, true));
+    if (audience && audience !== "ALL") {
+      conditions.push(or(eq(helpCategories.audience, audience as any), eq(helpCategories.audience, "ALL"))!);
+    }
+    return db.select().from(helpCategories)
+      .where(and(...conditions))
+      .orderBy(helpCategories.sortOrder);
+  }
+
+  async getHelpCategoryBySlug(slug: string): Promise<HelpCategory | null> {
+    const [result] = await db.select().from(helpCategories).where(eq(helpCategories.slug, slug));
+    return result || null;
+  }
+
+  async createHelpArticle(data: InsertHelpArticle): Promise<HelpArticle> {
+    const [result] = await db.insert(helpArticles).values(data).returning();
+    return result;
+  }
+
+  async updateHelpArticle(id: string, data: Partial<InsertHelpArticle>): Promise<HelpArticle | null> {
+    const [result] = await db.update(helpArticles).set({ ...data, updatedAt: new Date() }).where(eq(helpArticles.id, id)).returning();
+    return result || null;
+  }
+
+  async deleteHelpArticle(id: string): Promise<boolean> {
+    const result = await db.delete(helpArticles).where(eq(helpArticles.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getHelpArticles(filters?: { categoryId?: string; audience?: string; status?: string; featured?: boolean; countryCode?: string }): Promise<HelpArticleWithCategory[]> {
+    const conditions = [];
+    if (filters?.categoryId) conditions.push(eq(helpArticles.categoryId, filters.categoryId));
+    if (filters?.audience && filters.audience !== "ALL") {
+      conditions.push(or(eq(helpArticles.audience, filters.audience as any), eq(helpArticles.audience, "ALL"))!);
+    }
+    if (filters?.status) conditions.push(eq(helpArticles.status, filters.status as any));
+    if (filters?.featured !== undefined) conditions.push(eq(helpArticles.featured, filters.featured));
+    if (filters?.countryCode) {
+      conditions.push(or(eq(helpArticles.countryCode, filters.countryCode), isNull(helpArticles.countryCode))!);
+    }
+
+    const results = await db.select({
+      id: helpArticles.id,
+      categoryId: helpArticles.categoryId,
+      title: helpArticles.title,
+      slug: helpArticles.slug,
+      summary: helpArticles.summary,
+      content: helpArticles.content,
+      audience: helpArticles.audience,
+      status: helpArticles.status,
+      tags: helpArticles.tags,
+      viewCount: helpArticles.viewCount,
+      helpfulYes: helpArticles.helpfulYes,
+      helpfulNo: helpArticles.helpfulNo,
+      sortOrder: helpArticles.sortOrder,
+      featured: helpArticles.featured,
+      countryCode: helpArticles.countryCode,
+      createdBy: helpArticles.createdBy,
+      updatedBy: helpArticles.updatedBy,
+      createdAt: helpArticles.createdAt,
+      updatedAt: helpArticles.updatedAt,
+      categoryName: helpCategories.name,
+      categorySlug: helpCategories.slug,
+    })
+    .from(helpArticles)
+    .leftJoin(helpCategories, eq(helpArticles.categoryId, helpCategories.id))
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(helpArticles.sortOrder);
+
+    return results.map(r => ({
+      ...r,
+      categoryName: r.categoryName ?? undefined,
+      categorySlug: r.categorySlug ?? undefined,
+    }));
+  }
+
+  async getHelpArticleBySlug(slug: string): Promise<HelpArticleWithCategory | null> {
+    const [result] = await db.select({
+      id: helpArticles.id,
+      categoryId: helpArticles.categoryId,
+      title: helpArticles.title,
+      slug: helpArticles.slug,
+      summary: helpArticles.summary,
+      content: helpArticles.content,
+      audience: helpArticles.audience,
+      status: helpArticles.status,
+      tags: helpArticles.tags,
+      viewCount: helpArticles.viewCount,
+      helpfulYes: helpArticles.helpfulYes,
+      helpfulNo: helpArticles.helpfulNo,
+      sortOrder: helpArticles.sortOrder,
+      featured: helpArticles.featured,
+      countryCode: helpArticles.countryCode,
+      createdBy: helpArticles.createdBy,
+      updatedBy: helpArticles.updatedBy,
+      createdAt: helpArticles.createdAt,
+      updatedAt: helpArticles.updatedAt,
+      categoryName: helpCategories.name,
+      categorySlug: helpCategories.slug,
+    })
+    .from(helpArticles)
+    .leftJoin(helpCategories, eq(helpArticles.categoryId, helpCategories.id))
+    .where(eq(helpArticles.slug, slug));
+
+    if (!result) return null;
+    return {
+      ...result,
+      categoryName: result.categoryName ?? undefined,
+      categorySlug: result.categorySlug ?? undefined,
+    };
+  }
+
+  async getHelpArticleById(id: string): Promise<HelpArticle | null> {
+    const [result] = await db.select().from(helpArticles).where(eq(helpArticles.id, id));
+    return result || null;
+  }
+
+  async incrementArticleView(id: string): Promise<void> {
+    await db.update(helpArticles).set({ viewCount: sql`${helpArticles.viewCount} + 1` }).where(eq(helpArticles.id, id));
+  }
+
+  async rateArticleHelpful(id: string, helpful: boolean): Promise<void> {
+    if (helpful) {
+      await db.update(helpArticles).set({ helpfulYes: sql`${helpArticles.helpfulYes} + 1` }).where(eq(helpArticles.id, id));
+    } else {
+      await db.update(helpArticles).set({ helpfulNo: sql`${helpArticles.helpfulNo} + 1` }).where(eq(helpArticles.id, id));
+    }
+  }
+
+  async searchHelpArticles(query: string, audience?: string): Promise<HelpArticleWithCategory[]> {
+    const searchPattern = `%${query.toLowerCase()}%`;
+    const conditions = [
+      eq(helpArticles.status, "PUBLISHED"),
+      or(
+        sql`LOWER(${helpArticles.title}) LIKE ${searchPattern}`,
+        sql`LOWER(${helpArticles.summary}) LIKE ${searchPattern}`,
+        sql`LOWER(${helpArticles.content}) LIKE ${searchPattern}`
+      )!,
+    ];
+    if (audience && audience !== "ALL") {
+      conditions.push(or(eq(helpArticles.audience, audience as any), eq(helpArticles.audience, "ALL"))!);
+    }
+
+    const results = await db.select({
+      id: helpArticles.id,
+      categoryId: helpArticles.categoryId,
+      title: helpArticles.title,
+      slug: helpArticles.slug,
+      summary: helpArticles.summary,
+      content: helpArticles.content,
+      audience: helpArticles.audience,
+      status: helpArticles.status,
+      tags: helpArticles.tags,
+      viewCount: helpArticles.viewCount,
+      helpfulYes: helpArticles.helpfulYes,
+      helpfulNo: helpArticles.helpfulNo,
+      sortOrder: helpArticles.sortOrder,
+      featured: helpArticles.featured,
+      countryCode: helpArticles.countryCode,
+      createdBy: helpArticles.createdBy,
+      updatedBy: helpArticles.updatedBy,
+      createdAt: helpArticles.createdAt,
+      updatedAt: helpArticles.updatedAt,
+      categoryName: helpCategories.name,
+      categorySlug: helpCategories.slug,
+    })
+    .from(helpArticles)
+    .leftJoin(helpCategories, eq(helpArticles.categoryId, helpCategories.id))
+    .where(and(...conditions))
+    .orderBy(helpArticles.sortOrder)
+    .limit(20);
+
+    return results.map(r => ({
+      ...r,
+      categoryName: r.categoryName ?? undefined,
+      categorySlug: r.categorySlug ?? undefined,
+    }));
+  }
+
+  async createHelpSearchLog(data: InsertHelpSearchLog): Promise<HelpSearchLog> {
+    const [result] = await db.insert(helpSearchLogs).values(data).returning();
+    return result;
+  }
+
+  async getHelpSearchLogs(limit: number = 100): Promise<HelpSearchLog[]> {
+    return db.select().from(helpSearchLogs)
+      .orderBy(desc(helpSearchLogs.createdAt))
+      .limit(limit);
   }
 }
 
