@@ -4,7 +4,7 @@ import { createHash } from "crypto";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { storage } from "./storage";
 import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema } from "@shared/schema";
-import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, evaluateAllDrivers } from "./incentives";
+import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, evaluateAllDrivers, evaluateBehaviorAndWarnings, calculateDriverMatchingScore, getDriverIncentiveProgress, assignFirstRidePromo, assignReturnRiderPromo, applyPromoToTrip, voidPromosOnCancellation } from "./incentives";
 import { notificationService } from "./notification-service";
 import { getCurrencyFromCountry, getCountryConfig, FINANCIAL_ENGINE_LOCKED } from "@shared/currency";
 import { getPayoutProviderForCountry, generatePayoutReference, validatePaystackWebhook, validateFlutterwaveWebhook, type TransferStatus } from "./payout-provider";
@@ -6010,6 +6010,197 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error revoking incentive:", error);
       return res.status(500).json({ message: "Failed to revoke incentive" });
+    }
+  });
+
+  // ========================================
+  // Phase 5 - Rider Promos Routes
+  // ========================================
+
+  app.get("/api/promos/mine", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const promos = await storage.getActiveRiderPromos(userId);
+      return res.json(promos);
+    } catch (error) {
+      console.error("Error fetching rider promos:", error);
+      return res.status(500).json({ message: "Failed to fetch promos" });
+    }
+  });
+
+  app.get("/api/promos/history", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const promos = await storage.getRiderPromosByRider(userId);
+      return res.json(promos);
+    } catch (error) {
+      console.error("Error fetching promo history:", error);
+      return res.status(500).json({ message: "Failed to fetch promo history" });
+    }
+  });
+
+  app.post("/api/promos/apply", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { promoCode, tripId } = req.body;
+      if (!promoCode || !tripId) {
+        return res.status(400).json({ message: "Promo code and trip ID are required" });
+      }
+      const result = await applyPromoToTrip(userId, promoCode, tripId);
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
+      }
+      return res.json(result);
+    } catch (error) {
+      console.error("Error applying promo:", error);
+      return res.status(500).json({ message: "Failed to apply promo" });
+    }
+  });
+
+  app.post("/api/promos/assign-first-ride", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { currency } = req.body;
+      const result = await assignFirstRidePromo(userId, currency || "USD");
+      return res.json(result);
+    } catch (error) {
+      console.error("Error assigning first ride promo:", error);
+      return res.status(500).json({ message: "Failed to assign promo" });
+    }
+  });
+
+  app.get("/api/promos/all", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const promos = await storage.getAllRiderPromos();
+      return res.json(promos);
+    } catch (error) {
+      console.error("Error fetching all promos:", error);
+      return res.status(500).json({ message: "Failed to fetch promos" });
+    }
+  });
+
+  app.post("/api/promos/void/:promoId", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { promoId } = req.params;
+      const result = await storage.voidRiderPromo(promoId);
+      if (!result) {
+        return res.status(404).json({ message: "Promo not found" });
+      }
+      await storage.createAuditLog({
+        action: "promo_voided",
+        entityType: "rider_promo",
+        entityId: promoId,
+        performedByUserId: req.user.claims.sub,
+        performedByRole: "admin",
+        metadata: JSON.stringify({ promoId })
+      });
+      return res.json({ success: true });
+    } catch (error) {
+      console.error("Error voiding promo:", error);
+      return res.status(500).json({ message: "Failed to void promo" });
+    }
+  });
+
+  // ========================================
+  // Phase 5 - Behavior Stats Routes
+  // ========================================
+
+  app.get("/api/behavior/mine", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const stats = await storage.getBehaviorStats(userId);
+      return res.json(stats || null);
+    } catch (error) {
+      console.error("Error fetching behavior stats:", error);
+      return res.status(500).json({ message: "Failed to fetch behavior stats" });
+    }
+  });
+
+  app.get("/api/behavior/user/:userId", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const stats = await storage.getBehaviorStats(userId);
+      return res.json(stats || null);
+    } catch (error) {
+      console.error("Error fetching user behavior stats:", error);
+      return res.status(500).json({ message: "Failed to fetch behavior stats" });
+    }
+  });
+
+  app.get("/api/behavior/all", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const stats = await storage.getAllBehaviorStats();
+      return res.json(stats);
+    } catch (error) {
+      console.error("Error fetching all behavior stats:", error);
+      return res.status(500).json({ message: "Failed to fetch behavior stats" });
+    }
+  });
+
+  app.post("/api/behavior/evaluate", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { userId, role } = req.body;
+      if (!userId || !role) {
+        return res.status(400).json({ message: "User ID and role are required" });
+      }
+      const result = await evaluateBehaviorAndWarnings(userId, role);
+      return res.json(result);
+    } catch (error) {
+      console.error("Error evaluating behavior:", error);
+      return res.status(500).json({ message: "Failed to evaluate behavior" });
+    }
+  });
+
+  // ========================================
+  // Phase 5 - Driver Matching & Incentive Progress
+  // ========================================
+
+  app.get("/api/incentives/progress", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const progress = await getDriverIncentiveProgress(userId);
+      return res.json(progress);
+    } catch (error) {
+      console.error("Error fetching incentive progress:", error);
+      return res.status(500).json({ message: "Failed to fetch incentive progress" });
+    }
+  });
+
+  app.get("/api/matching/score/:driverId", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { driverId } = req.params;
+      const lat = req.query.lat ? parseFloat(req.query.lat) : undefined;
+      const lng = req.query.lng ? parseFloat(req.query.lng) : undefined;
+      const riderLocation = lat && lng ? { lat, lng } : undefined;
+      const score = await calculateDriverMatchingScore(driverId, riderLocation);
+      return res.json(score);
+    } catch (error) {
+      console.error("Error calculating matching score:", error);
+      return res.status(500).json({ message: "Failed to calculate matching score" });
+    }
+  });
+
+  app.post("/api/incentives/pause-all", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const activePrograms = await storage.getActiveIncentivePrograms();
+      let paused = 0;
+      for (const program of activePrograms) {
+        await storage.pauseIncentiveProgram(program.id);
+        paused++;
+      }
+      await storage.createAuditLog({
+        action: "incentives_paused_all",
+        entityType: "incentive_program",
+        entityId: "system",
+        performedByUserId: userId,
+        performedByRole: "admin",
+        metadata: JSON.stringify({ pausedCount: paused })
+      });
+      return res.json({ success: true, paused });
+    } catch (error) {
+      console.error("Error pausing all incentives:", error);
+      return res.status(500).json({ message: "Failed to pause incentives" });
     }
   });
 
