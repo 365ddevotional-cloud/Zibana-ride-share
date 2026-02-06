@@ -22,6 +22,8 @@ import {
   fraudEvents,
   incentivePrograms,
   incentiveEarnings,
+  riderPromos,
+  userBehaviorStats,
   countries,
   taxRules,
   exchangeRates,
@@ -89,6 +91,10 @@ import {
   type UpdateIncentiveProgram,
   type IncentiveEarning,
   type InsertIncentiveEarning,
+  type RiderPromo,
+  type InsertRiderPromo,
+  type UserBehaviorStats,
+  type InsertUserBehaviorStats,
   type Country,
   type InsertCountry,
   type UpdateCountry,
@@ -770,6 +776,23 @@ export interface IStorage {
     paidEarnings: string;
     revokedEarnings: string;
   }>;
+
+  // Phase 5 - Rider Promos
+  createRiderPromo(data: InsertRiderPromo): Promise<RiderPromo>;
+  getRiderPromoById(promoId: string): Promise<RiderPromo | null>;
+  getRiderPromoByCode(code: string, riderId: string): Promise<RiderPromo | null>;
+  getRiderPromosByRider(riderId: string): Promise<RiderPromo[]>;
+  getActiveRiderPromos(riderId: string): Promise<RiderPromo[]>;
+  useRiderPromo(promoId: string, tripId: string): Promise<RiderPromo | null>;
+  voidRiderPromo(promoId: string): Promise<RiderPromo | null>;
+  getAllRiderPromos(): Promise<RiderPromo[]>;
+
+  // Phase 5 - User Behavior Stats
+  getOrCreateBehaviorStats(userId: string, role: string): Promise<UserBehaviorStats>;
+  getBehaviorStats(userId: string): Promise<UserBehaviorStats | null>;
+  updateBehaviorStats(userId: string, data: Partial<UserBehaviorStats>): Promise<UserBehaviorStats | null>;
+  incrementBehaviorStat(userId: string, field: string, amount?: number): Promise<void>;
+  getAllBehaviorStats(): Promise<UserBehaviorStats[]>;
 
   // Phase 15 - Multi-Country
   createCountry(data: InsertCountry): Promise<Country>;
@@ -3760,6 +3783,117 @@ export class DatabaseStorage implements IStorage {
       paidEarnings: String(earningStats?.paidEarnings || "0.00"),
       revokedEarnings: String(earningStats?.revokedEarnings || "0.00")
     };
+  }
+
+  // ========================================
+  // Phase 5 - Rider Promos
+  // ========================================
+
+  async createRiderPromo(data: InsertRiderPromo): Promise<RiderPromo> {
+    const [promo] = await db.insert(riderPromos).values(data).returning();
+    return promo;
+  }
+
+  async getRiderPromoById(promoId: string): Promise<RiderPromo | null> {
+    const [promo] = await db.select().from(riderPromos).where(eq(riderPromos.id, promoId));
+    return promo || null;
+  }
+
+  async getRiderPromoByCode(code: string, riderId: string): Promise<RiderPromo | null> {
+    const [promo] = await db.select().from(riderPromos)
+      .where(and(eq(riderPromos.code, code), eq(riderPromos.riderId, riderId)));
+    return promo || null;
+  }
+
+  async getRiderPromosByRider(riderId: string): Promise<RiderPromo[]> {
+    return await db.select().from(riderPromos)
+      .where(eq(riderPromos.riderId, riderId))
+      .orderBy(desc(riderPromos.createdAt));
+  }
+
+  async getActiveRiderPromos(riderId: string): Promise<RiderPromo[]> {
+    const now = new Date();
+    return await db.select().from(riderPromos)
+      .where(and(
+        eq(riderPromos.riderId, riderId),
+        eq(riderPromos.status, "active"),
+        or(isNull(riderPromos.expiresAt), gte(riderPromos.expiresAt, now))
+      ))
+      .orderBy(desc(riderPromos.createdAt));
+  }
+
+  async useRiderPromo(promoId: string, tripId: string): Promise<RiderPromo | null> {
+    const promo = await this.getRiderPromoById(promoId);
+    if (!promo || promo.status !== "active") return null;
+    const newUsedCount = promo.usedCount + 1;
+    const newStatus = newUsedCount >= promo.maxUses ? "used" : "active";
+    const [updated] = await db.update(riderPromos)
+      .set({ usedCount: newUsedCount, status: newStatus as any, usedAt: new Date(), tripId })
+      .where(eq(riderPromos.id, promoId))
+      .returning();
+    return updated || null;
+  }
+
+  async voidRiderPromo(promoId: string): Promise<RiderPromo | null> {
+    const [updated] = await db.update(riderPromos)
+      .set({ status: "voided" as any })
+      .where(eq(riderPromos.id, promoId))
+      .returning();
+    return updated || null;
+  }
+
+  async getAllRiderPromos(): Promise<RiderPromo[]> {
+    return await db.select().from(riderPromos).orderBy(desc(riderPromos.createdAt));
+  }
+
+  // ========================================
+  // Phase 5 - User Behavior Stats
+  // ========================================
+
+  async getOrCreateBehaviorStats(userId: string, role: string): Promise<UserBehaviorStats> {
+    const existing = await this.getBehaviorStats(userId);
+    if (existing) return existing;
+    const [created] = await db.insert(userBehaviorStats).values({
+      userId,
+      role,
+      totalTripsOffered: 0,
+      totalTripsAccepted: 0,
+      totalTripsCancelled: 0,
+      totalTripsCompleted: 0,
+      cancelledByUser: 0,
+      cancelledByOther: 0,
+      warningLevel: "none",
+      warningsIssued: 0,
+      matchingPriority: "100",
+      incentiveEligible: true,
+      promoEligible: true,
+    }).returning();
+    return created;
+  }
+
+  async getBehaviorStats(userId: string): Promise<UserBehaviorStats | null> {
+    const [stats] = await db.select().from(userBehaviorStats).where(eq(userBehaviorStats.userId, userId));
+    return stats || null;
+  }
+
+  async updateBehaviorStats(userId: string, data: Partial<UserBehaviorStats>): Promise<UserBehaviorStats | null> {
+    const [updated] = await db.update(userBehaviorStats)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(userBehaviorStats.userId, userId))
+      .returning();
+    return updated || null;
+  }
+
+  async incrementBehaviorStat(userId: string, field: string, amount: number = 1): Promise<void> {
+    const stats = await this.getOrCreateBehaviorStats(userId, "unknown");
+    const currentValue = (stats as any)[field] || 0;
+    await db.update(userBehaviorStats)
+      .set({ [field]: currentValue + amount, updatedAt: new Date() } as any)
+      .where(eq(userBehaviorStats.userId, userId));
+  }
+
+  async getAllBehaviorStats(): Promise<UserBehaviorStats[]> {
+    return await db.select().from(userBehaviorStats).orderBy(desc(userBehaviorStats.updatedAt));
   }
 
   // ========================================

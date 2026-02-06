@@ -85,6 +85,11 @@ export const incentiveTypeEnum = pgEnum("incentive_type", ["trip", "streak", "pe
 export const incentiveProgramStatusEnum = pgEnum("incentive_program_status", ["active", "paused", "ended"]);
 export const incentiveEarningStatusEnum = pgEnum("incentive_earning_status", ["pending", "approved", "paid", "revoked"]);
 
+// Phase 5 - Rider Promos & Behavior Stats enums
+export const riderPromoTypeEnum = pgEnum("rider_promo_type", ["first_ride", "return_rider", "event", "community", "referral"]);
+export const riderPromoStatusEnum = pgEnum("rider_promo_status", ["active", "used", "expired", "voided"]);
+export const behaviorWarningLevelEnum = pgEnum("behavior_warning_level", ["none", "caution", "warning", "restricted"]);
+
 // Phase 14.5 - Trip Coordinator enums
 export const organizationTypeEnum = pgEnum("organization_type", ["ngo", "hospital", "church", "school", "gov", "corporate", "other"]);
 export const bookedForTypeEnum = pgEnum("booked_for_type", ["self", "third_party"]);
@@ -1221,6 +1226,45 @@ export const incentiveEarnings = pgTable("incentive_earnings", {
   walletTransactionId: varchar("wallet_transaction_id"),
 });
 
+// Phase 5 - Rider Promos table
+export const riderPromos = pgTable("rider_promos", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  code: varchar("code", { length: 50 }).notNull(),
+  riderId: varchar("rider_id").notNull(),
+  type: riderPromoTypeEnum("type").notNull(),
+  discountPercent: decimal("discount_percent", { precision: 5, scale: 2 }).notNull().default("0"),
+  discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }).notNull().default("0"),
+  currency: varchar("currency", { length: 3 }).notNull().default("USD"),
+  maxUses: integer("max_uses").notNull().default(1),
+  usedCount: integer("used_count").notNull().default(0),
+  status: riderPromoStatusEnum("status").notNull().default("active"),
+  expiresAt: timestamp("expires_at"),
+  usedAt: timestamp("used_at"),
+  tripId: varchar("trip_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Phase 5 - User Behavior Stats table (tracks acceptance/cancellation rates and matching priority)
+export const userBehaviorStats = pgTable("user_behavior_stats", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique(),
+  role: varchar("role", { length: 20 }).notNull(),
+  totalTripsOffered: integer("total_trips_offered").notNull().default(0),
+  totalTripsAccepted: integer("total_trips_accepted").notNull().default(0),
+  totalTripsCancelled: integer("total_trips_cancelled").notNull().default(0),
+  totalTripsCompleted: integer("total_trips_completed").notNull().default(0),
+  cancelledByUser: integer("cancelled_by_user").notNull().default(0),
+  cancelledByOther: integer("cancelled_by_other").notNull().default(0),
+  warningLevel: behaviorWarningLevelEnum("warning_level").notNull().default("none"),
+  warningsIssued: integer("warnings_issued").notNull().default(0),
+  lastWarningAt: timestamp("last_warning_at"),
+  matchingPriority: decimal("matching_priority", { precision: 5, scale: 2 }).notNull().default("100"),
+  incentiveEligible: boolean("incentive_eligible").notNull().default(true),
+  promoEligible: boolean("promo_eligible").notNull().default(true),
+  lastEvaluatedAt: timestamp("last_evaluated_at"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Phase 15 - Multi-Country Tax, Currency & Compliance tables
 
 // Countries table
@@ -2137,6 +2181,65 @@ export type IncentiveEarningWithDetails = IncentiveEarning & {
   programName?: string;
   programType?: string;
   revokedByName?: string;
+};
+
+// Phase 5 - Rider Promos schemas and types
+export const insertRiderPromoSchema = createInsertSchema(riderPromos).omit({
+  id: true,
+  usedCount: true,
+  usedAt: true,
+  tripId: true,
+  createdAt: true,
+  status: true,
+});
+
+export type InsertRiderPromo = z.infer<typeof insertRiderPromoSchema>;
+export type RiderPromo = typeof riderPromos.$inferSelect;
+
+// Phase 5 - User Behavior Stats schemas and types
+export const insertUserBehaviorStatsSchema = createInsertSchema(userBehaviorStats).omit({
+  id: true,
+  updatedAt: true,
+  lastEvaluatedAt: true,
+});
+
+export type InsertUserBehaviorStats = z.infer<typeof insertUserBehaviorStatsSchema>;
+export type UserBehaviorStats = typeof userBehaviorStats.$inferSelect;
+
+export type UserBehaviorSummary = {
+  userId: string;
+  role: string;
+  acceptanceRate: number;
+  cancellationRate: number;
+  completionRate: number;
+  warningLevel: string;
+  matchingPriority: number;
+  incentiveEligible: boolean;
+  promoEligible: boolean;
+};
+
+export type DriverMatchingScore = {
+  driverId: string;
+  proximityScore: number;
+  acceptanceScore: number;
+  cancellationScore: number;
+  ratingScore: number;
+  onlineDurationScore: number;
+  totalScore: number;
+};
+
+export type IncentiveProgress = {
+  programId: string;
+  programName: string;
+  type: string;
+  targetValue: number;
+  currentValue: number;
+  progressPercent: number;
+  rewardAmount: string;
+  currency: string;
+  expiresAt: string;
+  status: "in_progress" | "eligible" | "earned" | "blocked";
+  blockReason?: string;
 };
 
 // Phase 15 - Multi-Country Tax, Currency & Compliance schemas and types

@@ -1,0 +1,151 @@
+You are implementing PHASE 5 of the ZIBA ride-hailing app: INCENTIVES, BONUSES, RATINGS, AND BEHAVIOR CONTROL.
+
+This phase defines how ZIBA rewards good behavior, discourages bad behavior,
+prevents fraud, and maintains fairness for both riders and drivers.
+
+INCENTIVES MUST REWARD ACTION, NOT SIGNUPS.
+PUNISHMENTS MUST BE GRADUAL, NOT AGGRESSIVE.
+
+=====================================
+1) DRIVER INCENTIVE LOGIC (ANTI-FRAUD)
+=====================================
+
+Driver incentives must ONLY trigger after verified actions.
+
+Rules:
+• No incentive is paid on signup alone.
+• All incentives require completed trips.
+
+Supported incentive types:
+- Activation bonus (first X trips within Y days)
+- Weekly consistency bonus
+- Peak-hour bonus
+- Rating-based bonus
+
+Activation Bonus Example:
+• Driver completes ≥ 15 trips within 10 days
+• Driver cancellation rate < threshold
+• Driver rating ≥ 4.5
+→ Pay bonus
+
+Anti-fraud rules:
+• Trips must have valid GPS start/end
+• No repeated same rider pattern abuse
+• No excessive short-loop trips
+• Trips cancelled by rider do NOT count against driver
+
+=====================================
+2) RIDER INCENTIVE LOGIC (CONTROLLED)
+=====================================
+
+Rider incentives must encourage real usage, not abuse.
+
+Rules:
+• First-ride discounts apply only to completed rides
+• Discounts expire if ride is cancelled
+• No stacking of multiple promo codes
+
+Rider incentive types:
+- First ride discount
+- Return rider discount (after inactivity)
+- Event / community promo codes
+
+Anti-abuse rules:
+• Repeated cancellations void future promos
+• Promo usage tracked per user_id, not device
+• Reinstalls do NOT reset promo eligibility
+
+=====================================
+3) CANCELLATION & ACCEPTANCE BEHAVIOR RULES
+=====================================
+
+Driver behavior logic:
+• High acceptance + low cancellation → higher trip priority
+• Rising cancellation rate → warning (Phase 1 logic)
+• Continued poor behavior → reduced incentives (NOT instant ban)
+
+Rider behavior logic:
+• Frequent cancellations → warning
+• Continued abuse → reduced driver matching priority
+• Chronic abuse → temporary restriction with admin review
+
+=====================================
+4) RATING SYSTEM RULES (FAIR & BILATERAL)
+=====================================
+
+• Both riders and drivers rate each other after trip completion.
+• Ratings below threshold affect incentives, not immediate access.
+• Single bad rating MUST NOT cause penalties.
+• Rolling average (last N trips) determines impact.
+
+Rules:
+• Ratings influence:
+  - Incentive eligibility
+  - Matching priority
+• Ratings do NOT:
+  - Instantly block accounts
+  - Delete access without admin review
+
+=====================================
+5) PAIRING & MATCHING LOGIC (TRUST-BASED)
+=====================================
+
+Matching priority must consider:
+• Proximity
+• Driver online duration
+• Acceptance rate
+• Cancellation rate
+• Rating trend
+
+Rules:
+• Riders with chronic low ratings should NOT be paired with top drivers.
+• Drivers with severe cancellation issues should receive fewer requests.
+• Logic must be gradual, not punitive.
+
+=====================================
+6) INCENTIVE VISIBILITY & TRANSPARENCY
+=====================================
+
+Users must clearly see:
+• What incentive they are working toward
+• What conditions remain
+• Why they qualified or failed
+
+Rules:
+• No hidden penalties
+• No surprise disqualifications
+• Clear progress indicators
+
+=====================================
+7) ADMIN CONTROL & DISPUTE HANDLING
+=====================================
+
+Admins must be able to:
+• Review incentive disqualifications
+• Restore incentives after valid disputes
+• Flag suspicious incentive activity
+• Temporarily pause incentives system-wide if abuse spikes
+
+All admin actions must be logged (Phase 3 rules).
+
+=====================================
+8) DATA INTEGRITY & SAFETY
+=====================================
+
+• Incentives must reference immutable trip records
+• Incentives must never be paid twice for same condition
+• No incentive resets on reinstall or logout
+• Behavior history must persist across sessions
+
+=====================================
+9) SUCCESS CRITERIA
+=====================================
+
+This phase is complete when:
+• Incentives increase real activity, not fake trips
+• Fraud attempts are detectable
+• Good drivers earn more
+• Responsible riders get better service
+• Support can explain every incentive outcome
+
+This phase must be completed before large-scale marketing or city expansion.
