@@ -304,6 +304,12 @@ import {
   userAnalytics,
   type UserAnalytics,
   type InsertUserAnalytics,
+  stateLaunchConfigs,
+  systemModeConfig,
+  type StateLaunchConfig,
+  type InsertStateLaunchConfig,
+  type SystemModeConfig,
+  type InsertSystemModeConfig,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull } from "drizzle-orm";
@@ -954,6 +960,16 @@ export interface IStorage {
   createAdminOverrideAuditLog(data: InsertAdminOverrideAuditLog): Promise<AdminOverrideAuditLog>;
   getAdminOverrideAuditLogs(affectedUserId?: string): Promise<AdminOverrideAuditLog[]>;
   getAdminOverrideAuditLogsByAdmin(adminActorId: string): Promise<AdminOverrideAuditLog[]>;
+
+  // Phase 6 - State Launch Control
+  getStateLaunchConfig(stateCode: string, countryCode: string): Promise<StateLaunchConfig | null>;
+  getStateLaunchConfigsByCountry(countryCode: string): Promise<StateLaunchConfig[]>;
+  createStateLaunchConfig(data: Partial<InsertStateLaunchConfig>): Promise<StateLaunchConfig>;
+  updateStateLaunchConfig(stateCode: string, countryCode: string, data: Partial<StateLaunchConfig>): Promise<StateLaunchConfig | null>;
+  getAllKillSwitchStates(): Promise<KillSwitchState[]>;
+  getAllActiveKillSwitches(): Promise<KillSwitchState[]>;
+  getCurrentSystemMode(): Promise<SystemModeConfig | null>;
+  setSystemMode(mode: string, reason: string, changedBy: string): Promise<SystemModeConfig>;
 
   // Phase 4 - User Analytics
   getOrCreateUserAnalytics(userId: string, role: string): Promise<UserAnalytics>;
@@ -7430,6 +7446,61 @@ export class DatabaseStorage implements IStorage {
   async isKillSwitchActive(switchName: string): Promise<boolean> {
     const state = await this.getKillSwitchState(switchName);
     return state?.isActive || false;
+  }
+
+  async getAllActiveKillSwitches(): Promise<KillSwitchState[]> {
+    return db.select().from(killSwitchStates).where(eq(killSwitchStates.isActive, true));
+  }
+
+  // Phase 6 - State Launch Control
+  async getStateLaunchConfig(stateCode: string, countryCode: string): Promise<StateLaunchConfig | null> {
+    const [config] = await db.select().from(stateLaunchConfigs)
+      .where(and(
+        eq(stateLaunchConfigs.stateCode, stateCode),
+        eq(stateLaunchConfigs.countryCode, countryCode)
+      ));
+    return config || null;
+  }
+
+  async getStateLaunchConfigsByCountry(countryCode: string): Promise<StateLaunchConfig[]> {
+    return db.select().from(stateLaunchConfigs)
+      .where(eq(stateLaunchConfigs.countryCode, countryCode));
+  }
+
+  async createStateLaunchConfig(data: Partial<InsertStateLaunchConfig>): Promise<StateLaunchConfig> {
+    const [created] = await db.insert(stateLaunchConfigs)
+      .values(data as any)
+      .returning();
+    return created;
+  }
+
+  async updateStateLaunchConfig(stateCode: string, countryCode: string, data: Partial<StateLaunchConfig>): Promise<StateLaunchConfig | null> {
+    const existing = await this.getStateLaunchConfig(stateCode, countryCode);
+    if (!existing) return null;
+    const [updated] = await db.update(stateLaunchConfigs)
+      .set({ ...data, lastUpdatedAt: new Date() })
+      .where(eq(stateLaunchConfigs.id, existing.id))
+      .returning();
+    return updated || null;
+  }
+
+  async getCurrentSystemMode(): Promise<SystemModeConfig | null> {
+    const [mode] = await db.select().from(systemModeConfig)
+      .orderBy(desc(systemModeConfig.changedAt))
+      .limit(1);
+    return mode || null;
+  }
+
+  async setSystemMode(mode: string, reason: string, changedBy: string): Promise<SystemModeConfig> {
+    const [created] = await db.insert(systemModeConfig)
+      .values({
+        currentMode: mode as any,
+        reason,
+        changedBy,
+        changedAt: new Date(),
+      })
+      .returning();
+    return created;
   }
 
   async getTestUserFlag(userId: string): Promise<TestUserFlag | null> {

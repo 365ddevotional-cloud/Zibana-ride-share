@@ -12732,5 +12732,212 @@ export async function registerRoutes(
   }, 60000);
   console.log("[OVERRIDE SCHEDULER] Started — polling every 60s for expired overrides");
 
+  // =============================================
+  // PHASE 6: LAUNCH READINESS & SAFETY KILL-SWITCHES
+  // =============================================
+
+  // Get launch readiness status
+  app.get("/api/admin/launch/readiness", isAuthenticated, requireRole(["super_admin", "admin", "director"]), async (req: any, res) => {
+    try {
+      const { getLaunchReadinessStatus } = await import("./launch-control");
+      const countryCode = (req.query.countryCode as string) || "NG";
+      const status = await getLaunchReadinessStatus(countryCode);
+      return res.json(status);
+    } catch (error) {
+      console.error("Error getting launch readiness:", error);
+      return res.status(500).json({ message: "Failed to get launch readiness status" });
+    }
+  });
+
+  // Get state launch configs for a country
+  app.get("/api/admin/launch/states", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const countryCode = (req.query.countryCode as string) || "NG";
+      const states = await storage.getStateLaunchConfigsByCountry(countryCode);
+      return res.json(states);
+    } catch (error) {
+      console.error("Error getting state configs:", error);
+      return res.status(500).json({ message: "Failed to get state configs" });
+    }
+  });
+
+  // Toggle state enabled/disabled
+  app.post("/api/admin/launch/state/toggle", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const { stateCode, countryCode, enabled } = req.body;
+      if (!stateCode) return res.status(400).json({ message: "stateCode is required" });
+
+      const cc = countryCode || "NG";
+      const updated = await storage.updateStateLaunchConfig(stateCode, cc, {
+        stateEnabled: enabled,
+        lastUpdatedBy: adminId,
+      });
+
+      if (!updated) {
+        return res.status(404).json({ message: "State config not found" });
+      }
+
+      await storage.createComplianceAuditLog({
+        category: "LAUNCH_MODE_CHANGE",
+        actionBy: adminId,
+        eventType: `STATE_${enabled ? "ENABLED" : "DISABLED"}`,
+        eventData: JSON.stringify({ stateCode, countryCode: cc }),
+      });
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error toggling state:", error);
+      return res.status(500).json({ message: "Failed to toggle state" });
+    }
+  });
+
+  // Update state launch config (thresholds, wait times, etc.)
+  app.patch("/api/admin/launch/state/:stateCode", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const { stateCode } = req.params;
+      const countryCode = req.body.countryCode || "NG";
+      const { minOnlineDriversCar, minOnlineDriversBike, maxPickupWaitMinutes, autoDisableOnWaitExceed } = req.body;
+
+      const updateData: any = { lastUpdatedBy: adminId };
+      if (minOnlineDriversCar !== undefined) updateData.minOnlineDriversCar = minOnlineDriversCar;
+      if (minOnlineDriversBike !== undefined) updateData.minOnlineDriversBike = minOnlineDriversBike;
+      if (maxPickupWaitMinutes !== undefined) updateData.maxPickupWaitMinutes = maxPickupWaitMinutes;
+      if (autoDisableOnWaitExceed !== undefined) updateData.autoDisableOnWaitExceed = autoDisableOnWaitExceed;
+
+      const updated = await storage.updateStateLaunchConfig(stateCode, countryCode, updateData);
+      if (!updated) return res.status(404).json({ message: "State config not found" });
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error updating state config:", error);
+      return res.status(500).json({ message: "Failed to update state config" });
+    }
+  });
+
+  // Toggle country enabled/disabled
+  app.post("/api/admin/launch/country/toggle", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const { countryCode, enabled } = req.body;
+      if (!countryCode) return res.status(400).json({ message: "countryCode is required" });
+
+      await storage.setLaunchSetting(`COUNTRY_ENABLED_${countryCode}`, enabled, adminId, `Country ${countryCode} ${enabled ? "enabled" : "disabled"}`);
+
+      await storage.createComplianceAuditLog({
+        category: "LAUNCH_MODE_CHANGE",
+        actionBy: adminId,
+        eventType: `COUNTRY_${enabled ? "ENABLED" : "DISABLED"}`,
+        eventData: JSON.stringify({ countryCode }),
+      });
+
+      return res.json({ success: true, countryCode, enabled });
+    } catch (error) {
+      console.error("Error toggling country:", error);
+      return res.status(500).json({ message: "Failed to toggle country" });
+    }
+  });
+
+  // Get/Set system mode
+  app.get("/api/admin/launch/system-mode", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const mode = await storage.getCurrentSystemMode();
+      return res.json(mode || { currentMode: "NORMAL", reason: null });
+    } catch (error) {
+      console.error("Error getting system mode:", error);
+      return res.status(500).json({ message: "Failed to get system mode" });
+    }
+  });
+
+  app.post("/api/admin/launch/system-mode", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const { mode, reason } = req.body;
+      if (!mode || !["NORMAL", "LIMITED", "EMERGENCY"].includes(mode)) {
+        return res.status(400).json({ message: "Valid mode (NORMAL, LIMITED, EMERGENCY) is required" });
+      }
+
+      const result = await storage.setSystemMode(mode, reason || "", adminId);
+
+      await storage.createComplianceAuditLog({
+        category: "LAUNCH_MODE_CHANGE",
+        actionBy: adminId,
+        eventType: "SYSTEM_MODE_CHANGE",
+        eventData: JSON.stringify({ mode, reason }),
+      });
+
+      return res.json(result);
+    } catch (error) {
+      console.error("Error setting system mode:", error);
+      return res.status(500).json({ message: "Failed to set system mode" });
+    }
+  });
+
+  // Enhanced kill switch routes (Phase 6 additions)
+  app.get("/api/admin/launch/kill-switches", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const states = await storage.getAllKillSwitchStates();
+      return res.json(states);
+    } catch (error) {
+      console.error("Error getting kill switches:", error);
+      return res.status(500).json({ message: "Failed to get kill switches" });
+    }
+  });
+
+  app.post("/api/admin/launch/kill-switch/toggle", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const { switchName, activate, reason } = req.body;
+      if (!switchName) return res.status(400).json({ message: "switchName is required" });
+
+      let result;
+      if (activate) {
+        result = await storage.activateKillSwitch(switchName, reason || "Activated via Launch Control", adminId);
+      } else {
+        result = await storage.deactivateKillSwitch(switchName, adminId);
+      }
+
+      await storage.createComplianceAuditLog({
+        category: "KILL_SWITCH_TOGGLE",
+        actionBy: adminId,
+        eventType: activate ? "KILL_SWITCH_ACTIVATED" : "KILL_SWITCH_DEACTIVATED",
+        eventData: JSON.stringify({ switchName, reason }),
+      });
+
+      return res.json({ success: true, state: result });
+    } catch (error) {
+      console.error("Error toggling kill switch:", error);
+      return res.status(500).json({ message: "Failed to toggle kill switch" });
+    }
+  });
+
+  // Seed Nigeria states on startup
+  (async () => {
+    try {
+      const { seedNigeriaStates, seedKillSwitches, seedCountryLaunch } = await import("./launch-control");
+      await seedCountryLaunch();
+      await seedNigeriaStates();
+      await seedKillSwitches();
+      console.log("[LAUNCH CONTROL] Seeded Nigeria states, kill switches, and country launch settings");
+    } catch (error) {
+      console.error("[LAUNCH CONTROL] Error seeding launch data:", error);
+    }
+  })();
+
+  // Public endpoint - check if service available in area
+  app.get("/api/launch/check", async (req, res) => {
+    try {
+      const { checkTripRequestAllowed } = await import("./launch-control");
+      const countryCode = (req.query.countryCode as string) || "NG";
+      const stateCode = req.query.stateCode as string;
+      const result = await checkTripRequestAllowed(countryCode, stateCode);
+      return res.json(result);
+    } catch (error) {
+      console.error("Error checking launch status:", error);
+      return res.json({ allowed: false, reason: "Unable to verify service availability." });
+    }
+  });
+
   return httpServer;
 }

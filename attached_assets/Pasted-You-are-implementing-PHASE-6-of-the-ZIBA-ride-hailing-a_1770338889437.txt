@@ -1,0 +1,134 @@
+You are implementing PHASE 6 of the ZIBA ride-hailing app: LAUNCH READINESS & SAFETY KILL-SWITCHES
+for Enugu and ALL states in Nigeria.
+
+This phase ensures ZIBA can launch safely, scale state-by-state,
+and recover instantly from failures without redeploying the app.
+
+NO FEATURE MAY BYPASS KILL-SWITCHES.
+
+=====================================
+1) COUNTRY & STATE LAUNCH CONTROL
+=====================================
+
+• Implement country-level launch flags:
+  - country_enabled (true/false)
+
+• Implement state-level launch flags for Nigeria:
+  - state_code (e.g. EN, LA, AB, PH)
+  - state_enabled (true/false)
+
+Rules:
+• If country_enabled = false → app blocks trips nationwide
+• If state_enabled = false → users can log in but cannot request or accept trips
+• State launch must be independently controllable
+
+=====================================
+2) DRIVER SUPPLY READINESS GATES
+=====================================
+
+Before allowing rider requests in any state:
+
+• Minimum online drivers threshold must be met
+• Separate thresholds per vehicle type:
+  - cars
+  - bikes
+  - (keke reserved for future phase)
+
+Rules:
+• If threshold not met:
+  - Rider sees “Drivers unavailable” message
+  - No trips allowed
+• Prevents bad first impressions
+
+=====================================
+3) WAIT-TIME SAFETY CONTROLS
+=====================================
+
+• Track average pickup time per state
+• Define max acceptable wait time (configurable)
+
+Rules:
+• If wait time exceeds limit:
+  - Auto-disable new ride requests
+  - Display graceful message to riders
+• Drivers remain online
+
+=====================================
+4) GLOBAL & MODULE KILL-SWITCHES
+=====================================
+
+Admin must be able to instantly disable:
+
+• Trip requests
+• Trip acceptance
+• Incentives system
+• Wallet payouts
+• New driver onboarding
+• New rider onboarding
+
+Rules:
+• Kill-switches must:
+  - Take effect immediately
+  - NOT require redeploy
+  - Be reversible
+
+=====================================
+5) INCIDENT RESPONSE MODES
+=====================================
+
+Define system modes:
+• NORMAL
+• LIMITED
+• EMERGENCY
+
+Behavior:
+• LIMITED:
+  - No incentives
+  - Reduced matching radius
+• EMERGENCY:
+  - No new trips
+  - Existing trips finish safely
+
+=====================================
+6) INCENTIVES VISIBILITY FIX (DUPLICATE REMOVAL)
+=====================================
+
+• Incentives module MUST appear ONCE in Admin UI.
+• Remove duplicate menu or route registration.
+• Enforce single source of truth:
+  Management Center → Incentives
+
+DO NOT duplicate incentive controls across admin sections.
+
+=====================================
+7) ADMIN DASHBOARD READINESS PANEL
+=====================================
+
+Create a Launch Readiness panel showing:
+• Country status
+• State-by-state enablement
+• Online drivers count
+• Average pickup time
+• Active kill-switches
+• Current system mode
+
+=====================================
+8) FAIL-SAFE RULES (NON-NEGOTIABLE)
+=====================================
+
+• If configuration data is missing → default to SAFE (disabled)
+• Kill-switches override incentives, pricing, and matching
+• No crash allowed due to missing launch config
+
+=====================================
+9) FINAL LAUNCH VALIDATION
+=====================================
+
+Phase 6 is complete only when:
+• Nigeria can be enabled/disabled centrally
+• Each state can launch independently
+• Incentives can be paused instantly
+• Bad launches can be stopped in seconds
+• Duplicate admin modules are removed
+
+This phase MUST be completed before public marketing or driver mass onboarding.

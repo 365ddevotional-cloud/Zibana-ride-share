@@ -3456,3 +3456,61 @@ export type InsertTestUserFlag = z.infer<typeof insertTestUserFlagSchema>;
 export type TestUserFlag = typeof testUserFlags.$inferSelect;
 export type InsertComplianceConfirmation = z.infer<typeof insertComplianceConfirmationSchema>;
 export type ComplianceConfirmation = typeof complianceConfirmations.$inferSelect;
+
+// =============================================
+// PHASE 6: LAUNCH READINESS & SAFETY KILL-SWITCHES
+// =============================================
+
+export const systemModeEnum = pgEnum("system_mode", ["NORMAL", "LIMITED", "EMERGENCY"]);
+
+export const vehicleTypeEnum = pgEnum("vehicle_type_supply", ["car", "bike"]);
+
+export const stateLaunchConfigs = pgTable("state_launch_configs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  countryCode: varchar("country_code", { length: 3 }).notNull().default("NG"),
+  stateCode: varchar("state_code", { length: 5 }).notNull(),
+  stateName: varchar("state_name", { length: 100 }).notNull(),
+  stateEnabled: boolean("state_enabled").notNull().default(false),
+  minOnlineDriversCar: integer("min_online_drivers_car").notNull().default(3),
+  minOnlineDriversBike: integer("min_online_drivers_bike").notNull().default(2),
+  maxPickupWaitMinutes: integer("max_pickup_wait_minutes").notNull().default(15),
+  avgPickupTimeMinutes: decimal("avg_pickup_time_minutes", { precision: 5, scale: 1 }).default("0"),
+  currentOnlineDriversCar: integer("current_online_drivers_car").notNull().default(0),
+  currentOnlineDriversBike: integer("current_online_drivers_bike").notNull().default(0),
+  autoDisableOnWaitExceed: boolean("auto_disable_on_wait_exceed").notNull().default(true),
+  lastUpdatedBy: varchar("last_updated_by"),
+  lastUpdatedAt: timestamp("last_updated_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const systemModeConfig = pgTable("system_mode_config", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  currentMode: systemModeEnum("current_mode").notNull().default("NORMAL"),
+  reason: text("reason"),
+  changedBy: varchar("changed_by"),
+  changedAt: timestamp("changed_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertStateLaunchConfigSchema = createInsertSchema(stateLaunchConfigs).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertStateLaunchConfig = z.infer<typeof insertStateLaunchConfigSchema>;
+export type StateLaunchConfig = typeof stateLaunchConfigs.$inferSelect;
+
+export const insertSystemModeConfigSchema = createInsertSchema(systemModeConfig).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertSystemModeConfig = z.infer<typeof insertSystemModeConfigSchema>;
+export type SystemModeConfig = typeof systemModeConfig.$inferSelect;
+
+export type LaunchReadinessStatus = {
+  countryEnabled: boolean;
+  systemMode: "NORMAL" | "LIMITED" | "EMERGENCY";
+  systemModeReason: string | null;
+  states: StateLaunchConfig[];
+  killSwitches: KillSwitchState[];
+  activeKillSwitchCount: number;
+};
