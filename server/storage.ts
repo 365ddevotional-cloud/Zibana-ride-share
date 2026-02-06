@@ -968,8 +968,15 @@ export interface IStorage {
   updateStateLaunchConfig(stateCode: string, countryCode: string, data: Partial<StateLaunchConfig>): Promise<StateLaunchConfig | null>;
   getAllKillSwitchStates(): Promise<KillSwitchState[]>;
   getAllActiveKillSwitches(): Promise<KillSwitchState[]>;
+  getKillSwitchesByScope(scope: string, countryCode?: string, subregionCode?: string): Promise<KillSwitchState[]>;
+  getScopedKillSwitchState(switchName: string, scope: string, countryCode?: string, subregionCode?: string): Promise<KillSwitchState | null>;
+  activateScopedKillSwitch(switchName: string, scope: string, reason: string, activatedBy: string, countryCode?: string, subregionCode?: string): Promise<KillSwitchState>;
+  deactivateScopedKillSwitch(switchName: string, scope: string, deactivatedBy: string, countryCode?: string, subregionCode?: string): Promise<KillSwitchState | null>;
   getCurrentSystemMode(): Promise<SystemModeConfig | null>;
   setSystemMode(mode: string, reason: string, changedBy: string): Promise<SystemModeConfig>;
+  getCountrySystemMode(countryCode: string): Promise<Country | null>;
+  setCountrySystemMode(countryCode: string, mode: string, reason: string, changedBy: string): Promise<Country | null>;
+  getCountriesForLaunch(): Promise<Country[]>;
 
   // Phase 4 - User Analytics
   getOrCreateUserAnalytics(userId: string, role: string): Promise<UserAnalytics>;
@@ -7450,6 +7457,100 @@ export class DatabaseStorage implements IStorage {
 
   async getAllActiveKillSwitches(): Promise<KillSwitchState[]> {
     return db.select().from(killSwitchStates).where(eq(killSwitchStates.isActive, true));
+  }
+
+  async getKillSwitchesByScope(scope: string, countryCode?: string, subregionCode?: string): Promise<KillSwitchState[]> {
+    const conditions = [eq(killSwitchStates.scope, scope)];
+    if (countryCode) conditions.push(eq(killSwitchStates.scopeCountryCode, countryCode));
+    if (subregionCode) conditions.push(eq(killSwitchStates.scopeSubregionCode, subregionCode));
+    return db.select().from(killSwitchStates).where(and(...conditions));
+  }
+
+  async getScopedKillSwitchState(switchName: string, scope: string, countryCode?: string, subregionCode?: string): Promise<KillSwitchState | null> {
+    const conditions = [
+      eq(killSwitchStates.switchName, switchName),
+      eq(killSwitchStates.scope, scope),
+    ];
+    if (scope === "COUNTRY" && countryCode) {
+      conditions.push(eq(killSwitchStates.scopeCountryCode, countryCode));
+    }
+    if (scope === "SUBREGION" && countryCode && subregionCode) {
+      conditions.push(eq(killSwitchStates.scopeCountryCode, countryCode));
+      conditions.push(eq(killSwitchStates.scopeSubregionCode, subregionCode));
+    }
+    const [state] = await db.select().from(killSwitchStates).where(and(...conditions));
+    return state || null;
+  }
+
+  async activateScopedKillSwitch(switchName: string, scope: string, reason: string, activatedBy: string, countryCode?: string, subregionCode?: string): Promise<KillSwitchState> {
+    const existing = await this.getScopedKillSwitchState(switchName, scope, countryCode, subregionCode);
+    if (existing) {
+      const [updated] = await db.update(killSwitchStates)
+        .set({
+          isActive: true,
+          reason,
+          activatedBy,
+          activatedAt: new Date(),
+          deactivatedBy: null,
+          deactivatedAt: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(killSwitchStates.id, existing.id))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(killSwitchStates)
+      .values({
+        switchName,
+        scope,
+        scopeCountryCode: countryCode || null,
+        scopeSubregionCode: subregionCode || null,
+        isActive: true,
+        reason,
+        activatedBy,
+        activatedAt: new Date(),
+      })
+      .returning();
+    return created;
+  }
+
+  async deactivateScopedKillSwitch(switchName: string, scope: string, deactivatedBy: string, countryCode?: string, subregionCode?: string): Promise<KillSwitchState | null> {
+    const existing = await this.getScopedKillSwitchState(switchName, scope, countryCode, subregionCode);
+    if (!existing) return null;
+    const [updated] = await db.update(killSwitchStates)
+      .set({
+        isActive: false,
+        deactivatedBy,
+        deactivatedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(killSwitchStates.id, existing.id))
+      .returning();
+    return updated || null;
+  }
+
+  async getCountrySystemMode(countryCode: string): Promise<Country | null> {
+    const [country] = await db.select().from(countries)
+      .where(eq(countries.isoCode, countryCode));
+    return country || null;
+  }
+
+  async setCountrySystemMode(countryCode: string, mode: string, reason: string, changedBy: string): Promise<Country | null> {
+    const [updated] = await db.update(countries)
+      .set({
+        defaultSystemMode: mode,
+        systemModeReason: reason,
+        systemModeChangedBy: changedBy,
+        systemModeChangedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(countries.isoCode, countryCode))
+      .returning();
+    return updated || null;
+  }
+
+  async getCountriesForLaunch(): Promise<Country[]> {
+    return db.select().from(countries).orderBy(countries.name);
   }
 
   // Phase 6 - State Launch Control
