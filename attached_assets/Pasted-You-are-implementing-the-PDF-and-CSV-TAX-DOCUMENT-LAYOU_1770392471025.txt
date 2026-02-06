@@ -1,0 +1,146 @@
+You are implementing the PDF and CSV TAX DOCUMENT LAYOUT for ZIBA driver tax statements.
+These documents are for official records and tax filing only.
+
+DO NOT expose per-trip platform fees.
+DO NOT include daily UI elements.
+KEEP LANGUAGE FORMAL, CALM, AND NON-PROVOCATIVE.
+
+==============================
+SUPPORTED DOCUMENTS
+==============================
+• Annual Earnings Statement
+• US 1099 (or country-equivalent)
+• Annual Tax Summary (PDF + CSV)
+
+==============================
+PDF LAYOUT — GENERAL RULES
+==============================
+• Clean white background
+• Black or dark-gray text
+• No bright colors
+• No marketing language
+• Readable on print and screen
+• Letter size (US) and A4 supported
+
+==============================
+PDF HEADER SECTION
+==============================
+Display:
+• ZIBA logo
+• Document title (e.g. “Annual Earnings & Tax Summary”)
+• Tax Year
+• Document Version
+• Issue Date
+
+==============================
+DRIVER IDENTITY SECTION
+==============================
+Display:
+• Driver Legal Name
+• Driver ID
+• Country
+• Tax Classification (Independent Contractor)
+• Masked Tax ID (last 4 digits only)
+
+==============================
+EARNINGS SUMMARY SECTION
+==============================
+Display:
+• Total Gross Earnings
+• Total Trip Earnings
+• Total Tips
+• Total Incentives
+
+Rules:
+• Large, clear totals
+• No per-trip breakdown
+• No platform fee here
+
+==============================
+PLATFORM FEE DISCLOSURE SECTION
+==============================
+Display:
+• Total Platform & Service Fees (Annual, Aggregated)
+
+Supporting text:
+“This amount represents total platform-related service costs for the year,
+provided for tax and accounting purposes.”
+
+Rules:
+• Aggregated yearly total only
+• No per-trip detail
+• No percentages
+
+==============================
+MILEAGE DISCLOSURE SECTION
+==============================
+Display:
+• Total Miles Driven While Online (Annual)
+
+Label exactly:
+“Total miles driven while online (for tax reporting purposes)”
+
+Rules:
+• Aggregated yearly mileage only
+• No daily or trip mileage breakdown
+
+==============================
+REPORTABLE INCOME SECTION
+==============================
+Display:
+• Reportable Income Amount
+
+Supporting note:
+“Taxes are not withheld. Driver is responsible for filing applicable taxes.”
+
+==============================
+FOOTER SECTION
+==============================
+Display:
+• ZIBA legal name
+• Support contact (email only)
+• Disclaimer:
+“This document is generated from ZIBA platform records and provided for tax reporting purposes.”
+
+==============================
+CSV LAYOUT — GENERAL RULES
+==============================
+• One row per driver per tax year
+• No per-trip rows
+• UTF-8 encoded
+• Comma-separated
+
+==============================
+CSV HEADERS
+==============================
+driver_id,
+driver_legal_name,
+country,
+tax_year,
+total_gross_earnings,
+total_trip_earnings,
+total_tips,
+total_incentives,
+total_platform_fees,
+total_miles_driven,
+reportable_income,
+currency
+
+==============================
+CSV DATA RULES
+==============================
+• All monetary values numeric (no symbols)
+• Mileage numeric
+• No empty critical fields
+• Platform fee included as aggregated annual value only
+
+==============================
+FINAL RULES
+==============================
+• PDFs and CSVs must match values exactly
+• Documents are read-only after issuance
+• Documents must be reproducible from source data
+• Layout must avoid triggering driver resentment
+
+Implement exactly as specified.
+Confirm when complete.
