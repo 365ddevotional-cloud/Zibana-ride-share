@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { FullPageLoading } from "@/components/loading-spinner";
 import type { DriverProfile, Trip } from "@shared/schema";
 import { CancellationWarning } from "@/components/cancellation-warning";
+import { ContextualHelpSuggestion } from "@/components/contextual-help";
 
 function cn(...classes: (string | boolean | undefined)[]) {
   return classes.filter(Boolean).join(" ");
@@ -191,6 +192,22 @@ export default function DriverDashboard() {
               : isOnline ? "Accepting Rides" : "Not Accepting Rides"}
           </Badge>
         </div>
+
+        <ContextualHelpSuggestion
+          category="onboarding"
+          audience="DRIVER"
+          title="Need help getting started?"
+          maxArticles={2}
+          show={!isApproved}
+        />
+
+        <ContextualHelpSuggestion
+          category="cancellations"
+          audience="DRIVER"
+          title="Understanding cancellations"
+          maxArticles={2}
+          show={isApproved && !isOnline}
+        />
 
         {currentTrip && (
           <Card className="border-emerald-500 border-2" data-testid="card-current-trip">

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { HelpCenterFallback } from "@/components/contextual-help";
 import {
   Search,
   HelpCircle,
@@ -15,6 +16,8 @@ import {
   ThumbsDown,
   ArrowLeft,
   Star,
+  TrendingUp,
+  Clock,
 } from "lucide-react";
 
 interface HelpCategory {
@@ -77,6 +80,20 @@ export default function HelpCenterPage({
       `?featured=true&audience=${audience}`,
     ],
   });
+
+  const { data: mostViewedArticles, isLoading: mostViewedLoading } = useQuery<
+    HelpArticleWithCategory[]
+  >({
+    queryKey: ["/api/help/articles/most-viewed", `?audience=${audience}&limit=5`],
+  });
+
+  const { data: recentlyUpdatedArticles, isLoading: recentlyUpdatedLoading } = useQuery<
+    HelpArticleWithCategory[]
+  >({
+    queryKey: ["/api/help/articles/recently-updated", `?audience=${audience}&limit=5`],
+  });
+
+  const hasLoadError = !categoriesLoading && !categories;
 
   const { data: searchResults, isLoading: searchLoading } = useQuery<
     HelpArticleWithCategory[]
@@ -145,6 +162,10 @@ export default function HelpCenterPage({
   };
 
   const isSearching = searchQuery.trim().length > 0;
+
+  if (hasLoadError) {
+    return <HelpCenterFallback />;
+  }
 
   if (view === "article" && selectedArticle) {
     return (
@@ -523,6 +544,97 @@ export default function HelpCenterPage({
               ))
             )}
           </div>
+
+          {mostViewedArticles && mostViewedArticles.length > 0 && (
+            <div className="space-y-3">
+              <h2
+                className="text-lg font-semibold flex items-center gap-2"
+                data-testid="text-most-viewed-title"
+              >
+                <TrendingUp className="h-5 w-5 text-muted-foreground" />
+                Most Viewed
+              </h2>
+              {mostViewedLoading ? (
+                <div className="space-y-3" data-testid="skeleton-most-viewed">
+                  <Skeleton className="h-16 w-full" />
+                  <Skeleton className="h-16 w-full" />
+                </div>
+              ) : (
+                mostViewedArticles.map((article) => (
+                  <Card
+                    key={article.id}
+                    className="hover-elevate cursor-pointer"
+                    onClick={() => {
+                      setSelectedCategory(null);
+                      handleArticleClick(article);
+                    }}
+                    data-testid={`card-most-viewed-${article.id}`}
+                  >
+                    <CardContent className="p-4 flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium" data-testid={`text-most-viewed-title-${article.id}`}>
+                          {article.title}
+                        </p>
+                        {article.summary && (
+                          <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
+                            {article.summary}
+                          </p>
+                        )}
+                      </div>
+                      <Badge variant="outline" className="text-xs shrink-0">
+                        {article.viewCount} views
+                      </Badge>
+                      <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
+          )}
+
+          {recentlyUpdatedArticles && recentlyUpdatedArticles.length > 0 && (
+            <div className="space-y-3">
+              <h2
+                className="text-lg font-semibold flex items-center gap-2"
+                data-testid="text-recently-updated-title"
+              >
+                <Clock className="h-5 w-5 text-muted-foreground" />
+                Recently Updated
+              </h2>
+              {recentlyUpdatedLoading ? (
+                <div className="space-y-3" data-testid="skeleton-recently-updated">
+                  <Skeleton className="h-16 w-full" />
+                  <Skeleton className="h-16 w-full" />
+                </div>
+              ) : (
+                recentlyUpdatedArticles.map((article) => (
+                  <Card
+                    key={article.id}
+                    className="hover-elevate cursor-pointer"
+                    onClick={() => {
+                      setSelectedCategory(null);
+                      handleArticleClick(article);
+                    }}
+                    data-testid={`card-recently-updated-${article.id}`}
+                  >
+                    <CardContent className="p-4 flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium" data-testid={`text-recently-updated-title-${article.id}`}>
+                          {article.title}
+                        </p>
+                        {article.summary && (
+                          <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
+                            {article.summary}
+                          </p>
+                        )}
+                      </div>
+                      <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
+          )}
         </>
       )}
     </div>

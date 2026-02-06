@@ -24,6 +24,7 @@ import {
   FolderOpen,
   Star,
   StarOff,
+  Monitor,
 } from "lucide-react";
 
 interface HelpCategory {
@@ -168,6 +169,7 @@ export function HelpCenterPanel() {
   const [categoryFilter, setCategoryFilter] = useState("ALL");
   const [audienceFilter, setAudienceFilter] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
+  const [previewAudience, setPreviewAudience] = useState<"RIDER" | "DRIVER">("RIDER");
 
   const { data: categories, isLoading: categoriesLoading } = useQuery<HelpCategory[]>({
     queryKey: ["/api/admin/help/categories"],
@@ -413,6 +415,10 @@ export function HelpCenterPanel() {
           <TabsTrigger value="search-logs" data-testid="tab-search-logs">
             <Search className="mr-1.5 h-4 w-4" />
             Search Logs
+          </TabsTrigger>
+          <TabsTrigger value="preview" data-testid="tab-preview">
+            <Monitor className="mr-1.5 h-4 w-4" />
+            Preview
           </TabsTrigger>
         </TabsList>
 
@@ -675,6 +681,37 @@ export function HelpCenterPanel() {
                   ))}
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="preview">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
+              <CardTitle className="text-lg" data-testid="text-preview-title">
+                Preview Help Center
+              </CardTitle>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={previewAudience === "RIDER" ? "default" : "outline"}
+                  onClick={() => setPreviewAudience("RIDER")}
+                  data-testid="button-preview-rider"
+                >
+                  Preview as Rider
+                </Button>
+                <Button
+                  variant={previewAudience === "DRIVER" ? "default" : "outline"}
+                  onClick={() => setPreviewAudience("DRIVER")}
+                  data-testid="button-preview-driver"
+                >
+                  Preview as Driver
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="border rounded-md p-4 bg-muted/30 min-h-[400px]" data-testid="preview-container">
+                <PreviewHelpCenter audience={previewAudience} />
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -1031,6 +1068,95 @@ export function HelpCenterPanel() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function PreviewHelpCenter({ audience }: { audience: "RIDER" | "DRIVER" }) {
+  const [previewSearch, setPreviewSearch] = useState("");
+  const [selectedArticle, setSelectedArticle] = useState<HelpArticleWithCategory | null>(null);
+
+  const { data: categories } = useQuery<HelpCategory[]>({
+    queryKey: ["/api/help/categories", `?audience=${audience}`],
+  });
+
+  const { data: articles } = useQuery<HelpArticleWithCategory[]>({
+    queryKey: ["/api/help/articles", `?audience=${audience}`],
+  });
+
+  const { data: searchResults } = useQuery<HelpArticleWithCategory[]>({
+    queryKey: ["/api/help/search", `?q=${encodeURIComponent(previewSearch)}&audience=${audience}`],
+    enabled: previewSearch.trim().length > 0,
+  });
+
+  const isSearching = previewSearch.trim().length > 0;
+  const displayArticles = isSearching ? searchResults : articles;
+
+  if (selectedArticle) {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" onClick={() => setSelectedArticle(null)} data-testid="button-preview-back">
+          Back
+        </Button>
+        <h3 className="text-lg font-semibold" data-testid="text-preview-article-title">{selectedArticle.title}</h3>
+        {selectedArticle.summary && (
+          <p className="text-sm text-muted-foreground">{selectedArticle.summary}</p>
+        )}
+        <div className="prose prose-sm max-w-none dark:prose-invert" dangerouslySetInnerHTML={{ __html: selectedArticle.content }} data-testid="text-preview-article-content" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="text-center">
+        <p className="text-sm text-muted-foreground mb-2" data-testid="text-preview-audience">
+          Viewing as: <Badge>{audience}</Badge>
+        </p>
+      </div>
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search help articles..."
+          value={previewSearch}
+          onChange={(e: any) => setPreviewSearch(e.target.value)}
+          className="pl-9"
+          data-testid="input-preview-search"
+        />
+      </div>
+
+      {!isSearching && categories && categories.filter(c => c.active).length > 0 && (
+        <div className="grid grid-cols-2 gap-2">
+          {categories.filter(c => c.active).map((cat) => (
+            <div key={cat.id} className="p-3 border rounded-md text-center text-sm font-medium" data-testid={`preview-category-${cat.id}`}>
+              {cat.name}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="space-y-2">
+        <h4 className="text-sm font-semibold">{isSearching ? "Search Results" : "Articles"}</h4>
+        {!displayArticles || displayArticles.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4" data-testid="text-preview-no-articles">
+            {isSearching ? "No results found" : "No articles available for this audience"}
+          </p>
+        ) : (
+          displayArticles.map((article) => (
+            <div
+              key={article.id}
+              className="p-3 border rounded-md cursor-pointer hover-elevate"
+              onClick={() => setSelectedArticle(article)}
+              data-testid={`preview-article-${article.id}`}
+            >
+              <p className="font-medium text-sm">{article.title}</p>
+              {article.summary && (
+                <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{article.summary}</p>
+              )}
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }

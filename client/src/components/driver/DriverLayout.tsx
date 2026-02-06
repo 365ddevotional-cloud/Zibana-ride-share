@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Car, Wallet, User, Settings } from "lucide-react";
+import { LayoutDashboard, Car, Wallet, User, Settings, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface DriverLayoutProps {
@@ -10,8 +10,8 @@ const navItems = [
   { path: "/driver/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { path: "/driver/trips", label: "Trips", icon: Car },
   { path: "/driver/earnings", label: "Earnings", icon: Wallet },
+  { path: "/driver/help", label: "Help", icon: BookOpen },
   { path: "/driver/profile", label: "Profile", icon: User },
-  { path: "/driver/settings", label: "Settings", icon: Settings },
 ];
 
 export function DriverLayout({ children }: DriverLayoutProps) {

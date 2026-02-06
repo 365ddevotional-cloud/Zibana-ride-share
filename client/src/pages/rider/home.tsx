@@ -6,11 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Navigation, Calendar, ChevronRight, Wallet, Beaker, AlertCircle } from "lucide-react";
+import { MapPin, Navigation, Calendar, ChevronRight, Wallet, Beaker, AlertCircle, BookOpen } from "lucide-react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { CancellationWarning } from "@/components/cancellation-warning";
+import { ContextualHelpSuggestion } from "@/components/contextual-help";
 
 interface WalletInfo {
   mainBalance: string;
@@ -140,6 +141,14 @@ export default function RiderHome() {
                   </span>
                 </div>
               )}
+
+              <ContextualHelpSuggestion
+                category="payments"
+                audience="RIDER"
+                title="Payment help"
+                maxArticles={2}
+                show={hasLowBalance}
+              />
 
               <Button 
                 className="w-full h-12 text-base font-medium"

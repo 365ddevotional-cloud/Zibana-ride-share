@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/user-avatar";
-import { ArrowLeft, Mail, Shield, Calendar } from "lucide-react";
+import { ArrowLeft, Mail, Shield, Calendar, BookOpen, ChevronRight } from "lucide-react";
 import { useLocation } from "wouter";
 
 export default function ProfilePage() {
@@ -61,6 +61,17 @@ export default function ProfilePage() {
               <Calendar className="h-4 w-4 text-muted-foreground" />
               <span>Member since {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : "Unknown"}</span>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card className="mt-4 hover-elevate cursor-pointer" onClick={() => navigate("/rider/help")} data-testid="card-help-link">
+          <CardContent className="p-4 flex items-center gap-3">
+            <BookOpen className="h-5 w-5 text-muted-foreground" />
+            <div className="flex-1">
+              <p className="font-medium text-sm">Help / Q&A</p>
+              <p className="text-xs text-muted-foreground">Find answers to common questions</p>
+            </div>
+            <ChevronRight className="h-5 w-5 text-muted-foreground" />
           </CardContent>
         </Card>
       </main>

@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Home, Clock, Wallet, User, HelpCircle } from "lucide-react";
+import { Home, Clock, Wallet, User, HelpCircle, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface RiderLayoutProps {
@@ -10,8 +10,8 @@ const navItems = [
   { path: "/rider/home", label: "Home", icon: Home },
   { path: "/rider/trips", label: "Trips", icon: Clock },
   { path: "/rider/wallet", label: "Wallet", icon: Wallet },
+  { path: "/rider/help", label: "Help", icon: BookOpen },
   { path: "/rider/profile", label: "Profile", icon: User },
-  { path: "/rider/support", label: "Support", icon: HelpCircle },
 ];
 
 export function RiderLayout({ children }: RiderLayoutProps) {
