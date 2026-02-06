@@ -1,0 +1,179 @@
+You are implementing PHASE 10 of the ZIBA ride-hailing app: RIDER & DRIVER TRUST, SAFETY, AND INCIDENT MANAGEMENT.
+
+This phase establishes user confidence, emergency readiness, and post-incident accountability
+across all countries and regions.
+
+SAFETY FEATURES MUST WORK EVEN IN EMERGENCY MODE.
+NO SAFETY FEATURE MAY BE DISABLED BY PRICING OR INCENTIVES.
+
+=====================================
+1) IN-TRIP SAFETY CONTROLS (MANDATORY)
+=====================================
+
+Implement the following in-trip safety tools for BOTH riders and drivers:
+
+• SOS / Emergency button (always visible during trip)
+• Share Trip feature (live location sharing)
+• Trusted contacts list
+• Trip details screen (driver/rider identity, vehicle, route)
+
+Rules:
+• SOS must be accessible in one tap
+• Share Trip must generate a live, expiring link
+• Trusted contacts must be configurable by user
+
+=====================================
+2) SOS & EMERGENCY HANDLING
+=====================================
+
+When SOS is triggered:
+
+• Immediately flag trip as EMERGENCY
+• Notify Admin Safety Dashboard
+• Capture:
+  - user_id
+  - trip_id
+  - GPS location
+  - timestamp
+  - device info
+• Optionally initiate:
+  - emergency call (local emergency number)
+  - SMS alert to trusted contacts
+
+Rules:
+• SOS must work even if incentives, trips, or payments are paused
+• Emergency trips must not be auto-cancelled
+
+=====================================
+3) INCIDENT REPORTING (POST-TRIP)
+=====================================
+
+Allow riders and drivers to report incidents after trip completion.
+
+Incident types:
+• Safety concern
+• Harassment
+• Payment dispute
+• Vehicle issue
+• Route deviation
+• Other
+
+Required fields:
+- incident_id
+- reporter_user_id
+- trip_id
+- incident_type
+- description
+- attachments (optional)
+- created_at
+- status (open | reviewing | resolved)
+
+Rules:
+• Incidents must be trackable
+• Users must see status updates
+• Admin actions must be logged
+
+=====================================
+4) ADMIN SAFETY & INCIDENT DASHBOARD
+=====================================
+
+Admin must be able to:
+
+• View live SOS alerts
+• See incident timelines
+• Temporarily restrict users during review
+• Escalate incidents
+• Add internal notes
+• Resolve incidents with outcomes
+
+Rules:
+• Admin actions must NOT delete trip history
+• All safety actions must be audited
+
+=====================================
+5) DRIVER & RIDER IDENTITY CONFIDENCE
+=====================================
+
+Display verified identity indicators:
+
+Driver:
+• Name
+• Photo
+• Vehicle details
+• Verification status
+
+Rider:
+• Name
+• Rating
+• Account age indicator
+
+Rules:
+• Verification status must be accurate
+• No fake “verified” labels
+
+=====================================
+6) BEHAVIORAL TRUST SIGNALS
+=====================================
+
+Use trust signals to protect good users:
+
+• High-rated drivers prioritized for vulnerable riders
+• Riders with repeated abuse flagged for review
+• Trust signals must influence matching subtly, not aggressively
+
+Rules:
+• No permanent bans without admin review
+• Trust signals decay over time with good behavior
+
+=====================================
+7) COUNTRY-SPECIFIC SAFETY CONFIGURATION
+=====================================
+
+Allow per-country safety configuration:
+
+• Emergency numbers
+• Trusted contact behavior
+• Local compliance requirements
+
+Rules:
+• Country safety settings must override defaults
+• Missing safety config defaults to SAFE MODE
+
+=====================================
+8) FAIL-SAFE & OFFLINE BEHAVIOR
+=====================================
+
+• SOS button must function even with poor network
+• Safety UI must never crash
+• If safety backend unreachable:
+  - Store incident locally
+  - Sync when connection restores
+
+=====================================
+9) USER EDUCATION & TRANSPARENCY
+=====================================
+
+Integrate Safety explanations into Help Center (Phase 10A):
+
+• How SOS works
+• What happens after a report
+• How ZIBA protects users
+• What is logged and why
+
+Rules:
+• Use calm, reassuring language
+• No legal intimidation tone
+
+=====================================
+10) PHASE COMPLETION CRITERIA
+=====================================
+
+Phase 10 is complete only when:
+
+• SOS works reliably
+• Trip sharing is live and accurate
+• Incidents are trackable end-to-end
+• Admin can respond to emergencies
+• Users feel protected and informed
+
+This phase is mandatory before large-scale public launch or paid marketing.

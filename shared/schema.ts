@@ -3070,6 +3070,74 @@ export type InsertSafetyAuditLog = z.infer<typeof insertSafetyAuditLogSchema>;
 export type SafetyAuditLog = typeof safetyAuditLog.$inferSelect;
 
 // =============================================
+// PHASE 10: TRUSTED CONTACTS & TRIP SHARING
+// =============================================
+
+export const trustedContacts = pgTable("trusted_contacts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  name: varchar("name", { length: 100 }).notNull(),
+  phone: varchar("phone", { length: 30 }).notNull(),
+  relationship: varchar("relationship", { length: 50 }),
+  isEmergencyContact: boolean("is_emergency_contact").default(false),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const tripShareLinks = pgTable("trip_share_links", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tripId: varchar("trip_id").notNull(),
+  sharedBy: varchar("shared_by").notNull(),
+  shareToken: varchar("share_token", { length: 64 }).notNull(),
+  recipientPhone: varchar("recipient_phone", { length: 30 }),
+  recipientName: varchar("recipient_name", { length: 100 }),
+  isActive: boolean("is_active").default(true),
+  expiresAt: timestamp("expires_at").notNull(),
+  viewCount: integer("view_count").default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const countryEmergencyConfig = pgTable("country_emergency_config", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  countryCode: varchar("country_code", { length: 2 }).notNull(),
+  emergencyNumber: varchar("emergency_number", { length: 20 }).notNull(),
+  policeNumber: varchar("police_number", { length: 20 }),
+  ambulanceNumber: varchar("ambulance_number", { length: 20 }),
+  fireNumber: varchar("fire_number", { length: 20 }),
+  sosInstructions: text("sos_instructions"),
+  trustedContactSmsEnabled: boolean("trusted_contact_sms_enabled").default(true),
+  autoShareWithContacts: boolean("auto_share_with_contacts").default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertTrustedContactSchema = createInsertSchema(trustedContacts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertTripShareLinkSchema = createInsertSchema(tripShareLinks).omit({
+  id: true,
+  createdAt: true,
+  viewCount: true,
+});
+
+export const insertCountryEmergencyConfigSchema = createInsertSchema(countryEmergencyConfig).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertTrustedContact = z.infer<typeof insertTrustedContactSchema>;
+export type TrustedContact = typeof trustedContacts.$inferSelect;
+export type InsertTripShareLink = z.infer<typeof insertTripShareLinkSchema>;
+export type TripShareLink = typeof tripShareLinks.$inferSelect;
+export type InsertCountryEmergencyConfig = z.infer<typeof insertCountryEmergencyConfigSchema>;
+export type CountryEmergencyConfig = typeof countryEmergencyConfig.$inferSelect;
+
+// =============================================
 // PHASE 5: DISPUTES, REFUNDS & LEGAL RESOLUTION TABLES
 // =============================================
 
