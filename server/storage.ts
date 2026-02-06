@@ -401,6 +401,12 @@ import {
   type PlatformSettlement,
   type InsertDriverStanding,
   type DriverStanding,
+  cashSettlementLedger,
+  countryCashConfig,
+  type CashSettlementLedger,
+  type InsertCashSettlementLedger,
+  type CountryCashConfig,
+  type InsertCountryCashConfig,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull } from "drizzle-orm";
@@ -1204,6 +1210,24 @@ export interface IStorage {
   getDriverStanding(driverId: string): Promise<DriverStanding | null>;
   upsertDriverStanding(driverId: string, data: Partial<InsertDriverStanding>): Promise<DriverStanding>;
   getDriverSharePercent(driverId: string): Promise<number>;
+
+  // Cash Settlement Ledger
+  createCashSettlementLedger(data: InsertCashSettlementLedger): Promise<CashSettlementLedger>;
+  getDriverLedgerEntries(driverId: string): Promise<CashSettlementLedger[]>;
+  getDriverCurrentPeriodLedger(driverId: string): Promise<CashSettlementLedger | null>;
+  getOrCreateCurrentPeriodLedger(driverId: string, currencyCode: string): Promise<CashSettlementLedger>;
+  accumulateCashTripToLedger(driverId: string, fareAmount: string, platformShare: string, currencyCode: string): Promise<void>;
+  executePeriodSettlement(ledgerId: string, method: string): Promise<CashSettlementLedger | null>;
+  deferLedgerEntry(ledgerId: string, adminNotes?: string): Promise<CashSettlementLedger | null>;
+  waiveLedgerEntry(ledgerId: string, adminUserId: string, reason: string): Promise<CashSettlementLedger | null>;
+  getDriverDeferredTotal(driverId: string): Promise<number>;
+  getAllPendingLedgers(): Promise<CashSettlementLedger[]>;
+  getDriverCashAbuseFlags(driverId: string): Promise<{ totalDeferred: number; consecutiveCashTrips: number; flagged: boolean }>;
+
+  // Country Cash Config
+  getCountryCashConfig(countryCode: string): Promise<CountryCashConfig | null>;
+  getAllCountryCashConfigs(): Promise<CountryCashConfig[]>;
+  upsertCountryCashConfig(data: InsertCountryCashConfig): Promise<CountryCashConfig>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1881,6 +1905,12 @@ export class DatabaseStorage implements IStorage {
             currencyCode: trip.currencyCode || "NGN",
             status: "pending",
           });
+          await this.accumulateCashTripToLedger(
+            driverId,
+            trip.fareAmount || "0",
+            trip.commissionAmount,
+            trip.currencyCode || "NGN"
+          );
         }
       } else {
         await this.creditDriverWallet(driverId, trip.driverPayout, tripId);
@@ -9521,6 +9551,228 @@ export class DatabaseStorage implements IStorage {
   async getDriverSharePercent(driverId: string): Promise<number> {
     const standing = await this.getDriverStanding(driverId);
     return standing?.currentSharePercent || 70;
+  }
+
+  // ============================================================
+  // CASH SETTLEMENT LEDGER
+  // ============================================================
+
+  async createCashSettlementLedger(data: InsertCashSettlementLedger): Promise<CashSettlementLedger> {
+    const [ledger] = await db.insert(cashSettlementLedger).values(data).returning();
+    return ledger;
+  }
+
+  async getDriverLedgerEntries(driverId: string): Promise<CashSettlementLedger[]> {
+    return db.select().from(cashSettlementLedger)
+      .where(eq(cashSettlementLedger.driverId, driverId))
+      .orderBy(desc(cashSettlementLedger.periodStart));
+  }
+
+  async getDriverCurrentPeriodLedger(driverId: string): Promise<CashSettlementLedger | null> {
+    const now = new Date();
+    const [ledger] = await db.select().from(cashSettlementLedger)
+      .where(and(
+        eq(cashSettlementLedger.driverId, driverId),
+        eq(cashSettlementLedger.settlementStatus, "pending"),
+        lte(cashSettlementLedger.periodStart, now),
+        gte(cashSettlementLedger.periodEnd, now)
+      ));
+    return ledger || null;
+  }
+
+  async getOrCreateCurrentPeriodLedger(driverId: string, currencyCode: string): Promise<CashSettlementLedger> {
+    const existing = await this.getDriverCurrentPeriodLedger(driverId);
+    if (existing) return existing;
+
+    const userRole = await this.getUserRole(driverId);
+    const countryCode = userRole?.countryCode || "NG";
+    const config = await this.getCountryCashConfig(countryCode);
+    const cycle = config?.settlementCycle || "weekly";
+
+    const now = new Date();
+    let periodStart: Date;
+    let periodEnd: Date;
+
+    if (cycle === "monthly") {
+      periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    } else {
+      const day = now.getDay();
+      const diffToMonday = (day === 0 ? -6 : 1) - day;
+      periodStart = new Date(now);
+      periodStart.setDate(now.getDate() + diffToMonday);
+      periodStart.setHours(0, 0, 0, 0);
+      periodEnd = new Date(periodStart);
+      periodEnd.setDate(periodStart.getDate() + 6);
+      periodEnd.setHours(23, 59, 59, 999);
+    }
+
+    return this.createCashSettlementLedger({
+      driverId,
+      periodStart,
+      periodEnd,
+      totalCashCollected: "0.00",
+      totalPlatformShareDue: "0.00",
+      totalSettled: "0.00",
+      settlementStatus: "pending",
+      currencyCode,
+    });
+  }
+
+  async accumulateCashTripToLedger(driverId: string, fareAmount: string, platformShare: string, currencyCode: string): Promise<void> {
+    const ledger = await this.getOrCreateCurrentPeriodLedger(driverId, currencyCode);
+    await db.update(cashSettlementLedger)
+      .set({
+        totalCashCollected: sql`${cashSettlementLedger.totalCashCollected}::numeric + ${fareAmount}::numeric`,
+        totalPlatformShareDue: sql`${cashSettlementLedger.totalPlatformShareDue}::numeric + ${platformShare}::numeric`,
+        updatedAt: new Date(),
+      })
+      .where(eq(cashSettlementLedger.id, ledger.id));
+  }
+
+  async executePeriodSettlement(ledgerId: string, method: string): Promise<CashSettlementLedger | null> {
+    const [ledger] = await db.select().from(cashSettlementLedger)
+      .where(eq(cashSettlementLedger.id, ledgerId));
+    if (!ledger) return null;
+
+    const remaining = parseFloat(ledger.totalPlatformShareDue) - parseFloat(ledger.totalSettled);
+    if (remaining <= 0) {
+      const [updated] = await db.update(cashSettlementLedger)
+        .set({
+          settlementStatus: "settled",
+          settledAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(cashSettlementLedger.id, ledgerId))
+        .returning();
+      return updated;
+    }
+
+    const [updated] = await db.update(cashSettlementLedger)
+      .set({
+        totalSettled: ledger.totalPlatformShareDue,
+        settlementStatus: "settled",
+        settlementMethod: method as any,
+        settledAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(cashSettlementLedger.id, ledgerId))
+      .returning();
+    return updated;
+  }
+
+  async deferLedgerEntry(ledgerId: string, adminNotes?: string): Promise<CashSettlementLedger | null> {
+    const [updated] = await db.update(cashSettlementLedger)
+      .set({
+        settlementStatus: "deferred",
+        adminNotes: adminNotes || null,
+        updatedAt: new Date(),
+      })
+      .where(eq(cashSettlementLedger.id, ledgerId))
+      .returning();
+    return updated || null;
+  }
+
+  async waiveLedgerEntry(ledgerId: string, adminUserId: string, reason: string): Promise<CashSettlementLedger | null> {
+    const [ledger] = await db.select().from(cashSettlementLedger)
+      .where(eq(cashSettlementLedger.id, ledgerId));
+    if (!ledger) return null;
+
+    await this.createAuditLog({
+      action: "CASH_LEDGER_WAIVED",
+      performedBy: adminUserId,
+      targetEntity: "cash_settlement_ledger",
+      targetId: ledgerId,
+      details: JSON.stringify({ reason, driverId: ledger.driverId, amountWaived: parseFloat(ledger.totalPlatformShareDue) - parseFloat(ledger.totalSettled) }),
+    });
+
+    const [updated] = await db.update(cashSettlementLedger)
+      .set({
+        totalSettled: ledger.totalPlatformShareDue,
+        settlementStatus: "settled",
+        adminNotes: `Waived by admin: ${reason}`,
+        settledAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(cashSettlementLedger.id, ledgerId))
+      .returning();
+    return updated;
+  }
+
+  async getDriverDeferredTotal(driverId: string): Promise<number> {
+    const deferred = await db.select().from(cashSettlementLedger)
+      .where(and(
+        eq(cashSettlementLedger.driverId, driverId),
+        eq(cashSettlementLedger.settlementStatus, "deferred")
+      ));
+    return deferred.reduce((total, entry) => {
+      return total + parseFloat(entry.totalPlatformShareDue) - parseFloat(entry.totalSettled);
+    }, 0);
+  }
+
+  async getAllPendingLedgers(): Promise<CashSettlementLedger[]> {
+    return db.select().from(cashSettlementLedger)
+      .where(eq(cashSettlementLedger.settlementStatus, "pending"))
+      .orderBy(cashSettlementLedger.periodEnd);
+  }
+
+  async getDriverCashAbuseFlags(driverId: string): Promise<{ totalDeferred: number; consecutiveCashTrips: number; flagged: boolean }> {
+    const totalDeferred = await this.getDriverDeferredTotal(driverId);
+
+    const recentTrips = await db.select({
+      paymentSource: trips.paymentSource,
+    }).from(trips)
+      .where(and(
+        eq(trips.driverId, driverId),
+        eq(trips.status, "completed")
+      ))
+      .orderBy(desc(trips.completedAt))
+      .limit(100);
+
+    let consecutiveCashTrips = 0;
+    for (const trip of recentTrips) {
+      if (trip.paymentSource === "CASH") {
+        consecutiveCashTrips++;
+      } else {
+        break;
+      }
+    }
+
+    const userRole = await this.getUserRole(driverId);
+    const countryCode = userRole?.countryCode || "NG";
+    const config = await this.getCountryCashConfig(countryCode);
+    const maxDeferred = config ? parseFloat(config.maxDeferredBalance) : 50000;
+
+    const flagged = totalDeferred > maxDeferred || consecutiveCashTrips >= 50;
+
+    return { totalDeferred, consecutiveCashTrips, flagged };
+  }
+
+  // ============================================================
+  // COUNTRY CASH CONFIG
+  // ============================================================
+
+  async getCountryCashConfig(countryCode: string): Promise<CountryCashConfig | null> {
+    const [config] = await db.select().from(countryCashConfig)
+      .where(eq(countryCashConfig.countryCode, countryCode));
+    return config || null;
+  }
+
+  async getAllCountryCashConfigs(): Promise<CountryCashConfig[]> {
+    return db.select().from(countryCashConfig);
+  }
+
+  async upsertCountryCashConfig(data: InsertCountryCashConfig): Promise<CountryCashConfig> {
+    const existing = await this.getCountryCashConfig(data.countryCode);
+    if (existing) {
+      const [updated] = await db.update(countryCashConfig)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(countryCashConfig.countryCode, data.countryCode))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(countryCashConfig).values(data).returning();
+    return created;
   }
 }
 

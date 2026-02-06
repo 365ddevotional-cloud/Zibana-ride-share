@@ -1,0 +1,110 @@
+ZIBA DRIVER APP — CASH PAYMENT UI COPY (DRIVER-RESPECTFUL)
+
+This copy governs ALL driver-facing text related to CASH trips.
+Tone must remain calm, respectful, and earnings-focused.
+
+====================================
+CASH PAYMENT — TRIP COMPLETION SCREEN
+====================================
+
+Primary message:
+“Cash collected: ₦X / $X”
+
+Secondary message (small text):
+“This amount was paid directly to you by the rider.”
+
+Optional helper text:
+“Thank you for completing this trip.”
+
+====================================
+CASH PAYMENT — TRIP HISTORY
+====================================
+
+Label:
+“Cash Trip”
+
+Amount display:
+“Earnings received: ₦X / $X”
+
+No other deductions or percentages shown.
+
+====================================
+CASH PAYMENT — DAILY EARNINGS VIEW
+====================================
+
+Display:
+“Cash earnings today: ₦X / $X”
+
+Helper text:
+“Cash payments are collected directly from riders.”
+
+====================================
+CASH PAYMENT — WEEKLY / MONTHLY SUMMARY
+====================================
+
+Section title:
+“Cash Earnings”
+
+Display:
+“Total cash collected this period: ₦X / $X”
+
+Optional note (neutral tone):
+“Platform service settlement is handled separately.”
+
+====================================
+PLATFORM SETTLEMENT (STATEMENTS ONLY)
+====================================
+
+Collapsed section title:
+“Platform Service Settlement (Summary)”
+
+Expanded text:
+“This reflects platform service costs for the period.
+Cash payments are always collected directly by you.”
+
+No percentages.
+No per-trip details.
+No urgency language.
+
+====================================
+DRIVER EDUCATION — FIRST CASH TRIP TOOLTIP
+====================================
+
+Tooltip title:
+“How cash trips work”
+
+Tooltip body:
+“For cash trips, riders pay you directly.
+ZIBA handles platform settlement later, so you can focus on driving.”
+
+====================================
+DRIVER EDUCATION — HELP CENTER COPY
+====================================
+
+Question:
+“How do cash payments work?”
+
+Answer:
+“When a rider pays with cash, you receive the full fare directly.
+ZIBA settles platform service costs later through statements.
+You never lose money at the point of collection.”
+
+====================================
+IMPORTANT COPY RULES (NON-NEGOTIABLE)
+====================================
+
+• Never show platform percentages during trips
+• Never show platform deductions per cash trip
+• Never use warning or threatening language
+• Never imply money is being taken immediately
+• Always emphasize driver-first collection
+
+====================================
+FINAL COPY PRINCIPLE
+====================================
+
+Driver should always feel:
+“I collected my earnings.
+ZIBA handles the rest quietly.”
+
+Any copy that creates resentment is a defect.

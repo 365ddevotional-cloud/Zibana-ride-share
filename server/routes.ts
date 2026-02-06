@@ -457,6 +457,153 @@ export async function registerRoutes(
     }
   });
 
+  // =============================================
+  // CASH SETTLEMENT LEDGER - DRIVER ROUTES
+  // =============================================
+
+  app.get("/api/driver/settlement/ledger", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const entries = await storage.getDriverLedgerEntries(userId);
+      const sanitized = entries.map(e => ({
+        id: e.id,
+        periodStart: e.periodStart,
+        periodEnd: e.periodEnd,
+        totalCashCollected: e.totalCashCollected,
+        settlementStatus: e.settlementStatus,
+        currencyCode: e.currencyCode,
+      }));
+      return res.json(sanitized);
+    } catch (error) {
+      console.error("Error getting driver ledger:", error);
+      return res.status(500).json({ message: "Failed to get settlement ledger" });
+    }
+  });
+
+  // =============================================
+  // CASH SETTLEMENT LEDGER - ADMIN ROUTES
+  // =============================================
+
+  app.get("/api/admin/cash-settlements", isAuthenticated, requireRole(["admin", "super_admin", "finance"]), async (req: any, res) => {
+    try {
+      const pending = await storage.getAllPendingLedgers();
+      return res.json(pending);
+    } catch (error) {
+      console.error("Error getting pending ledgers:", error);
+      return res.status(500).json({ message: "Failed to get pending cash settlements" });
+    }
+  });
+
+  app.get("/api/admin/cash-settlements/:driverId", isAuthenticated, requireRole(["admin", "super_admin", "finance"]), async (req: any, res) => {
+    try {
+      const { driverId } = req.params;
+      const entries = await storage.getDriverLedgerEntries(driverId);
+      return res.json(entries);
+    } catch (error) {
+      console.error("Error getting driver cash settlements:", error);
+      return res.status(500).json({ message: "Failed to get driver cash settlements" });
+    }
+  });
+
+  app.post("/api/admin/cash-settlements/:ledgerId/defer", isAuthenticated, requireRole(["admin", "super_admin", "finance"]), async (req: any, res) => {
+    try {
+      const { ledgerId } = req.params;
+      const { adminNotes } = req.body || {};
+      const result = await storage.deferLedgerEntry(ledgerId, adminNotes);
+      if (!result) {
+        return res.status(404).json({ message: "Ledger entry not found" });
+      }
+      return res.json(result);
+    } catch (error) {
+      console.error("Error deferring ledger entry:", error);
+      return res.status(500).json({ message: "Failed to defer ledger entry" });
+    }
+  });
+
+  app.post("/api/admin/cash-settlements/:ledgerId/waive", isAuthenticated, requireRole(["admin", "super_admin", "finance"]), async (req: any, res) => {
+    try {
+      const { ledgerId } = req.params;
+      const { reason } = req.body;
+      if (!reason) {
+        return res.status(400).json({ message: "Reason is required for waiving a ledger entry" });
+      }
+      const adminUserId = req.user.claims.sub;
+      const result = await storage.waiveLedgerEntry(ledgerId, adminUserId, reason);
+      if (!result) {
+        return res.status(404).json({ message: "Ledger entry not found" });
+      }
+      return res.json(result);
+    } catch (error) {
+      console.error("Error waiving ledger entry:", error);
+      return res.status(500).json({ message: "Failed to waive ledger entry" });
+    }
+  });
+
+  app.post("/api/admin/cash-settlements/:ledgerId/settle", isAuthenticated, requireRole(["admin", "super_admin", "finance"]), async (req: any, res) => {
+    try {
+      const { ledgerId } = req.params;
+      const { method } = req.body || {};
+      const result = await storage.executePeriodSettlement(ledgerId, method || "card_trip_offset");
+      if (!result) {
+        return res.status(404).json({ message: "Ledger entry not found" });
+      }
+      return res.json(result);
+    } catch (error) {
+      console.error("Error settling ledger entry:", error);
+      return res.status(500).json({ message: "Failed to settle ledger entry" });
+    }
+  });
+
+  app.get("/api/admin/cash-abuse-flags", isAuthenticated, requireRole(["admin", "super_admin", "finance"]), async (req: any, res) => {
+    try {
+      const pendingLedgers = await storage.getAllPendingLedgers();
+      const driverIds = [...new Set(pendingLedgers.map(l => l.driverId))];
+      const flags = await Promise.all(
+        driverIds.map(async (driverId) => {
+          const abuseFlags = await storage.getDriverCashAbuseFlags(driverId);
+          return { driverId, ...abuseFlags };
+        })
+      );
+      const flagged = flags.filter(f => f.flagged);
+      return res.json(flagged);
+    } catch (error) {
+      console.error("Error getting cash abuse flags:", error);
+      return res.status(500).json({ message: "Failed to get cash abuse flags" });
+    }
+  });
+
+  app.get("/api/admin/cash-abuse-flags/:driverId", isAuthenticated, requireRole(["admin", "super_admin", "finance"]), async (req: any, res) => {
+    try {
+      const { driverId } = req.params;
+      const flags = await storage.getDriverCashAbuseFlags(driverId);
+      return res.json(flags);
+    } catch (error) {
+      console.error("Error getting driver abuse flags:", error);
+      return res.status(500).json({ message: "Failed to get driver abuse flags" });
+    }
+  });
+
+  app.get("/api/admin/country-cash-config", isAuthenticated, requireRole(["admin", "super_admin", "finance"]), async (req: any, res) => {
+    try {
+      const configs = await storage.getAllCountryCashConfigs();
+      return res.json(configs);
+    } catch (error) {
+      console.error("Error getting country cash configs:", error);
+      return res.status(500).json({ message: "Failed to get country cash configs" });
+    }
+  });
+
+  app.put("/api/admin/country-cash-config/:countryCode", isAuthenticated, requireRole(["admin", "super_admin", "finance"]), async (req: any, res) => {
+    try {
+      const { countryCode } = req.params;
+      const config = await storage.upsertCountryCashConfig({ ...req.body, countryCode });
+      return res.json(config);
+    } catch (error) {
+      console.error("Error upserting country cash config:", error);
+      return res.status(500).json({ message: "Failed to update country cash config" });
+    }
+  });
+
   app.get("/api/driver/profile", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -15581,6 +15728,30 @@ export async function registerRoutes(
       return res.status(500).json({ message: "Failed to export mileage data" });
     }
   });
+
+  // Cash Settlement Ledger Scheduler — runs every hour
+  const SETTLEMENT_INTERVAL = 60 * 60 * 1000;
+  setInterval(async () => {
+    try {
+      const pendingLedgers = await storage.getAllPendingLedgers();
+      const now = new Date();
+      for (const ledger of pendingLedgers) {
+        if (new Date(ledger.periodEnd) < now) {
+          const abuseFlags = await storage.getDriverCashAbuseFlags(ledger.driverId);
+          if (abuseFlags.flagged) {
+            await storage.deferLedgerEntry(ledger.id, "Auto-deferred: abuse flag triggered");
+            console.log(`[SETTLEMENT] Deferred ledger ${ledger.id} for driver ${ledger.driverId} - abuse flag`);
+          } else {
+            await storage.executePeriodSettlement(ledger.id, "card_trip_offset");
+            console.log(`[SETTLEMENT] Settled ledger ${ledger.id} for driver ${ledger.driverId}`);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("[SETTLEMENT SCHEDULER] Error:", error);
+    }
+  }, SETTLEMENT_INTERVAL);
+  console.log("[SETTLEMENT SCHEDULER] Started — polling every 60min for period settlements");
 
   return httpServer;
 }
