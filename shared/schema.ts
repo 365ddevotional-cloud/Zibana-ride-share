@@ -1275,9 +1275,15 @@ export const countries = pgTable("countries", {
   currency: varchar("currency", { length: 3 }).notNull(),
   timezone: varchar("timezone", { length: 50 }).notNull(),
   active: boolean("active").notNull().default(true),
+  countryEnabled: boolean("country_enabled").notNull().default(false),
+  defaultSystemMode: varchar("default_system_mode", { length: 20 }).notNull().default("NORMAL"),
+  systemModeReason: text("system_mode_reason"),
+  systemModeChangedBy: varchar("system_mode_changed_by"),
+  systemModeChangedAt: timestamp("system_mode_changed_at"),
   paymentsEnabled: boolean("payments_enabled").notNull().default(false),
   paymentProvider: varchar("payment_provider", { length: 50 }),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Tax Rules table
@@ -2246,11 +2252,13 @@ export type IncentiveProgress = {
 export const insertCountrySchema = createInsertSchema(countries).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
 });
 
 export const updateCountrySchema = createInsertSchema(countries).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
 }).partial();
 
 export const insertTaxRuleSchema = createInsertSchema(taxRules).omit({
@@ -3472,20 +3480,6 @@ export const killSwitchScopeEnum = pgEnum("kill_switch_scope", ["GLOBAL", "COUNT
 
 export const subregionTypeEnum = pgEnum("subregion_type", ["state", "province", "region", "county"]);
 
-export const countries = pgTable("countries", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  countryCode: varchar("country_code", { length: 3 }).notNull().unique(),
-  countryName: varchar("country_name", { length: 100 }).notNull(),
-  countryEnabled: boolean("country_enabled").notNull().default(false),
-  defaultCurrency: varchar("default_currency", { length: 5 }).notNull().default("USD"),
-  defaultSystemMode: systemModeEnum("default_system_mode").notNull().default("NORMAL"),
-  systemModeReason: text("system_mode_reason"),
-  systemModeChangedBy: varchar("system_mode_changed_by"),
-  systemModeChangedAt: timestamp("system_mode_changed_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
 export const stateLaunchConfigs = pgTable("state_launch_configs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   countryCode: varchar("country_code", { length: 3 }).notNull().default("NG"),
@@ -3515,14 +3509,6 @@ export const systemModeConfig = pgTable("system_mode_config", {
   changedAt: timestamp("changed_at").defaultNow().notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
-
-export const insertCountrySchema = createInsertSchema(countries).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-export type InsertCountry = z.infer<typeof insertCountrySchema>;
-export type Country = typeof countries.$inferSelect;
 
 export const insertStateLaunchConfigSchema = createInsertSchema(stateLaunchConfigs).omit({
   id: true,
