@@ -3826,3 +3826,135 @@ export type HelpArticleWithCategory = HelpArticle & {
   categoryName?: string;
   categorySlug?: string;
 };
+
+// =============================================
+// PHASE 11A: GROWTH, MARKETING & VIRALITY
+// =============================================
+
+export const riderReferralRewards = pgTable("rider_referral_rewards", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  referrerUserId: varchar("referrer_user_id").notNull(),
+  referredRiderUserId: varchar("referred_rider_user_id").notNull(),
+  referralCodeId: varchar("referral_code_id").notNull(),
+  firstRideCompleted: boolean("first_ride_completed").notNull().default(false),
+  firstRideCompletedAt: timestamp("first_ride_completed_at"),
+  rewardAmount: decimal("reward_amount", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 3 }).notNull().default("NGN"),
+  paid: boolean("paid").notNull().default(false),
+  paidAt: timestamp("paid_at"),
+  fraudFlagged: boolean("fraud_flagged").notNull().default(false),
+  fraudReason: text("fraud_reason"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const shareableMomentTypeEnum = pgEnum("shareable_moment_type", ["FIRST_RIDE", "MILESTONE_EARNINGS", "HIGH_RATING", "TRIP_COUNT_MILESTONE"]);
+
+export const shareableMoments = pgTable("shareable_moments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  momentType: shareableMomentTypeEnum("moment_type").notNull(),
+  title: varchar("title", { length: 200 }).notNull(),
+  message: text("message").notNull(),
+  shared: boolean("shared").notNull().default(false),
+  sharedAt: timestamp("shared_at"),
+  dismissed: boolean("dismissed").notNull().default(false),
+  metadata: text("metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const reactivationStatusEnum = pgEnum("reactivation_status", ["ACTIVE", "PAUSED", "ENDED"]);
+
+export const reactivationRules = pgTable("reactivation_rules", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name", { length: 200 }).notNull(),
+  targetRole: varchar("target_role", { length: 20 }).notNull(),
+  inactiveDaysThreshold: integer("inactive_days_threshold").notNull().default(14),
+  messageTitle: varchar("message_title", { length: 200 }).notNull(),
+  messageBody: text("message_body").notNull(),
+  incentiveType: varchar("incentive_type", { length: 50 }),
+  incentiveValue: decimal("incentive_value", { precision: 10, scale: 2 }),
+  countryCode: varchar("country_code", { length: 3 }),
+  status: reactivationStatusEnum("status").notNull().default("ACTIVE"),
+  triggerCount: integer("trigger_count").notNull().default(0),
+  createdBy: varchar("created_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const growthSafetyControls = pgTable("growth_safety_controls", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  controlType: varchar("control_type", { length: 50 }).notNull(),
+  enabled: boolean("enabled").notNull().default(true),
+  countryCode: varchar("country_code", { length: 3 }),
+  maxReferralRewardPerUser: integer("max_referral_reward_per_user"),
+  maxDailyReferrals: integer("max_daily_referrals"),
+  viralityEnabled: boolean("virality_enabled").notNull().default(true),
+  shareMomentsEnabled: boolean("share_moments_enabled").notNull().default(true),
+  reactivationEnabled: boolean("reactivation_enabled").notNull().default(true),
+  updatedBy: varchar("updated_by"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const campaignDetails = pgTable("campaign_details", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  campaignId: varchar("campaign_id").notNull(),
+  targetAudience: varchar("target_audience", { length: 50 }),
+  countryCode: varchar("country_code", { length: 3 }),
+  subregion: varchar("subregion", { length: 100 }),
+  incentiveType: varchar("incentive_type", { length: 50 }),
+  incentiveValue: decimal("incentive_value", { precision: 10, scale: 2 }),
+  incentiveRules: text("incentive_rules"),
+  maxRedemptions: integer("max_redemptions"),
+  currentRedemptions: integer("current_redemptions").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const attributionSourceEnum = pgEnum("attribution_source", ["REFERRAL", "CAMPAIGN", "ORGANIC", "ADMIN_INVITE"]);
+
+export const marketingAttributions = pgTable("marketing_attributions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  source: attributionSourceEnum("source").notNull().default("ORGANIC"),
+  referralCodeId: varchar("referral_code_id"),
+  campaignId: varchar("campaign_id"),
+  metadata: text("metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertRiderReferralRewardSchema = createInsertSchema(riderReferralRewards).omit({ id: true, createdAt: true });
+export type InsertRiderReferralReward = z.infer<typeof insertRiderReferralRewardSchema>;
+export type RiderReferralReward = typeof riderReferralRewards.$inferSelect;
+
+export const insertShareableMomentSchema = createInsertSchema(shareableMoments).omit({ id: true, createdAt: true });
+export type InsertShareableMoment = z.infer<typeof insertShareableMomentSchema>;
+export type ShareableMoment = typeof shareableMoments.$inferSelect;
+
+export const insertReactivationRuleSchema = createInsertSchema(reactivationRules).omit({ id: true, createdAt: true, updatedAt: true, triggerCount: true });
+export type InsertReactivationRule = z.infer<typeof insertReactivationRuleSchema>;
+export type ReactivationRule = typeof reactivationRules.$inferSelect;
+
+export const insertGrowthSafetyControlSchema = createInsertSchema(growthSafetyControls).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertGrowthSafetyControl = z.infer<typeof insertGrowthSafetyControlSchema>;
+export type GrowthSafetyControl = typeof growthSafetyControls.$inferSelect;
+
+export const insertCampaignDetailSchema = createInsertSchema(campaignDetails).omit({ id: true, createdAt: true, currentRedemptions: true });
+export type InsertCampaignDetail = z.infer<typeof insertCampaignDetailSchema>;
+export type CampaignDetail = typeof campaignDetails.$inferSelect;
+
+export const insertMarketingAttributionSchema = createInsertSchema(marketingAttributions).omit({ id: true, createdAt: true });
+export type InsertMarketingAttribution = z.infer<typeof insertMarketingAttributionSchema>;
+export type MarketingAttribution = typeof marketingAttributions.$inferSelect;
+
+export type CampaignWithDetails = MarketingCampaign & {
+  details?: CampaignDetail;
+};
+
+export type GrowthSafetyStatus = {
+  viralityEnabled: boolean;
+  shareMomentsEnabled: boolean;
+  reactivationEnabled: boolean;
+  maxReferralRewardPerUser: number | null;
+  maxDailyReferrals: number | null;
+  countryOverrides: GrowthSafetyControl[];
+};

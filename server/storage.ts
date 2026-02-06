@@ -351,6 +351,27 @@ import {
   type InsertTripShareLink,
   type CountryEmergencyConfig,
   type InsertCountryEmergencyConfig,
+  // Phase 11A - Growth, Marketing & Virality
+  riderReferralRewards,
+  shareableMoments,
+  reactivationRules,
+  growthSafetyControls,
+  campaignDetails,
+  marketingAttributions,
+  type RiderReferralReward,
+  type InsertRiderReferralReward,
+  type ShareableMoment,
+  type InsertShareableMoment,
+  type ReactivationRule,
+  type InsertReactivationRule,
+  type GrowthSafetyControl,
+  type InsertGrowthSafetyControl,
+  type CampaignDetail,
+  type InsertCampaignDetail,
+  type MarketingAttribution,
+  type InsertMarketingAttribution,
+  type CampaignWithDetails,
+  type GrowthSafetyStatus,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull } from "drizzle-orm";
@@ -930,6 +951,38 @@ export interface IStorage {
   updatePartnerLeadStatus(leadId: string, status: string): Promise<PartnerLead | null>;
   
   getGrowthStats(): Promise<GrowthStats>;
+
+  // Phase 11A - Rider Referral Rewards
+  createRiderReferralReward(data: InsertRiderReferralReward): Promise<RiderReferralReward>;
+  getRiderReferralRewardByReferred(referredUserId: string): Promise<RiderReferralReward | null>;
+  markRiderReferralFirstRide(referredUserId: string): Promise<RiderReferralReward | null>;
+  getRiderReferralRewardsByReferrer(referrerUserId: string): Promise<RiderReferralReward[]>;
+  
+  // Phase 11A - Shareable Moments
+  createShareableMoment(data: InsertShareableMoment): Promise<ShareableMoment>;
+  getPendingShareableMoments(userId: string): Promise<ShareableMoment[]>;
+  markMomentShared(momentId: string): Promise<ShareableMoment | null>;
+  dismissMoment(momentId: string): Promise<ShareableMoment | null>;
+  
+  // Phase 11A - Campaign Details
+  createCampaignDetail(data: InsertCampaignDetail): Promise<CampaignDetail>;
+  getCampaignDetail(campaignId: string): Promise<CampaignDetail | null>;
+  getCampaignsWithDetails(): Promise<CampaignWithDetails[]>;
+  
+  // Phase 11A - Reactivation Rules
+  createReactivationRule(data: InsertReactivationRule): Promise<ReactivationRule>;
+  getReactivationRules(): Promise<ReactivationRule[]>;
+  updateReactivationRuleStatus(ruleId: string, status: string): Promise<ReactivationRule | null>;
+  
+  // Phase 11A - Marketing Attribution
+  createMarketingAttribution(data: InsertMarketingAttribution): Promise<MarketingAttribution>;
+  getMarketingAttribution(userId: string): Promise<MarketingAttribution | null>;
+  getAttributionStats(): Promise<{ source: string; count: number }[]>;
+  
+  // Phase 11A - Growth Safety Controls
+  getGrowthSafetyControls(): Promise<GrowthSafetyControl[]>;
+  upsertGrowthSafetyControl(data: InsertGrowthSafetyControl): Promise<GrowthSafetyControl>;
+  getGrowthSafetyStatus(): Promise<GrowthSafetyStatus>;
 
   // Phase 20 - Post-Launch Monitoring & Feature Flags
   createFeatureFlag(data: InsertFeatureFlag): Promise<FeatureFlag>;
@@ -8760,6 +8813,167 @@ export class DatabaseStorage implements IStorage {
     }
     const [result] = await db.insert(countryEmergencyConfig).values(data).returning();
     return result;
+  }
+
+  // Phase 11A - Rider Referral Rewards
+  async createRiderReferralReward(data: InsertRiderReferralReward): Promise<RiderReferralReward> {
+    const [reward] = await db.insert(riderReferralRewards).values(data).returning();
+    return reward;
+  }
+
+  async getRiderReferralRewardByReferred(referredUserId: string): Promise<RiderReferralReward | null> {
+    const [result] = await db.select().from(riderReferralRewards)
+      .where(eq(riderReferralRewards.referredRiderUserId, referredUserId));
+    return result ?? null;
+  }
+
+  async markRiderReferralFirstRide(referredUserId: string): Promise<RiderReferralReward | null> {
+    const [result] = await db.update(riderReferralRewards)
+      .set({ firstRideCompleted: true, firstRideCompletedAt: new Date() })
+      .where(and(
+        eq(riderReferralRewards.referredRiderUserId, referredUserId),
+        eq(riderReferralRewards.firstRideCompleted, false)
+      ))
+      .returning();
+    return result ?? null;
+  }
+
+  async getRiderReferralRewardsByReferrer(referrerUserId: string): Promise<RiderReferralReward[]> {
+    return db.select().from(riderReferralRewards)
+      .where(eq(riderReferralRewards.referrerUserId, referrerUserId));
+  }
+
+  // Phase 11A - Shareable Moments
+  async createShareableMoment(data: InsertShareableMoment): Promise<ShareableMoment> {
+    const [moment] = await db.insert(shareableMoments).values(data).returning();
+    return moment;
+  }
+
+  async getPendingShareableMoments(userId: string): Promise<ShareableMoment[]> {
+    return db.select().from(shareableMoments)
+      .where(and(
+        eq(shareableMoments.userId, userId),
+        eq(shareableMoments.shared, false),
+        eq(shareableMoments.dismissed, false)
+      ))
+      .orderBy(desc(shareableMoments.createdAt));
+  }
+
+  async markMomentShared(momentId: string): Promise<ShareableMoment | null> {
+    const [result] = await db.update(shareableMoments)
+      .set({ shared: true, sharedAt: new Date() })
+      .where(eq(shareableMoments.id, momentId))
+      .returning();
+    return result ?? null;
+  }
+
+  async dismissMoment(momentId: string): Promise<ShareableMoment | null> {
+    const [result] = await db.update(shareableMoments)
+      .set({ dismissed: true })
+      .where(eq(shareableMoments.id, momentId))
+      .returning();
+    return result ?? null;
+  }
+
+  // Phase 11A - Campaign Details
+  async createCampaignDetail(data: InsertCampaignDetail): Promise<CampaignDetail> {
+    const [detail] = await db.insert(campaignDetails).values(data).returning();
+    return detail;
+  }
+
+  async getCampaignDetail(campaignId: string): Promise<CampaignDetail | null> {
+    const [result] = await db.select().from(campaignDetails)
+      .where(eq(campaignDetails.campaignId, campaignId));
+    return result ?? null;
+  }
+
+  async getCampaignsWithDetails(): Promise<CampaignWithDetails[]> {
+    const campaigns = await db.select().from(marketingCampaigns);
+    const result: CampaignWithDetails[] = [];
+    for (const campaign of campaigns) {
+      const detail = await this.getCampaignDetail(campaign.id);
+      result.push({ ...campaign, details: detail ?? undefined });
+    }
+    return result;
+  }
+
+  // Phase 11A - Reactivation Rules
+  async createReactivationRule(data: InsertReactivationRule): Promise<ReactivationRule> {
+    const [rule] = await db.insert(reactivationRules).values(data).returning();
+    return rule;
+  }
+
+  async getReactivationRules(): Promise<ReactivationRule[]> {
+    return db.select().from(reactivationRules)
+      .orderBy(desc(reactivationRules.createdAt));
+  }
+
+  async updateReactivationRuleStatus(ruleId: string, status: string): Promise<ReactivationRule | null> {
+    const [result] = await db.update(reactivationRules)
+      .set({ status: status as any, updatedAt: new Date() })
+      .where(eq(reactivationRules.id, ruleId))
+      .returning();
+    return result ?? null;
+  }
+
+  // Phase 11A - Marketing Attribution
+  async createMarketingAttribution(data: InsertMarketingAttribution): Promise<MarketingAttribution> {
+    const [attribution] = await db.insert(marketingAttributions).values(data).returning();
+    return attribution;
+  }
+
+  async getMarketingAttribution(userId: string): Promise<MarketingAttribution | null> {
+    const [result] = await db.select().from(marketingAttributions)
+      .where(eq(marketingAttributions.userId, userId));
+    return result ?? null;
+  }
+
+  async getAttributionStats(): Promise<{ source: string; count: number }[]> {
+    const results = await db.select({
+      source: marketingAttributions.source,
+      count: count(),
+    }).from(marketingAttributions)
+      .groupBy(marketingAttributions.source);
+    return results.map(r => ({ source: r.source, count: Number(r.count) }));
+  }
+
+  // Phase 11A - Growth Safety Controls
+  async getGrowthSafetyControls(): Promise<GrowthSafetyControl[]> {
+    return db.select().from(growthSafetyControls);
+  }
+
+  async upsertGrowthSafetyControl(data: InsertGrowthSafetyControl): Promise<GrowthSafetyControl> {
+    const conditions = [eq(growthSafetyControls.controlType, data.controlType)];
+    if (data.countryCode) {
+      conditions.push(eq(growthSafetyControls.countryCode, data.countryCode));
+    } else {
+      conditions.push(isNull(growthSafetyControls.countryCode));
+    }
+    const [existing] = await db.select().from(growthSafetyControls)
+      .where(and(...conditions));
+    if (existing) {
+      const [result] = await db.update(growthSafetyControls)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(growthSafetyControls.id, existing.id))
+        .returning();
+      return result;
+    }
+    const [result] = await db.insert(growthSafetyControls).values(data).returning();
+    return result;
+  }
+
+  async getGrowthSafetyStatus(): Promise<GrowthSafetyStatus> {
+    const allControls = await this.getGrowthSafetyControls();
+    const globalControl = allControls.find(c => !c.countryCode);
+    const countryOverrides = allControls.filter(c => !!c.countryCode);
+    return {
+      viralityEnabled: globalControl?.viralityEnabled ?? true,
+      shareMomentsEnabled: globalControl?.shareMomentsEnabled ?? true,
+      reactivationEnabled: globalControl?.reactivationEnabled ?? true,
+      maxReferralRewardPerUser: globalControl?.maxReferralRewardPerUser ?? null,
+      maxDailyReferrals: globalControl?.maxDailyReferrals ?? null,
+      countryOverrides,
+    };
   }
 }
 

@@ -1,0 +1,111 @@
+You are implementing PHASE 11A of the ZIBA ride-hailing app: GROWTH, MARKETING, AND VIRALITY SYSTEMS.
+
+This phase defines how ZIBA grows users organically, virally, and sustainably
+without harming safety, trust, or platform economics.
+
+NO SPAM.
+NO FAKE VIRALITY.
+ALL GROWTH MUST BE TRACEABLE.
+
+=====================================
+1) REFERRAL VIRALITY (RIDER & DRIVER)
+=====================================
+
+Implement referral mechanics:
+
+Riders:
+• Unique referral code
+• Reward triggers only after referee completes first ride
+• Rewards configurable per country
+
+Drivers:
+• Referral logic reused from Phase 9
+• Rewards only after activation trips
+
+Rules:
+• No reward on signup alone
+• No stacking or self-referral
+• Referral usage tracked per user_id
+
+=====================================
+2) SHAREABLE MOMENTS (SOFT VIRALITY)
+=====================================
+
+Create share prompts at:
+• Successful first ride
+• Milestone earnings (driver)
+• High rating achievements
+
+Rules:
+• Sharing is optional
+• Messaging must feel celebratory, not promotional
+
+=====================================
+3) CAMPAIGN & PROMO ENGINE
+=====================================
+
+Admin can create campaigns:
+• First-ride campaigns
+• City launch campaigns
+• Event-based promos
+• Reactivation campaigns
+
+Campaign fields:
+- campaign_id
+- target_audience
+- country / subregion
+- start_at / end_at
+- incentive_rules
+
+=====================================
+4) REACTIVATION AUTOMATION
+=====================================
+
+Automatically detect inactive users:
+
+• Riders inactive for X days
+• Drivers offline for X days
+
+Trigger:
+• Gentle reminder
+• Targeted incentive
+• Educational message
+
+Rules:
+• No aggressive spam
+• Opt-out respected
+
+=====================================
+5) MARKETING ATTRIBUTION
+=====================================
+
+Track acquisition sources:
+• Referral
+• Campaign
+• Organic
+• Admin invite
+
+Rules:
+• Attribution persists across reinstall
+• Used for ROI measurement
+
+=====================================
+6) GROWTH SAFETY CONTROLS
+=====================================
+
+Admin must be able to:
+• Pause campaigns
+• Cap referral rewards
+• Disable virality features
+• Apply kill-switches globally or per country
+
+=====================================
+7) PHASE COMPLETION CRITERIA
+=====================================
+
+Phase 11A is complete only when:
+• Growth loops exist but are controlled
+• Virality does not harm trust
+• Marketing is measurable and reversible
+
+This phase enables sustainable growth.

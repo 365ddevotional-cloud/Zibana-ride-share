@@ -7871,6 +7871,320 @@ export async function registerRoutes(
     }
   });
 
+  // =============================================
+  // PHASE 11A: GROWTH, MARKETING & VIRALITY
+  // =============================================
+
+  // Apply a referral code (rider joining via referral)
+  app.post("/api/referrals/apply", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { code } = req.body;
+
+      if (!code) {
+        return res.status(400).json({ message: "Referral code is required" });
+      }
+
+      const referralCode = await storage.getReferralCodeByCode(code);
+      if (!referralCode) {
+        return res.status(404).json({ message: "Referral code not found" });
+      }
+
+      if (!referralCode.isActive) {
+        return res.status(400).json({ message: "Referral code is no longer active" });
+      }
+
+      if (referralCode.ownerUserId === userId) {
+        return res.status(400).json({ message: "You cannot use your own referral code" });
+      }
+
+      const existingReward = await storage.getRiderReferralRewardByReferred(userId);
+      if (existingReward) {
+        return res.status(400).json({ message: "You have already used a referral code" });
+      }
+
+      await storage.createReferralEvent({
+        referralCodeId: referralCode.id,
+        referredUserId: userId,
+        eventType: "signup",
+      });
+
+      await storage.updateReferralCodeUsage(referralCode.id);
+
+      const reward = await storage.createRiderReferralReward({
+        referrerUserId: referralCode.ownerUserId,
+        referredRiderUserId: userId,
+        referralCodeId: referralCode.id,
+        rewardAmount: "500.00",
+        currency: "NGN",
+      });
+
+      await storage.createMarketingAttribution({
+        userId,
+        source: "REFERRAL",
+        referralCodeId: referralCode.id,
+      });
+
+      return res.json(reward);
+    } catch (error) {
+      console.error("Error applying referral code:", error);
+      return res.status(500).json({ message: "Failed to apply referral code" });
+    }
+  });
+
+  // Get my rider referral rewards (for referrer)
+  app.get("/api/referrals/rider-rewards", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const rewards = await storage.getRiderReferralRewardsByReferrer(userId);
+      return res.json(rewards);
+    } catch (error) {
+      console.error("Error getting rider referral rewards:", error);
+      return res.status(500).json({ message: "Failed to get rider referral rewards" });
+    }
+  });
+
+  // Get pending shareable moments for current user
+  app.get("/api/shareable-moments", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const moments = await storage.getPendingShareableMoments(userId);
+      return res.json(moments);
+    } catch (error) {
+      console.error("Error getting shareable moments:", error);
+      return res.status(500).json({ message: "Failed to get shareable moments" });
+    }
+  });
+
+  // Mark a moment as shared
+  app.post("/api/shareable-moments/:id/share", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const result = await storage.markMomentShared(id);
+      if (!result) {
+        return res.status(404).json({ message: "Moment not found" });
+      }
+      return res.json(result);
+    } catch (error) {
+      console.error("Error marking moment as shared:", error);
+      return res.status(500).json({ message: "Failed to mark moment as shared" });
+    }
+  });
+
+  // Dismiss a moment
+  app.post("/api/shareable-moments/:id/dismiss", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const result = await storage.dismissMoment(id);
+      if (!result) {
+        return res.status(404).json({ message: "Moment not found" });
+      }
+      return res.json(result);
+    } catch (error) {
+      console.error("Error dismissing moment:", error);
+      return res.status(500).json({ message: "Failed to dismiss moment" });
+    }
+  });
+
+  // Add campaign details (Admin only)
+  app.post("/api/campaigns/:campaignId/details", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { campaignId } = req.params;
+      const { targetAudience, countryCode, subregion, incentiveType, incentiveValue, incentiveRules, maxRedemptions } = req.body;
+
+      const campaign = await storage.getMarketingCampaign(campaignId);
+      if (!campaign) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+
+      const detail = await storage.createCampaignDetail({
+        campaignId,
+        targetAudience,
+        countryCode,
+        subregion,
+        incentiveType,
+        incentiveValue,
+        incentiveRules,
+        maxRedemptions,
+      });
+
+      await storage.createAuditLog({
+        userId,
+        action: "campaign_detail_created",
+        entityType: "campaign_detail",
+        entityId: detail.id,
+        metadata: JSON.stringify({ campaignId }),
+      });
+
+      return res.json(detail);
+    } catch (error) {
+      console.error("Error creating campaign detail:", error);
+      return res.status(500).json({ message: "Failed to create campaign detail" });
+    }
+  });
+
+  // Get all campaigns with details (Admin only)
+  app.get("/api/campaigns/with-details", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const campaigns = await storage.getCampaignsWithDetails();
+      return res.json(campaigns);
+    } catch (error) {
+      console.error("Error getting campaigns with details:", error);
+      return res.status(500).json({ message: "Failed to get campaigns with details" });
+    }
+  });
+
+  // Create reactivation rule (Admin only)
+  app.post("/api/reactivation-rules", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { name, targetRole, inactiveDaysThreshold, messageTitle, messageBody, incentiveType, incentiveValue, countryCode } = req.body;
+
+      if (!name || !targetRole || !messageTitle || !messageBody) {
+        return res.status(400).json({ message: "Name, targetRole, messageTitle, and messageBody are required" });
+      }
+
+      const rule = await storage.createReactivationRule({
+        name,
+        targetRole,
+        inactiveDaysThreshold: inactiveDaysThreshold || 14,
+        messageTitle,
+        messageBody,
+        incentiveType,
+        incentiveValue,
+        countryCode,
+        createdBy: userId,
+      });
+
+      await storage.createAuditLog({
+        userId,
+        action: "reactivation_rule_created",
+        entityType: "reactivation_rule",
+        entityId: rule.id,
+        metadata: JSON.stringify({ name, targetRole }),
+      });
+
+      return res.json(rule);
+    } catch (error) {
+      console.error("Error creating reactivation rule:", error);
+      return res.status(500).json({ message: "Failed to create reactivation rule" });
+    }
+  });
+
+  // Get all reactivation rules (Admin only)
+  app.get("/api/reactivation-rules", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const rules = await storage.getReactivationRules();
+      return res.json(rules);
+    } catch (error) {
+      console.error("Error getting reactivation rules:", error);
+      return res.status(500).json({ message: "Failed to get reactivation rules" });
+    }
+  });
+
+  // Update reactivation rule status (Admin only)
+  app.patch("/api/reactivation-rules/:ruleId/status", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { ruleId } = req.params;
+      const { status } = req.body;
+
+      if (!status || !["ACTIVE", "PAUSED", "ENDED"].includes(status)) {
+        return res.status(400).json({ message: "Status must be ACTIVE, PAUSED, or ENDED" });
+      }
+
+      const rule = await storage.updateReactivationRuleStatus(ruleId, status);
+      if (!rule) {
+        return res.status(404).json({ message: "Reactivation rule not found" });
+      }
+
+      await storage.createAuditLog({
+        userId,
+        action: "reactivation_rule_status_updated",
+        entityType: "reactivation_rule",
+        entityId: ruleId,
+        metadata: JSON.stringify({ status }),
+      });
+
+      return res.json(rule);
+    } catch (error) {
+      console.error("Error updating reactivation rule status:", error);
+      return res.status(500).json({ message: "Failed to update reactivation rule status" });
+    }
+  });
+
+  // Get attribution stats (Admin only)
+  app.get("/api/attribution/stats", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const stats = await storage.getAttributionStats();
+      return res.json(stats);
+    } catch (error) {
+      console.error("Error getting attribution stats:", error);
+      return res.status(500).json({ message: "Failed to get attribution stats" });
+    }
+  });
+
+  // Get my attribution source
+  app.get("/api/attribution/my", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const attribution = await storage.getMarketingAttribution(userId);
+      return res.json(attribution);
+    } catch (error) {
+      console.error("Error getting attribution:", error);
+      return res.status(500).json({ message: "Failed to get attribution" });
+    }
+  });
+
+  // Get growth safety status (Admin only)
+  app.get("/api/growth-safety", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const status = await storage.getGrowthSafetyStatus();
+      return res.json(status);
+    } catch (error) {
+      console.error("Error getting growth safety status:", error);
+      return res.status(500).json({ message: "Failed to get growth safety status" });
+    }
+  });
+
+  // Update growth safety controls (Admin only)
+  app.post("/api/growth-safety", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { controlType, enabled, countryCode, maxReferralRewardPerUser, maxDailyReferrals, viralityEnabled, shareMomentsEnabled, reactivationEnabled } = req.body;
+
+      if (!controlType) {
+        return res.status(400).json({ message: "controlType is required" });
+      }
+
+      const control = await storage.upsertGrowthSafetyControl({
+        controlType,
+        enabled: enabled ?? true,
+        countryCode: countryCode || null,
+        maxReferralRewardPerUser,
+        maxDailyReferrals,
+        viralityEnabled: viralityEnabled ?? true,
+        shareMomentsEnabled: shareMomentsEnabled ?? true,
+        reactivationEnabled: reactivationEnabled ?? true,
+        updatedBy: userId,
+      });
+
+      await storage.createAuditLog({
+        userId,
+        action: "growth_safety_control_updated",
+        entityType: "growth_safety_control",
+        entityId: control.id,
+        metadata: JSON.stringify({ controlType, countryCode }),
+      });
+
+      return res.json(control);
+    } catch (error) {
+      console.error("Error updating growth safety control:", error);
+      return res.status(500).json({ message: "Failed to update growth safety control" });
+    }
+  });
+
   // Phase 20 - Post-Launch Monitoring & Feature Flags
 
   // Get metrics overview (Admin, Finance)
