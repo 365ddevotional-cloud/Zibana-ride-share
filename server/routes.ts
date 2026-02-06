@@ -882,6 +882,16 @@ export async function registerRoutes(
         } catch (analyticsError) {
           console.error("Error recording analytics:", analyticsError);
         }
+
+        // Phase 5: Update behavior stats on trip completion
+        try {
+          if (trip.driverId) {
+            await evaluateBehaviorAndWarnings(trip.driverId, "driver");
+          }
+          await evaluateBehaviorAndWarnings(trip.riderId, "rider");
+        } catch (behaviorError) {
+          console.error("Error updating behavior stats:", behaviorError);
+        }
       }
 
       return res.json(trip);
@@ -1883,6 +1893,17 @@ export async function registerRoutes(
       const trip = await storage.cancelTrip(tripId, userId, reason);
       if (!trip) {
         return res.status(404).json({ message: "Trip not found or cannot be cancelled" });
+      }
+
+      // Phase 5: Update behavior stats on cancellation and void promos
+      try {
+        await evaluateBehaviorAndWarnings(userId, "rider");
+        if (trip.driverId) {
+          await evaluateBehaviorAndWarnings(trip.driverId, "driver");
+        }
+        await voidPromosOnCancellation(tripId);
+      } catch (behaviorError) {
+        console.error("Error updating behavior on cancellation:", behaviorError);
       }
 
       return res.json(trip);
