@@ -79,6 +79,8 @@ Preferred communication style: Simple, everyday language.
 - **Paystack**: Payment gateway for driver payouts in Nigeria.
 - **Flutterwave**: Fallback payment gateway for driver payouts in Nigeria.
 
+- **Simulation Center**: System-level simulation mode controlled by `SIMULATION_MODE_ENABLED` env var (`server/simulation-config.ts`). Configurable `SIMULATION_CODE_LENGTH` (default 9) and `SIMULATION_EXPIRES_MINUTES` (default 60). Public `GET /api/simulation/system-status` endpoint. All simulation routes guarded by `requireSimulationEnabled` middleware. Startup log prints "Simulation Mode: ENABLED/DISABLED". Admin UI reads system status and shows disabled message when off. Landing page hides simulation entry when disabled. SIMULATION_ENGINE_LOCKED.
+
 ### Key NPM Packages
 - `drizzle-orm` / `drizzle-kit`: ORM and migration tools.
 - `passport` / `openid-client`: Authentication libraries.
