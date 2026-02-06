@@ -900,13 +900,12 @@ export async function registerRoutes(
           "success"
         );
 
-        // Phase 11: Credit driver and ZIBA wallets
-        if (trip.driverPayout && trip.commissionAmount) {
+        // Phase 11: Credit driver and ZIBA wallets (skip for cash - handled in storage layer)
+        const isCashTrip = trip.paymentSource === "CASH";
+        if (trip.driverPayout && trip.commissionAmount && !isCashTrip) {
           try {
-            // Get or create driver wallet
             const driverWallet = await storage.getOrCreateWallet(userId, "driver");
             
-            // Credit driver wallet with payout amount
             await storage.creditWallet(
               driverWallet.id,
               trip.driverPayout,
@@ -916,7 +915,6 @@ export async function registerRoutes(
               `Earnings from trip: ${trip.pickupLocation} → ${trip.dropoffLocation}`
             );
 
-            // Credit ZIBA wallet with commission
             const zibaWallet = await storage.getZibaWallet();
             await storage.creditWallet(
               zibaWallet.id,
@@ -1429,6 +1427,14 @@ export async function registerRoutes(
         });
       }
       
+      // Cash always available
+      availableMethods.push({
+        id: "CASH",
+        name: "Cash",
+        description: "Pay driver directly with cash",
+        enabled: true,
+      });
+
       // Card only available for Nigeria with Paystack enabled
       if (isNigeriaPaymentsEnabled) {
         availableMethods.push({
@@ -1445,6 +1451,7 @@ export async function registerRoutes(
         walletMode: isSimulatedMode ? "SIMULATED" : "REAL",
         isTestWalletAvailable: isSimulatedMode,
         isCardAvailable: isNigeriaPaymentsEnabled,
+        isCashAvailable: true,
       });
     } catch (error) {
       console.error("Error getting payment settings:", error);
@@ -1458,7 +1465,7 @@ export async function registerRoutes(
       const userId = req.user.claims.sub;
       const { paymentMethod } = req.body;
       
-      if (!paymentMethod || !["WALLET", "TEST_WALLET", "CARD"].includes(paymentMethod)) {
+      if (!paymentMethod || !["WALLET", "TEST_WALLET", "CARD", "CASH"].includes(paymentMethod)) {
         return res.status(400).json({ message: "Invalid payment method" });
       }
       
@@ -1871,16 +1878,22 @@ export async function registerRoutes(
         riderWallet = await storage.createRiderWallet({ userId, currency: countryConfig.currencyCode });
       }
 
-      // SERVER-SIDE WALLET RESOLUTION - Determine payment source based on tester status
+      // SERVER-SIDE WALLET RESOLUTION - Determine payment source based on rider profile + tester status
       const isTester = await storage.isUserTester(userId);
+      const riderProfile = await storage.getRiderProfile(userId);
+      const riderPaymentMethod = riderProfile?.paymentMethod || "WALLET";
       
-      // Resolve payment source: Testers use TEST_WALLET, non-testers use MAIN_WALLET
-      const resolvedPaymentSource = isTester ? "TEST_WALLET" : "MAIN_WALLET";
+      // Resolve payment source: Cash uses CASH, Testers use TEST_WALLET, non-testers use MAIN_WALLET
+      const resolvedPaymentSource = riderPaymentMethod === "CASH" ? "CASH" 
+        : isTester ? "TEST_WALLET" : "MAIN_WALLET";
       
-      // Get the correct balance based on resolved payment source
+      // Get the correct balance based on resolved payment source (cash trips skip balance check)
       let availableBalance: number;
       
-      if (resolvedPaymentSource === "TEST_WALLET") {
+      if (resolvedPaymentSource === "CASH") {
+        availableBalance = Infinity;
+        console.log(`[WALLET RESOLUTION] Cash user ${userId} - using CASH, no balance check`);
+      } else if (resolvedPaymentSource === "TEST_WALLET") {
         availableBalance = parseFloat(String(riderWallet.testerWalletBalance || "0"));
         console.log(`[WALLET RESOLUTION] Tester user ${userId} - using TEST_WALLET, balance: ${availableBalance}`);
       } else {
@@ -1925,7 +1938,7 @@ export async function registerRoutes(
       // Create the trip with FULL financial tracking
       const tripData = {
         ...parsed.data,
-        paymentSource: resolvedPaymentSource as "TEST_WALLET" | "MAIN_WALLET" | "CARD" | "BANK",
+        paymentSource: resolvedPaymentSource as "TEST_WALLET" | "MAIN_WALLET" | "CARD" | "BANK" | "CASH",
         isTestTrip: isTester,
         currencyCode: tripCurrency,
         countryId: countryCode,

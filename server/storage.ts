@@ -457,7 +457,7 @@ export interface IStorage {
 
   createRiderProfile(data: InsertRiderProfile): Promise<RiderProfile>;
   getRiderProfile(userId: string): Promise<RiderProfile | undefined>;
-  updateRiderPaymentMethod(userId: string, paymentMethod: "WALLET" | "TEST_WALLET" | "CARD"): Promise<RiderProfile | undefined>;
+  updateRiderPaymentMethod(userId: string, paymentMethod: "WALLET" | "TEST_WALLET" | "CARD" | "CASH"): Promise<RiderProfile | undefined>;
   getAllRidersWithDetails(): Promise<any[]>;
 
   createTrip(data: InsertTrip): Promise<Trip>;
@@ -1706,7 +1706,7 @@ export class DatabaseStorage implements IStorage {
     return profile;
   }
 
-  async updateRiderPaymentMethod(userId: string, paymentMethod: "WALLET" | "TEST_WALLET" | "CARD"): Promise<RiderProfile | undefined> {
+  async updateRiderPaymentMethod(userId: string, paymentMethod: "WALLET" | "TEST_WALLET" | "CARD" | "CASH"): Promise<RiderProfile | undefined> {
     const [updated] = await db
       .update(riderProfiles)
       .set({ paymentMethod })
@@ -1868,7 +1868,23 @@ export class DatabaseStorage implements IStorage {
       .returning();
 
     if (trip && status === "completed" && trip.driverPayout) {
-      await this.creditDriverWallet(driverId, trip.driverPayout, tripId);
+      const isCashTrip = trip.paymentSource === "CASH";
+      
+      if (isCashTrip) {
+        await db.update(trips).set({ driverCollected: true }).where(eq(trips.id, tripId));
+        
+        if (trip.commissionAmount) {
+          await this.createPlatformSettlement({
+            driverId,
+            tripId,
+            totalOwed: trip.commissionAmount,
+            currencyCode: trip.currencyCode || "NGN",
+            status: "pending",
+          });
+        }
+      } else {
+        await this.creditDriverWallet(driverId, trip.driverPayout, tripId);
+      }
     }
 
     return trip || null;
