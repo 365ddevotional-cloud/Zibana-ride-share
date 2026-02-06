@@ -14672,10 +14672,11 @@ export async function registerRoutes(
       if (!legalName || !country) {
         return res.status(400).json({ message: "legalName and country are required" });
       }
+      const { encryptField } = await import("./crypto");
       const profile = await storage.upsertDriverTaxProfile({
         driverUserId: userId,
         legalName,
-        taxId: taxId || null,
+        taxId: taxId ? encryptField(taxId) : null,
         country,
         taxClassification: taxClassification || "independent_contractor",
       });
@@ -14853,7 +14854,8 @@ export async function registerRoutes(
     }
 
     const totalTripEarnings = earnings.totalGrossEarnings - earnings.totalTips - earnings.totalIncentives;
-    const maskedTaxId = taxProfile?.taxId ? taxProfile.taxId.slice(-4) : null;
+    const { maskTaxId } = await import("./crypto");
+    const maskedTaxId = maskTaxId(taxProfile?.taxId || null);
 
     return {
       driverId: driverUserId,
@@ -15171,7 +15173,7 @@ export async function registerRoutes(
           legalName: taxProfile?.legalName || driverProfile?.fullName || "Driver",
           country: taxProfile?.country || "NG",
           taxClassification: taxProfile?.taxClassification || "independent_contractor",
-          maskedTaxId: taxProfile?.taxId ? taxProfile.taxId.slice(-4) : null,
+          maskedTaxId: (await import("./crypto")).maskTaxId(taxProfile?.taxId || null),
           taxYear: s.taxYear,
           documentVersion: 1,
           issueDate: new Date().toISOString().split("T")[0],
