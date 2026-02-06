@@ -3999,6 +3999,78 @@ export const insertDriverMileageSessionSchema = createInsertSchema(driverMileage
 export type InsertDriverMileageSession = z.infer<typeof insertDriverMileageSessionSchema>;
 export type DriverMileageSession = typeof driverMileageSessions.$inferSelect;
 
+// =============================================
+// TAX STATEMENT DATA MODEL
+// =============================================
+export const taxClassificationEnum = pgEnum("tax_classification", ["independent_contractor", "self_employed", "other"]);
+export const taxSummaryStatusEnum = pgEnum("tax_summary_status", ["draft", "finalized", "issued"]);
+export const taxDocumentTypeEnum = pgEnum("tax_document_type", ["1099", "annual_statement", "country_equivalent"]);
+
+export const driverTaxProfiles = pgTable("driver_tax_profiles", {
+  id: serial("id").primaryKey(),
+  driverUserId: varchar("driver_user_id").notNull(),
+  legalName: varchar("legal_name", { length: 200 }).notNull(),
+  taxId: varchar("tax_id", { length: 200 }),
+  country: varchar("country", { length: 3 }).notNull(),
+  taxClassification: taxClassificationEnum("tax_classification").notNull().default("independent_contractor"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertDriverTaxProfileSchema = createInsertSchema(driverTaxProfiles).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertDriverTaxProfile = z.infer<typeof insertDriverTaxProfileSchema>;
+export type DriverTaxProfile = typeof driverTaxProfiles.$inferSelect;
+
+export const driverTaxYearSummaries = pgTable("driver_tax_year_summaries", {
+  id: serial("id").primaryKey(),
+  driverUserId: varchar("driver_user_id").notNull(),
+  taxYear: integer("tax_year").notNull(),
+  totalGrossEarnings: decimal("total_gross_earnings", { precision: 14, scale: 2 }).notNull().default("0.00"),
+  totalTips: decimal("total_tips", { precision: 14, scale: 2 }).notNull().default("0.00"),
+  totalIncentives: decimal("total_incentives", { precision: 14, scale: 2 }).notNull().default("0.00"),
+  totalPlatformFees: decimal("total_platform_fees", { precision: 14, scale: 2 }).notNull().default("0.00"),
+  totalMilesDriven: decimal("total_miles_driven", { precision: 12, scale: 2 }).notNull().default("0.00"),
+  reportableIncome: decimal("reportable_income", { precision: 14, scale: 2 }).notNull().default("0.00"),
+  currency: varchar("currency", { length: 3 }).notNull().default("NGN"),
+  status: taxSummaryStatusEnum("status").notNull().default("draft"),
+  generatedAt: timestamp("generated_at").defaultNow(),
+  generatedBy: varchar("generated_by"),
+  finalizedAt: timestamp("finalized_at"),
+  finalizedBy: varchar("finalized_by"),
+});
+
+export const insertDriverTaxYearSummarySchema = createInsertSchema(driverTaxYearSummaries).omit({ id: true, generatedAt: true });
+export type InsertDriverTaxYearSummary = z.infer<typeof insertDriverTaxYearSummarySchema>;
+export type DriverTaxYearSummary = typeof driverTaxYearSummaries.$inferSelect;
+
+export const driverTaxDocuments = pgTable("driver_tax_documents", {
+  id: serial("id").primaryKey(),
+  driverUserId: varchar("driver_user_id").notNull(),
+  taxYear: integer("tax_year").notNull(),
+  documentType: taxDocumentTypeEnum("document_type").notNull(),
+  fileUrl: text("file_url"),
+  generatedAt: timestamp("generated_at").defaultNow(),
+  generatedBy: varchar("generated_by"),
+});
+
+export const insertDriverTaxDocumentSchema = createInsertSchema(driverTaxDocuments).omit({ id: true, generatedAt: true });
+export type InsertDriverTaxDocument = z.infer<typeof insertDriverTaxDocumentSchema>;
+export type DriverTaxDocument = typeof driverTaxDocuments.$inferSelect;
+
+export const taxGenerationAuditLog = pgTable("tax_generation_audit_log", {
+  id: serial("id").primaryKey(),
+  driverUserId: varchar("driver_user_id").notNull(),
+  taxYear: integer("tax_year").notNull(),
+  action: varchar("action", { length: 50 }).notNull(),
+  performedBy: varchar("performed_by").notNull(),
+  details: text("details"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertTaxGenerationAuditLogSchema = createInsertSchema(taxGenerationAuditLog).omit({ id: true, createdAt: true });
+export type InsertTaxGenerationAuditLog = z.infer<typeof insertTaxGenerationAuditLogSchema>;
+export type TaxGenerationAuditLog = typeof taxGenerationAuditLog.$inferSelect;
+
 export type GrowthSafetyStatus = {
   viralityEnabled: boolean;
   shareMomentsEnabled: boolean;

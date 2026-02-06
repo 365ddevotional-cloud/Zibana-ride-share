@@ -1,0 +1,120 @@
+You are implementing the TAX STATEMENT DATA MODEL & QUERIES for the ZIBA Driver system.
+This is for legal, tax, and compliance reporting only.
+
+DO NOT expose tax data in daily driver UI.
+DO NOT mix tax data with incentives or daily earnings screens.
+
+==============================
+CORE PURPOSE
+==============================
+Generate accurate, auditable annual tax statements (e.g., US 1099 or country-equivalent)
+including:
+• Total gross earnings
+• Aggregated platform fees
+• Total miles driven while ONLINE
+• Driver identity details
+
+==============================
+DATA MODELS
+==============================
+
+Create or extend the following models:
+
+1) DriverTaxProfile
+- driver_id
+- legal_name
+- tax_id (encrypted)
+- country
+- tax_classification (e.g. independent_contractor)
+- created_at
+- updated_at
+
+2) DriverTaxYearSummary
+- driver_id
+- tax_year
+- total_gross_earnings
+- total_tips
+- total_incentives
+- total_platform_fees (aggregated only)
+- total_miles_driven
+- reportable_income
+- currency
+- generated_at
+- status (draft | finalized | issued)
+
+3) DriverTaxDocument
+- document_id
+- driver_id
+- tax_year
+- document_type (1099 | annual_statement | country_equivalent)
+- file_url
+- generated_at
+
+==============================
+SOURCE DATA RULES
+==============================
+• Earnings pulled from immutable trip ledger
+• Tips pulled from tip ledger
+• Incentives pulled from incentive ledger
+• Platform fees pulled from internal fee records (aggregated)
+• Mileage pulled from DriverMileageYearly
+
+No per-trip tax breakdowns allowed.
+
+==============================
+QUERY LOGIC
+==============================
+
+For a given driver_id and tax_year:
+
+1) total_gross_earnings =
+   sum(trip_earnings + tips + incentives)
+
+2) total_platform_fees =
+   sum(platform_fee) for tax_year (internal use only)
+
+3) total_miles_driven =
+   DriverMileageYearly.total_miles
+
+4) reportable_income =
+   total_gross_earnings
+
+==============================
+VISIBILITY RULES (LOCKED)
+==============================
+• Drivers see tax data ONLY in:
+  - Annual tax summary screen
+  - Downloadable tax documents (PDF / CSV)
+
+• Drivers do NOT see:
+  - Per-trip tax info
+  - Platform fee per trip
+  - Daily or monthly tax breakdowns
+
+==============================
+ADMIN ACCESS
+==============================
+Admin may:
+• View tax summaries (read-only)
+• Generate and issue tax documents
+• Download tax files for compliance
+
+Admin may NOT:
+• Edit finalized tax data
+• Alter mileage totals
+
+==============================
+FAIL-SAFE & AUDIT
+==============================
+• All tax summaries must be reproducible from source data
+• Changes require regeneration, not editing
+• Log every generation event with timestamp and admin_id
+
+==============================
+FINAL REQUIREMENT
+==============================
+Tax statements must be accurate, conservative, auditable,
+and compliant with US 1099 and international equivalents.
+
+Implement exactly as specified.
+Confirm when complete.
