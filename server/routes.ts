@@ -5,7 +5,7 @@ import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integra
 import { storage } from "./storage";
 import { db } from "./db";
 import { eq, and, count, sql, gte, lt, isNotNull } from "drizzle-orm";
-import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions } from "@shared/schema";
+import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles } from "@shared/schema";
 import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, evaluateAllDrivers, evaluateBehaviorAndWarnings, calculateDriverMatchingScore, getDriverIncentiveProgress, assignFirstRidePromo, assignReturnRiderPromo, applyPromoToTrip, voidPromosOnCancellation } from "./incentives";
 import { notificationService } from "./notification-service";
 import { getCurrencyFromCountry, getCountryConfig, FINANCIAL_ENGINE_LOCKED } from "@shared/currency";
@@ -601,6 +601,325 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error upserting country cash config:", error);
       return res.status(500).json({ message: "Failed to update country cash config" });
+    }
+  });
+
+  app.post("/api/rider/trip/:tripId/confirm-cash", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { tripId } = req.params;
+      const [trip] = await db.select().from(trips).where(eq(trips.id, tripId));
+      if (!trip) {
+        return res.status(404).json({ message: "Trip not found" });
+      }
+      if (trip.riderId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      if (trip.status !== "completed") {
+        return res.status(400).json({ message: "Trip is not completed" });
+      }
+      if (trip.paymentSource !== "CASH") {
+        return res.status(400).json({ message: "Trip is not a cash trip" });
+      }
+      const [updated] = await db.update(trips).set({
+        riderConfirmedCash: true,
+        riderConfirmedCashAt: new Date(),
+      }).where(eq(trips.id, tripId)).returning();
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error confirming cash payment:", error);
+      return res.status(500).json({ message: "Failed to confirm cash payment" });
+    }
+  });
+
+  app.post("/api/driver/trip/:tripId/confirm-cash", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { tripId } = req.params;
+      const [trip] = await db.select().from(trips).where(eq(trips.id, tripId));
+      if (!trip) {
+        return res.status(404).json({ message: "Trip not found" });
+      }
+      if (trip.driverId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      if (trip.status !== "completed") {
+        return res.status(400).json({ message: "Trip is not completed" });
+      }
+      if (trip.paymentSource !== "CASH") {
+        return res.status(400).json({ message: "Trip is not a cash trip" });
+      }
+      const [updated] = await db.update(trips).set({
+        driverConfirmedCash: true,
+        driverConfirmedCashAt: new Date(),
+        driverCollected: true,
+      }).where(eq(trips.id, tripId)).returning();
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error confirming cash received:", error);
+      return res.status(500).json({ message: "Failed to confirm cash received" });
+    }
+  });
+
+  app.post("/api/driver/trip/:tripId/dispute-cash", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { tripId } = req.params;
+      const [trip] = await db.select().from(trips).where(eq(trips.id, tripId));
+      if (!trip) {
+        return res.status(404).json({ message: "Trip not found" });
+      }
+      if (trip.driverId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      if (trip.status !== "completed") {
+        return res.status(400).json({ message: "Trip is not completed" });
+      }
+      if (trip.paymentSource !== "CASH") {
+        return res.status(400).json({ message: "Trip is not a cash trip" });
+      }
+      if (!trip.riderConfirmedCash || trip.driverConfirmedCash) {
+        return res.status(400).json({ message: "Invalid dispute conditions" });
+      }
+      await db.update(trips).set({
+        cashDisputeFlag: true,
+        cashDisputeReason: "driver_disputes_payment",
+      }).where(eq(trips.id, tripId));
+      const [dispute] = await db.insert(cashTripDisputes).values({
+        tripId,
+        riderId: trip.riderId,
+        driverId: userId,
+        disputeType: "rider_paid_driver_disputes",
+        riderClaimed: true,
+        driverClaimed: false,
+        status: "open",
+        temporaryCreditAmount: trip.fareAmount ? String(trip.fareAmount) : "0",
+      }).returning();
+      try {
+        const driverWallet = await storage.getOrCreateWallet(userId, "driver");
+        await storage.creditWallet(
+          driverWallet.id,
+          trip.fareAmount || 0,
+          "adjustment",
+          tripId,
+          undefined,
+          `Temporary credit for disputed cash trip`
+        );
+      } catch (walletError) {
+        console.error("Error crediting driver wallet for dispute:", walletError);
+      }
+      await db.update(riderProfiles).set({
+        cashAccessRestricted: true,
+        cashAccessRestrictedAt: new Date(),
+        cashAccessRestrictedReason: "Cash dispute filed by driver",
+      }).where(eq(riderProfiles.userId, trip.riderId));
+      await storage.createNotification({
+        userId: "admin",
+        role: "admin",
+        title: "Cash Trip Dispute",
+        message: `Driver disputes cash payment for trip ${tripId}. Rider claims paid, driver says not received.`,
+        type: "warning",
+      });
+      return res.json(dispute);
+    } catch (error) {
+      console.error("Error disputing cash trip:", error);
+      return res.status(500).json({ message: "Failed to dispute cash trip" });
+    }
+  });
+
+  app.post("/api/rider/trip/:tripId/dispute-cash", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { tripId } = req.params;
+      const [trip] = await db.select().from(trips).where(eq(trips.id, tripId));
+      if (!trip) {
+        return res.status(404).json({ message: "Trip not found" });
+      }
+      if (trip.riderId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      if (trip.status !== "completed") {
+        return res.status(400).json({ message: "Trip is not completed" });
+      }
+      if (trip.paymentSource !== "CASH") {
+        return res.status(400).json({ message: "Trip is not a cash trip" });
+      }
+      if (!trip.driverConfirmedCash || trip.riderConfirmedCash) {
+        return res.status(400).json({ message: "Invalid dispute conditions" });
+      }
+      await db.update(trips).set({
+        cashDisputeFlag: true,
+        cashDisputeReason: "rider_disputes_confirmation",
+      }).where(eq(trips.id, tripId));
+      const [dispute] = await db.insert(cashTripDisputes).values({
+        tripId,
+        riderId: userId,
+        driverId: trip.driverId!,
+        disputeType: "driver_confirmed_rider_disputes",
+        driverClaimed: true,
+        riderClaimed: false,
+        status: "open",
+      }).returning();
+      await storage.createNotification({
+        userId: "admin",
+        role: "admin",
+        title: "Cash Trip Dispute",
+        message: `Rider disputes driver's cash confirmation for trip ${tripId}. Driver flagged for admin review.`,
+        type: "warning",
+      });
+      return res.json(dispute);
+    } catch (error) {
+      console.error("Error disputing cash trip:", error);
+      return res.status(500).json({ message: "Failed to dispute cash trip" });
+    }
+  });
+
+  app.get("/api/rider/trip/:tripId/cash-status", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { tripId } = req.params;
+      const [trip] = await db.select().from(trips).where(eq(trips.id, tripId));
+      if (!trip || trip.riderId !== userId) {
+        return res.status(404).json({ message: "Trip not found" });
+      }
+      const [profile] = await db.select().from(riderProfiles).where(eq(riderProfiles.userId, userId));
+      return res.json({
+        riderConfirmedCash: trip.riderConfirmedCash,
+        driverConfirmedCash: trip.driverConfirmedCash,
+        cashDisputeFlag: trip.cashDisputeFlag,
+        cashAccessRestricted: profile?.cashAccessRestricted || false,
+      });
+    } catch (error) {
+      console.error("Error getting cash status:", error);
+      return res.status(500).json({ message: "Failed to get cash status" });
+    }
+  });
+
+  app.get("/api/driver/trip/:tripId/cash-status", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { tripId } = req.params;
+      const [trip] = await db.select().from(trips).where(eq(trips.id, tripId));
+      if (!trip || trip.driverId !== userId) {
+        return res.status(404).json({ message: "Trip not found" });
+      }
+      return res.json({
+        riderConfirmedCash: trip.riderConfirmedCash,
+        driverConfirmedCash: trip.driverConfirmedCash,
+        cashDisputeFlag: trip.cashDisputeFlag,
+      });
+    } catch (error) {
+      console.error("Error getting cash status:", error);
+      return res.status(500).json({ message: "Failed to get cash status" });
+    }
+  });
+
+  app.get("/api/rider/payment-onboarding", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const [profile] = await db.select().from(riderProfiles).where(eq(riderProfiles.userId, userId));
+      return res.json({
+        seen: profile?.paymentOnboardingSeen || false,
+        cashAccessRestricted: profile?.cashAccessRestricted || false,
+      });
+    } catch (error) {
+      console.error("Error getting payment onboarding status:", error);
+      return res.status(500).json({ message: "Failed to get payment onboarding status" });
+    }
+  });
+
+  app.post("/api/rider/payment-onboarding/seen", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      await db.update(riderProfiles).set({
+        paymentOnboardingSeen: true,
+      }).where(eq(riderProfiles.userId, userId));
+      return res.json({ success: true });
+    } catch (error) {
+      console.error("Error marking onboarding as seen:", error);
+      return res.status(500).json({ message: "Failed to mark onboarding as seen" });
+    }
+  });
+
+  app.get("/api/admin/cash-disputes", isAuthenticated, requireRole(["admin", "super_admin", "finance"]), async (req: any, res) => {
+    try {
+      const { status } = req.query;
+      let results;
+      if (status) {
+        results = await db.select().from(cashTripDisputes).where(eq(cashTripDisputes.status, status as string));
+      } else {
+        results = await db.select().from(cashTripDisputes);
+      }
+      return res.json(results);
+    } catch (error) {
+      console.error("Error getting cash disputes:", error);
+      return res.status(500).json({ message: "Failed to get cash disputes" });
+    }
+  });
+
+  app.post("/api/admin/cash-disputes/:disputeId/resolve", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { disputeId } = req.params;
+      const { resolution, adminNotes } = req.body;
+      if (!resolution || !["rider_at_fault", "driver_at_fault", "inconclusive"].includes(resolution)) {
+        return res.status(400).json({ message: "Invalid resolution" });
+      }
+      const [dispute] = await db.update(cashTripDisputes).set({
+        status: "resolved",
+        resolution,
+        adminNotes: adminNotes || null,
+        resolvedAt: new Date(),
+        adminReviewedBy: userId,
+      }).where(eq(cashTripDisputes.id, disputeId)).returning();
+      if (!dispute) {
+        return res.status(404).json({ message: "Dispute not found" });
+      }
+      if (resolution === "driver_at_fault" || resolution === "inconclusive") {
+        await db.update(riderProfiles).set({
+          cashAccessRestricted: false,
+          cashAccessRestrictedReason: null,
+        }).where(eq(riderProfiles.userId, dispute.riderId));
+      }
+      return res.json(dispute);
+    } catch (error) {
+      console.error("Error resolving cash dispute:", error);
+      return res.status(500).json({ message: "Failed to resolve cash dispute" });
+    }
+  });
+
+  app.post("/api/admin/riders/:riderId/reinstate-cash", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { riderId } = req.params;
+      await db.update(riderProfiles).set({
+        cashAccessRestricted: false,
+        cashAccessRestrictedReason: null,
+      }).where(eq(riderProfiles.userId, riderId));
+      console.log(`[ADMIN ACTION] User ${userId} reinstated cash access for rider ${riderId}`);
+      return res.json({ success: true });
+    } catch (error) {
+      console.error("Error reinstating cash access:", error);
+      return res.status(500).json({ message: "Failed to reinstate cash access" });
+    }
+  });
+
+  app.post("/api/admin/riders/:riderId/restrict-cash", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { riderId } = req.params;
+      const { reason } = req.body;
+      if (!reason) {
+        return res.status(400).json({ message: "Reason is required" });
+      }
+      await db.update(riderProfiles).set({
+        cashAccessRestricted: true,
+        cashAccessRestrictedAt: new Date(),
+        cashAccessRestrictedReason: reason,
+      }).where(eq(riderProfiles.userId, riderId));
+      return res.json({ success: true });
+    } catch (error) {
+      console.error("Error restricting cash access:", error);
+      return res.status(500).json({ message: "Failed to restrict cash access" });
     }
   });
 
