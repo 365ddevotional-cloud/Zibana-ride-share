@@ -22,6 +22,7 @@ import { TripFilterBar } from "@/components/trip-filter-bar";
 import { TripDetailModal } from "@/components/trip-detail-modal";
 import { AdminReservationsPanel } from "@/components/admin/reservations-panel";
 import { AdminOverridePanel } from "@/components/admin/override-panel";
+import { UserGrowthPanel } from "@/components/admin/user-growth-panel";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -2086,6 +2087,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <TabsTrigger value="overrides" className="admin-nav-trigger rounded-md" data-testid="tab-overrides">
                 <ShieldAlert className="h-4 w-4 mr-2" />
                 Overrides
+              </TabsTrigger>
+            )}
+            {(isSuperAdmin || userRole === "admin") && (
+              <TabsTrigger value="user-growth" className="admin-nav-trigger rounded-md" data-testid="tab-user-growth">
+                <TrendingUp className="h-4 w-4 mr-2" />
+                User Growth
               </TabsTrigger>
             )}
           </TabsList>
@@ -6286,6 +6293,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
           {(isSuperAdmin || userRole === "admin") && (
             <TabsContent value="overrides">
               <AdminOverridePanel />
+            </TabsContent>
+          )}
+
+          {(isSuperAdmin || userRole === "admin") && (
+            <TabsContent value="user-growth">
+              <UserGrowthPanel />
             </TabsContent>
           )}
         </Tabs>
