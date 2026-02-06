@@ -5,7 +5,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { FileText, Download, ChevronDown, ArrowLeft, Calendar, User, MapPin } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { FileText, Download, ChevronDown, ArrowLeft, Calendar, User, MapPin, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 
 interface AnnualStatement {
@@ -21,6 +22,7 @@ interface AnnualStatement {
   totalOnlineHours: number;
   totalMilesDrivenOnline: number;
   currency: string;
+  status?: string;
 }
 
 export default function DriverAnnualStatementPage() {
@@ -90,6 +92,12 @@ export default function DriverAnnualStatementPage() {
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                   <span>Tax Year {annualData.year}</span>
                 </div>
+                {annualData.status && (annualData.status === "finalized" || annualData.status === "issued") && (
+                  <Badge variant="secondary" data-testid="badge-tax-status">
+                    <ShieldCheck className="h-3 w-3 mr-1" />
+                    {annualData.status === "issued" ? "Official" : "Finalized"}
+                  </Badge>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">

@@ -14590,56 +14590,151 @@ export async function registerRoutes(
     }
   });
 
+  // ============================================================
+  // TAX STATEMENT DATA MODEL & QUERIES
+  // Tax compliance only. No per-trip breakdowns. No daily exposure.
+  // ============================================================
+
+  async function computeTaxYearData(driverUserId: string, year: number) {
+    const startOfYear = new Date(year, 0, 1);
+    const endOfYear = new Date(year + 1, 0, 1);
+
+    const driverTrips = await db.select()
+      .from(trips)
+      .where(
+        and(
+          eq(trips.driverId, driverUserId),
+          eq(trips.status, "completed"),
+          gte(trips.completedAt, startOfYear),
+          lt(trips.completedAt, endOfYear)
+        )
+      );
+
+    let totalTripEarnings = 0;
+    let totalPlatformFees = 0;
+    let totalTips = 0;
+    let tripCount = 0;
+    let currency = "NGN";
+
+    for (const trip of driverTrips) {
+      totalTripEarnings += parseFloat(trip.driverPayout || "0");
+      totalPlatformFees += parseFloat(trip.commissionAmount || "0");
+      if (trip.currencyCode) currency = trip.currencyCode;
+      tripCount += 1;
+    }
+
+    const totalIncentives = 0;
+    const totalGrossEarnings = totalTripEarnings + totalTips + totalIncentives;
+    const reportableIncome = totalGrossEarnings;
+
+    const mileageRecord = await storage.getDriverMileageForYear(driverUserId, year);
+    const totalMilesDriven = mileageRecord ? parseFloat(mileageRecord.totalMilesOnline) : 0;
+
+    return {
+      totalGrossEarnings: Math.round(totalGrossEarnings * 100) / 100,
+      totalTips: Math.round(totalTips * 100) / 100,
+      totalIncentives: Math.round(totalIncentives * 100) / 100,
+      totalPlatformFees: Math.round(totalPlatformFees * 100) / 100,
+      totalMilesDriven: Math.round(totalMilesDriven * 100) / 100,
+      reportableIncome: Math.round(reportableIncome * 100) / 100,
+      currency,
+      tripCount,
+    };
+  }
+
+  // Driver: tax profile management
+  app.get("/api/driver/tax/profile", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const profile = await storage.getDriverTaxProfile(userId);
+      if (!profile) return res.json(null);
+      return res.json({ ...profile, taxId: profile.taxId ? "****" : null });
+    } catch (error) {
+      console.error("Error fetching tax profile:", error);
+      return res.status(500).json({ message: "Failed to fetch tax profile" });
+    }
+  });
+
+  app.post("/api/driver/tax/profile", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { legalName, taxId, country, taxClassification } = req.body;
+      if (!legalName || !country) {
+        return res.status(400).json({ message: "legalName and country are required" });
+      }
+      const profile = await storage.upsertDriverTaxProfile({
+        driverUserId: userId,
+        legalName,
+        taxId: taxId || null,
+        country,
+        taxClassification: taxClassification || "independent_contractor",
+      });
+      return res.json({ ...profile, taxId: profile.taxId ? "****" : null });
+    } catch (error) {
+      console.error("Error saving tax profile:", error);
+      return res.status(500).json({ message: "Failed to save tax profile" });
+    }
+  });
+
+  // Driver: view tax year summary (uses stored summary if exists, else computes live)
   app.get("/api/driver/statements/annual/:year", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const year = parseInt(req.params.year);
       if (isNaN(year)) return res.status(400).json({ message: "Invalid year" });
 
-      const startOfYear = new Date(year, 0, 1);
-      const endOfYear = new Date(year + 1, 0, 1);
-
       const driverProfile = await storage.getDriverProfile(userId);
-      const mileageRecord = await storage.getDriverMileageForYear(userId, year);
+      const taxProfile = await storage.getDriverTaxProfile(userId);
+      const storedSummary = await storage.getDriverTaxYearSummary(userId, year);
 
-      const driverTrips = await db.select()
-        .from(trips)
-        .where(
-          and(
-            eq(trips.driverId, userId),
-            eq(trips.status, "completed"),
-            gte(trips.completedAt, startOfYear),
-            lt(trips.completedAt, endOfYear)
-          )
-        );
-
-      let totalGrossEarnings = 0;
-      let totalPlatformFee = 0;
-      let totalTrips = 0;
-
-      for (const trip of driverTrips) {
-        totalGrossEarnings += parseFloat(trip.driverPayout || "0");
-        totalPlatformFee += parseFloat(trip.commissionAmount || "0");
-        totalTrips += 1;
+      let summaryData;
+      if (storedSummary && (storedSummary.status === "finalized" || storedSummary.status === "issued")) {
+        summaryData = {
+          totalGrossEarnings: parseFloat(storedSummary.totalGrossEarnings),
+          totalTips: parseFloat(storedSummary.totalTips),
+          totalIncentives: parseFloat(storedSummary.totalIncentives),
+          totalPlatformFees: parseFloat(storedSummary.totalPlatformFees),
+          totalMilesDriven: parseFloat(storedSummary.totalMilesDriven),
+          reportableIncome: parseFloat(storedSummary.reportableIncome),
+          currency: storedSummary.currency,
+          status: storedSummary.status,
+        };
+      } else {
+        const computed = await computeTaxYearData(userId, year);
+        summaryData = { ...computed, status: "draft" };
       }
 
       return res.json({
         year,
-        driverName: driverProfile?.fullName || "Driver",
+        driverName: taxProfile?.legalName || driverProfile?.fullName || "Driver",
         driverId: userId.substring(0, 8).toUpperCase(),
-        totalGrossEarnings: Math.round(totalGrossEarnings * 100) / 100,
-        totalTips: 0,
-        totalIncentives: 0,
-        totalPlatformFee: Math.round(totalPlatformFee * 100) / 100,
-        reportableIncome: Math.round(totalGrossEarnings * 100) / 100,
-        totalTrips,
+        totalGrossEarnings: summaryData.totalGrossEarnings,
+        totalTips: summaryData.totalTips,
+        totalIncentives: summaryData.totalIncentives,
+        totalPlatformFee: summaryData.totalPlatformFees,
+        reportableIncome: summaryData.reportableIncome,
+        totalTrips: 0,
         totalOnlineHours: 0,
-        totalMilesDrivenOnline: mileageRecord ? Math.round(parseFloat(mileageRecord.totalMilesOnline) * 100) / 100 : 0,
-        currency: "NGN",
+        totalMilesDrivenOnline: summaryData.totalMilesDriven,
+        currency: summaryData.currency,
+        status: summaryData.status,
       });
     } catch (error) {
       console.error("Error fetching annual statement:", error);
       return res.status(500).json({ message: "Failed to fetch annual statement" });
+    }
+  });
+
+  // Driver: view tax documents
+  app.get("/api/driver/tax/documents", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const year = req.query.year ? parseInt(req.query.year as string) : undefined;
+      const docs = await storage.getDriverTaxDocuments(userId, year);
+      return res.json(docs);
+    } catch (error) {
+      console.error("Error fetching tax documents:", error);
+      return res.status(500).json({ message: "Failed to fetch tax documents" });
     }
   });
 
@@ -14709,53 +14804,50 @@ export async function registerRoutes(
 
       if (isNaN(year)) return res.status(400).json({ message: "Invalid year" });
 
-      const startOfYear = new Date(year, 0, 1);
-      const endOfYear = new Date(year + 1, 0, 1);
-
       const driverProfile = await storage.getDriverProfile(userId);
-      const mileageRecord = await storage.getDriverMileageForYear(userId, year);
+      const taxProfile = await storage.getDriverTaxProfile(userId);
+      const storedSummary = await storage.getDriverTaxYearSummary(userId, year);
 
-      const driverTrips = await db.select()
-        .from(trips)
-        .where(
-          and(
-            eq(trips.driverId, userId),
-            eq(trips.status, "completed"),
-            gte(trips.completedAt, startOfYear),
-            lt(trips.completedAt, endOfYear)
-          )
-        );
-
-      let totalEarnings = 0;
-      let totalCommission = 0;
-      for (const trip of driverTrips) {
-        totalEarnings += parseFloat(trip.driverPayout || "0");
-        totalCommission += parseFloat(trip.commissionAmount || "0");
+      let data;
+      if (storedSummary && (storedSummary.status === "finalized" || storedSummary.status === "issued")) {
+        data = {
+          totalGrossEarnings: parseFloat(storedSummary.totalGrossEarnings),
+          totalTips: parseFloat(storedSummary.totalTips),
+          totalIncentives: parseFloat(storedSummary.totalIncentives),
+          totalPlatformFees: parseFloat(storedSummary.totalPlatformFees),
+          totalMilesDriven: parseFloat(storedSummary.totalMilesDriven),
+          reportableIncome: parseFloat(storedSummary.reportableIncome),
+          currency: storedSummary.currency,
+        };
+      } else {
+        data = await computeTaxYearData(userId, year);
       }
 
-      const driverName = driverProfile?.fullName || "Driver";
-      const totalMiles = mileageRecord ? parseFloat(mileageRecord.totalMilesOnline) : 0;
+      const driverName = taxProfile?.legalName || driverProfile?.fullName || "Driver";
 
       if (format === "csv") {
         const csvLines = [
-          `ZIBA Annual Earnings Statement`,
+          `ZIBA Annual Tax Statement`,
           `Tax Year,${year}`,
           `Driver,${driverName}`,
           `Driver ID,${userId.substring(0, 8).toUpperCase()}`,
+          `Tax Classification,${taxProfile?.taxClassification || "independent_contractor"}`,
+          `Country,${taxProfile?.country || "NG"}`,
+          `Currency,${data.currency}`,
           ``,
-          `Total Gross Earnings,${totalEarnings.toFixed(2)}`,
-          `Total Tips,0.00`,
-          `Total Service Fees,${totalCommission.toFixed(2)}`,
-          `Reportable Income,${totalEarnings.toFixed(2)}`,
-          `Total Trips,${driverTrips.length}`,
+          `Total Gross Earnings,${data.totalGrossEarnings.toFixed(2)}`,
+          `Total Tips,${data.totalTips.toFixed(2)}`,
+          `Total Incentives,${data.totalIncentives.toFixed(2)}`,
+          `Total Service Fees (aggregated),${data.totalPlatformFees.toFixed(2)}`,
+          `Reportable Income,${data.reportableIncome.toFixed(2)}`,
           ``,
-          `Total miles driven while online (for tax reporting purposes),${totalMiles.toFixed(2)}`,
+          `Total miles driven while online (for tax reporting purposes),${data.totalMilesDriven.toFixed(2)}`,
           ``,
           `Generated,${new Date().toISOString()}`,
           `This statement is provided for informational purposes. Consult a tax professional for filing guidance.`,
         ];
         res.setHeader("Content-Type", "text/csv");
-        res.setHeader("Content-Disposition", `attachment; filename="ziba-annual-${year}.csv"`);
+        res.setHeader("Content-Disposition", `attachment; filename="ziba-annual-tax-${year}.csv"`);
         return res.send(csvLines.join("\n"));
       }
 
@@ -14767,6 +14859,205 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error downloading annual statement:", error);
       return res.status(500).json({ message: "Failed to download annual statement" });
+    }
+  });
+
+  // ============================================================
+  // ADMIN TAX MANAGEMENT (read-only views, generate, issue)
+  // ============================================================
+
+  // Admin: generate/regenerate tax summary from source data
+  app.post("/api/admin/tax/generate/:driverId/:year", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const driverId = req.params.driverId;
+      const year = parseInt(req.params.year);
+      if (isNaN(year)) return res.status(400).json({ message: "Invalid year" });
+
+      const existingSummary = await storage.getDriverTaxYearSummary(driverId, year);
+      if (existingSummary && (existingSummary.status === "finalized" || existingSummary.status === "issued")) {
+        return res.status(400).json({ message: "Cannot regenerate finalized or issued summary. Create a new generation cycle." });
+      }
+
+      const computed = await computeTaxYearData(driverId, year);
+      const summary = await storage.upsertDriverTaxYearSummary({
+        driverUserId: driverId,
+        taxYear: year,
+        totalGrossEarnings: computed.totalGrossEarnings.toFixed(2),
+        totalTips: computed.totalTips.toFixed(2),
+        totalIncentives: computed.totalIncentives.toFixed(2),
+        totalPlatformFees: computed.totalPlatformFees.toFixed(2),
+        totalMilesDriven: computed.totalMilesDriven.toFixed(2),
+        reportableIncome: computed.reportableIncome.toFixed(2),
+        currency: computed.currency,
+        status: "draft",
+        generatedBy: adminId,
+      });
+
+      await storage.logTaxGenerationEvent(driverId, year, "generated", adminId, `Summary generated from ${computed.tripCount} trips`);
+      return res.json(summary);
+    } catch (error: any) {
+      console.error("Error generating tax summary:", error);
+      return res.status(500).json({ message: error.message || "Failed to generate tax summary" });
+    }
+  });
+
+  // Admin: finalize tax summary (locks it from changes)
+  app.post("/api/admin/tax/finalize/:driverId/:year", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const driverId = req.params.driverId;
+      const year = parseInt(req.params.year);
+      if (isNaN(year)) return res.status(400).json({ message: "Invalid year" });
+
+      const summary = await storage.finalizeTaxYearSummary(driverId, year, adminId);
+      await storage.logTaxGenerationEvent(driverId, year, "finalized", adminId);
+      return res.json(summary);
+    } catch (error: any) {
+      console.error("Error finalizing tax summary:", error);
+      return res.status(400).json({ message: error.message || "Failed to finalize tax summary" });
+    }
+  });
+
+  // Admin: issue tax summary to driver
+  app.post("/api/admin/tax/issue/:driverId/:year", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const driverId = req.params.driverId;
+      const year = parseInt(req.params.year);
+      if (isNaN(year)) return res.status(400).json({ message: "Invalid year" });
+
+      const summary = await storage.issueTaxYearSummary(driverId, year, adminId);
+      await storage.logTaxGenerationEvent(driverId, year, "issued", adminId);
+
+      const docType = "annual_statement";
+      const doc = await storage.createTaxDocument({
+        driverUserId: driverId,
+        taxYear: year,
+        documentType: docType,
+        fileUrl: `/api/driver/statements/annual/${year}/download?format=csv`,
+        generatedBy: adminId,
+      });
+
+      await storage.logTaxGenerationEvent(driverId, year, "document_created", adminId, `Document ${doc.id} type=${docType}`);
+      return res.json({ summary, document: doc });
+    } catch (error: any) {
+      console.error("Error issuing tax summary:", error);
+      return res.status(400).json({ message: error.message || "Failed to issue tax summary" });
+    }
+  });
+
+  // Admin: view driver tax summary (read-only)
+  app.get("/api/admin/tax/summary/:driverId/:year", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const driverId = req.params.driverId;
+      const year = parseInt(req.params.year);
+      if (isNaN(year)) return res.status(400).json({ message: "Invalid year" });
+
+      const summary = await storage.getDriverTaxYearSummary(driverId, year);
+      const taxProfile = await storage.getDriverTaxProfile(driverId);
+      const docs = await storage.getDriverTaxDocuments(driverId, year);
+      const auditLogs = await storage.getTaxAuditLogs(driverId, year);
+
+      if (!summary) {
+        const computed = await computeTaxYearData(driverId, year);
+        return res.json({
+          stored: false,
+          driverId,
+          taxYear: year,
+          taxProfile: taxProfile ? { ...taxProfile, taxId: taxProfile.taxId ? "****" : null } : null,
+          ...computed,
+          status: "not_generated",
+          documents: docs,
+          auditLogs,
+        });
+      }
+
+      return res.json({
+        stored: true,
+        driverId,
+        taxYear: year,
+        taxProfile: taxProfile ? { ...taxProfile, taxId: taxProfile.taxId ? "****" : null } : null,
+        totalGrossEarnings: parseFloat(summary.totalGrossEarnings),
+        totalTips: parseFloat(summary.totalTips),
+        totalIncentives: parseFloat(summary.totalIncentives),
+        totalPlatformFees: parseFloat(summary.totalPlatformFees),
+        totalMilesDriven: parseFloat(summary.totalMilesDriven),
+        reportableIncome: parseFloat(summary.reportableIncome),
+        currency: summary.currency,
+        status: summary.status,
+        generatedAt: summary.generatedAt,
+        generatedBy: summary.generatedBy,
+        finalizedAt: summary.finalizedAt,
+        finalizedBy: summary.finalizedBy,
+        documents: docs,
+        auditLogs,
+      });
+    } catch (error) {
+      console.error("Error fetching admin tax summary:", error);
+      return res.status(500).json({ message: "Failed to fetch tax summary" });
+    }
+  });
+
+  // Admin: list all tax summaries for a year (for compliance download)
+  app.get("/api/admin/tax/summaries/:year", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const year = parseInt(req.params.year);
+      if (isNaN(year)) return res.status(400).json({ message: "Invalid year" });
+
+      const summaries = await storage.getAllTaxYearSummariesForYear(year);
+      return res.json(summaries.map(s => ({
+        driverUserId: s.driverUserId,
+        taxYear: s.taxYear,
+        totalGrossEarnings: parseFloat(s.totalGrossEarnings),
+        totalPlatformFees: parseFloat(s.totalPlatformFees),
+        totalMilesDriven: parseFloat(s.totalMilesDriven),
+        reportableIncome: parseFloat(s.reportableIncome),
+        currency: s.currency,
+        status: s.status,
+        generatedAt: s.generatedAt,
+      })));
+    } catch (error) {
+      console.error("Error fetching tax summaries:", error);
+      return res.status(500).json({ message: "Failed to fetch tax summaries" });
+    }
+  });
+
+  // Admin: bulk export tax summaries as CSV
+  app.get("/api/admin/tax/export/:year", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const year = parseInt(req.params.year);
+      if (isNaN(year)) return res.status(400).json({ message: "Invalid year" });
+
+      const summaries = await storage.getAllTaxYearSummariesForYear(year);
+      const csvLines = [
+        `Driver ID,Tax Year,Gross Earnings,Tips,Incentives,Platform Fees,Miles Driven,Reportable Income,Currency,Status,Generated At`,
+        ...summaries.map(s =>
+          `${s.driverUserId},${s.taxYear},${parseFloat(s.totalGrossEarnings).toFixed(2)},${parseFloat(s.totalTips).toFixed(2)},${parseFloat(s.totalIncentives).toFixed(2)},${parseFloat(s.totalPlatformFees).toFixed(2)},${parseFloat(s.totalMilesDriven).toFixed(2)},${parseFloat(s.reportableIncome).toFixed(2)},${s.currency},${s.status},${s.generatedAt?.toISOString() || ""}`
+        ),
+      ];
+
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", `attachment; filename="ziba-tax-summaries-${year}.csv"`);
+      return res.send(csvLines.join("\n"));
+    } catch (error) {
+      console.error("Error exporting tax summaries:", error);
+      return res.status(500).json({ message: "Failed to export tax summaries" });
+    }
+  });
+
+  // Admin: view audit log for a driver's tax year
+  app.get("/api/admin/tax/audit/:driverId/:year", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const driverId = req.params.driverId;
+      const year = parseInt(req.params.year);
+      if (isNaN(year)) return res.status(400).json({ message: "Invalid year" });
+
+      const logs = await storage.getTaxAuditLogs(driverId, year);
+      return res.json(logs);
+    } catch (error) {
+      console.error("Error fetching tax audit logs:", error);
+      return res.status(500).json({ message: "Failed to fetch audit logs" });
     }
   });
 

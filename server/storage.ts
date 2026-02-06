@@ -381,6 +381,17 @@ import {
   type InsertDriverMileageDaily,
   type DriverMileageSession,
   type InsertDriverMileageSession,
+  driverTaxProfiles,
+  driverTaxYearSummaries,
+  driverTaxDocuments,
+  taxGenerationAuditLog,
+  type DriverTaxProfile,
+  type InsertDriverTaxProfile,
+  type DriverTaxYearSummary,
+  type InsertDriverTaxYearSummary,
+  type DriverTaxDocument,
+  type InsertDriverTaxDocument,
+  type TaxGenerationAuditLog,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull } from "drizzle-orm";
@@ -9132,6 +9143,151 @@ export class DatabaseStorage implements IStorage {
   async getAllDriverMileageYearlySummaries(): Promise<DriverMileageLog[]> {
     return db.select().from(driverMileageLogs)
       .orderBy(desc(driverMileageLogs.taxYear));
+  }
+
+  // ============================================================
+  // TAX PROFILES
+  // ============================================================
+
+  async getDriverTaxProfile(driverUserId: string): Promise<DriverTaxProfile | undefined> {
+    const [profile] = await db.select().from(driverTaxProfiles)
+      .where(eq(driverTaxProfiles.driverUserId, driverUserId));
+    return profile;
+  }
+
+  async upsertDriverTaxProfile(data: InsertDriverTaxProfile): Promise<DriverTaxProfile> {
+    const existing = await this.getDriverTaxProfile(data.driverUserId);
+    if (existing) {
+      const [updated] = await db.update(driverTaxProfiles)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(driverTaxProfiles.id, existing.id))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(driverTaxProfiles)
+      .values(data)
+      .returning();
+    return created;
+  }
+
+  // ============================================================
+  // TAX YEAR SUMMARIES
+  // ============================================================
+
+  async getDriverTaxYearSummary(driverUserId: string, taxYear: number): Promise<DriverTaxYearSummary | undefined> {
+    const [summary] = await db.select().from(driverTaxYearSummaries)
+      .where(and(
+        eq(driverTaxYearSummaries.driverUserId, driverUserId),
+        eq(driverTaxYearSummaries.taxYear, taxYear)
+      ));
+    return summary;
+  }
+
+  async getAllDriverTaxYearSummaries(driverUserId: string): Promise<DriverTaxYearSummary[]> {
+    return db.select().from(driverTaxYearSummaries)
+      .where(eq(driverTaxYearSummaries.driverUserId, driverUserId))
+      .orderBy(desc(driverTaxYearSummaries.taxYear));
+  }
+
+  async upsertDriverTaxYearSummary(data: InsertDriverTaxYearSummary): Promise<DriverTaxYearSummary> {
+    const existing = await this.getDriverTaxYearSummary(data.driverUserId, data.taxYear);
+    if (existing) {
+      if (existing.status === "finalized" || existing.status === "issued") {
+        throw new Error("Cannot modify finalized or issued tax summary");
+      }
+      const [updated] = await db.update(driverTaxYearSummaries)
+        .set({ ...data, generatedAt: new Date() })
+        .where(eq(driverTaxYearSummaries.id, existing.id))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(driverTaxYearSummaries)
+      .values(data)
+      .returning();
+    return created;
+  }
+
+  async finalizeTaxYearSummary(driverUserId: string, taxYear: number, adminId: string): Promise<DriverTaxYearSummary> {
+    const existing = await this.getDriverTaxYearSummary(driverUserId, taxYear);
+    if (!existing) throw new Error("Tax summary not found");
+    if (existing.status === "finalized" || existing.status === "issued") {
+      throw new Error("Tax summary already finalized or issued");
+    }
+    const [updated] = await db.update(driverTaxYearSummaries)
+      .set({ status: "finalized", finalizedAt: new Date(), finalizedBy: adminId })
+      .where(eq(driverTaxYearSummaries.id, existing.id))
+      .returning();
+    return updated;
+  }
+
+  async issueTaxYearSummary(driverUserId: string, taxYear: number, adminId: string): Promise<DriverTaxYearSummary> {
+    const existing = await this.getDriverTaxYearSummary(driverUserId, taxYear);
+    if (!existing) throw new Error("Tax summary not found");
+    if (existing.status !== "finalized") {
+      throw new Error("Tax summary must be finalized before issuing");
+    }
+    const [updated] = await db.update(driverTaxYearSummaries)
+      .set({ status: "issued" })
+      .where(eq(driverTaxYearSummaries.id, existing.id))
+      .returning();
+    return updated;
+  }
+
+  async getAllTaxYearSummariesForYear(taxYear: number): Promise<DriverTaxYearSummary[]> {
+    return db.select().from(driverTaxYearSummaries)
+      .where(eq(driverTaxYearSummaries.taxYear, taxYear))
+      .orderBy(driverTaxYearSummaries.driverUserId);
+  }
+
+  // ============================================================
+  // TAX DOCUMENTS
+  // ============================================================
+
+  async createTaxDocument(data: InsertDriverTaxDocument): Promise<DriverTaxDocument> {
+    const [created] = await db.insert(driverTaxDocuments)
+      .values(data)
+      .returning();
+    return created;
+  }
+
+  async getDriverTaxDocuments(driverUserId: string, taxYear?: number): Promise<DriverTaxDocument[]> {
+    if (taxYear) {
+      return db.select().from(driverTaxDocuments)
+        .where(and(
+          eq(driverTaxDocuments.driverUserId, driverUserId),
+          eq(driverTaxDocuments.taxYear, taxYear)
+        ))
+        .orderBy(desc(driverTaxDocuments.generatedAt));
+    }
+    return db.select().from(driverTaxDocuments)
+      .where(eq(driverTaxDocuments.driverUserId, driverUserId))
+      .orderBy(desc(driverTaxDocuments.generatedAt));
+  }
+
+  async getTaxDocument(documentId: number): Promise<DriverTaxDocument | undefined> {
+    const [doc] = await db.select().from(driverTaxDocuments)
+      .where(eq(driverTaxDocuments.id, documentId));
+    return doc;
+  }
+
+  // ============================================================
+  // TAX AUDIT LOG
+  // ============================================================
+
+  async logTaxGenerationEvent(driverUserId: string, taxYear: number, action: string, performedBy: string, details?: string): Promise<TaxGenerationAuditLog> {
+    const [log] = await db.insert(taxGenerationAuditLog)
+      .values({ driverUserId, taxYear, action, performedBy, details })
+      .returning();
+    return log;
+  }
+
+  async getTaxAuditLogs(driverUserId: string, taxYear: number): Promise<TaxGenerationAuditLog[]> {
+    return db.select().from(taxGenerationAuditLog)
+      .where(and(
+        eq(taxGenerationAuditLog.driverUserId, driverUserId),
+        eq(taxGenerationAuditLog.taxYear, taxYear)
+      ))
+      .orderBy(desc(taxGenerationAuditLog.createdAt));
   }
 }
 
