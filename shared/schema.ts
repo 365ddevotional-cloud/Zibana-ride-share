@@ -3491,6 +3491,12 @@ export const killSwitchScopeEnum = pgEnum("kill_switch_scope", ["GLOBAL", "COUNT
 
 export const subregionTypeEnum = pgEnum("subregion_type", ["state", "province", "region", "county"]);
 
+// Phase 9 - Driver Acquisition Automation
+export const acquisitionChannelEnum = pgEnum("acquisition_channel", ["REFERRAL", "FLEET_OWNER", "PUBLIC_SIGNUP", "ADMIN_INVITED"]);
+export const driverOnboardingStageEnum = pgEnum("driver_onboarding_stage", ["SIGNUP", "DOCUMENTS", "REVIEW", "FIRST_TRIP", "ACTIVE"]);
+export const supplyAlertStatusEnum = pgEnum("supply_alert_status", ["ACTIVE", "RESOLVED", "EXPIRED"]);
+export const acquisitionPauseStatusEnum = pgEnum("acquisition_pause_status", ["ACTIVE", "PAUSED"]);
+
 export const stateLaunchConfigs = pgTable("state_launch_configs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   countryCode: varchar("country_code", { length: 3 }).notNull().default("NG"),
@@ -3544,4 +3550,143 @@ export type LaunchReadinessStatus = {
   states: StateLaunchConfig[];
   killSwitches: KillSwitchState[];
   activeKillSwitchCount: number;
+};
+
+// =============================================
+// PHASE 9: DRIVER ACQUISITION AUTOMATION
+// =============================================
+
+export const fleetOwners = pgTable("fleet_owners", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique(),
+  companyName: varchar("company_name", { length: 200 }),
+  countryCode: varchar("country_code", { length: 3 }).notNull().default("NG"),
+  maxDrivers: integer("max_drivers").notNull().default(50),
+  activeDrivers: integer("active_drivers").notNull().default(0),
+  totalDriversInvited: integer("total_drivers_invited").notNull().default(0),
+  bonusPerActivation: decimal("bonus_per_activation", { precision: 10, scale: 2 }).notNull().default("0.00"),
+  totalBonusEarned: decimal("total_bonus_earned", { precision: 10, scale: 2 }).notNull().default("0.00"),
+  suspended: boolean("suspended").notNull().default(false),
+  suspendedReason: text("suspended_reason"),
+  suspendedAt: timestamp("suspended_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const driverAcquisitions = pgTable("driver_acquisitions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  driverUserId: varchar("driver_user_id").notNull().unique(),
+  channel: acquisitionChannelEnum("channel").notNull(),
+  referralCodeId: varchar("referral_code_id"),
+  referredByUserId: varchar("referred_by_user_id"),
+  fleetOwnerId: varchar("fleet_owner_id"),
+  invitedByAdminId: varchar("invited_by_admin_id"),
+  onboardingStage: driverOnboardingStageEnum("onboarding_stage").notNull().default("SIGNUP"),
+  onboardingStartedAt: timestamp("onboarding_started_at").defaultNow(),
+  documentsUploadedAt: timestamp("documents_uploaded_at"),
+  reviewStartedAt: timestamp("review_started_at"),
+  approvedAt: timestamp("approved_at"),
+  firstTripAt: timestamp("first_trip_at"),
+  activatedAt: timestamp("activated_at"),
+  approvalTimeMinutes: integer("approval_time_minutes"),
+  countryCode: varchar("country_code", { length: 3 }).notNull().default("NG"),
+  stateCode: varchar("state_code", { length: 5 }),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const driverReferralRewards = pgTable("driver_referral_rewards", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  referrerUserId: varchar("referrer_user_id").notNull(),
+  referredDriverUserId: varchar("referred_driver_user_id").notNull(),
+  referralCodeId: varchar("referral_code_id").notNull(),
+  requiredTrips: integer("required_trips").notNull().default(5),
+  completedTrips: integer("completed_trips").notNull().default(0),
+  requiredWithinDays: integer("required_within_days").notNull().default(30),
+  deadlineAt: timestamp("deadline_at").notNull(),
+  rewardAmount: decimal("reward_amount", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 3 }).notNull().default("NGN"),
+  paid: boolean("paid").notNull().default(false),
+  paidAt: timestamp("paid_at"),
+  expired: boolean("expired").notNull().default(false),
+  fraudFlagged: boolean("fraud_flagged").notNull().default(false),
+  fraudReason: text("fraud_reason"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const supplyAlerts = pgTable("supply_alerts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  countryCode: varchar("country_code", { length: 3 }).notNull(),
+  stateCode: varchar("state_code", { length: 5 }).notNull(),
+  status: supplyAlertStatusEnum("status").notNull().default("ACTIVE"),
+  onlineDrivers: integer("online_drivers").notNull().default(0),
+  avgPickupMinutes: decimal("avg_pickup_minutes", { precision: 5, scale: 1 }),
+  failedRequests: integer("failed_requests").notNull().default(0),
+  referralBoostTriggered: boolean("referral_boost_triggered").notNull().default(false),
+  bonusTriggered: boolean("bonus_triggered").notNull().default(false),
+  inactiveDriversNotified: integer("inactive_drivers_notified").notNull().default(0),
+  resolvedAt: timestamp("resolved_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const acquisitionZoneControls = pgTable("acquisition_zone_controls", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  countryCode: varchar("country_code", { length: 3 }).notNull(),
+  stateCode: varchar("state_code", { length: 5 }),
+  status: acquisitionPauseStatusEnum("status").notNull().default("ACTIVE"),
+  pausedByUserId: varchar("paused_by_user_id"),
+  pauseReason: text("pause_reason"),
+  pausedAt: timestamp("paused_at"),
+  resumedAt: timestamp("resumed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const driverAutoMessages = pgTable("driver_auto_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  driverUserId: varchar("driver_user_id").notNull(),
+  messageType: varchar("message_type", { length: 50 }).notNull(),
+  title: varchar("title", { length: 200 }).notNull(),
+  message: text("message").notNull(),
+  countryCode: varchar("country_code", { length: 3 }),
+  stateCode: varchar("state_code", { length: 5 }),
+  delivered: boolean("delivered").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertFleetOwnerSchema = createInsertSchema(fleetOwners).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertFleetOwner = z.infer<typeof insertFleetOwnerSchema>;
+export type FleetOwner = typeof fleetOwners.$inferSelect;
+
+export const insertDriverAcquisitionSchema = createInsertSchema(driverAcquisitions).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertDriverAcquisition = z.infer<typeof insertDriverAcquisitionSchema>;
+export type DriverAcquisition = typeof driverAcquisitions.$inferSelect;
+
+export const insertDriverReferralRewardSchema = createInsertSchema(driverReferralRewards).omit({ id: true, createdAt: true });
+export type InsertDriverReferralReward = z.infer<typeof insertDriverReferralRewardSchema>;
+export type DriverReferralReward = typeof driverReferralRewards.$inferSelect;
+
+export const insertSupplyAlertSchema = createInsertSchema(supplyAlerts).omit({ id: true, createdAt: true });
+export type InsertSupplyAlert = z.infer<typeof insertSupplyAlertSchema>;
+export type SupplyAlert = typeof supplyAlerts.$inferSelect;
+
+export const insertAcquisitionZoneControlSchema = createInsertSchema(acquisitionZoneControls).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertAcquisitionZoneControl = z.infer<typeof insertAcquisitionZoneControlSchema>;
+export type AcquisitionZoneControl = typeof acquisitionZoneControls.$inferSelect;
+
+export const insertDriverAutoMessageSchema = createInsertSchema(driverAutoMessages).omit({ id: true, createdAt: true });
+export type InsertDriverAutoMessage = z.infer<typeof insertDriverAutoMessageSchema>;
+export type DriverAutoMessage = typeof driverAutoMessages.$inferSelect;
+
+export type DriverAcquisitionAnalytics = {
+  totalAcquired: number;
+  byChannel: Record<string, number>;
+  avgTimeToFirstTrip: number;
+  referralConversionRate: number;
+  fleetOwnerEffectiveness: number;
+  retentionD7: number;
+  retentionD30: number;
+  costPerActivatedDriver: number;
+  activeSupplyAlerts: number;
+  onboardingPipeline: Record<string, number>;
 };

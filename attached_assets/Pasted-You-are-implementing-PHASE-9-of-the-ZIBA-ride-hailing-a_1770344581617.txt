@@ -1,0 +1,141 @@
+You are implementing PHASE 9 of the ZIBA ride-hailing app: DRIVER ACQUISITION AUTOMATION.
+
+This phase automates how ZIBA attracts, onboards, activates, and retains drivers
+at scale across multiple countries, states, and zones.
+
+NO MANUAL DRIVER GROWTH.
+NO PAY-FOR-SIGNUP WITHOUT ACTIVITY.
+
+=====================================
+1) DRIVER ACQUISITION CHANNELS
+=====================================
+
+Implement automated acquisition channels:
+
+• Referral-based onboarding
+• Fleet owner onboarding
+• Public signup funnel
+• Admin-invited drivers (controlled)
+
+Each channel must be trackable and auditable.
+
+=====================================
+2) DRIVER REFERRAL SYSTEM (PRIMARY ENGINE)
+=====================================
+
+Referral rules:
+• Each driver gets a unique referral code/link
+• Referral reward triggers ONLY after:
+  - New driver completes X trips
+  - Within Y days
+  - With acceptable cancellation & rating
+
+Anti-fraud rules:
+• No self-referral
+• No repeated same-rider loops
+• GPS-verified trips only
+• One payout per referred driver
+
+=====================================
+3) FLEET OWNER AUTOMATION
+=====================================
+
+Implement Fleet Owner role:
+
+• Fleet owners can:
+  - Invite multiple drivers
+  - Track activation status
+  - Earn fleet bonuses (configurable)
+
+Rules:
+• Fleet bonuses trigger only on driver activation
+• Fleet owners cannot manipulate trip outcomes
+• Admin can suspend fleet access if abuse detected
+
+=====================================
+4) SMART DRIVER ONBOARDING FLOW
+=====================================
+
+Driver onboarding must be staged:
+
+Stage 1: Signup
+Stage 2: Document upload
+Stage 3: Review & approval
+Stage 4: First trip activation
+Stage 5: Active driver
+
+Rules:
+• Drivers cannot go online before approval
+• Incomplete onboarding must be resumable
+• Admin approval time must be tracked
+
+=====================================
+5) DRIVER SUPPLY TARGETING (AUTOMATED)
+=====================================
+
+System must automatically detect low-supply zones:
+
+• Monitor:
+  - Online drivers
+  - Pickup times
+  - Failed requests
+
+Rules:
+• When supply drops:
+  - Trigger referral boosts
+  - Enable targeted bonuses
+  - Notify nearby inactive drivers
+
+=====================================
+6) INCENTIVE AUTOMATION (REUSES PHASE 5)
+=====================================
+
+• Incentives must activate automatically when conditions are met
+• Incentives must expire automatically
+• Incentives must pause if abuse detected
+• Admin can override incentives (Phase 3 rules)
+
+=====================================
+7) DRIVER COMMUNICATION AUTOMATION
+=====================================
+
+Automated messaging:
+• Welcome messages
+• Activation reminders
+• Incentive progress updates
+• Supply shortage alerts
+
+Rules:
+• Messages must be helpful, not spammy
+• Messaging must be role-aware and zone-aware
+
+=====================================
+8) DRIVER ACQUISITION ANALYTICS
+=====================================
+
+Track:
+• Cost per activated driver
+• Time to first trip
+• Referral conversion rate
+• Fleet owner effectiveness
+• Driver retention (D7, D30)
+
+=====================================
+9) FAIL-SAFE & CONTROL
+=====================================
+
+• Admin can pause driver acquisition per zone
+• Kill-switches override onboarding & incentives
+• No automation may bypass safety checks
+
+=====================================
+10) PHASE COMPLETION CRITERIA
+=====================================
+
+Phase 9 is complete only when:
+• Drivers can be acquired without manual work
+• Fraud is minimized
+• Supply responds automatically to demand
+• Admin remains fully in control
+
+This phase must be completed before aggressive rider marketing.
