@@ -7615,7 +7615,7 @@ export class DatabaseStorage implements IStorage {
     const driverSignedUp = await db.select({ count: count() }).from(userAnalytics)
       .where(eq(userAnalytics.role, "driver"));
     const driverApproved = await db.select({ count: count() }).from(driverProfiles)
-      .where(eq(driverProfiles.verificationStatus, "approved"));
+      .where(eq(driverProfiles.status, "approved"));
     const driverFirstTrip = await db.select({ count: count() }).from(userAnalytics)
       .where(and(eq(userAnalytics.role, "driver"), sql`${userAnalytics.firstTripAt} IS NOT NULL`));
     const driverConsistent = await db.select({ count: count() }).from(userAnalytics)

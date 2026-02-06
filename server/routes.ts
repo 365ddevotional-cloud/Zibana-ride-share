@@ -539,6 +539,16 @@ export async function registerRoutes(
       }
 
       const updated = await storage.updateDriverOnlineStatus(userId, isOnline);
+      
+      // Phase 4: Track driver going online for analytics
+      if (isOnline) {
+        try {
+          await storage.recordDriverOnline(userId);
+        } catch (analyticsError) {
+          console.error("Error recording driver online analytics:", analyticsError);
+        }
+      }
+      
       return res.json(updated);
     } catch (error) {
       console.error("Error toggling online status:", error);
@@ -860,8 +870,17 @@ export async function registerRoutes(
             );
           } catch (walletError) {
             console.error("Error crediting wallets:", walletError);
-            // Don't fail the trip completion if wallet credit fails
           }
+        }
+
+        // Phase 4: Track analytics for ride/trip completion
+        try {
+          await storage.recordRideCompletion(trip.riderId);
+          if (trip.driverId) {
+            await storage.recordTripCompletion(trip.driverId);
+          }
+        } catch (analyticsError) {
+          console.error("Error recording analytics:", analyticsError);
         }
       }
 
@@ -12459,6 +12478,32 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error fetching user override audit logs:", error);
       return res.status(500).json({ message: "Failed to fetch user override audit logs" });
+    }
+  });
+
+  // Phase 4 - User Analytics: Session heartbeat + Growth Analytics API
+  app.post("/api/analytics/session-heartbeat", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ message: "Not authenticated" });
+      const roles = await storage.getAllUserRoles(userId);
+      for (const userRole of roles) {
+        await storage.updateUserSession(userId, userRole.role);
+      }
+      return res.json({ ok: true });
+    } catch (error) {
+      console.error("Error recording session heartbeat:", error);
+      return res.status(500).json({ message: "Failed to record session" });
+    }
+  });
+
+  app.get("/api/analytics/user-growth", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const data = await storage.getUserGrowthAnalytics();
+      return res.json(data);
+    } catch (error) {
+      console.error("Error fetching user growth analytics:", error);
+      return res.status(500).json({ message: "Failed to fetch user growth analytics" });
     }
   });
 

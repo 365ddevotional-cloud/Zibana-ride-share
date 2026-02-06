@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 import type { User } from "@shared/models/auth";
 
 async function fetchUser(): Promise<User | null> {
@@ -45,6 +46,18 @@ export function useAuth() {
       queryClient.setQueryData(["/api/auth/user"], null);
     },
   });
+
+  const heartbeatSent = useRef(false);
+  useEffect(() => {
+    if (user && !heartbeatSent.current) {
+      heartbeatSent.current = true;
+      fetch("/api/analytics/session-heartbeat", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      }).catch(() => {});
+    }
+  }, [user]);
 
   return {
     user,
