@@ -1753,6 +1753,10 @@ export async function registerRoutes(
     try {
       const userId = req.user.claims.sub;
       const trip = await storage.getRiderCurrentTrip(userId);
+      if (trip) {
+        const { driverPayout, commissionAmount, commissionPercentage, ...sanitized } = trip as any;
+        return res.json(sanitized);
+      }
       return res.json(trip);
     } catch (error) {
       console.error("Error getting current trip:", error);
@@ -1773,7 +1777,8 @@ export async function registerRoutes(
       const trips = hasFilters 
         ? await storage.getRiderTripHistoryFiltered(userId, filter)
         : await storage.getRiderTripHistory(userId);
-      return res.json(trips);
+      const sanitized = trips.map(({ driverPayout, commissionAmount, commissionPercentage, ...rest }: any) => rest);
+      return res.json(sanitized);
     } catch (error) {
       console.error("Error getting trip history:", error);
       return res.status(500).json({ message: "Failed to get trip history" });

@@ -101,20 +101,22 @@ export function TripDetailModal({ trip, open, onOpenChange, userRole }: TripDeta
                 <div className="flex items-center gap-3">
                   <DollarSign className="h-5 w-5 text-muted-foreground" />
                   <div className="flex-1">
-                    <p className="text-sm text-muted-foreground">Total Fare</p>
+                    <p className="text-sm text-muted-foreground">{userRole === "rider" ? "Trip Fare" : "Total Fare"}</p>
                     <p className="font-medium text-lg" data-testid="text-fare-amount">
                       ${trip.fareAmount || "0.00"}
                     </p>
                   </div>
                 </div>
-                <div className="pl-8">
-                  <div>
-                    <p className="text-sm text-muted-foreground">You earned</p>
-                    <p className="font-medium text-emerald-600" data-testid="text-driver-payout">
-                      ${trip.driverPayout || "0.00"}
-                    </p>
+                {userRole !== "rider" && (
+                  <div className="pl-8">
+                    <div>
+                      <p className="text-sm text-muted-foreground">You earned</p>
+                      <p className="font-medium text-emerald-600" data-testid="text-driver-payout">
+                        ${trip.driverPayout || "0.00"}
+                      </p>
+                    </div>
                   </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           )}

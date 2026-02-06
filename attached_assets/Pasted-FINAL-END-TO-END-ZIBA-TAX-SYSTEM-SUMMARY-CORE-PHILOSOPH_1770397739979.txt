@@ -1,0 +1,139 @@
+FINAL END-TO-END ZIBA TAX SYSTEM SUMMARY
+
+CORE PHILOSOPHY
+Drivers are independent contractors.
+ZIBA does not withhold taxes by default.
+ZIBA provides accurate records, not tax advice.
+Daily driver experience shows only what drivers earn.
+Platform fees and tax details are removed from daily workflows.
+Transparency exists without damaging driver morale.
+
+DATA SOURCES
+Earnings come from immutable ledgers:
+- Trip earnings
+- Tips (100% driver)
+- Incentives
+
+Platform fees:
+- Calculated per trip internally
+- Stored privately
+- Exposed only as aggregated totals
+
+Mileage:
+- Tracked only while driver status = ONLINE
+- Includes trip mileage and en-route mileage
+- Excludes offline or personal driving
+- Aggregated daily and yearly
+
+DAILY DRIVER EXPERIENCE
+Drivers see:
+- Trip earnings
+- Tips
+- Incentives
+- Wallet balance
+
+Drivers never see:
+- Platform fee per trip
+- Platform percentage
+- Mileage
+- Tax calculations
+
+MONTHLY STATEMENTS
+Purpose: personal records and earnings review
+
+Includes:
+- Total earnings (trips + tips + incentives)
+- Trips completed
+- Online hours
+- Aggregated platform fee (collapsed by default)
+
+Excludes:
+- Per-trip platform fees
+- Percentages
+- Mileage
+
+Downloadable as PDF and CSV.
+
+YEARLY TAX STATEMENTS
+Purpose: legal tax filing and compliance
+
+Includes:
+- Total gross earnings
+- Total tips
+- Total incentives
+- Aggregated annual platform fees
+- Total miles driven while online
+- Reportable income
+- Driver identity and masked tax ID
+
+Mileage label:
+“Total miles driven while online (for tax reporting purposes)”
+
+COUNTRY-SPECIFIC HANDLING
+
+United States:
+- 1099-NEC
+- Gross earnings reported
+- Mileage included informationally
+- No tax withholding
+- Independent contractor language
+
+Nigeria / Ghana / Others:
+- Annual earnings statement
+- Aggregated platform fees
+- Mileage included
+- No withholding implied
+
+Canada:
+- Annual earnings summary
+- CAD currency
+- Mileage included
+
+All countries:
+- Admin configurable
+- Conservative defaults
+- No guessing of tax rules
+
+ADMIN CONTROLS
+Admins can:
+- Generate draft tax summaries
+- Review aggregated data
+- Finalize statements
+- Issue tax documents
+- Create corrected versions
+
+Admins cannot:
+- Edit finalized tax data
+- Alter mileage totals
+- Change ledger records
+
+All actions are audited and versioned.
+
+DOCUMENT OUTPUTS
+PDF:
+- Clean, printable
+- Calm compliance tone
+- No marketing language
+- Read-only after issuance
+
+CSV:
+- One row per driver per year
+- Numeric values only
+- No per-trip rows
+
+SECURITY & PRIVACY
+- Tax IDs encrypted at rest
+- Masked in documents
+- No public links
+- Admin-only access
+- Secure document storage
+
+DRIVER TRUST OUTCOME
+- No daily resentment triggers
+- No platform-versus-driver psychology
+- Legal compliance without intimidation
+- High driver confidence and retention
+
+FINAL STATE
+The ZIBA tax system is compliant, auditable, scalable,
+driver-respectful, psychologically safe, and production-ready.
