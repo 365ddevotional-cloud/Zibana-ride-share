@@ -131,7 +131,7 @@ export const abuseTypeEnum = pgEnum("abuse_type", [
 export const abuseFlagStatusEnum = pgEnum("abuse_flag_status", ["pending", "reviewed", "resolved", "dismissed"]);
 
 // Payment Source enum - determines which wallet to charge for rides
-export const paymentSourceEnum = pgEnum("payment_source", ["TEST_WALLET", "MAIN_WALLET", "CARD", "BANK"]);
+export const paymentSourceEnum = pgEnum("payment_source", ["TEST_WALLET", "MAIN_WALLET", "CARD", "BANK", "CASH"]);
 
 // =============================================
 // PHASE 1: UNIVERSAL IDENTITY FRAMEWORK ENUMS
@@ -452,7 +452,7 @@ export const driverProfiles = pgTable("driver_profiles", {
 
 // Rider profiles table
 // Payment method enum for riders
-export const paymentMethodEnum = pgEnum("payment_method", ["WALLET", "TEST_WALLET", "CARD"]);
+export const paymentMethodEnum = pgEnum("payment_method", ["WALLET", "TEST_WALLET", "CARD", "CASH"]);
 
 export const riderProfiles = pgTable("rider_profiles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -855,6 +855,9 @@ export const trips = pgTable("trips", {
   // Payment source and test mode tracking
   paymentSource: paymentSourceEnum("payment_source"),
   isTestTrip: boolean("is_test_trip").default(false),
+  driverCollected: boolean("driver_collected").default(false),
+  cashSettled: boolean("cash_settled").default(false),
+  cashSettlementId: varchar("cash_settlement_id"),
 });
 
 // Phase 22 - Enhanced Rides table with full Uber/Lyft-style lifecycle
@@ -943,6 +946,9 @@ export const rides = pgTable("rides", {
   captureReference: varchar("capture_reference"),
   captureAmount: decimal("capture_amount", { precision: 10, scale: 2 }),
   capturedAt: timestamp("captured_at"),
+  driverCollected: boolean("driver_collected").default(false),
+  cashSettled: boolean("cash_settled").default(false),
+  cashSettlementId: varchar("cash_settlement_id"),
   
   // Passenger info
   passengerCount: integer("passenger_count").default(1),
@@ -1546,7 +1552,51 @@ export const revenueSplitLedger = pgTable("revenue_split_ledger", {
   driverSharePercent: integer("driver_share_percent").notNull().default(80),
   zibaSharePercent: integer("ziba_share_percent").notNull().default(20),
   isTestRide: boolean("is_test_ride").notNull().default(false),
+  paymentSource: paymentSourceEnum("payment_source"),
   createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const settlementStatusEnum = pgEnum("settlement_status", [
+  "pending",
+  "partial",
+  "settled",
+  "waived"
+]);
+
+export const settlementMethodEnum = pgEnum("settlement_method", [
+  "wallet_debit",
+  "card_trip_offset",
+  "weekly_invoice",
+  "manual"
+]);
+
+export const platformSettlements = pgTable("platform_settlements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  driverId: varchar("driver_id").notNull(),
+  tripId: varchar("trip_id"),
+  rideId: varchar("ride_id"),
+  totalOwed: decimal("total_owed", { precision: 12, scale: 2 }).notNull(),
+  totalPaid: decimal("total_paid", { precision: 12, scale: 2 }).notNull().default("0.00"),
+  currencyCode: varchar("currency_code", { length: 3 }).notNull(),
+  status: settlementStatusEnum("status").notNull().default("pending"),
+  settlementMethod: settlementMethodEnum("settlement_method"),
+  settledAt: timestamp("settled_at"),
+  dueDate: timestamp("due_date"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const driverStanding = pgTable("driver_standing", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  driverId: varchar("driver_id").notNull().unique(),
+  currentSharePercent: integer("current_share_percent").notNull().default(70),
+  totalTripsCompleted: integer("total_trips_completed").notNull().default(0),
+  rating: decimal("rating", { precision: 3, scale: 2 }).default("5.00"),
+  accountAge: integer("account_age_days").notNull().default(0),
+  lastEvaluatedAt: timestamp("last_evaluated_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Relations
@@ -1960,6 +2010,18 @@ export type ReconciliationWithDetails = PaymentReconciliation & {
   tripDropoff?: string;
   reconciledByName?: string;
 };
+
+export const insertPlatformSettlementSchema = createInsertSchema(platformSettlements).omit({
+  id: true, createdAt: true, updatedAt: true
+});
+export type InsertPlatformSettlement = z.infer<typeof insertPlatformSettlementSchema>;
+export type PlatformSettlement = typeof platformSettlements.$inferSelect;
+
+export const insertDriverStandingSchema = createInsertSchema(driverStanding).omit({
+  id: true, createdAt: true, updatedAt: true
+});
+export type InsertDriverStanding = z.infer<typeof insertDriverStandingSchema>;
+export type DriverStanding = typeof driverStanding.$inferSelect;
 
 // Phase 11 - Wallet schemas and types
 export const insertWalletSchema = createInsertSchema(wallets).omit({

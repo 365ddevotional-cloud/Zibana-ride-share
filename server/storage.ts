@@ -395,6 +395,12 @@ import {
   type TaxGenerationAuditLog,
   type CountryTaxConfig,
   type InsertCountryTaxConfig,
+  platformSettlements,
+  driverStanding,
+  type InsertPlatformSettlement,
+  type PlatformSettlement,
+  type InsertDriverStanding,
+  type DriverStanding,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull } from "drizzle-orm";
@@ -1187,6 +1193,17 @@ export interface IStorage {
   getCountryEmergencyConfig(countryCode: string): Promise<CountryEmergencyConfig | null>;
   getAllCountryEmergencyConfigs(): Promise<CountryEmergencyConfig[]>;
   upsertCountryEmergencyConfig(data: InsertCountryEmergencyConfig): Promise<CountryEmergencyConfig>;
+
+  // Platform Settlements
+  createPlatformSettlement(data: InsertPlatformSettlement): Promise<PlatformSettlement>;
+  getPendingSettlements(driverId: string): Promise<PlatformSettlement[]>;
+  getDriverSettlementSummary(driverId: string): Promise<{ totalOwed: number; totalPaid: number; pendingCount: number }>;
+  settleOldestPending(driverId: string, amount: number, method: string): Promise<PlatformSettlement | null>;
+  
+  // Driver Standing
+  getDriverStanding(driverId: string): Promise<DriverStanding | null>;
+  upsertDriverStanding(driverId: string, data: Partial<InsertDriverStanding>): Promise<DriverStanding>;
+  getDriverSharePercent(driverId: string): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -9410,6 +9427,84 @@ export class DatabaseStorage implements IStorage {
         await db.insert(countryTaxConfigs).values(config);
       }
     }
+  }
+
+  // ============================================================
+  // PLATFORM SETTLEMENTS
+  // ============================================================
+
+  async createPlatformSettlement(data: InsertPlatformSettlement): Promise<PlatformSettlement> {
+    const [settlement] = await db.insert(platformSettlements).values(data).returning();
+    return settlement;
+  }
+
+  async getPendingSettlements(driverId: string): Promise<PlatformSettlement[]> {
+    return db.select().from(platformSettlements)
+      .where(and(
+        eq(platformSettlements.driverId, driverId),
+        inArray(platformSettlements.status, ["pending", "partial"])
+      ))
+      .orderBy(platformSettlements.createdAt);
+  }
+
+  async getDriverSettlementSummary(driverId: string): Promise<{ totalOwed: number; totalPaid: number; pendingCount: number }> {
+    const pending = await this.getPendingSettlements(driverId);
+    const totalOwed = pending.reduce((sum, s) => sum + parseFloat(s.totalOwed) - parseFloat(s.totalPaid), 0);
+    const totalPaid = pending.reduce((sum, s) => sum + parseFloat(s.totalPaid), 0);
+    return { totalOwed: Math.round(totalOwed * 100) / 100, totalPaid: Math.round(totalPaid * 100) / 100, pendingCount: pending.length };
+  }
+
+  async settleOldestPending(driverId: string, amount: number, method: string): Promise<PlatformSettlement | null> {
+    const pending = await this.getPendingSettlements(driverId);
+    if (pending.length === 0) return null;
+
+    const oldest = pending[0];
+    const remaining = parseFloat(oldest.totalOwed) - parseFloat(oldest.totalPaid);
+    const payment = Math.min(amount, remaining);
+    const newPaid = parseFloat(oldest.totalPaid) + payment;
+    const isFullySettled = newPaid >= parseFloat(oldest.totalOwed) - 0.01;
+
+    const [updated] = await db.update(platformSettlements)
+      .set({
+        totalPaid: newPaid.toFixed(2),
+        status: isFullySettled ? "settled" : "partial",
+        settlementMethod: method as any,
+        settledAt: isFullySettled ? new Date() : undefined,
+        updatedAt: new Date(),
+      })
+      .where(eq(platformSettlements.id, oldest.id))
+      .returning();
+    return updated;
+  }
+
+  // ============================================================
+  // DRIVER STANDING
+  // ============================================================
+
+  async getDriverStanding(driverId: string): Promise<DriverStanding | null> {
+    const [standing] = await db.select().from(driverStanding)
+      .where(eq(driverStanding.driverId, driverId));
+    return standing || null;
+  }
+
+  async upsertDriverStanding(driverId: string, data: Partial<InsertDriverStanding>): Promise<DriverStanding> {
+    const existing = await this.getDriverStanding(driverId);
+    if (existing) {
+      const [updated] = await db.update(driverStanding)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(driverStanding.driverId, driverId))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(driverStanding)
+      .values({ driverId, ...data })
+      .returning();
+    return created;
+  }
+
+  async getDriverSharePercent(driverId: string): Promise<number> {
+    const standing = await this.getDriverStanding(driverId);
+    return standing?.currentSharePercent || 70;
   }
 }
 

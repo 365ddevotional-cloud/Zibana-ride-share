@@ -409,6 +409,54 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/driver/settlement/summary", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const summary = await storage.getDriverSettlementSummary(userId);
+      return res.json(summary);
+    } catch (error) {
+      console.error("Error getting settlement summary:", error);
+      return res.status(500).json({ message: "Failed to get settlement summary" });
+    }
+  });
+
+  app.get("/api/driver/settlement/pending", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const settlements = await storage.getPendingSettlements(userId);
+      return res.json(settlements);
+    } catch (error) {
+      console.error("Error getting pending settlements:", error);
+      return res.status(500).json({ message: "Failed to get pending settlements" });
+    }
+  });
+
+  app.get("/api/driver/standing", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const standing = await storage.getDriverStanding(userId);
+      if (!standing) {
+        return res.json({ currentSharePercent: 70, totalTripsCompleted: 0, rating: "5.00", accountAgeDays: 0 });
+      }
+      return res.json(standing);
+    } catch (error) {
+      console.error("Error getting driver standing:", error);
+      return res.status(500).json({ message: "Failed to get driver standing" });
+    }
+  });
+
+  app.get("/api/admin/settlements/:driverId", isAuthenticated, requireRole(["admin", "super_admin", "finance"]), async (req: any, res) => {
+    try {
+      const { driverId } = req.params;
+      const pending = await storage.getPendingSettlements(driverId);
+      const summary = await storage.getDriverSettlementSummary(driverId);
+      return res.json({ settlements: pending, summary });
+    } catch (error) {
+      console.error("Error getting driver settlements:", error);
+      return res.status(500).json({ message: "Failed to get driver settlements" });
+    }
+  });
+
   app.get("/api/driver/profile", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;

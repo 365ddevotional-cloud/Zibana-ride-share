@@ -1,0 +1,123 @@
+ZIBA PRODUCT RULE — CASH & CARD PAYMENTS (DRIVER-RESPECTFUL MODEL)
+
+This rule governs how ZIBA handles CASH and CARD payments to protect driver morale,
+avoid resentment, and maintain long-term trust.
+
+THIS RULE OVERRIDES ANY UBER-LIKE CASH LOGIC.
+
+====================================
+CORE PRINCIPLES (LOCKED)
+====================================
+• ZIBA supports BOTH cash payments and card/wallet payments.
+• Drivers earn UP TO 80% per trip, not a fixed 80%.
+• New drivers may start at ~70% and grow toward 80% based on good standing.
+• Driver dignity and clarity take priority over aggressive transparency.
+• Platform fees must never create embarrassment or resentment.
+
+====================================
+CASH PAYMENT MODEL (PRIMARY)
+====================================
+
+1. Rider pays the FULL fare in cash directly to the driver.
+2. Driver collects 100% of the cash fare at trip completion.
+3. ZIBA does NOT touch or intercept cash payments.
+4. The app must clearly show the driver:
+   “Cash collected: ₦X / $X”
+
+5. Platform share (up to 20%) is NOT deducted per trip.
+6. Platform share is settled LATER via:
+   - Wallet balance offset
+   - Future card trips
+   - Weekly or monthly settlement
+
+7. No platform percentage or deduction is shown at the moment of cash collection.
+8. Cash settlement must NEVER occur in the rider’s presence.
+
+====================================
+CARD / WALLET PAYMENT MODEL
+====================================
+
+1. Rider pays via card or wallet.
+2. Driver sees ONLY what they earned for the trip.
+3. Platform fee is handled internally.
+4. No per-trip platform fee is shown to the driver.
+
+====================================
+PLATFORM FEE VISIBILITY (STRICT)
+====================================
+
+Platform fees must NEVER be shown:
+• To riders (at any time)
+• To drivers per trip
+• In daily earnings
+• In trip history
+• In wallet views
+
+Platform fees may ONLY be shown to drivers in:
+• Weekly summaries (optional)
+• Monthly statements
+• Annual tax documents
+
+Platform fees must be:
+• Aggregated totals only
+• Calmly worded
+• No percentages emphasized
+• No per-trip breakdowns
+
+====================================
+DRIVER EARNINGS LANGUAGE (LOCKED)
+====================================
+
+Approved language:
+• “Earn up to 80% per trip”
+• “Higher trust and consistency unlock higher earnings”
+
+Forbidden language:
+• “Drivers get 80%”
+• “Platform takes 20%”
+• Any wording that implies punishment
+
+====================================
+DRIVER APP UI RULES
+====================================
+
+Per-trip (cash or card):
+• Show ONLY driver earnings
+• Show tips clearly
+• Do NOT show platform share
+
+Weekly / Monthly:
+• Show total earnings
+• Show aggregated platform settlement (collapsed by default)
+
+====================================
+DRIVER PSYCHOLOGY RULE (NON-NEGOTIABLE)
+====================================
+
+• Drivers must feel they earned the money first.
+• Platform settlement must feel administrative, not extractive.
+• Avoid shock, surprise, or humiliation.
+• Never recreate Uber-style resentment patterns.
+
+====================================
+BACKEND REQUIREMENTS
+====================================
+
+• Platform fee is calculated per trip internally.
+• Platform fee is stored securely.
+• Cash trips are marked as “driver_collected = true”.
+• Platform settlement engine runs asynchronously.
+• Failed settlements must NOT block driving immediately.
+
+====================================
+FINAL REQUIREMENT
+====================================
+
+This rule must be enforced consistently across:
+• Payments
+• Earnings
+• Wallet
+• Statements
+• Tax documents
+
+Any implementation violating driver dignity is considered a defect.
