@@ -310,6 +310,26 @@ import {
   type InsertStateLaunchConfig,
   type SystemModeConfig,
   type InsertSystemModeConfig,
+  // Phase 9 - Driver Acquisition Automation
+  fleetOwners,
+  driverAcquisitions,
+  driverReferralRewards,
+  supplyAlerts,
+  acquisitionZoneControls,
+  driverAutoMessages,
+  type FleetOwner,
+  type InsertFleetOwner,
+  type DriverAcquisition,
+  type InsertDriverAcquisition,
+  type DriverReferralReward,
+  type InsertDriverReferralReward,
+  type SupplyAlert,
+  type InsertSupplyAlert,
+  type AcquisitionZoneControl,
+  type InsertAcquisitionZoneControl,
+  type DriverAutoMessage,
+  type InsertDriverAutoMessage,
+  type DriverAcquisitionAnalytics,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull } from "drizzle-orm";
@@ -997,6 +1017,38 @@ export interface IStorage {
     riderActivity: { ridesPerUser7d: number; ridesPerUser30d: number };
     driverActivity: { onlineDays7d: number; onlineDays30d: number; tripsCompleted7d: number; tripsCompleted30d: number };
   }>;
+
+  // Phase 9 - Driver Acquisition Automation
+  createFleetOwner(data: InsertFleetOwner): Promise<FleetOwner>;
+  getFleetOwner(userId: string): Promise<FleetOwner | null>;
+  getAllFleetOwners(): Promise<FleetOwner[]>;
+  updateFleetOwner(userId: string, data: Partial<FleetOwner>): Promise<FleetOwner | null>;
+  suspendFleetOwner(userId: string, reason: string): Promise<FleetOwner | null>;
+  
+  createDriverAcquisition(data: InsertDriverAcquisition): Promise<DriverAcquisition>;
+  getDriverAcquisition(driverUserId: string): Promise<DriverAcquisition | null>;
+  updateDriverOnboardingStage(driverUserId: string, stage: string, timestamps?: Partial<DriverAcquisition>): Promise<DriverAcquisition | null>;
+  getOnboardingPipeline(countryCode?: string): Promise<{ stage: string; count: number }[]>;
+  getDriverAcquisitionsByChannel(channel?: string, countryCode?: string): Promise<DriverAcquisition[]>;
+  
+  createDriverReferralReward(data: InsertDriverReferralReward): Promise<DriverReferralReward>;
+  getDriverReferralReward(referredDriverUserId: string): Promise<DriverReferralReward | null>;
+  getPendingReferralRewards(referrerUserId: string): Promise<DriverReferralReward[]>;
+  updateReferralRewardTrips(referredDriverUserId: string): Promise<DriverReferralReward | null>;
+  markReferralRewardPaid(referredDriverUserId: string): Promise<DriverReferralReward | null>;
+  expireOverdueReferralRewards(): Promise<number>;
+  
+  createSupplyAlert(data: InsertSupplyAlert): Promise<SupplyAlert>;
+  getActiveSupplyAlerts(countryCode?: string): Promise<SupplyAlert[]>;
+  resolveSupplyAlert(alertId: string): Promise<SupplyAlert | null>;
+  
+  getAcquisitionZoneControl(countryCode: string, stateCode?: string): Promise<AcquisitionZoneControl | null>;
+  setAcquisitionZoneControl(countryCode: string, stateCode: string | null, status: string, userId: string, reason?: string): Promise<AcquisitionZoneControl>;
+  
+  createDriverAutoMessage(data: InsertDriverAutoMessage): Promise<DriverAutoMessage>;
+  getDriverAutoMessages(driverUserId: string): Promise<DriverAutoMessage[]>;
+  
+  getDriverAcquisitionAnalytics(countryCode?: string): Promise<DriverAcquisitionAnalytics>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -8000,6 +8052,276 @@ export class DatabaseStorage implements IStorage {
         tripsCompleted7d: Number(driverActivity7d[0]?.avgTrips) || 0,
         tripsCompleted30d: Number(driverActivity30d[0]?.avgTrips) || 0,
       },
+    };
+  }
+
+  // Phase 9 - Driver Acquisition Automation
+  
+  async createFleetOwner(data: InsertFleetOwner): Promise<FleetOwner> {
+    const [result] = await db.insert(fleetOwners).values(data).returning();
+    return result;
+  }
+
+  async getFleetOwner(userId: string): Promise<FleetOwner | null> {
+    const [result] = await db.select().from(fleetOwners).where(eq(fleetOwners.userId, userId));
+    return result || null;
+  }
+
+  async getAllFleetOwners(): Promise<FleetOwner[]> {
+    return db.select().from(fleetOwners).orderBy(desc(fleetOwners.createdAt));
+  }
+
+  async updateFleetOwner(userId: string, data: Partial<FleetOwner>): Promise<FleetOwner | null> {
+    const [result] = await db.update(fleetOwners)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(fleetOwners.userId, userId))
+      .returning();
+    return result || null;
+  }
+
+  async suspendFleetOwner(userId: string, reason: string): Promise<FleetOwner | null> {
+    const [result] = await db.update(fleetOwners)
+      .set({ suspended: true, suspendedReason: reason, suspendedAt: new Date(), updatedAt: new Date() })
+      .where(eq(fleetOwners.userId, userId))
+      .returning();
+    return result || null;
+  }
+
+  async createDriverAcquisition(data: InsertDriverAcquisition): Promise<DriverAcquisition> {
+    const [result] = await db.insert(driverAcquisitions).values(data).returning();
+    return result;
+  }
+
+  async getDriverAcquisition(driverUserId: string): Promise<DriverAcquisition | null> {
+    const [result] = await db.select().from(driverAcquisitions).where(eq(driverAcquisitions.driverUserId, driverUserId));
+    return result || null;
+  }
+
+  async updateDriverOnboardingStage(driverUserId: string, stage: string, timestamps?: Partial<DriverAcquisition>): Promise<DriverAcquisition | null> {
+    const updateData: any = { onboardingStage: stage, updatedAt: new Date() };
+    if (timestamps) {
+      Object.assign(updateData, timestamps);
+    }
+    const [result] = await db.update(driverAcquisitions)
+      .set(updateData)
+      .where(eq(driverAcquisitions.driverUserId, driverUserId))
+      .returning();
+    return result || null;
+  }
+
+  async getOnboardingPipeline(countryCode?: string): Promise<{ stage: string; count: number }[]> {
+    const conditions = countryCode ? [eq(driverAcquisitions.countryCode, countryCode)] : [];
+    const result = await db.select({
+      stage: driverAcquisitions.onboardingStage,
+      count: sql<number>`count(*)::int`
+    }).from(driverAcquisitions)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .groupBy(driverAcquisitions.onboardingStage);
+    return result;
+  }
+
+  async getDriverAcquisitionsByChannel(channel?: string, countryCode?: string): Promise<DriverAcquisition[]> {
+    const conditions = [];
+    if (channel) conditions.push(eq(driverAcquisitions.channel, channel as any));
+    if (countryCode) conditions.push(eq(driverAcquisitions.countryCode, countryCode));
+    return db.select().from(driverAcquisitions)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(driverAcquisitions.createdAt));
+  }
+
+  async createDriverReferralReward(data: InsertDriverReferralReward): Promise<DriverReferralReward> {
+    const [result] = await db.insert(driverReferralRewards).values(data).returning();
+    return result;
+  }
+
+  async getDriverReferralReward(referredDriverUserId: string): Promise<DriverReferralReward | null> {
+    const [result] = await db.select().from(driverReferralRewards)
+      .where(eq(driverReferralRewards.referredDriverUserId, referredDriverUserId));
+    return result || null;
+  }
+
+  async getPendingReferralRewards(referrerUserId: string): Promise<DriverReferralReward[]> {
+    return db.select().from(driverReferralRewards)
+      .where(and(
+        eq(driverReferralRewards.referrerUserId, referrerUserId),
+        eq(driverReferralRewards.paid, false),
+        eq(driverReferralRewards.expired, false),
+        eq(driverReferralRewards.fraudFlagged, false)
+      ));
+  }
+
+  async updateReferralRewardTrips(referredDriverUserId: string): Promise<DriverReferralReward | null> {
+    const [result] = await db.update(driverReferralRewards)
+      .set({ completedTrips: sql`${driverReferralRewards.completedTrips} + 1` })
+      .where(and(
+        eq(driverReferralRewards.referredDriverUserId, referredDriverUserId),
+        eq(driverReferralRewards.paid, false),
+        eq(driverReferralRewards.expired, false)
+      ))
+      .returning();
+    return result || null;
+  }
+
+  async markReferralRewardPaid(referredDriverUserId: string): Promise<DriverReferralReward | null> {
+    const [result] = await db.update(driverReferralRewards)
+      .set({ paid: true, paidAt: new Date() })
+      .where(eq(driverReferralRewards.referredDriverUserId, referredDriverUserId))
+      .returning();
+    return result || null;
+  }
+
+  async expireOverdueReferralRewards(): Promise<number> {
+    const expired = await db.update(driverReferralRewards)
+      .set({ expired: true })
+      .where(and(
+        eq(driverReferralRewards.paid, false),
+        eq(driverReferralRewards.expired, false),
+        lt(driverReferralRewards.deadlineAt, new Date())
+      ))
+      .returning();
+    return expired.length;
+  }
+
+  async createSupplyAlert(data: InsertSupplyAlert): Promise<SupplyAlert> {
+    const [result] = await db.insert(supplyAlerts).values(data).returning();
+    return result;
+  }
+
+  async getActiveSupplyAlerts(countryCode?: string): Promise<SupplyAlert[]> {
+    const conditions = [eq(supplyAlerts.status, "ACTIVE" as any)];
+    if (countryCode) conditions.push(eq(supplyAlerts.countryCode, countryCode));
+    return db.select().from(supplyAlerts).where(and(...conditions)).orderBy(desc(supplyAlerts.createdAt));
+  }
+
+  async resolveSupplyAlert(alertId: string): Promise<SupplyAlert | null> {
+    const [result] = await db.update(supplyAlerts)
+      .set({ status: "RESOLVED" as any, resolvedAt: new Date() })
+      .where(eq(supplyAlerts.id, alertId))
+      .returning();
+    return result || null;
+  }
+
+  async getAcquisitionZoneControl(countryCode: string, stateCode?: string): Promise<AcquisitionZoneControl | null> {
+    const conditions = [eq(acquisitionZoneControls.countryCode, countryCode)];
+    if (stateCode) {
+      conditions.push(eq(acquisitionZoneControls.stateCode, stateCode));
+    } else {
+      conditions.push(isNull(acquisitionZoneControls.stateCode));
+    }
+    const [result] = await db.select().from(acquisitionZoneControls).where(and(...conditions));
+    return result || null;
+  }
+
+  async setAcquisitionZoneControl(countryCode: string, stateCode: string | null, status: string, userId: string, reason?: string): Promise<AcquisitionZoneControl> {
+    const existing = await this.getAcquisitionZoneControl(countryCode, stateCode || undefined);
+    if (existing) {
+      const [result] = await db.update(acquisitionZoneControls)
+        .set({
+          status: status as any,
+          pausedByUserId: status === "PAUSED" ? userId : existing.pausedByUserId,
+          pauseReason: status === "PAUSED" ? (reason || null) : existing.pauseReason,
+          pausedAt: status === "PAUSED" ? new Date() : existing.pausedAt,
+          resumedAt: status === "ACTIVE" ? new Date() : existing.resumedAt,
+          updatedAt: new Date(),
+        })
+        .where(eq(acquisitionZoneControls.id, existing.id))
+        .returning();
+      return result;
+    }
+    const [result] = await db.insert(acquisitionZoneControls).values({
+      countryCode,
+      stateCode,
+      status: status as any,
+      pausedByUserId: status === "PAUSED" ? userId : undefined,
+      pauseReason: status === "PAUSED" ? (reason || undefined) : undefined,
+      pausedAt: status === "PAUSED" ? new Date() : undefined,
+    }).returning();
+    return result;
+  }
+
+  async createDriverAutoMessage(data: InsertDriverAutoMessage): Promise<DriverAutoMessage> {
+    const [result] = await db.insert(driverAutoMessages).values(data).returning();
+    return result;
+  }
+
+  async getDriverAutoMessages(driverUserId: string): Promise<DriverAutoMessage[]> {
+    return db.select().from(driverAutoMessages)
+      .where(eq(driverAutoMessages.driverUserId, driverUserId))
+      .orderBy(desc(driverAutoMessages.createdAt));
+  }
+
+  async getDriverAcquisitionAnalytics(countryCode?: string): Promise<DriverAcquisitionAnalytics> {
+    const conditions = countryCode ? [eq(driverAcquisitions.countryCode, countryCode)] : [];
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const totalAcquired = await db.select({ count: sql<number>`count(*)::int` })
+      .from(driverAcquisitions).where(whereClause);
+
+    const byChannelResult = await db.select({
+      channel: driverAcquisitions.channel,
+      count: sql<number>`count(*)::int`
+    }).from(driverAcquisitions).where(whereClause).groupBy(driverAcquisitions.channel);
+
+    const byChannel: Record<string, number> = {};
+    for (const row of byChannelResult) {
+      byChannel[row.channel] = row.count;
+    }
+
+    const avgFirstTrip = await db.select({
+      avg: sql<number>`COALESCE(AVG(EXTRACT(EPOCH FROM (first_trip_at - onboarding_started_at)) / 3600), 0)`
+    }).from(driverAcquisitions)
+      .where(whereClause ? and(whereClause, sql`first_trip_at IS NOT NULL`) : sql`first_trip_at IS NOT NULL`);
+
+    const referralTotal = await db.select({ count: sql<number>`count(*)::int` })
+      .from(driverReferralRewards);
+    const referralPaid = await db.select({ count: sql<number>`count(*)::int` })
+      .from(driverReferralRewards).where(eq(driverReferralRewards.paid, true));
+    const referralRate = referralTotal[0]?.count > 0 
+      ? Math.round((referralPaid[0]?.count / referralTotal[0]?.count) * 100) : 0;
+
+    const fleetTotal = await db.select({ count: sql<number>`count(*)::int` })
+      .from(fleetOwners);
+    const fleetActive = await db.select({ count: sql<number>`count(*)::int` })
+      .from(fleetOwners).where(sql`active_drivers > 0`);
+    const fleetEffectiveness = fleetTotal[0]?.count > 0
+      ? Math.round((fleetActive[0]?.count / fleetTotal[0]?.count) * 100) : 0;
+
+    const d7 = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const d30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const activated7d = await db.select({ count: sql<number>`count(*)::int` })
+      .from(driverAcquisitions).where(and(whereClause || sql`TRUE`, gte(driverAcquisitions.activatedAt, d7)));
+    const total7d = await db.select({ count: sql<number>`count(*)::int` })
+      .from(driverAcquisitions).where(and(whereClause || sql`TRUE`, gte(driverAcquisitions.createdAt, d7)));
+
+    const activated30d = await db.select({ count: sql<number>`count(*)::int` })
+      .from(driverAcquisitions).where(and(whereClause || sql`TRUE`, gte(driverAcquisitions.activatedAt, d30)));
+    const total30d = await db.select({ count: sql<number>`count(*)::int` })
+      .from(driverAcquisitions).where(and(whereClause || sql`TRUE`, gte(driverAcquisitions.createdAt, d30)));
+
+    const retentionD7 = total7d[0]?.count > 0 ? Math.round((activated7d[0]?.count / total7d[0]?.count) * 100) : 0;
+    const retentionD30 = total30d[0]?.count > 0 ? Math.round((activated30d[0]?.count / total30d[0]?.count) * 100) : 0;
+
+    const activeAlerts = await db.select({ count: sql<number>`count(*)::int` })
+      .from(supplyAlerts).where(eq(supplyAlerts.status, "ACTIVE" as any));
+
+    const pipeline = await this.getOnboardingPipeline(countryCode || undefined);
+    const onboardingPipeline: Record<string, number> = {};
+    for (const row of pipeline) {
+      onboardingPipeline[row.stage] = row.count;
+    }
+
+    return {
+      totalAcquired: totalAcquired[0]?.count || 0,
+      byChannel,
+      avgTimeToFirstTrip: Math.round(Number(avgFirstTrip[0]?.avg) || 0),
+      referralConversionRate: referralRate,
+      fleetOwnerEffectiveness: fleetEffectiveness,
+      retentionD7: retentionD7,
+      retentionD30: retentionD30,
+      costPerActivatedDriver: 0,
+      activeSupplyAlerts: activeAlerts[0]?.count || 0,
+      onboardingPipeline,
     };
   }
 }
