@@ -1,0 +1,101 @@
+TASK: ENABLE HIDDEN /simulation ENTRY FLOW (CRITICAL)
+
+GOAL:
+Allow admins, testers, and developers to enter Simulation Mode using a hidden URL:
+  /simulation
+
+This must activate full system-level simulation (already enabled) and unlock the complete Rider / Driver / Admin experience.
+
+IMPLEMENT THE FOLLOWING EXACTLY:
+
+1. ROUTE
+Create a public route:
+  GET /simulation
+
+This route must be accessible without login.
+
+2. SIMULATION ENTRY PAGE (UI)
+On /simulation, render a minimal page with:
+- Title: "Enter Simulation Code"
+- Input: 9-digit numeric code (required)
+- Button: "Start Simulation"
+- Error message for invalid or expired codes
+
+No marketing UI. No onboarding. Simple and clean.
+
+3. CODE VALIDATION (BACKEND)
+On submit:
+- Validate code against simulation_codes table
+- Check:
+  - code exists
+  - not expired
+  - not revoked
+- If invalid → return error
+- If valid → activate simulation session
+
+4. SESSION STORAGE (CRITICAL)
+When valid:
+- Store simulation context in session or secure cookie:
+  - simulationActive = true
+  - simulationRole (rider / driver / admin / director)
+  - simulationCountry
+  - simulationCity (if provided)
+  - simulationWalletBalance
+  - simulationRating
+  - cashEnabled
+  - simulationExpiresAt
+
+This context must persist across refreshes and navigation.
+
+5. REDIRECT FLOW
+After successful code entry:
+- Redirect user to normal login/signup flow
+- DO NOT change login UX
+
+6. POST-LOGIN OVERRIDE
+After login:
+- If simulationActive === true:
+  - Override user role with simulationRole
+  - Override country/location with simulationCountry
+  - Bypass real verification checks
+  - Inject simulated data (wallet, rating, documents)
+  - Prevent access to real users or real money
+
+7. VISUAL INDICATOR (MANDATORY)
+When simulation is active:
+- Show an amber banner at the top of ALL pages:
+  "Simulation Mode Active — {Role} ({Country})"
+- Include a button: "Exit Simulation"
+
+8. EXIT SIMULATION
+When "Exit Simulation" is clicked:
+- Clear simulation session
+- Redirect to normal app state
+- Restore real user context
+
+9. SAFETY GUARDS
+While simulationActive === true:
+- Block all real payouts
+- Block real notifications
+- Block real trips
+- Block real wallets
+- Use only simulated records
+
+10. FAILURE HANDLING
+If simulation expires:
+- Auto-disable simulation
+- Clear session
+- Force re-entry via /simulation
+
+11. CONFIRMATION
+After implementation:
+- Verify that entering /simulation works
+- Verify a generated code activates full Rider/Driver/Admin experience
+- Verify onboarding, maps, trips, cash/card logic all work in simulation
+
+DO NOT:
+- Remove Training module
+- Auto-enable simulation without a code
+- Expose /simulation link publicly
+
+This must be hidden, controlled, and admin-driven only.

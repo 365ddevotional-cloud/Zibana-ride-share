@@ -53,6 +53,7 @@ const RiderWelcomeBackPage = lazy(() => import("@/pages/rider/welcome-back"));
 const HelpCenterPage = lazy(() => import("@/pages/help-center"));
 const TrustedContactsPage = lazy(() => import("@/pages/rider/trusted-contacts"));
 const TripSharePage = lazy(() => import("@/pages/trip-share"));
+const SimulationEntryPage = lazy(() => import("@/pages/simulation-entry"));
 
 const ADMIN_ROLES = ["super_admin", "admin", "finance_admin", "support_agent", "trip_coordinator", "director"];
 
@@ -585,6 +586,14 @@ function MainRouter() {
     }
   }
   
+  if (location === "/simulation") {
+    return (
+      <LazyComponent>
+        <SimulationEntryPage />
+      </LazyComponent>
+    );
+  }
+
   if (location.startsWith("/admin")) {
     return <AdminRouter />;
   }

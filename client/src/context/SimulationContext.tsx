@@ -1,4 +1,4 @@
-import { createContext, useContext, useCallback, useEffect } from "react";
+import { createContext, useContext, useCallback, useEffect, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Badge } from "@/components/ui/badge";
@@ -33,7 +33,9 @@ const SimulationContext = createContext<SimulationContextType>({
 });
 
 export function SimulationProvider({ children }: { children: React.ReactNode }) {
-  const { data } = useQuery<SimulationStatusResponse>({
+  const [activating, setActivating] = useState(false);
+
+  const { data, error } = useQuery<SimulationStatusResponse>({
     queryKey: ["/api/simulation/status"],
     refetchInterval: 30000,
     retry: false,
@@ -41,7 +43,12 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
 
   useEffect(() => {
     const pendingCode = sessionStorage.getItem("ziba-sim-code");
-    if (pendingCode && data && !data.active) {
+    if (!pendingCode) return;
+
+    if (error) return;
+
+    if (data && !data.active && !activating) {
+      setActivating(true);
       sessionStorage.removeItem("ziba-sim-code");
       fetch("/api/simulation/enter", {
         method: "POST",
@@ -52,11 +59,32 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
         .then((res) => {
           if (res.ok) {
             queryClient.invalidateQueries({ queryKey: ["/api/simulation/status"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/user/role"] });
           }
         })
-        .catch(() => {});
+        .catch(() => {})
+        .finally(() => setActivating(false));
     }
-  }, [data]);
+  }, [data, error, activating]);
+
+  useEffect(() => {
+    if (data?.active && data.expiresAt) {
+      const expiresAt = new Date(data.expiresAt).getTime();
+      const now = Date.now();
+      const remaining = expiresAt - now;
+
+      if (remaining <= 0) {
+        queryClient.invalidateQueries({ queryKey: ["/api/simulation/status"] });
+        return;
+      }
+
+      const timer = setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/simulation/status"] });
+      }, Math.min(remaining, 60000));
+
+      return () => clearTimeout(timer);
+    }
+  }, [data?.active, data?.expiresAt]);
 
   const exitMutation = useMutation({
     mutationFn: async () => {
@@ -64,6 +92,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/simulation/status"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/role"] });
       window.location.href = "/";
     },
   });
