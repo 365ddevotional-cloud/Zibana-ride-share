@@ -40,3 +40,10 @@ waitForPort = 5000
 
 [agent]
 integrations = ["javascript_database:1.0.0", "javascript_log_in_with_replit:2.0.0"]
+
+[userenv]
+
+[userenv.shared]
+SIMULATION_MODE_ENABLED = "true"
+SIMULATION_CODE_LENGTH = "9"
+SIMULATION_EXPIRES_MINUTES = "60"

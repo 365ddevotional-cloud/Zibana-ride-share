@@ -19,6 +19,7 @@ import {
   CheckCircle,
   Users,
   Shield,
+  AlertTriangle,
 } from "lucide-react";
 
 interface SimulationCode {
@@ -41,6 +42,12 @@ interface SimulationSession {
   expiresAt: string;
 }
 
+interface SimulationSystemStatus {
+  enabled: boolean;
+  codeLength: number;
+  expiresMinutes: number;
+}
+
 export function SimulationCenter() {
   const { toast } = useToast();
 
@@ -54,12 +61,20 @@ export function SimulationCenter() {
   const [reusable, setReusable] = useState(false);
   const [expiryHours, setExpiryHours] = useState("24");
 
+  const { data: systemStatus, isLoading: statusLoading } = useQuery<SimulationSystemStatus>({
+    queryKey: ["/api/simulation/system-status"],
+  });
+
+  const simulationEnabled = systemStatus?.enabled === true;
+
   const { data: codes = [], isLoading: codesLoading } = useQuery<SimulationCode[]>({
     queryKey: ["/api/admin/simulation/codes"],
+    enabled: simulationEnabled,
   });
 
   const { data: sessions = [], isLoading: sessionsLoading } = useQuery<SimulationSession[]>({
     queryKey: ["/api/admin/simulation/sessions"],
+    enabled: simulationEnabled,
   });
 
   const createCodeMutation = useMutation({
@@ -140,6 +155,40 @@ export function SimulationCenter() {
     return new Date(d).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" });
   }
 
+  if (statusLoading) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <p className="text-muted-foreground">Loading simulation system status...</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!simulationEnabled) {
+    return (
+      <Card data-testid="card-simulation-disabled">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-muted-foreground" />
+            Simulation Center
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-3 p-4 rounded-md bg-muted">
+            <Shield className="h-5 w-5 text-muted-foreground shrink-0" />
+            <div>
+              <p className="font-medium" data-testid="text-simulation-disabled">Simulation Mode is disabled at system level.</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Set the SIMULATION_MODE_ENABLED environment variable to "true" to activate simulation features.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <Card data-testid="card-create-simulation">
@@ -150,6 +199,11 @@ export function SimulationCenter() {
           </CardTitle>
           <CardDescription>
             Generate simulation codes for full role emulation experiences
+            {systemStatus && (
+              <span className="ml-2 text-xs text-muted-foreground">
+                (Code length: {systemStatus.codeLength} digits, Default expiry: {systemStatus.expiresMinutes} min)
+              </span>
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent>

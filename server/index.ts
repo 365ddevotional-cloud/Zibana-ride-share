@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { startRatingNotificationScheduler } from "./rating-notification-scheduler";
+import { logSimulationStatus } from "./simulation-config";
 
 const app = express();
 const httpServer = createServer(app);
@@ -99,6 +100,7 @@ app.use((req, res, next) => {
     },
     () => {
       log(`serving on port ${port}`);
+      logSimulationStatus();
       startRatingNotificationScheduler();
     },
   );

@@ -12,6 +12,7 @@ import { getCurrencyFromCountry, getCountryConfig, FINANCIAL_ENGINE_LOCKED } fro
 import { getPayoutProviderForCountry, generatePayoutReference, validatePaystackWebhook, validateFlutterwaveWebhook, type TransferStatus } from "./payout-provider";
 import { generateTaxPDF, generateTaxCSV, generateBulkTaxCSV, type TaxDocumentData, type CountryTaxRules } from "./tax-document-generator";
 import { validateRideRequest, assertFinancialEngineLocked } from "./financial-guards";
+import { getSimulationConfig, assertSimulationEnabled, logSimulationStatus, SimulationDisabledError } from "./simulation-config";
 import { 
   IDENTITY_ENGINE_LOCKED, 
   assertIdentityEngineLocked,
@@ -16052,8 +16053,31 @@ export async function registerRoutes(
   // SIMULATION CENTER
   // =============================================
 
+  // System-level simulation status (public — no auth required)
+  app.get("/api/simulation/system-status", (_req: any, res) => {
+    const config = getSimulationConfig();
+    return res.json({
+      enabled: config.enabled,
+      codeLength: config.codeLength,
+      expiresMinutes: config.expiresMinutes,
+    });
+  });
+
+  // Simulation guard middleware — blocks all simulation features if disabled
+  const requireSimulationEnabled: RequestHandler = (_req, res, next) => {
+    try {
+      assertSimulationEnabled();
+      next();
+    } catch (err) {
+      if (err instanceof SimulationDisabledError) {
+        return res.status(403).json({ message: err.message });
+      }
+      next(err);
+    }
+  };
+
   // Admin: Create simulation code
-  app.post("/api/admin/simulation/codes", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+  app.post("/api/admin/simulation/codes", isAuthenticated, requireSimulationEnabled, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { role, countryCode, city, driverTier, walletBalance, ratingState, cashEnabled, reusable, expiresInHours } = req.body;
@@ -16092,7 +16116,7 @@ export async function registerRoutes(
   });
 
   // Admin: List all simulation codes
-  app.get("/api/admin/simulation/codes", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+  app.get("/api/admin/simulation/codes", isAuthenticated, requireSimulationEnabled, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {
       const codes = await storage.getAllSimulationCodes();
       return res.json(codes);
@@ -16103,7 +16127,7 @@ export async function registerRoutes(
   });
 
   // Admin: Revoke simulation code
-  app.post("/api/admin/simulation/codes/:id/revoke", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+  app.post("/api/admin/simulation/codes/:id/revoke", isAuthenticated, requireSimulationEnabled, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) return res.status(400).json({ message: "Invalid code ID" });
@@ -16116,7 +16140,7 @@ export async function registerRoutes(
   });
 
   // Admin: List all simulation sessions
-  app.get("/api/admin/simulation/sessions", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+  app.get("/api/admin/simulation/sessions", isAuthenticated, requireSimulationEnabled, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {
       const sessions = await storage.getAllSimulationSessions();
       return res.json(sessions);
@@ -16127,7 +16151,7 @@ export async function registerRoutes(
   });
 
   // Admin: End a simulation session
-  app.post("/api/admin/simulation/sessions/:id/end", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+  app.post("/api/admin/simulation/sessions/:id/end", isAuthenticated, requireSimulationEnabled, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) return res.status(400).json({ message: "Invalid session ID" });
@@ -16140,7 +16164,7 @@ export async function registerRoutes(
   });
 
   // Public: Validate simulation code (no auth required — this is the entry point)
-  app.post("/api/simulation/validate", async (req: any, res) => {
+  app.post("/api/simulation/validate", requireSimulationEnabled, async (req: any, res) => {
     try {
       const { code } = req.body;
       if (!code) return res.status(400).json({ message: "Simulation code required" });
@@ -16166,7 +16190,7 @@ export async function registerRoutes(
   });
 
   // Auth'd: Enter simulation mode
-  app.post("/api/simulation/enter", isAuthenticated, async (req: any, res) => {
+  app.post("/api/simulation/enter", isAuthenticated, requireSimulationEnabled, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { code } = req.body;
@@ -16221,7 +16245,7 @@ export async function registerRoutes(
   });
 
   // Auth'd: Check current simulation session
-  app.get("/api/simulation/status", isAuthenticated, async (req: any, res) => {
+  app.get("/api/simulation/status", isAuthenticated, requireSimulationEnabled, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const session = await storage.getActiveSimulationSession(userId);
@@ -16246,7 +16270,7 @@ export async function registerRoutes(
   });
 
   // Auth'd: Exit simulation mode
-  app.post("/api/simulation/exit", isAuthenticated, async (req: any, res) => {
+  app.post("/api/simulation/exit", isAuthenticated, requireSimulationEnabled, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const session = await storage.getActiveSimulationSession(userId);
@@ -16261,7 +16285,7 @@ export async function registerRoutes(
   });
 
   // Simulation: Generate a simulated ride event for driver
-  app.post("/api/simulation/generate-ride", isAuthenticated, async (req: any, res) => {
+  app.post("/api/simulation/generate-ride", isAuthenticated, requireSimulationEnabled, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const session = await storage.getActiveSimulationSession(userId);
@@ -16317,7 +16341,7 @@ export async function registerRoutes(
   });
 
   // Simulation: Progress ride state (mock driver actions)
-  app.post("/api/simulation/progress-ride", isAuthenticated, async (req: any, res) => {
+  app.post("/api/simulation/progress-ride", isAuthenticated, requireSimulationEnabled, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const session = await storage.getActiveSimulationSession(userId);
@@ -16359,7 +16383,7 @@ export async function registerRoutes(
   });
 
   // Simulation: Generate rider ride request (simulated driver assignment)
-  app.post("/api/simulation/rider-request", isAuthenticated, async (req: any, res) => {
+  app.post("/api/simulation/rider-request", isAuthenticated, requireSimulationEnabled, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const session = await storage.getActiveSimulationSession(userId);

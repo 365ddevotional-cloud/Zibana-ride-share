@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,10 @@ export default function LandingPage() {
   const [simCode, setSimCode] = useState("");
   const [simLoading, setSimLoading] = useState(false);
   const [simError, setSimError] = useState("");
+
+  const { data: simSystemStatus } = useQuery<{ enabled: boolean }>({
+    queryKey: ["/api/simulation/system-status"],
+  });
 
   const handleSimCodeSubmit = async () => {
     if (!simCode.trim()) return;
@@ -248,13 +253,15 @@ export default function LandingPage() {
           <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
             <Logo size="sm" />
             <div className="flex items-center gap-4">
-              <button
-                onClick={() => setSimDialogOpen(true)}
-                className="text-sm text-muted-foreground underline-offset-4 hover:underline"
-                data-testid="button-enter-simulation"
-              >
-                Enter Simulation Code
-              </button>
+              {simSystemStatus?.enabled && (
+                <button
+                  onClick={() => setSimDialogOpen(true)}
+                  className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+                  data-testid="button-enter-simulation"
+                >
+                  Enter Simulation Code
+                </button>
+              )}
               <p className="text-sm text-muted-foreground">
                 &copy; {new Date().getFullYear()} {appName}. All rights reserved.
               </p>
