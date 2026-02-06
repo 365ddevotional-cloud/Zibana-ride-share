@@ -12870,6 +12870,99 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/admin/launch/country/create", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const { name, isoCode, currency, timezone, subregionType, subregions } = req.body;
+
+      if (!name || !isoCode || !currency || !timezone) {
+        return res.status(400).json({ message: "Name, ISO code, currency, and timezone are required" });
+      }
+
+      if (isoCode.length < 2 || isoCode.length > 3) {
+        return res.status(400).json({ message: "ISO code must be 2-3 characters" });
+      }
+
+      const existing = await storage.getCountryByCode(isoCode.toUpperCase());
+      if (existing) {
+        return res.status(409).json({ message: `Country with code ${isoCode.toUpperCase()} already exists` });
+      }
+
+      const country = await storage.createCountry({
+        name,
+        isoCode: isoCode.toUpperCase(),
+        currency: currency.toUpperCase(),
+        timezone,
+        active: true,
+        countryEnabled: false,
+        defaultSystemMode: "NORMAL",
+        paymentsEnabled: false,
+      } as any);
+
+      if (subregions && Array.isArray(subregions) && subregions.length > 0) {
+        const srType = subregionType || "state";
+        for (const sub of subregions) {
+          if (sub.code && sub.name) {
+            await storage.createStateLaunchConfig({
+              countryCode: isoCode.toUpperCase(),
+              stateCode: sub.code.toUpperCase(),
+              stateName: sub.name,
+              subregionType: srType,
+              stateEnabled: false,
+              minOnlineDriversCar: 3,
+              minOnlineDriversBike: 2,
+              maxPickupWaitMinutes: 15,
+              autoDisableOnWaitExceed: true,
+            });
+          }
+        }
+      }
+
+      await storage.createComplianceAuditLog({
+        category: "LAUNCH_MODE_CHANGE",
+        actionBy: adminId,
+        eventType: "COUNTRY_CREATED",
+        eventData: JSON.stringify({ isoCode: isoCode.toUpperCase(), name, subregionCount: subregions?.length || 0 }),
+      });
+
+      return res.json({ success: true, country });
+    } catch (error: any) {
+      console.error("Error creating country:", error);
+      return res.status(500).json({ message: error.message || "Failed to create country" });
+    }
+  });
+
+  app.post("/api/admin/launch/country/add-subregion", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const { countryCode, stateCode, stateName, subregionType } = req.body;
+      if (!countryCode || !stateCode || !stateName) {
+        return res.status(400).json({ message: "countryCode, stateCode, and stateName are required" });
+      }
+
+      const existing = await storage.getStateLaunchConfig(stateCode.toUpperCase(), countryCode.toUpperCase());
+      if (existing) {
+        return res.status(409).json({ message: `Subregion ${stateCode} already exists for ${countryCode}` });
+      }
+
+      const config = await storage.createStateLaunchConfig({
+        countryCode: countryCode.toUpperCase(),
+        stateCode: stateCode.toUpperCase(),
+        stateName,
+        subregionType: subregionType || "state",
+        stateEnabled: false,
+        minOnlineDriversCar: 3,
+        minOnlineDriversBike: 2,
+        maxPickupWaitMinutes: 15,
+        autoDisableOnWaitExceed: true,
+      });
+
+      return res.json({ success: true, config });
+    } catch (error: any) {
+      console.error("Error adding subregion:", error);
+      return res.status(500).json({ message: error.message || "Failed to add subregion" });
+    }
+  });
+
   // Set country-specific system mode
   app.post("/api/admin/launch/country/system-mode", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
     try {
