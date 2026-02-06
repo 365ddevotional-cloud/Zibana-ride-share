@@ -12815,11 +12815,12 @@ export async function registerRoutes(
       const adminId = req.user.claims.sub;
       const { stateCode } = req.params;
       const countryCode = req.body.countryCode || "NG";
-      const { minOnlineDriversCar, minOnlineDriversBike, maxPickupWaitMinutes, autoDisableOnWaitExceed } = req.body;
+      const { minOnlineDriversCar, minOnlineDriversBike, minOnlineDriversKeke, maxPickupWaitMinutes, autoDisableOnWaitExceed } = req.body;
 
       const updateData: any = { lastUpdatedBy: adminId };
       if (minOnlineDriversCar !== undefined) updateData.minOnlineDriversCar = minOnlineDriversCar;
       if (minOnlineDriversBike !== undefined) updateData.minOnlineDriversBike = minOnlineDriversBike;
+      if (minOnlineDriversKeke !== undefined) updateData.minOnlineDriversKeke = minOnlineDriversKeke;
       if (maxPickupWaitMinutes !== undefined) updateData.maxPickupWaitMinutes = maxPickupWaitMinutes;
       if (autoDisableOnWaitExceed !== undefined) updateData.autoDisableOnWaitExceed = autoDisableOnWaitExceed;
 
@@ -12911,6 +12912,7 @@ export async function registerRoutes(
               stateEnabled: false,
               minOnlineDriversCar: 3,
               minOnlineDriversBike: 2,
+              minOnlineDriversKeke: 1,
               maxPickupWaitMinutes: 15,
               autoDisableOnWaitExceed: true,
             });
@@ -12952,6 +12954,7 @@ export async function registerRoutes(
         stateEnabled: false,
         minOnlineDriversCar: 3,
         minOnlineDriversBike: 2,
+        minOnlineDriversKeke: 1,
         maxPickupWaitMinutes: 15,
         autoDisableOnWaitExceed: true,
       });

@@ -35,6 +35,7 @@ import {
   Plus,
   X,
   Loader2,
+  Truck,
 } from "lucide-react";
 
 type KillSwitchStatus = {
@@ -118,7 +119,7 @@ export function LaunchReadinessPanel() {
   const [selectedCountry, setSelectedCountry] = useState("NG");
   const [confirmAction, setConfirmAction] = useState<{ type: string; payload: Record<string, unknown> } | null>(null);
   const [actionReason, setActionReason] = useState("");
-  const [editingState, setEditingState] = useState<Record<string, { minCar: string; minBike: string; maxWait: string }>>({});
+  const [editingState, setEditingState] = useState<Record<string, { minCar: string; minBike: string; minKeke: string; maxWait: string }>>({});
   const [killSwitchScope, setKillSwitchScope] = useState<"GLOBAL" | "COUNTRY">("GLOBAL");
   const [showAddCountry, setShowAddCountry] = useState(false);
   const [newCountry, setNewCountry] = useState({ name: "", isoCode: "", currency: "", timezone: "", subregionType: "state" });
@@ -355,6 +356,7 @@ export function LaunchReadinessPanel() {
     return editingState[stateCode] || {
       minCar: String(state.minOnlineDriversCar),
       minBike: String(state.minOnlineDriversBike),
+      minKeke: String(state.minOnlineDriversKeke ?? 1),
       maxWait: String(state.maxPickupWaitMinutes),
     };
   }
@@ -374,6 +376,7 @@ export function LaunchReadinessPanel() {
       countryCode: selectedCountry,
       minOnlineDriversCar: parseInt(editing.minCar) || 0,
       minOnlineDriversBike: parseInt(editing.minBike) || 0,
+      minOnlineDriversKeke: parseInt(editing.minKeke) || 0,
       maxPickupWaitMinutes: parseInt(editing.maxWait) || 15,
     });
   }
@@ -937,6 +940,12 @@ export function LaunchReadinessPanel() {
                         </TableHead>
                         <TableHead>
                           <div className="flex items-center gap-1">
+                            <Truck className="h-3 w-3" />
+                            Min Keke Drivers
+                          </div>
+                        </TableHead>
+                        <TableHead>
+                          <div className="flex items-center gap-1">
                             <Clock className="h-3 w-3" />
                             Max Wait (min)
                           </div>
@@ -982,6 +991,16 @@ export function LaunchReadinessPanel() {
                                 className="w-20"
                                 min={0}
                                 data-testid={`input-min-bike-${state.stateCode}`}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                value={editing.minKeke}
+                                onChange={(e) => setStateField(state.stateCode, "minKeke", e.target.value, state)}
+                                className="w-20"
+                                min={0}
+                                data-testid={`input-min-keke-${state.stateCode}`}
                               />
                             </TableCell>
                             <TableCell>

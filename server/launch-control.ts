@@ -405,6 +405,7 @@ export async function seedSubregions(): Promise<void> {
           stateEnabled: false,
           minOnlineDriversCar: 3,
           minOnlineDriversBike: 2,
+          minOnlineDriversKeke: 1,
           maxPickupWaitMinutes: 15,
           autoDisableOnWaitExceed: true,
         });
