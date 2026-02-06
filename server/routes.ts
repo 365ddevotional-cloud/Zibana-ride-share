@@ -3,7 +3,9 @@ import { createServer, type Server } from "http";
 import { createHash } from "crypto";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { storage } from "./storage";
-import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema } from "@shared/schema";
+import { db } from "./db";
+import { eq, and, count, sql } from "drizzle-orm";
+import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates } from "@shared/schema";
 import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, evaluateAllDrivers, evaluateBehaviorAndWarnings, calculateDriverMatchingScore, getDriverIncentiveProgress, assignFirstRidePromo, assignReturnRiderPromo, applyPromoToTrip, voidPromosOnCancellation } from "./incentives";
 import { notificationService } from "./notification-service";
 import { getCurrencyFromCountry, getCountryConfig, FINANCIAL_ENGINE_LOCKED } from "@shared/currency";
@@ -13095,6 +13097,249 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error checking launch status:", error);
       return res.json({ allowed: false, reason: "Unable to verify service availability." });
+    }
+  });
+
+  // =============================================
+  // PHASE 8: ROLLOUT MANAGEMENT ENDPOINTS
+  // =============================================
+
+  const ROLLOUT_ORDER = ["PLANNED", "PREP", "PILOT", "LIMITED_LIVE", "FULL_LIVE"] as const;
+
+  app.post("/api/admin/rollout/promote", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const { countryCode, reason } = req.body;
+      if (!countryCode) return res.status(400).json({ message: "countryCode is required" });
+
+      const country = await storage.getCountryByCode(countryCode);
+      if (!country) return res.status(404).json({ message: "Country not found" });
+
+      const currentStatus = country.rolloutStatus || "PLANNED";
+      const currentIdx = ROLLOUT_ORDER.indexOf(currentStatus as any);
+      if (currentIdx === -1 || currentStatus === "PAUSED") {
+        return res.status(400).json({ message: `Cannot promote from status: ${currentStatus}. Unpause first.` });
+      }
+      if (currentIdx >= ROLLOUT_ORDER.length - 1) {
+        return res.status(400).json({ message: "Country is already at FULL_LIVE stage" });
+      }
+
+      const nextStatus = ROLLOUT_ORDER[currentIdx + 1];
+
+      if (nextStatus === "PILOT") {
+        if (!country.currency) {
+          return res.status(400).json({ message: "Gate check failed: Country must have a currency configured" });
+        }
+        const subregions = await storage.getStateLaunchConfigsByCountry(countryCode);
+        if (!subregions || subregions.length === 0) {
+          return res.status(400).json({ message: "Gate check failed: At least 1 subregion must be configured" });
+        }
+        const { isScopedKillSwitchActive } = await import("./launch-control");
+        const killActive = await isScopedKillSwitchActive("KILL_TRIP_REQUESTS", countryCode);
+        if (killActive) {
+          return res.status(400).json({ message: "Gate check failed: Kill switches must not be active for the country" });
+        }
+      }
+
+      if (nextStatus === "LIMITED_LIVE") {
+        const tripStats = await db.select({
+          total: count(),
+          completed: sql<number>`count(*) filter (where ${trips.status} = 'completed')`,
+          cancelled: sql<number>`count(*) filter (where ${trips.status} = 'cancelled')`,
+        }).from(trips).where(eq(trips.countryId, country.id));
+
+        const stats = tripStats[0];
+        const totalTrips = Number(stats?.total || 0);
+        if (totalTrips > 0) {
+          const completionRate = (Number(stats.completed) / totalTrips) * 100;
+          const cancellationRate = (Number(stats.cancelled) / totalTrips) * 100;
+          if (completionRate < (country.minTripCompletionRate || 80)) {
+            return res.status(400).json({ message: `Gate check failed: Trip completion rate ${completionRate.toFixed(1)}% is below threshold ${country.minTripCompletionRate}%` });
+          }
+          if (cancellationRate > (country.maxCancellationRate || 20)) {
+            return res.status(400).json({ message: `Gate check failed: Cancellation rate ${cancellationRate.toFixed(1)}% exceeds threshold ${country.maxCancellationRate}%` });
+          }
+        }
+
+        if (country.lastIncidentAt) {
+          const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+          if (new Date(country.lastIncidentAt) > sevenDaysAgo) {
+            return res.status(400).json({ message: "Gate check failed: An incident occurred within the last 7 days" });
+          }
+        }
+      }
+
+      if (nextStatus === "FULL_LIVE") {
+        if (country.lastIncidentAt) {
+          const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+          if (new Date(country.lastIncidentAt) > fourteenDaysAgo) {
+            return res.status(400).json({ message: "Gate check failed: An incident occurred within the last 14 days" });
+          }
+        }
+      }
+
+      const updateData: any = {
+        rolloutStatus: nextStatus,
+        rolloutStatusChangedBy: adminId,
+        rolloutStatusChangedAt: new Date(),
+      };
+      if (["PILOT", "LIMITED_LIVE", "FULL_LIVE"].includes(nextStatus)) {
+        updateData.countryEnabled = true;
+      }
+
+      const updated = await storage.updateCountry(country.id, updateData);
+
+      await storage.createComplianceAuditLog({
+        category: "LAUNCH_MODE_CHANGE",
+        actionBy: adminId,
+        eventType: "ROLLOUT_PROMOTED",
+        eventData: JSON.stringify({ countryCode, from: currentStatus, to: nextStatus, reason }),
+      });
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error promoting rollout:", error);
+      return res.status(500).json({ message: "Failed to promote rollout stage" });
+    }
+  });
+
+  app.post("/api/admin/rollout/demote", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const { countryCode, reason, targetStatus } = req.body;
+      if (!countryCode || !targetStatus) return res.status(400).json({ message: "countryCode and targetStatus are required" });
+
+      const validStatuses = ["PLANNED", "PREP", "PILOT", "LIMITED_LIVE", "FULL_LIVE", "PAUSED"];
+      if (!validStatuses.includes(targetStatus)) {
+        return res.status(400).json({ message: `Invalid targetStatus. Must be one of: ${validStatuses.join(", ")}` });
+      }
+
+      const country = await storage.getCountryByCode(countryCode);
+      if (!country) return res.status(404).json({ message: "Country not found" });
+
+      const currentStatus = country.rolloutStatus || "PLANNED";
+      if (targetStatus !== "PAUSED") {
+        const currentIdx = ROLLOUT_ORDER.indexOf(currentStatus as any);
+        const targetIdx = ROLLOUT_ORDER.indexOf(targetStatus as any);
+        if (targetIdx >= currentIdx) {
+          return res.status(400).json({ message: "Target status must be an earlier stage than current status" });
+        }
+      }
+
+      const updateData: any = {
+        rolloutStatus: targetStatus,
+        rolloutStatusChangedBy: adminId,
+        rolloutStatusChangedAt: new Date(),
+      };
+      if (targetStatus === "PLANNED" || targetStatus === "PREP" || targetStatus === "PAUSED") {
+        updateData.countryEnabled = false;
+      }
+
+      const updated = await storage.updateCountry(country.id, updateData);
+
+      await storage.createComplianceAuditLog({
+        category: "LAUNCH_MODE_CHANGE",
+        actionBy: adminId,
+        eventType: "ROLLOUT_DEMOTED",
+        eventData: JSON.stringify({ countryCode, from: currentStatus, to: targetStatus, reason }),
+      });
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error demoting rollout:", error);
+      return res.status(500).json({ message: "Failed to demote rollout stage" });
+    }
+  });
+
+  app.post("/api/admin/rollout/config", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const { countryCode, pilotMaxDailyTrips, pilotMaxConcurrentDrivers, pilotSurgeEnabled, maxAvgPickupMinutes, minTripCompletionRate, maxCancellationRate } = req.body;
+      if (!countryCode) return res.status(400).json({ message: "countryCode is required" });
+
+      const country = await storage.getCountryByCode(countryCode);
+      if (!country) return res.status(404).json({ message: "Country not found" });
+
+      const updateData: any = {};
+      if (pilotMaxDailyTrips !== undefined) updateData.pilotMaxDailyTrips = pilotMaxDailyTrips;
+      if (pilotMaxConcurrentDrivers !== undefined) updateData.pilotMaxConcurrentDrivers = pilotMaxConcurrentDrivers;
+      if (pilotSurgeEnabled !== undefined) updateData.pilotSurgeEnabled = pilotSurgeEnabled;
+      if (maxAvgPickupMinutes !== undefined) updateData.maxAvgPickupMinutes = maxAvgPickupMinutes;
+      if (minTripCompletionRate !== undefined) updateData.minTripCompletionRate = minTripCompletionRate;
+      if (maxCancellationRate !== undefined) updateData.maxCancellationRate = maxCancellationRate;
+
+      const updated = await storage.updateCountry(country.id, updateData);
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error updating rollout config:", error);
+      return res.status(500).json({ message: "Failed to update rollout config" });
+    }
+  });
+
+  app.get("/api/admin/rollout/dashboard", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const countryCode = req.query.countryCode as string;
+      if (!countryCode) return res.status(400).json({ message: "countryCode query param is required" });
+
+      const country = await storage.getCountryByCode(countryCode);
+      if (!country) return res.status(404).json({ message: "Country not found" });
+
+      const hasCurrency = !!country.currency;
+      const subregions = await storage.getStateLaunchConfigsByCountry(countryCode);
+      const hasSubregions = subregions && subregions.length > 0;
+
+      const pricingCheck = await db.select({ count: count() }).from(countryPricingRules).where(eq(countryPricingRules.countryId, country.id));
+      const hasPricing = Number(pricingCheck[0]?.count || 0) > 0;
+
+      const prepChecklist = {
+        hasCurrency,
+        hasSubregions,
+        hasPricing,
+      };
+
+      const tripStats = await db.select({
+        total: count(),
+        completed: sql<number>`count(*) filter (where ${trips.status} = 'completed')`,
+        cancelled: sql<number>`count(*) filter (where ${trips.status} = 'cancelled')`,
+      }).from(trips).where(eq(trips.countryId, country.id));
+
+      const stats = tripStats[0];
+      const totalTrips = Number(stats?.total || 0);
+      const metrics = {
+        totalTrips,
+        completedTrips: Number(stats?.completed || 0),
+        cancelledTrips: Number(stats?.cancelled || 0),
+        completionRate: totalTrips > 0 ? ((Number(stats.completed) / totalTrips) * 100).toFixed(1) : "0.0",
+        cancellationRate: totalTrips > 0 ? ((Number(stats.cancelled) / totalTrips) * 100).toFixed(1) : "0.0",
+      };
+
+      const activeSubregions = subregions ? subregions.filter(s => s.stateEnabled).length : 0;
+
+      const liveDriversResult = await db.select({ count: count() }).from(stateLaunchConfigs)
+        .where(and(
+          eq(stateLaunchConfigs.countryCode, countryCode),
+          sql`(${stateLaunchConfigs.currentOnlineDriversCar} + ${stateLaunchConfigs.currentOnlineDriversBike} + ${stateLaunchConfigs.currentOnlineDriversKeke}) > 0`
+        ));
+      const liveDriversCount = Number(liveDriversResult[0]?.count || 0);
+
+      const killSwitchResult = await db.select({ count: count() }).from(killSwitchStates)
+        .where(and(
+          eq(killSwitchStates.isActive, true),
+          eq(killSwitchStates.scope, "COUNTRY"),
+          eq(killSwitchStates.scopeCountryCode, countryCode)
+        ));
+      const activeKillSwitches = Number(killSwitchResult[0]?.count || 0);
+
+      return res.json({
+        country,
+        prepChecklist,
+        metrics,
+        activeSubregions,
+        liveDriversCount,
+        activeKillSwitches,
+      });
+    } catch (error) {
+      console.error("Error fetching rollout dashboard:", error);
+      return res.status(500).json({ message: "Failed to fetch rollout dashboard" });
     }
   });
 
