@@ -3690,3 +3690,71 @@ export type DriverAcquisitionAnalytics = {
   activeSupplyAlerts: number;
   onboardingPipeline: Record<string, number>;
 };
+
+// =============================================
+// PHASE 10A: IN-APP Q&A & HELP CENTER
+// =============================================
+
+export const helpArticleAudienceEnum = pgEnum("help_article_audience", ["ALL", "RIDER", "DRIVER", "ADMIN"]);
+export const helpArticleStatusEnum = pgEnum("help_article_status", ["DRAFT", "PUBLISHED", "ARCHIVED"]);
+
+export const helpCategories = pgTable("help_categories", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name", { length: 100 }).notNull(),
+  slug: varchar("slug", { length: 100 }).notNull().unique(),
+  description: text("description"),
+  icon: varchar("icon", { length: 50 }),
+  audience: helpArticleAudienceEnum("audience").notNull().default("ALL"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const helpArticles = pgTable("help_articles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  categoryId: varchar("category_id").references(() => helpCategories.id),
+  title: varchar("title", { length: 255 }).notNull(),
+  slug: varchar("slug", { length: 255 }).notNull().unique(),
+  summary: text("summary"),
+  content: text("content").notNull(),
+  audience: helpArticleAudienceEnum("audience").notNull().default("ALL"),
+  status: helpArticleStatusEnum("status").notNull().default("DRAFT"),
+  tags: text("tags").array(),
+  viewCount: integer("view_count").notNull().default(0),
+  helpfulYes: integer("helpful_yes").notNull().default(0),
+  helpfulNo: integer("helpful_no").notNull().default(0),
+  sortOrder: integer("sort_order").notNull().default(0),
+  featured: boolean("featured").notNull().default(false),
+  countryCode: varchar("country_code", { length: 3 }),
+  createdBy: varchar("created_by"),
+  updatedBy: varchar("updated_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const helpSearchLogs = pgTable("help_search_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id"),
+  query: text("query").notNull(),
+  resultsCount: integer("results_count").notNull().default(0),
+  clickedArticleId: varchar("clicked_article_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertHelpCategorySchema = createInsertSchema(helpCategories).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertHelpCategory = z.infer<typeof insertHelpCategorySchema>;
+export type HelpCategory = typeof helpCategories.$inferSelect;
+
+export const insertHelpArticleSchema = createInsertSchema(helpArticles).omit({ id: true, createdAt: true, updatedAt: true, viewCount: true, helpfulYes: true, helpfulNo: true });
+export type InsertHelpArticle = z.infer<typeof insertHelpArticleSchema>;
+export type HelpArticle = typeof helpArticles.$inferSelect;
+
+export const insertHelpSearchLogSchema = createInsertSchema(helpSearchLogs).omit({ id: true, createdAt: true });
+export type InsertHelpSearchLog = z.infer<typeof insertHelpSearchLogSchema>;
+export type HelpSearchLog = typeof helpSearchLogs.$inferSelect;
+
+export type HelpArticleWithCategory = HelpArticle & {
+  categoryName?: string;
+  categorySlug?: string;
+};
