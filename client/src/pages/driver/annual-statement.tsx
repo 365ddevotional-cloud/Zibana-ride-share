@@ -5,7 +5,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { FileText, Download, ChevronDown, ArrowLeft, Calendar, User } from "lucide-react";
+import { FileText, Download, ChevronDown, ArrowLeft, Calendar, User, MapPin } from "lucide-react";
 import { useState } from "react";
 
 interface AnnualStatement {
@@ -19,6 +19,7 @@ interface AnnualStatement {
   reportableIncome: number;
   totalTrips: number;
   totalOnlineHours: number;
+  totalMilesDrivenOnline: number;
   currency: string;
 }
 
@@ -125,6 +126,24 @@ export default function DriverAnnualStatementPage() {
                   <span>{annualData.totalOnlineHours}h online</span>
                 </div>
               </div>
+
+              {annualData.totalMilesDrivenOnline > 0 && (
+                <div className="p-3 rounded-md bg-muted/50 space-y-1" data-testid="section-mileage-disclosure">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <span className="text-sm font-medium">Mileage Summary</span>
+                  </div>
+                  <div className="flex items-center justify-between pl-6">
+                    <span className="text-sm text-muted-foreground">Total miles driven while online</span>
+                    <span className="font-medium" data-testid="text-total-miles">
+                      {annualData.totalMilesDrivenOnline.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} mi
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground pl-6">
+                    For tax reporting purposes. This figure may be relevant for mileage deductions. Consult a tax professional.
+                  </p>
+                </div>
+              )}
 
               <Collapsible open={feeOpen} onOpenChange={setFeeOpen}>
                 <CollapsibleTrigger asChild>
