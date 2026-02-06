@@ -467,6 +467,10 @@ export const riderProfiles = pgTable("rider_profiles", {
   verificationTimestamp: timestamp("verification_timestamp"),
   verificationSessionId: varchar("verification_session_id"),
   paymentMethod: paymentMethodEnum("payment_method").notNull().default("WALLET"),
+  cashAccessRestricted: boolean("cash_access_restricted").default(false),
+  cashAccessRestrictedAt: timestamp("cash_access_restricted_at"),
+  cashAccessRestrictedReason: text("cash_access_restricted_reason"),
+  paymentOnboardingSeen: boolean("payment_onboarding_seen").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -858,6 +862,12 @@ export const trips = pgTable("trips", {
   driverCollected: boolean("driver_collected").default(false),
   cashSettled: boolean("cash_settled").default(false),
   cashSettlementId: varchar("cash_settlement_id"),
+  riderConfirmedCash: boolean("rider_confirmed_cash").default(false),
+  driverConfirmedCash: boolean("driver_confirmed_cash").default(false),
+  riderConfirmedCashAt: timestamp("rider_confirmed_cash_at"),
+  driverConfirmedCashAt: timestamp("driver_confirmed_cash_at"),
+  cashDisputeFlag: boolean("cash_dispute_flag").default(false),
+  cashDisputeReason: text("cash_dispute_reason"),
 });
 
 // Phase 22 - Enhanced Rides table with full Uber/Lyft-style lifecycle
@@ -1622,6 +1632,23 @@ export const cashSettlementLedger = pgTable("cash_settlement_ledger", {
   adminNotes: text("admin_notes"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const cashTripDisputes = pgTable("cash_trip_disputes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tripId: varchar("trip_id").notNull(),
+  riderId: varchar("rider_id").notNull(),
+  driverId: varchar("driver_id").notNull(),
+  disputeType: varchar("dispute_type", { length: 50 }).notNull(),
+  riderClaimed: boolean("rider_claimed").notNull().default(false),
+  driverClaimed: boolean("driver_claimed").notNull().default(false),
+  status: varchar("status", { length: 30 }).notNull().default("open"),
+  adminReviewedBy: varchar("admin_reviewed_by"),
+  adminNotes: text("admin_notes"),
+  resolution: varchar("resolution", { length: 50 }),
+  temporaryCreditAmount: decimal("temporary_credit_amount", { precision: 10, scale: 2 }),
+  createdAt: timestamp("created_at").defaultNow(),
+  resolvedAt: timestamp("resolved_at"),
 });
 
 export const countryCashConfig = pgTable("country_cash_config", {

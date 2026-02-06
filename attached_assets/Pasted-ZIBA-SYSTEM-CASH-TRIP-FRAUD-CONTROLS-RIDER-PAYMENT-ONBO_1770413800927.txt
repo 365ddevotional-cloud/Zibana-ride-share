@@ -1,0 +1,167 @@
+ZIBA SYSTEM — CASH TRIP FRAUD CONTROLS + RIDER PAYMENT ONBOARDING
+
+This specification implements:
+1) Fraud & abuse prevention for CASH trips
+2) Clear rider onboarding education for CASH vs CARD payments
+
+These rules are designed to protect drivers, reduce disputes,
+and prevent Uber-style resentment and confusion.
+
+================================================
+PART A — FRAUD & ABUSE CONTROLS FOR CASH TRIPS
+================================================
+
+OBJECTIVES:
+• Prevent fake cash confirmations
+• Prevent excessive cash abuse
+• Protect drivers from loss
+• Protect ZIBA from revenue leakage
+• Avoid aggressive enforcement that scares drivers
+
+-----------------------------------------------
+CASH TRIP CONFIRMATION RULES
+-----------------------------------------------
+
+1. End-of-trip confirmation is REQUIRED for cash trips.
+2. Rider must tap:
+   “I’ve paid the driver”
+
+3. Driver must confirm:
+   “Cash received”
+
+4. Trip is not fully closed until BOTH confirmations occur.
+
+-----------------------------------------------
+DISPUTE PROTECTION
+-----------------------------------------------
+
+• If rider confirms payment but driver disputes:
+  - Flag trip for admin review
+  - Temporarily credit driver
+  - Freeze rider cash option until resolved
+
+• If driver confirms cash repeatedly but rider disputes:
+  - Flag driver for review
+  - Do NOT auto-suspend
+  - Require admin validation
+
+-----------------------------------------------
+ABUSE MONITORING (SOFT RULES)
+-----------------------------------------------
+
+Monitor:
+• Unusually high ratio of cash trips vs card trips
+• Repeated delayed confirmations
+• Repeated rider-driver disputes
+• Excessive deferred platform settlement balance
+
+-----------------------------------------------
+SOFT LIMITS (NO SHOCK ENFORCEMENT)
+-----------------------------------------------
+
+• Cap maximum deferred platform balance per driver
+• Trigger soft warning:
+  “Please settle outstanding balance to continue uninterrupted service.”
+
+• Never block driver mid-trip
+• Never display red warning banners
+• Escalation requires admin approval
+
+-----------------------------------------------
+RIDER CASH ABUSE PREVENTION
+-----------------------------------------------
+
+• Riders with repeated “paid but driver says unpaid” disputes:
+  - Lose access to cash payment
+  - Forced to use card/wallet
+  - No public accusation language
+
+-----------------------------------------------
+ADMIN CONTROLS
+-----------------------------------------------
+
+Admin may:
+• Review disputed cash trips
+• Reinstate or restrict cash access
+• Adjust deferred balances
+• Waive balances (logged)
+
+All actions must be auditable.
+
+================================================
+PART B — RIDER ONBOARDING EXPLANATION (PAYMENTS)
+================================================
+
+OBJECTIVE:
+Explain cash vs card clearly, once, without overwhelming the rider.
+
+-----------------------------------------------
+FIRST-TIME RIDER PAYMENT INTRO
+-----------------------------------------------
+
+Title:
+“How payments work on ZIBA”
+
+Body:
+“You can pay for trips using a card in the app or by paying the driver in cash.
+Choose the option that works best for you.”
+
+Button:
+“Got it”
+
+-----------------------------------------------
+CASH PAYMENT EXPLANATION
+-----------------------------------------------
+
+Title:
+“Paying with cash”
+
+Message:
+“When you choose cash, you’ll pay the driver directly at the end of the trip.
+Please have the correct amount ready.”
+
+-----------------------------------------------
+CARD PAYMENT EXPLANATION
+-----------------------------------------------
+
+Title:
+“Paying with card”
+
+Message:
+“When you choose card, payment is handled securely in the app.
+You don’t need to exchange cash.”
+
+-----------------------------------------------
+IMPORTANT ONBOARDING RULES
+-----------------------------------------------
+
+• Show this explanation only:
+  - On first app use
+  - Or first cash trip
+• Allow skip
+• Never mention platform fees
+• Never compare earnings
+• Never mention percentages
+
+-----------------------------------------------
+HELP CENTER ENTRY (RIDER)
+-----------------------------------------------
+
+Question:
+“How do I pay for my trip?”
+
+Answer:
+“You can pay with a card in the app or pay the driver directly in cash.
+Both options are supported for your convenience.”
+
+================================================
+FINAL SYSTEM PRINCIPLE (LOCKED)
+================================================
+
+Cash must feel:
+• Simple for riders
+• Safe for drivers
+• Calm for the platform
+
+Any logic that creates confusion, fear, or resentment
+is considered a system defect.
