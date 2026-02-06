@@ -11,3 +11,4 @@ export { FareReceipt } from "./fare-receipt";
 export { ReservationForm } from "./reservation-form";
 export { UpcomingReservations } from "./upcoming-reservations";
 export { DriverReservedTrips } from "./driver-reserved-trips";
+export { IncidentReportModal } from "./incident-report-modal";

@@ -13930,5 +13930,176 @@ export async function registerRoutes(
     }
   });
 
+  // =============================================
+  // PHASE 10 - TRUSTED CONTACTS API
+  // =============================================
+
+  app.get("/api/trusted-contacts", isAuthenticated, async (req: any, res) => {
+    try {
+      const contacts = await storage.getTrustedContacts(req.user.id);
+      return res.json(contacts);
+    } catch (error) {
+      console.error("Error fetching trusted contacts:", error);
+      return res.status(500).json({ message: "Failed to fetch trusted contacts" });
+    }
+  });
+
+  app.post("/api/trusted-contacts", isAuthenticated, async (req: any, res) => {
+    try {
+      const existing = await storage.getTrustedContacts(req.user.id);
+      if (existing.length >= 5) {
+        return res.status(400).json({ message: "Maximum of 5 trusted contacts allowed" });
+      }
+      const contact = await storage.createTrustedContact({
+        ...req.body,
+        userId: req.user.id,
+      });
+      return res.json(contact);
+    } catch (error) {
+      console.error("Error creating trusted contact:", error);
+      return res.status(500).json({ message: "Failed to create trusted contact" });
+    }
+  });
+
+  app.patch("/api/trusted-contacts/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const contact = await storage.updateTrustedContact(req.params.id, req.user.id, req.body);
+      if (!contact) return res.status(404).json({ message: "Contact not found" });
+      return res.json(contact);
+    } catch (error) {
+      console.error("Error updating trusted contact:", error);
+      return res.status(500).json({ message: "Failed to update trusted contact" });
+    }
+  });
+
+  app.delete("/api/trusted-contacts/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const deleted = await storage.deleteTrustedContact(req.params.id, req.user.id);
+      if (!deleted) return res.status(404).json({ message: "Contact not found" });
+      return res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting trusted contact:", error);
+      return res.status(500).json({ message: "Failed to delete trusted contact" });
+    }
+  });
+
+  // =============================================
+  // PHASE 10 - TRIP SHARE LINKS API
+  // =============================================
+
+  app.post("/api/trips/:tripId/share", isAuthenticated, async (req: any, res) => {
+    try {
+      const { randomBytes } = await import("crypto");
+      const shareToken = randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      
+      const link = await storage.createTripShareLink({
+        tripId: req.params.tripId,
+        sharedBy: req.user.id,
+        shareToken,
+        recipientPhone: req.body.recipientPhone || null,
+        recipientName: req.body.recipientName || null,
+        isActive: true,
+        expiresAt,
+      });
+      return res.json(link);
+    } catch (error) {
+      console.error("Error creating trip share link:", error);
+      return res.status(500).json({ message: "Failed to create share link" });
+    }
+  });
+
+  app.get("/api/trip-share/:token", async (req, res) => {
+    try {
+      const link = await storage.getTripShareLinkByToken(req.params.token);
+      if (!link) return res.status(404).json({ message: "Share link not found or expired" });
+      if (new Date() > new Date(link.expiresAt)) {
+        return res.status(410).json({ message: "Share link has expired" });
+      }
+      await storage.incrementShareLinkViewCount(link.id);
+      const trip = await storage.getTripById(link.tripId);
+      if (!trip) return res.status(404).json({ message: "Trip not found" });
+      return res.json({
+        trip: {
+          id: trip.id,
+          status: trip.status,
+          pickupLocation: trip.pickupLocation,
+          dropoffLocation: trip.dropoffLocation,
+          createdAt: trip.createdAt,
+        },
+        sharedAt: link.createdAt,
+        expiresAt: link.expiresAt,
+      });
+    } catch (error) {
+      console.error("Error fetching shared trip:", error);
+      return res.status(500).json({ message: "Failed to fetch shared trip" });
+    }
+  });
+
+  app.get("/api/trips/:tripId/share-links", isAuthenticated, async (req: any, res) => {
+    try {
+      const links = await storage.getTripShareLinks(req.params.tripId);
+      return res.json(links);
+    } catch (error) {
+      console.error("Error fetching share links:", error);
+      return res.status(500).json({ message: "Failed to fetch share links" });
+    }
+  });
+
+  app.delete("/api/trip-share/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const deactivated = await storage.deactivateTripShareLink(req.params.id);
+      if (!deactivated) return res.status(404).json({ message: "Share link not found" });
+      return res.json({ success: true });
+    } catch (error) {
+      console.error("Error deactivating share link:", error);
+      return res.status(500).json({ message: "Failed to deactivate share link" });
+    }
+  });
+
+  // =============================================
+  // PHASE 10 - COUNTRY EMERGENCY CONFIG API
+  // =============================================
+
+  app.get("/api/emergency-config/:countryCode", async (req, res) => {
+    try {
+      const config = await storage.getCountryEmergencyConfig(req.params.countryCode.toUpperCase());
+      if (!config) {
+        return res.json({
+          countryCode: req.params.countryCode.toUpperCase(),
+          emergencyNumber: "911",
+          policeNumber: null,
+          ambulanceNumber: null,
+          fireNumber: null,
+          sosInstructions: null,
+        });
+      }
+      return res.json(config);
+    } catch (error) {
+      console.error("Error fetching emergency config:", error);
+      return res.status(500).json({ message: "Failed to fetch emergency config" });
+    }
+  });
+
+  app.get("/api/admin/emergency-configs", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const configs = await storage.getAllCountryEmergencyConfigs();
+      return res.json(configs);
+    } catch (error) {
+      console.error("Error fetching emergency configs:", error);
+      return res.status(500).json({ message: "Failed to fetch emergency configs" });
+    }
+  });
+
+  app.post("/api/admin/emergency-config", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const config = await storage.upsertCountryEmergencyConfig(req.body);
+      return res.json(config);
+    } catch (error) {
+      console.error("Error saving emergency config:", error);
+      return res.status(500).json({ message: "Failed to save emergency config" });
+    }
+  });
+
   return httpServer;
 }

@@ -341,6 +341,16 @@ import {
   type HelpArticleWithCategory,
   type HelpSearchLog,
   type InsertHelpSearchLog,
+  // Phase 10 - Trusted Contacts & Trip Sharing
+  trustedContacts,
+  tripShareLinks,
+  countryEmergencyConfig,
+  type TrustedContact,
+  type InsertTrustedContact,
+  type TripShareLink,
+  type InsertTripShareLink,
+  type CountryEmergencyConfig,
+  type InsertCountryEmergencyConfig,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull } from "drizzle-orm";
@@ -1083,6 +1093,24 @@ export interface IStorage {
 
   createHelpSearchLog(data: InsertHelpSearchLog): Promise<HelpSearchLog>;
   getHelpSearchLogs(limit?: number): Promise<HelpSearchLog[]>;
+
+  // Phase 10 - Trusted Contacts
+  getTrustedContacts(userId: string): Promise<TrustedContact[]>;
+  createTrustedContact(data: InsertTrustedContact): Promise<TrustedContact>;
+  updateTrustedContact(id: string, userId: string, data: Partial<InsertTrustedContact>): Promise<TrustedContact | null>;
+  deleteTrustedContact(id: string, userId: string): Promise<boolean>;
+
+  // Phase 10 - Trip Share Links
+  createTripShareLink(data: InsertTripShareLink): Promise<TripShareLink>;
+  getTripShareLinkByToken(token: string): Promise<TripShareLink | null>;
+  getTripShareLinks(tripId: string): Promise<TripShareLink[]>;
+  deactivateTripShareLink(id: string): Promise<boolean>;
+  incrementShareLinkViewCount(id: string): Promise<void>;
+
+  // Phase 10 - Country Emergency Config
+  getCountryEmergencyConfig(countryCode: string): Promise<CountryEmergencyConfig | null>;
+  getAllCountryEmergencyConfigs(): Promise<CountryEmergencyConfig[]>;
+  upsertCountryEmergencyConfig(data: InsertCountryEmergencyConfig): Promise<CountryEmergencyConfig>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -8649,6 +8677,89 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(helpSearchLogs)
       .orderBy(desc(helpSearchLogs.createdAt))
       .limit(limit);
+  }
+
+  // Phase 10 - Trusted Contacts
+  async getTrustedContacts(userId: string): Promise<TrustedContact[]> {
+    return db.select().from(trustedContacts)
+      .where(eq(trustedContacts.userId, userId))
+      .orderBy(trustedContacts.sortOrder);
+  }
+
+  async createTrustedContact(data: InsertTrustedContact): Promise<TrustedContact> {
+    const [result] = await db.insert(trustedContacts).values(data).returning();
+    return result;
+  }
+
+  async updateTrustedContact(id: string, userId: string, data: Partial<InsertTrustedContact>): Promise<TrustedContact | null> {
+    const [result] = await db.update(trustedContacts)
+      .set({ ...data, updatedAt: new Date() })
+      .where(and(eq(trustedContacts.id, id), eq(trustedContacts.userId, userId)))
+      .returning();
+    return result ?? null;
+  }
+
+  async deleteTrustedContact(id: string, userId: string): Promise<boolean> {
+    const result = await db.delete(trustedContacts)
+      .where(and(eq(trustedContacts.id, id), eq(trustedContacts.userId, userId)));
+    return (result as any).rowCount > 0;
+  }
+
+  // Phase 10 - Trip Share Links
+  async createTripShareLink(data: InsertTripShareLink): Promise<TripShareLink> {
+    const [result] = await db.insert(tripShareLinks).values(data).returning();
+    return result;
+  }
+
+  async getTripShareLinkByToken(token: string): Promise<TripShareLink | null> {
+    const [result] = await db.select().from(tripShareLinks)
+      .where(and(eq(tripShareLinks.shareToken, token), eq(tripShareLinks.isActive, true)));
+    return result ?? null;
+  }
+
+  async getTripShareLinks(tripId: string): Promise<TripShareLink[]> {
+    return db.select().from(tripShareLinks)
+      .where(eq(tripShareLinks.tripId, tripId))
+      .orderBy(desc(tripShareLinks.createdAt));
+  }
+
+  async deactivateTripShareLink(id: string): Promise<boolean> {
+    const [result] = await db.update(tripShareLinks)
+      .set({ isActive: false })
+      .where(eq(tripShareLinks.id, id))
+      .returning();
+    return !!result;
+  }
+
+  async incrementShareLinkViewCount(id: string): Promise<void> {
+    await db.update(tripShareLinks)
+      .set({ viewCount: sql`${tripShareLinks.viewCount} + 1` })
+      .where(eq(tripShareLinks.id, id));
+  }
+
+  // Phase 10 - Country Emergency Config
+  async getCountryEmergencyConfig(countryCode: string): Promise<CountryEmergencyConfig | null> {
+    const [result] = await db.select().from(countryEmergencyConfig)
+      .where(eq(countryEmergencyConfig.countryCode, countryCode));
+    return result ?? null;
+  }
+
+  async getAllCountryEmergencyConfigs(): Promise<CountryEmergencyConfig[]> {
+    return db.select().from(countryEmergencyConfig)
+      .orderBy(countryEmergencyConfig.countryCode);
+  }
+
+  async upsertCountryEmergencyConfig(data: InsertCountryEmergencyConfig): Promise<CountryEmergencyConfig> {
+    const existing = await this.getCountryEmergencyConfig(data.countryCode);
+    if (existing) {
+      const [result] = await db.update(countryEmergencyConfig)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(countryEmergencyConfig.countryCode, data.countryCode))
+        .returning();
+      return result;
+    }
+    const [result] = await db.insert(countryEmergencyConfig).values(data).returning();
+    return result;
   }
 }
 
