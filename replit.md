@@ -65,7 +65,7 @@ Preferred communication style: Simple, everyday language.
 - **Fraud Detection**: Utilizes a real-time engine with configurable signals and risk scoring.
 - **Driver Incentives**: Manages various incentive programs for drivers.
 - **Trip Coordinator Module**: Allows institutional users to book and manage trips.
-- **Multi-Country Support**: Manages country-specific rules, taxes, and compliance for Nigeria, United States, and South Africa.
+- **Multi-Country Support**: Manages country-specific rules, taxes, and compliance for Nigeria (NG), United States (US), South Africa (ZA), Ghana (GH), Canada (CA), and Liberia (LR). Multi-country launch control with scoped kill switches (GLOBAL > COUNTRY > SUBREGION hierarchy), per-country system modes (NORMAL/LIMITED/EMERGENCY), and subregion types (state/province/region).
 - **Customer Support System**: Includes a dedicated `support_agent` role and ticket management.
 - **Enterprise Contracts & Billing**: Manages contracts, SLAs, and invoicing for enterprise clients.
 - **Monitoring & KPIs**: Aggregates performance metrics, provides alerts, and manages feature flags.
