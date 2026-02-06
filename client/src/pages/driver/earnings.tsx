@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
-import { Wallet, TrendingUp, Calendar, ArrowUpRight, Star, CheckCircle, Lightbulb, FileText } from "lucide-react";
+import { Wallet, TrendingUp, Calendar, ArrowUpRight, Star, CheckCircle, Lightbulb, FileText, Banknote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import type { DriverProfile, Trip } from "@shared/schema";
@@ -249,9 +249,18 @@ export default function DriverEarnings() {
                         </p>
                       </div>
                       <div className="text-right flex-shrink-0">
-                        <p className="font-bold text-emerald-600">
-                          +{"\u20A6"}{parseFloat(trip.driverPayout || "0").toLocaleString()}
-                        </p>
+                        {trip.paymentSource === "CASH" ? (
+                          <div className="flex items-center gap-1">
+                            <Banknote className="h-3.5 w-3.5 text-emerald-600" />
+                            <p className="font-bold text-emerald-600" data-testid={`text-cash-earning-${trip.id}`}>
+                              {"\u20A6"}{parseFloat(trip.fareAmount || "0").toLocaleString()}
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="font-bold text-emerald-600">
+                            +{"\u20A6"}{parseFloat(trip.driverPayout || "0").toLocaleString()}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </CardContent>
