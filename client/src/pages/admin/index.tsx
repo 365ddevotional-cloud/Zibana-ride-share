@@ -7,6 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -396,6 +398,61 @@ type PartnerLeadWithDetails = {
   notes?: string;
   createdAt: string;
   updatedAt: string;
+};
+
+type EnhancedCampaignWithDetails = {
+  id: string;
+  name: string;
+  type: string;
+  startAt: string;
+  endAt: string;
+  status: string;
+  notes: string | null;
+  createdAt: string;
+  details?: {
+    id: string;
+    campaignId: string;
+    targetAudience: string | null;
+    countryCode: string | null;
+    subregion: string | null;
+    incentiveType: string | null;
+    incentiveValue: string | null;
+    incentiveRules: string | null;
+    maxRedemptions: number | null;
+    currentRedemptions: number;
+    createdAt: string;
+  };
+};
+
+type ReactivationRule = {
+  id: string;
+  name: string;
+  targetRole: string;
+  inactiveDaysThreshold: number;
+  messageTitle: string;
+  messageBody: string;
+  incentiveType: string | null;
+  incentiveValue: string | null;
+  countryCode: string | null;
+  status: string;
+  triggerCount: number;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type AttributionStat = {
+  source: string;
+  count: number;
+};
+
+type GrowthSafetyStatus = {
+  viralityEnabled: boolean;
+  shareMomentsEnabled: boolean;
+  reactivationEnabled: boolean;
+  maxReferralRewardPerUser: number | null;
+  maxDailyReferrals: number | null;
+  countryOverrides: any[];
 };
 
 interface AdminDashboardProps {
@@ -1096,6 +1153,27 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
     notes: "",
   });
 
+  const [showCreateReactivationRuleDialog, setShowCreateReactivationRuleDialog] = useState(false);
+  const [newReactivationRule, setNewReactivationRule] = useState({
+    name: "",
+    targetRole: "rider" as string,
+    inactiveDaysThreshold: 30,
+    messageTitle: "",
+    messageBody: "",
+    incentiveType: "" as string,
+    incentiveValue: "" as string,
+    countryCode: "" as string,
+  });
+  const [growthSafetyForm, setGrowthSafetyForm] = useState<GrowthSafetyStatus>({
+    viralityEnabled: true,
+    shareMomentsEnabled: true,
+    reactivationEnabled: true,
+    maxReferralRewardPerUser: null,
+    maxDailyReferrals: null,
+    countryOverrides: [],
+  });
+  const [growthSafetyLoaded, setGrowthSafetyLoaded] = useState(false);
+
   const { data: growthStats } = useQuery<GrowthStats>({
     queryKey: ["/api/growth/stats"],
     queryFn: async () => {
@@ -1203,6 +1281,108 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
       toast({ title: "Update failed", description: "Could not update lead status", variant: "destructive" });
     },
   });
+
+  // Phase 11A - Enhanced Campaign Details, Reactivation Rules, Attribution, Growth Safety
+  const { data: enhancedCampaigns = [], isLoading: enhancedCampaignsLoading } = useQuery<EnhancedCampaignWithDetails[]>({
+    queryKey: ["/api/campaigns/with-details"],
+    queryFn: async () => {
+      const res = await fetch("/api/campaigns/with-details", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch enhanced campaigns");
+      return res.json();
+    },
+    enabled: !!user && !isDirector && !isTripCoordinator && activeTab === "growth",
+  });
+
+  const { data: reactivationRules = [], isLoading: reactivationRulesLoading } = useQuery<ReactivationRule[]>({
+    queryKey: ["/api/reactivation-rules"],
+    queryFn: async () => {
+      const res = await fetch("/api/reactivation-rules", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch reactivation rules");
+      return res.json();
+    },
+    enabled: !!user && !isDirector && !isTripCoordinator && activeTab === "growth",
+  });
+
+  const { data: attributionStats = [] } = useQuery<AttributionStat[]>({
+    queryKey: ["/api/attribution/stats"],
+    queryFn: async () => {
+      const res = await fetch("/api/attribution/stats", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch attribution stats");
+      return res.json();
+    },
+    enabled: !!user && !isDirector && !isTripCoordinator && activeTab === "growth",
+  });
+
+  const { data: growthSafetyData } = useQuery<GrowthSafetyStatus>({
+    queryKey: ["/api/growth-safety"],
+    queryFn: async () => {
+      const res = await fetch("/api/growth-safety", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch growth safety");
+      return res.json();
+    },
+    enabled: !!user && !isDirector && !isTripCoordinator && activeTab === "growth",
+  });
+
+  useEffect(() => {
+    if (growthSafetyData && !growthSafetyLoaded) {
+      setGrowthSafetyForm(growthSafetyData);
+      setGrowthSafetyLoaded(true);
+    }
+  }, [growthSafetyData, growthSafetyLoaded]);
+
+  const createReactivationRuleMutation = useMutation({
+    mutationFn: async (data: typeof newReactivationRule) => {
+      const res = await apiRequest("POST", "/api/reactivation-rules", {
+        ...data,
+        incentiveType: data.incentiveType || null,
+        incentiveValue: data.incentiveValue || null,
+        countryCode: data.countryCode || null,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/reactivation-rules"] });
+      setShowCreateReactivationRuleDialog(false);
+      setNewReactivationRule({ name: "", targetRole: "rider", inactiveDaysThreshold: 30, messageTitle: "", messageBody: "", incentiveType: "", incentiveValue: "", countryCode: "" });
+      toast({ title: "Rule created", description: "Reactivation rule created successfully" });
+    },
+    onError: () => {
+      toast({ title: "Creation failed", description: "Could not create reactivation rule", variant: "destructive" });
+    },
+  });
+
+  const updateReactivationRuleStatusMutation = useMutation({
+    mutationFn: async ({ ruleId, status }: { ruleId: string; status: string }) => {
+      const res = await apiRequest("PATCH", `/api/reactivation-rules/${ruleId}/status`, { status });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/reactivation-rules"] });
+      toast({ title: "Rule updated", description: "Reactivation rule status updated" });
+    },
+    onError: () => {
+      toast({ title: "Update failed", description: "Could not update rule status", variant: "destructive" });
+    },
+  });
+
+  const saveGrowthSafetyMutation = useMutation({
+    mutationFn: async (data: GrowthSafetyStatus) => {
+      const res = await apiRequest("POST", "/api/growth-safety", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/growth-safety"] });
+      toast({ title: "Settings saved", description: "Growth safety controls updated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Save failed", description: "Could not save growth safety settings", variant: "destructive" });
+    },
+  });
+
+  const getAttributionCount = (source: string): number => {
+    const stat = attributionStats.find(s => s.source === source);
+    return stat?.count || 0;
+  };
 
   const updateDriverStatusMutation = useMutation({
     mutationFn: async ({ driverId, status }: { driverId: string; status: string }) => {
@@ -5803,6 +5983,438 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
+
+              {/* Section 1: Enhanced Campaign Details */}
+              <Card className="mt-6">
+                <CardHeader>
+                  <CardTitle>Enhanced Campaign Details</CardTitle>
+                  <CardDescription>Campaigns with detailed targeting and incentive information</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {enhancedCampaignsLoading ? (
+                    <div className="py-8 text-center text-muted-foreground">Loading enhanced campaigns...</div>
+                  ) : enhancedCampaigns.length === 0 ? (
+                    <EmptyState
+                      icon={Target}
+                      title="No campaign details"
+                      description="Campaign details will appear here once campaigns are created with targeting info"
+                    />
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Type</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Target Audience</TableHead>
+                            <TableHead>Country</TableHead>
+                            <TableHead>Incentive</TableHead>
+                            <TableHead>Redemptions</TableHead>
+                            <TableHead>Dates</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {enhancedCampaigns.map((campaign) => (
+                            <TableRow key={campaign.id} data-testid={`row-enhanced-campaign-${campaign.id}`}>
+                              <TableCell className="font-medium">{campaign.name}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className="capitalize">{campaign.type}</Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant={
+                                    campaign.status === "active" ? "default" :
+                                    campaign.status === "paused" ? "secondary" :
+                                    campaign.status === "ended" ? "outline" : "secondary"
+                                  }
+                                  className="capitalize"
+                                >
+                                  {campaign.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>{campaign.details?.targetAudience || "-"}</TableCell>
+                              <TableCell>{campaign.details?.countryCode || "-"}</TableCell>
+                              <TableCell>
+                                {campaign.details?.incentiveType ? (
+                                  <span>{campaign.details.incentiveType}: {campaign.details.incentiveValue || "-"}</span>
+                                ) : "-"}
+                              </TableCell>
+                              <TableCell>
+                                {campaign.details ? (
+                                  <span>{campaign.details.currentRedemptions}{campaign.details.maxRedemptions ? ` / ${campaign.details.maxRedemptions}` : ""}</span>
+                                ) : "-"}
+                              </TableCell>
+                              <TableCell className="text-muted-foreground text-sm">
+                                {new Date(campaign.startAt).toLocaleDateString()} - {new Date(campaign.endAt).toLocaleDateString()}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Section 2: Reactivation Rules */}
+              <Card className="mt-6">
+                <CardHeader>
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <CardTitle>Reactivation Rules</CardTitle>
+                      <CardDescription>Automated rules to re-engage inactive users</CardDescription>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => setShowCreateReactivationRuleDialog(true)}
+                      data-testid="button-create-reactivation-rule"
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      New Rule
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {reactivationRulesLoading ? (
+                    <div className="py-8 text-center text-muted-foreground">Loading reactivation rules...</div>
+                  ) : reactivationRules.length === 0 ? (
+                    <EmptyState
+                      icon={RefreshCw}
+                      title="No reactivation rules"
+                      description="Create rules to automatically re-engage inactive users"
+                    />
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Target Role</TableHead>
+                            <TableHead>Inactive Days</TableHead>
+                            <TableHead>Message Title</TableHead>
+                            <TableHead>Incentive</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Triggers</TableHead>
+                            <TableHead>Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {reactivationRules.map((rule) => (
+                            <TableRow key={rule.id} data-testid={`row-reactivation-rule-${rule.id}`}>
+                              <TableCell className="font-medium">{rule.name}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className="capitalize">{rule.targetRole}</Badge>
+                              </TableCell>
+                              <TableCell>{rule.inactiveDaysThreshold} days</TableCell>
+                              <TableCell>{rule.messageTitle}</TableCell>
+                              <TableCell>
+                                {rule.incentiveType ? (
+                                  <span>{rule.incentiveType}: {rule.incentiveValue || "-"}</span>
+                                ) : "-"}
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant={
+                                    rule.status === "ACTIVE" ? "default" :
+                                    rule.status === "PAUSED" ? "secondary" : "outline"
+                                  }
+                                >
+                                  {rule.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell data-testid={`text-trigger-count-${rule.id}`}>{rule.triggerCount}</TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-1 flex-wrap">
+                                  <Button
+                                    variant={rule.status === "ACTIVE" ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={() => updateReactivationRuleStatusMutation.mutate({ ruleId: rule.id, status: "ACTIVE" })}
+                                    disabled={rule.status === "ACTIVE"}
+                                    data-testid={`button-rule-activate-${rule.id}`}
+                                  >
+                                    <Play className="h-3 w-3 mr-1" />
+                                    Active
+                                  </Button>
+                                  <Button
+                                    variant={rule.status === "PAUSED" ? "secondary" : "outline"}
+                                    size="sm"
+                                    onClick={() => updateReactivationRuleStatusMutation.mutate({ ruleId: rule.id, status: "PAUSED" })}
+                                    disabled={rule.status === "PAUSED"}
+                                    data-testid={`button-rule-pause-${rule.id}`}
+                                  >
+                                    <Pause className="h-3 w-3 mr-1" />
+                                    Pause
+                                  </Button>
+                                  <Button
+                                    variant={rule.status === "ENDED" ? "destructive" : "outline"}
+                                    size="sm"
+                                    onClick={() => updateReactivationRuleStatusMutation.mutate({ ruleId: rule.id, status: "ENDED" })}
+                                    disabled={rule.status === "ENDED"}
+                                    data-testid={`button-rule-end-${rule.id}`}
+                                  >
+                                    <StopCircle className="h-3 w-3 mr-1" />
+                                    End
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Create Reactivation Rule Dialog */}
+              <Dialog open={showCreateReactivationRuleDialog} onOpenChange={setShowCreateReactivationRuleDialog}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Create Reactivation Rule</DialogTitle>
+                    <DialogDescription>Set up an automated rule to re-engage inactive users</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label>Rule Name</Label>
+                      <Input
+                        value={newReactivationRule.name}
+                        onChange={(e) => setNewReactivationRule({ ...newReactivationRule, name: e.target.value })}
+                        placeholder="e.g., 30-day inactive rider nudge"
+                        data-testid="input-reactivation-name"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>Target Role</Label>
+                        <Select
+                          value={newReactivationRule.targetRole}
+                          onValueChange={(value) => setNewReactivationRule({ ...newReactivationRule, targetRole: value })}
+                        >
+                          <SelectTrigger data-testid="select-reactivation-target-role">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="rider">Rider</SelectItem>
+                            <SelectItem value="driver">Driver</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Inactive Days Threshold</Label>
+                        <Input
+                          type="number"
+                          value={newReactivationRule.inactiveDaysThreshold}
+                          onChange={(e) => setNewReactivationRule({ ...newReactivationRule, inactiveDaysThreshold: parseInt(e.target.value) || 0 })}
+                          placeholder="30"
+                          data-testid="input-reactivation-days"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label>Message Title</Label>
+                      <Input
+                        value={newReactivationRule.messageTitle}
+                        onChange={(e) => setNewReactivationRule({ ...newReactivationRule, messageTitle: e.target.value })}
+                        placeholder="e.g., We miss you!"
+                        data-testid="input-reactivation-message-title"
+                      />
+                    </div>
+                    <div>
+                      <Label>Message Body</Label>
+                      <Textarea
+                        value={newReactivationRule.messageBody}
+                        onChange={(e) => setNewReactivationRule({ ...newReactivationRule, messageBody: e.target.value })}
+                        placeholder="Message to send to inactive users..."
+                        data-testid="input-reactivation-message-body"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>Incentive Type (Optional)</Label>
+                        <Select
+                          value={newReactivationRule.incentiveType}
+                          onValueChange={(value) => setNewReactivationRule({ ...newReactivationRule, incentiveType: value })}
+                        >
+                          <SelectTrigger data-testid="select-reactivation-incentive-type">
+                            <SelectValue placeholder="None" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">None</SelectItem>
+                            <SelectItem value="discount">Discount</SelectItem>
+                            <SelectItem value="credit">Credit</SelectItem>
+                            <SelectItem value="free_ride">Free Ride</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Incentive Value (Optional)</Label>
+                        <Input
+                          value={newReactivationRule.incentiveValue}
+                          onChange={(e) => setNewReactivationRule({ ...newReactivationRule, incentiveValue: e.target.value })}
+                          placeholder="e.g., 10%"
+                          data-testid="input-reactivation-incentive-value"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label>Country Code (Optional)</Label>
+                      <Input
+                        value={newReactivationRule.countryCode}
+                        onChange={(e) => setNewReactivationRule({ ...newReactivationRule, countryCode: e.target.value })}
+                        placeholder="e.g., NG"
+                        data-testid="input-reactivation-country-code"
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setShowCreateReactivationRuleDialog(false)}>Cancel</Button>
+                    <Button
+                      onClick={() => createReactivationRuleMutation.mutate(newReactivationRule)}
+                      disabled={createReactivationRuleMutation.isPending || !newReactivationRule.name || !newReactivationRule.messageTitle || !newReactivationRule.messageBody}
+                      data-testid="button-submit-reactivation-rule"
+                    >
+                      Create Rule
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              {/* Section 3: Marketing Attribution Stats */}
+              <Card className="mt-6">
+                <CardHeader>
+                  <CardTitle>Marketing Attribution</CardTitle>
+                  <CardDescription>User acquisition source breakdown</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-4 md:grid-cols-4">
+                    <Card>
+                      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Referral</CardTitle>
+                        <Badge variant="outline">REFERRAL</Badge>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold" data-testid="stat-attribution-referral">
+                          {getAttributionCount("REFERRAL")}
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Campaign</CardTitle>
+                        <Badge variant="outline">CAMPAIGN</Badge>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold" data-testid="stat-attribution-campaign">
+                          {getAttributionCount("CAMPAIGN")}
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Organic</CardTitle>
+                        <Badge variant="outline">ORGANIC</Badge>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold" data-testid="stat-attribution-organic">
+                          {getAttributionCount("ORGANIC")}
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Admin Invite</CardTitle>
+                        <Badge variant="outline">ADMIN_INVITE</Badge>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold" data-testid="stat-attribution-admin-invite">
+                          {getAttributionCount("ADMIN_INVITE")}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Section 4: Growth Safety Controls */}
+              <Card className="mt-6">
+                <CardHeader>
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <CardTitle>Growth Safety Controls</CardTitle>
+                      <CardDescription>Toggle growth features and set safety limits</CardDescription>
+                    </div>
+                    <Button
+                      onClick={() => saveGrowthSafetyMutation.mutate(growthSafetyForm)}
+                      disabled={saveGrowthSafetyMutation.isPending}
+                      data-testid="button-save-growth-safety"
+                    >
+                      {saveGrowthSafetyMutation.isPending ? "Saving..." : "Save Settings"}
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-6">
+                    <div className="grid gap-4 md:grid-cols-3">
+                      <div className="flex items-center justify-between gap-2 rounded-md border p-4">
+                        <div>
+                          <Label className="text-sm font-medium">Virality Enabled</Label>
+                          <p className="text-xs text-muted-foreground">Allow viral sharing features</p>
+                        </div>
+                        <Switch
+                          checked={growthSafetyForm.viralityEnabled}
+                          onCheckedChange={(checked) => setGrowthSafetyForm({ ...growthSafetyForm, viralityEnabled: checked })}
+                          data-testid="switch-virality-enabled"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between gap-2 rounded-md border p-4">
+                        <div>
+                          <Label className="text-sm font-medium">Share Moments</Label>
+                          <p className="text-xs text-muted-foreground">Enable shareable moments</p>
+                        </div>
+                        <Switch
+                          checked={growthSafetyForm.shareMomentsEnabled}
+                          onCheckedChange={(checked) => setGrowthSafetyForm({ ...growthSafetyForm, shareMomentsEnabled: checked })}
+                          data-testid="switch-share-moments-enabled"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between gap-2 rounded-md border p-4">
+                        <div>
+                          <Label className="text-sm font-medium">Reactivation</Label>
+                          <p className="text-xs text-muted-foreground">Enable user reactivation</p>
+                        </div>
+                        <Switch
+                          checked={growthSafetyForm.reactivationEnabled}
+                          onCheckedChange={(checked) => setGrowthSafetyForm({ ...growthSafetyForm, reactivationEnabled: checked })}
+                          data-testid="switch-reactivation-enabled"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div>
+                        <Label>Max Referral Reward Per User</Label>
+                        <Input
+                          type="number"
+                          value={growthSafetyForm.maxReferralRewardPerUser ?? ""}
+                          onChange={(e) => setGrowthSafetyForm({ ...growthSafetyForm, maxReferralRewardPerUser: e.target.value ? parseInt(e.target.value) : null })}
+                          placeholder="No limit"
+                          data-testid="input-max-referral-reward"
+                        />
+                      </div>
+                      <div>
+                        <Label>Max Daily Referrals</Label>
+                        <Input
+                          type="number"
+                          value={growthSafetyForm.maxDailyReferrals ?? ""}
+                          onChange={(e) => setGrowthSafetyForm({ ...growthSafetyForm, maxDailyReferrals: e.target.value ? parseInt(e.target.value) : null })}
+                          placeholder="No limit"
+                          data-testid="input-max-daily-referrals"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </TabsContent>
           )}
 
