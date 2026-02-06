@@ -3313,6 +3313,31 @@ export const insertAdminOverrideAuditLogSchema = createInsertSchema(adminOverrid
 export type InsertAdminOverrideAuditLog = z.infer<typeof insertAdminOverrideAuditLogSchema>;
 export type AdminOverrideAuditLog = typeof adminOverrideAuditLog.$inferSelect;
 
+// Phase 4 - User Analytics: New vs Returning User tracking
+export const userAnalytics = pgTable("user_analytics", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  role: userRoleEnum("role").notNull(),
+  firstSessionAt: timestamp("first_session_at"),
+  lastSessionAt: timestamp("last_session_at"),
+  sessionCount: integer("session_count").notNull().default(0),
+  lastActiveAt: timestamp("last_active_at"),
+  firstRideAt: timestamp("first_ride_at"),
+  firstTripAt: timestamp("first_trip_at"),
+  totalRidesCompleted: integer("total_rides_completed").notNull().default(0),
+  totalTripsCompleted: integer("total_trips_completed").notNull().default(0),
+  activatedAt: timestamp("activated_at"),
+  lastOnlineAt: timestamp("last_online_at"),
+  onlineDaysLast7: integer("online_days_last_7").notNull().default(0),
+  onlineDaysLast30: integer("online_days_last_30").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertUserAnalyticsSchema = createInsertSchema(userAnalytics).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertUserAnalytics = z.infer<typeof insertUserAnalyticsSchema>;
+export type UserAnalytics = typeof userAnalytics.$inferSelect;
+
 // Types
 export type InsertLegalDocument = z.infer<typeof insertLegalDocumentSchema>;
 export type LegalDocument = typeof legalDocuments.$inferSelect;

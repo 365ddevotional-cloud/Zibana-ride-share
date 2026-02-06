@@ -295,6 +295,9 @@ import {
   type InsertAdminOverride,
   type AdminOverrideAuditLog,
   type InsertAdminOverrideAuditLog,
+  userAnalytics,
+  type UserAnalytics,
+  type InsertUserAnalytics,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull } from "drizzle-orm";
@@ -928,6 +931,26 @@ export interface IStorage {
   createAdminOverrideAuditLog(data: InsertAdminOverrideAuditLog): Promise<AdminOverrideAuditLog>;
   getAdminOverrideAuditLogs(affectedUserId?: string): Promise<AdminOverrideAuditLog[]>;
   getAdminOverrideAuditLogsByAdmin(adminActorId: string): Promise<AdminOverrideAuditLog[]>;
+
+  // Phase 4 - User Analytics
+  getOrCreateUserAnalytics(userId: string, role: string): Promise<UserAnalytics>;
+  updateUserSession(userId: string, role: string): Promise<UserAnalytics>;
+  recordRideCompletion(userId: string): Promise<void>;
+  recordTripCompletion(userId: string): Promise<void>;
+  recordDriverOnline(userId: string): Promise<void>;
+  getUserGrowthAnalytics(): Promise<{
+    newUsersToday: { riders: number; drivers: number };
+    activatedToday: { riders: number; drivers: number };
+    returningToday: { riders: number; drivers: number };
+    riderRetention: { d1: number; d7: number; d30: number };
+    driverRetention: { d1: number; d7: number; d30: number };
+    avgTimeToFirstRide: number;
+    avgTimeToFirstTrip: number;
+    riderFunnel: { signedUp: number; firstRide: number; secondRide: number };
+    driverFunnel: { signedUp: number; approved: number; firstTrip: number; consistentActivity: number };
+    riderActivity: { ridesPerUser7d: number; ridesPerUser30d: number };
+    driverActivity: { onlineDays7d: number; onlineDays30d: number; tripsCompleted7d: number; tripsCompleted30d: number };
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -7419,6 +7442,244 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(adminOverrideAuditLog)
       .where(eq(adminOverrideAuditLog.adminActorId, adminActorId))
       .orderBy(desc(adminOverrideAuditLog.createdAt));
+  }
+
+  // Phase 4 - User Analytics
+  async getOrCreateUserAnalytics(userId: string, role: string): Promise<UserAnalytics> {
+    const existing = await db.select().from(userAnalytics)
+      .where(and(eq(userAnalytics.userId, userId), eq(userAnalytics.role, role as any)))
+      .limit(1);
+    if (existing.length > 0) return existing[0];
+    const [created] = await db.insert(userAnalytics).values({
+      userId,
+      role: role as any,
+      firstSessionAt: new Date(),
+      lastSessionAt: new Date(),
+      sessionCount: 1,
+      lastActiveAt: new Date(),
+    }).returning();
+    return created;
+  }
+
+  async updateUserSession(userId: string, role: string): Promise<UserAnalytics> {
+    const analytics = await this.getOrCreateUserAnalytics(userId, role);
+    const now = new Date();
+    const lastSession = analytics.lastSessionAt;
+    const isNewSession = !lastSession || (now.getTime() - lastSession.getTime()) > 30 * 60 * 1000;
+    
+    const updates: any = {
+      lastSessionAt: now,
+      lastActiveAt: now,
+      updatedAt: now,
+    };
+    if (!analytics.firstSessionAt) {
+      updates.firstSessionAt = now;
+    }
+    if (isNewSession) {
+      updates.sessionCount = (analytics.sessionCount || 0) + 1;
+    }
+    
+    const [updated] = await db.update(userAnalytics)
+      .set(updates)
+      .where(eq(userAnalytics.id, analytics.id))
+      .returning();
+    return updated;
+  }
+
+  async recordRideCompletion(userId: string): Promise<void> {
+    const analytics = await this.getOrCreateUserAnalytics(userId, "rider");
+    const now = new Date();
+    const updates: any = {
+      totalRidesCompleted: (analytics.totalRidesCompleted || 0) + 1,
+      lastActiveAt: now,
+      updatedAt: now,
+    };
+    if (!analytics.firstRideAt) {
+      updates.firstRideAt = now;
+      updates.activatedAt = now;
+    }
+    await db.update(userAnalytics).set(updates).where(eq(userAnalytics.id, analytics.id));
+  }
+
+  async recordTripCompletion(userId: string): Promise<void> {
+    const analytics = await this.getOrCreateUserAnalytics(userId, "driver");
+    const now = new Date();
+    const updates: any = {
+      totalTripsCompleted: (analytics.totalTripsCompleted || 0) + 1,
+      lastActiveAt: now,
+      updatedAt: now,
+    };
+    if (!analytics.firstTripAt) {
+      updates.firstTripAt = now;
+      updates.activatedAt = now;
+    }
+    await db.update(userAnalytics).set(updates).where(eq(userAnalytics.id, analytics.id));
+  }
+
+  async recordDriverOnline(userId: string): Promise<void> {
+    const analytics = await this.getOrCreateUserAnalytics(userId, "driver");
+    const now = new Date();
+    await db.update(userAnalytics).set({
+      lastOnlineAt: now,
+      lastActiveAt: now,
+      updatedAt: now,
+    }).where(eq(userAnalytics.id, analytics.id));
+  }
+
+  async getUserGrowthAnalytics(): Promise<{
+    newUsersToday: { riders: number; drivers: number };
+    activatedToday: { riders: number; drivers: number };
+    returningToday: { riders: number; drivers: number };
+    riderRetention: { d1: number; d7: number; d30: number };
+    driverRetention: { d1: number; d7: number; d30: number };
+    avgTimeToFirstRide: number;
+    avgTimeToFirstTrip: number;
+    riderFunnel: { signedUp: number; firstRide: number; secondRide: number };
+    driverFunnel: { signedUp: number; approved: number; firstTrip: number; consistentActivity: number };
+    riderActivity: { ridesPerUser7d: number; ridesPerUser30d: number };
+    driverActivity: { onlineDays7d: number; onlineDays30d: number; tripsCompleted7d: number; tripsCompleted30d: number };
+  }> {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const d1 = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const d7 = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const d30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    const newRidersToday = await db.select({ count: count() }).from(userAnalytics)
+      .where(and(eq(userAnalytics.role, "rider"), gte(userAnalytics.firstSessionAt, todayStart)));
+    const newDriversToday = await db.select({ count: count() }).from(userAnalytics)
+      .where(and(eq(userAnalytics.role, "driver"), gte(userAnalytics.firstSessionAt, todayStart)));
+
+    const activatedRidersToday = await db.select({ count: count() }).from(userAnalytics)
+      .where(and(eq(userAnalytics.role, "rider"), gte(userAnalytics.activatedAt, todayStart)));
+    const activatedDriversToday = await db.select({ count: count() }).from(userAnalytics)
+      .where(and(eq(userAnalytics.role, "driver"), gte(userAnalytics.activatedAt, todayStart)));
+
+    const returningRidersToday = await db.select({ count: count() }).from(userAnalytics)
+      .where(and(
+        eq(userAnalytics.role, "rider"),
+        gte(userAnalytics.lastActiveAt, todayStart),
+        lt(userAnalytics.activatedAt, todayStart)
+      ));
+    const returningDriversToday = await db.select({ count: count() }).from(userAnalytics)
+      .where(and(
+        eq(userAnalytics.role, "driver"),
+        gte(userAnalytics.lastActiveAt, todayStart),
+        lt(userAnalytics.activatedAt, todayStart)
+      ));
+
+    const calcRetention = async (role: string, daysAgo: number): Promise<number> => {
+      const windowStart = new Date(now.getTime() - (daysAgo + 1) * 24 * 60 * 60 * 1000);
+      const windowEnd = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
+      const cohort = await db.select({ count: count() }).from(userAnalytics)
+        .where(and(
+          eq(userAnalytics.role, role as any),
+          gte(userAnalytics.activatedAt, windowStart),
+          lt(userAnalytics.activatedAt, windowEnd)
+        ));
+      if (!cohort[0]?.count) return 0;
+      const returned = await db.select({ count: count() }).from(userAnalytics)
+        .where(and(
+          eq(userAnalytics.role, role as any),
+          gte(userAnalytics.activatedAt, windowStart),
+          lt(userAnalytics.activatedAt, windowEnd),
+          gte(userAnalytics.lastActiveAt, windowEnd)
+        ));
+      return cohort[0].count > 0 ? Math.round((returned[0].count / cohort[0].count) * 100) : 0;
+    };
+
+    const riderD1 = await calcRetention("rider", 1);
+    const riderD7 = await calcRetention("rider", 7);
+    const riderD30 = await calcRetention("rider", 30);
+    const driverD1 = await calcRetention("driver", 1);
+    const driverD7 = await calcRetention("driver", 7);
+    const driverD30 = await calcRetention("driver", 30);
+
+    const avgFirstRide = await db.select({
+      avg: sql<number>`EXTRACT(EPOCH FROM AVG(${userAnalytics.firstRideAt} - ${userAnalytics.firstSessionAt})) / 3600`
+    }).from(userAnalytics)
+      .where(and(eq(userAnalytics.role, "rider"), sql`${userAnalytics.firstRideAt} IS NOT NULL`));
+
+    const avgFirstTrip = await db.select({
+      avg: sql<number>`EXTRACT(EPOCH FROM AVG(${userAnalytics.firstTripAt} - ${userAnalytics.firstSessionAt})) / 3600`
+    }).from(userAnalytics)
+      .where(and(eq(userAnalytics.role, "driver"), sql`${userAnalytics.firstTripAt} IS NOT NULL`));
+
+    const riderSignedUp = await db.select({ count: count() }).from(userAnalytics)
+      .where(eq(userAnalytics.role, "rider"));
+    const riderFirstRide = await db.select({ count: count() }).from(userAnalytics)
+      .where(and(eq(userAnalytics.role, "rider"), sql`${userAnalytics.firstRideAt} IS NOT NULL`));
+    const riderSecondRide = await db.select({ count: count() }).from(userAnalytics)
+      .where(and(eq(userAnalytics.role, "rider"), gte(userAnalytics.totalRidesCompleted, 2)));
+
+    const driverSignedUp = await db.select({ count: count() }).from(userAnalytics)
+      .where(eq(userAnalytics.role, "driver"));
+    const driverApproved = await db.select({ count: count() }).from(driverProfiles)
+      .where(eq(driverProfiles.verificationStatus, "approved"));
+    const driverFirstTrip = await db.select({ count: count() }).from(userAnalytics)
+      .where(and(eq(userAnalytics.role, "driver"), sql`${userAnalytics.firstTripAt} IS NOT NULL`));
+    const driverConsistent = await db.select({ count: count() }).from(userAnalytics)
+      .where(and(eq(userAnalytics.role, "driver"), gte(userAnalytics.totalTripsCompleted, 5)));
+
+    const riderActivity7d = await db.select({
+      avg: sql<number>`AVG(${userAnalytics.totalRidesCompleted})`
+    }).from(userAnalytics)
+      .where(and(eq(userAnalytics.role, "rider"), gte(userAnalytics.lastActiveAt, d7)));
+    const riderActivity30d = await db.select({
+      avg: sql<number>`AVG(${userAnalytics.totalRidesCompleted})`
+    }).from(userAnalytics)
+      .where(and(eq(userAnalytics.role, "rider"), gte(userAnalytics.lastActiveAt, d30)));
+
+    const driverActivity7d = await db.select({
+      avgOnline: sql<number>`AVG(${userAnalytics.onlineDaysLast7})`,
+      avgTrips: sql<number>`AVG(${userAnalytics.totalTripsCompleted})`
+    }).from(userAnalytics)
+      .where(and(eq(userAnalytics.role, "driver"), gte(userAnalytics.lastActiveAt, d7)));
+    const driverActivity30d = await db.select({
+      avgOnline: sql<number>`AVG(${userAnalytics.onlineDaysLast30})`,
+      avgTrips: sql<number>`AVG(${userAnalytics.totalTripsCompleted})`
+    }).from(userAnalytics)
+      .where(and(eq(userAnalytics.role, "driver"), gte(userAnalytics.lastActiveAt, d30)));
+
+    return {
+      newUsersToday: {
+        riders: newRidersToday[0]?.count || 0,
+        drivers: newDriversToday[0]?.count || 0,
+      },
+      activatedToday: {
+        riders: activatedRidersToday[0]?.count || 0,
+        drivers: activatedDriversToday[0]?.count || 0,
+      },
+      returningToday: {
+        riders: returningRidersToday[0]?.count || 0,
+        drivers: returningDriversToday[0]?.count || 0,
+      },
+      riderRetention: { d1: riderD1, d7: riderD7, d30: riderD30 },
+      driverRetention: { d1: driverD1, d7: driverD7, d30: driverD30 },
+      avgTimeToFirstRide: Number(avgFirstRide[0]?.avg) || 0,
+      avgTimeToFirstTrip: Number(avgFirstTrip[0]?.avg) || 0,
+      riderFunnel: {
+        signedUp: riderSignedUp[0]?.count || 0,
+        firstRide: riderFirstRide[0]?.count || 0,
+        secondRide: riderSecondRide[0]?.count || 0,
+      },
+      driverFunnel: {
+        signedUp: driverSignedUp[0]?.count || 0,
+        approved: driverApproved[0]?.count || 0,
+        firstTrip: driverFirstTrip[0]?.count || 0,
+        consistentActivity: driverConsistent[0]?.count || 0,
+      },
+      riderActivity: {
+        ridesPerUser7d: Number(riderActivity7d[0]?.avg) || 0,
+        ridesPerUser30d: Number(riderActivity30d[0]?.avg) || 0,
+      },
+      driverActivity: {
+        onlineDays7d: Number(driverActivity7d[0]?.avgOnline) || 0,
+        onlineDays30d: Number(driverActivity30d[0]?.avgOnline) || 0,
+        tripsCompleted7d: Number(driverActivity7d[0]?.avgTrips) || 0,
+        tripsCompleted30d: Number(driverActivity30d[0]?.avgTrips) || 0,
+      },
+    };
   }
 }
 

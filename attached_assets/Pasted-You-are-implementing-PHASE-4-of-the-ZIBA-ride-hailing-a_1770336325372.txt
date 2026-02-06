@@ -1,0 +1,128 @@
+You are implementing PHASE 4 of the ZIBA ride-hailing app: NEW vs RETURNING USER ANALYTICS.
+
+This phase defines how ZIBA measures real growth, retention, and platform health
+for both riders and drivers.
+
+DO NOT TRACK VANITY METRICS ONLY.
+DO NOT RELY ON INSTALL COUNTS.
+
+=====================================
+1) USER CLASSIFICATION LOGIC
+=====================================
+
+Define user states based on behavior, not installs.
+
+NEW USER:
+• User has completed signup
+• first_session_at is set
+• Has NOT completed first ride (rider) or first trip (driver)
+
+ACTIVATED USER:
+• Rider → first completed ride
+• Driver → first completed trip
+
+RETURNING USER:
+• User opens the app AFTER first activation
+• OR completes another ride/trip on a later date
+
+=====================================
+2) REQUIRED ANALYTICS FIELDS (MUST EXIST)
+=====================================
+
+At user level:
+- first_session_at
+- first_trip_at (driver)
+- first_ride_at (rider)
+- last_session_at
+- session_count
+- last_active_at
+
+At aggregate level (derived, not stored):
+- day_1_returned
+- day_7_returned
+- day_30_returned
+
+=====================================
+3) RETENTION METRICS (CORE KPIs)
+=====================================
+
+Track retention separately for Riders and Drivers.
+
+RIDER RETENTION:
+• D1: User returns or rides again within 24 hours
+• D7: User returns or rides again within 7 days
+• D30: User returns or rides again within 30 days
+
+DRIVER RETENTION:
+• D1: Driver comes online again within 24 hours
+• D7: Driver comes online or completes trip within 7 days
+• D30: Driver active within 30 days
+
+=====================================
+4) ACTIVITY METRICS (QUALITY SIGNALS)
+=====================================
+
+For Riders:
+- rides_per_user_7_days
+- rides_per_user_30_days
+- average_time_to_first_ride
+
+For Drivers:
+- online_days_7
+- online_days_30
+- trips_completed_7
+- trips_completed_30
+
+=====================================
+5) FUNNEL METRICS (WHERE USERS DROP OFF)
+=====================================
+
+Track conversion funnel:
+
+Rider Funnel:
+• App install → Signup → First ride → Second ride
+
+Driver Funnel:
+• Signup → Approved → First trip → Consistent activity
+
+Each stage must record drop-off counts.
+
+=====================================
+6) SESSION RULES (IMPORTANT)
+=====================================
+
+• A session starts when app is opened with valid auth token.
+• A session ends after configurable inactivity (e.g. 30 minutes).
+• Multiple opens in short time = ONE session.
+
+=====================================
+7) DASHBOARD REQUIREMENTS
+=====================================
+
+Admin Analytics Dashboard must show:
+• New users today
+• Activated users today
+• Returning users today
+• Rider retention (D1, D7, D30)
+• Driver retention (D1, D7, D30)
+• Average time to first ride
+• Average time to first trip
+
+=====================================
+8) DECISION RULES (HOW YOU USE THIS DATA)
+=====================================
+
+• If installs ↑ but first rides ↓ → onboarding or pricing problem
+• If first rides ↑ but D7 ↓ → experience or availability problem
+• If drivers signup ↑ but D1 online ↓ → incentives or trust problem
+
+=====================================
+9) DATA INTEGRITY RULES
+=====================================
+
+• Never reset analytics on app reinstall.
+• Never count the same user twice.
+• Analytics must be role-aware (rider ≠ driver).
+• Analytics must be date-based, not session-only.
+
+This phase must be completed and validated before product optimization or city scaling.
