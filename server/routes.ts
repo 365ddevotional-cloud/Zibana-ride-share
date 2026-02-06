@@ -13343,5 +13343,361 @@ export async function registerRoutes(
     }
   });
 
+  // =============================================
+  // PHASE 9: DRIVER ACQUISITION AUTOMATION
+  // =============================================
+
+  // Get acquisition analytics
+  app.get("/api/admin/acquisition/analytics", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const countryCode = req.query.countryCode as string | undefined;
+      const analytics = await storage.getDriverAcquisitionAnalytics(countryCode);
+      return res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching acquisition analytics:", error);
+      return res.status(500).json({ message: "Failed to fetch acquisition analytics" });
+    }
+  });
+
+  // Get onboarding pipeline
+  app.get("/api/admin/acquisition/pipeline", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const countryCode = req.query.countryCode as string | undefined;
+      const pipeline = await storage.getOnboardingPipeline(countryCode);
+      return res.json(pipeline);
+    } catch (error) {
+      console.error("Error fetching onboarding pipeline:", error);
+      return res.status(500).json({ message: "Failed to fetch onboarding pipeline" });
+    }
+  });
+
+  // Get driver acquisitions by channel
+  app.get("/api/admin/acquisition/drivers", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const { channel, countryCode } = req.query;
+      const drivers = await storage.getDriverAcquisitionsByChannel(channel as string, countryCode as string);
+      return res.json(drivers);
+    } catch (error) {
+      console.error("Error fetching driver acquisitions:", error);
+      return res.status(500).json({ message: "Failed to fetch driver acquisitions" });
+    }
+  });
+
+  // Track driver acquisition on signup
+  app.post("/api/acquisition/track-signup", isAuthenticated, async (req: any, res) => {
+    try {
+      const { channel, referralCode, fleetOwnerId, countryCode, stateCode } = req.body;
+      const userId = req.user.id;
+      
+      const existing = await storage.getDriverAcquisition(userId);
+      if (existing) return res.status(400).json({ message: "Acquisition already tracked" });
+
+      const zoneControl = await storage.getAcquisitionZoneControl(countryCode || "NG", stateCode);
+      if (zoneControl?.status === "PAUSED") {
+        return res.status(403).json({ message: "Driver acquisition is paused in this zone" });
+      }
+
+      const data: any = {
+        driverUserId: userId,
+        channel: channel || "PUBLIC_SIGNUP",
+        countryCode: countryCode || "NG",
+        stateCode,
+        onboardingStage: "SIGNUP",
+      };
+
+      if (channel === "REFERRAL" && referralCode) {
+        const code = await storage.getReferralCodeByCode(referralCode);
+        if (code && code.active) {
+          if (code.ownerUserId === userId) {
+            return res.status(400).json({ message: "Cannot use your own referral code" });
+          }
+          data.referralCodeId = code.id;
+          data.referredByUserId = code.ownerUserId;
+          await storage.updateReferralCodeUsage(code.id);
+
+          const country = await storage.getCountryByCode(countryCode || "NG");
+          const reward = await storage.createDriverReferralReward({
+            referrerUserId: code.ownerUserId,
+            referredDriverUserId: userId,
+            referralCodeId: code.id,
+            requiredTrips: 5,
+            completedTrips: 0,
+            requiredWithinDays: 30,
+            deadlineAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+            rewardAmount: "500.00",
+            currency: country?.currency || "NGN",
+            paid: false,
+            expired: false,
+            fraudFlagged: false,
+          });
+        }
+      }
+
+      if (channel === "FLEET_OWNER" && fleetOwnerId) {
+        data.fleetOwnerId = fleetOwnerId;
+      }
+
+      if (channel === "ADMIN_INVITED") {
+        data.invitedByAdminId = req.user.id;
+      }
+
+      const acquisition = await storage.createDriverAcquisition(data);
+
+      await storage.createDriverAutoMessage({
+        driverUserId: userId,
+        messageType: "WELCOME",
+        title: "Welcome to ZIBA!",
+        message: "Thanks for signing up as a driver. Complete your profile and upload your documents to get started.",
+        countryCode: countryCode || "NG",
+        stateCode,
+      });
+
+      return res.json(acquisition);
+    } catch (error) {
+      console.error("Error tracking acquisition:", error);
+      return res.status(500).json({ message: "Failed to track acquisition" });
+    }
+  });
+
+  // Update onboarding stage
+  app.post("/api/acquisition/update-stage", isAuthenticated, async (req: any, res) => {
+    try {
+      const { stage } = req.body;
+      const userId = req.user.id;
+      
+      const validStages = ["SIGNUP", "DOCUMENTS", "REVIEW", "FIRST_TRIP", "ACTIVE"];
+      if (!validStages.includes(stage)) {
+        return res.status(400).json({ message: "Invalid onboarding stage" });
+      }
+
+      const timestamps: any = {};
+      if (stage === "DOCUMENTS") timestamps.documentsUploadedAt = new Date();
+      if (stage === "REVIEW") timestamps.reviewStartedAt = new Date();
+      if (stage === "FIRST_TRIP") timestamps.approvedAt = new Date();
+      if (stage === "ACTIVE") timestamps.activatedAt = new Date();
+
+      const updated = await storage.updateDriverOnboardingStage(userId, stage, timestamps);
+      if (!updated) return res.status(404).json({ message: "No acquisition record found" });
+
+      const messageMap: Record<string, { type: string; title: string; msg: string }> = {
+        DOCUMENTS: { type: "DOCS_UPLOADED", title: "Documents Received", msg: "Your documents have been uploaded. They are now under review." },
+        REVIEW: { type: "UNDER_REVIEW", title: "Under Review", msg: "Your application is being reviewed. You'll be notified once approved." },
+        FIRST_TRIP: { type: "APPROVED", title: "You're Approved!", msg: "Congratulations! You're now approved to drive. Complete your first trip to become fully active." },
+        ACTIVE: { type: "ACTIVATED", title: "Fully Active", msg: "You've completed your first trip and are now a fully active ZIBA driver!" },
+      };
+
+      if (messageMap[stage]) {
+        const m = messageMap[stage];
+        await storage.createDriverAutoMessage({
+          driverUserId: userId,
+          messageType: m.type,
+          title: m.title,
+          message: m.msg,
+        });
+      }
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error updating onboarding stage:", error);
+      return res.status(500).json({ message: "Failed to update onboarding stage" });
+    }
+  });
+
+  // Admin approve driver (moves to FIRST_TRIP stage)
+  app.post("/api/admin/acquisition/approve-driver", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const { driverUserId } = req.body;
+      if (!driverUserId) return res.status(400).json({ message: "driverUserId is required" });
+
+      const acquisition = await storage.getDriverAcquisition(driverUserId);
+      if (!acquisition) return res.status(404).json({ message: "No acquisition record found" });
+      if (acquisition.onboardingStage !== "REVIEW") {
+        return res.status(400).json({ message: "Driver is not in review stage" });
+      }
+
+      const approvedAt = new Date();
+      const approvalMinutes = acquisition.reviewStartedAt
+        ? Math.round((approvedAt.getTime() - new Date(acquisition.reviewStartedAt).getTime()) / 60000)
+        : null;
+
+      const updated = await storage.updateDriverOnboardingStage(driverUserId, "FIRST_TRIP", {
+        approvedAt,
+        approvalTimeMinutes: approvalMinutes,
+      } as any);
+
+      await storage.updateDriverStatus(driverUserId, "approved");
+
+      await storage.createDriverAutoMessage({
+        driverUserId,
+        messageType: "APPROVED",
+        title: "Application Approved",
+        message: "Your driver application has been approved. You can now go online and accept trips!",
+      });
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error approving driver:", error);
+      return res.status(500).json({ message: "Failed to approve driver" });
+    }
+  });
+
+  // Fleet Owner endpoints
+  app.get("/api/admin/fleet-owners", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const fleetOwners = await storage.getAllFleetOwners();
+      return res.json(fleetOwners);
+    } catch (error) {
+      console.error("Error fetching fleet owners:", error);
+      return res.status(500).json({ message: "Failed to fetch fleet owners" });
+    }
+  });
+
+  app.post("/api/admin/fleet-owners/create", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const { userId, companyName, countryCode, maxDrivers, bonusPerActivation } = req.body;
+      if (!userId) return res.status(400).json({ message: "userId is required" });
+
+      const existing = await storage.getFleetOwner(userId);
+      if (existing) return res.status(400).json({ message: "User is already a fleet owner" });
+
+      const fleetOwner = await storage.createFleetOwner({
+        userId,
+        companyName: companyName || null,
+        countryCode: countryCode || "NG",
+        maxDrivers: maxDrivers || 50,
+        bonusPerActivation: bonusPerActivation || "0.00",
+      });
+
+      return res.json(fleetOwner);
+    } catch (error) {
+      console.error("Error creating fleet owner:", error);
+      return res.status(500).json({ message: "Failed to create fleet owner" });
+    }
+  });
+
+  app.post("/api/admin/fleet-owners/suspend", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const { userId, reason } = req.body;
+      if (!userId || !reason) return res.status(400).json({ message: "userId and reason are required" });
+
+      const suspended = await storage.suspendFleetOwner(userId, reason);
+      if (!suspended) return res.status(404).json({ message: "Fleet owner not found" });
+
+      return res.json(suspended);
+    } catch (error) {
+      console.error("Error suspending fleet owner:", error);
+      return res.status(500).json({ message: "Failed to suspend fleet owner" });
+    }
+  });
+
+  app.post("/api/admin/fleet-owners/update", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const { userId, ...data } = req.body;
+      if (!userId) return res.status(400).json({ message: "userId is required" });
+
+      const updated = await storage.updateFleetOwner(userId, data);
+      if (!updated) return res.status(404).json({ message: "Fleet owner not found" });
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error updating fleet owner:", error);
+      return res.status(500).json({ message: "Failed to update fleet owner" });
+    }
+  });
+
+  // Supply alerts
+  app.get("/api/admin/supply-alerts", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const countryCode = req.query.countryCode as string | undefined;
+      const alerts = await storage.getActiveSupplyAlerts(countryCode);
+      return res.json(alerts);
+    } catch (error) {
+      console.error("Error fetching supply alerts:", error);
+      return res.status(500).json({ message: "Failed to fetch supply alerts" });
+    }
+  });
+
+  app.post("/api/admin/supply-alerts/resolve", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const { alertId } = req.body;
+      if (!alertId) return res.status(400).json({ message: "alertId is required" });
+
+      const resolved = await storage.resolveSupplyAlert(alertId);
+      if (!resolved) return res.status(404).json({ message: "Alert not found" });
+
+      return res.json(resolved);
+    } catch (error) {
+      console.error("Error resolving supply alert:", error);
+      return res.status(500).json({ message: "Failed to resolve supply alert" });
+    }
+  });
+
+  // Acquisition zone controls
+  app.get("/api/admin/acquisition/zone-controls", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const { countryCode, stateCode } = req.query;
+      if (!countryCode) return res.status(400).json({ message: "countryCode is required" });
+
+      const control = await storage.getAcquisitionZoneControl(countryCode as string, stateCode as string);
+      return res.json(control || { status: "ACTIVE" });
+    } catch (error) {
+      console.error("Error fetching zone control:", error);
+      return res.status(500).json({ message: "Failed to fetch zone control" });
+    }
+  });
+
+  app.post("/api/admin/acquisition/zone-controls", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const { countryCode, stateCode, status, reason } = req.body;
+      if (!countryCode || !status) return res.status(400).json({ message: "countryCode and status are required" });
+
+      const control = await storage.setAcquisitionZoneControl(
+        countryCode,
+        stateCode || null,
+        status,
+        req.user.id,
+        reason
+      );
+
+      return res.json(control);
+    } catch (error) {
+      console.error("Error setting zone control:", error);
+      return res.status(500).json({ message: "Failed to set zone control" });
+    }
+  });
+
+  // Referral rewards management
+  app.get("/api/admin/referral-rewards", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const rewards = await storage.getDriverAcquisitionsByChannel("REFERRAL");
+      return res.json(rewards);
+    } catch (error) {
+      console.error("Error fetching referral rewards:", error);
+      return res.status(500).json({ message: "Failed to fetch referral rewards" });
+    }
+  });
+
+  // Driver auto-messages for current driver
+  app.get("/api/driver/messages", isAuthenticated, async (req: any, res) => {
+    try {
+      const messages = await storage.getDriverAutoMessages(req.user.id);
+      return res.json(messages);
+    } catch (error) {
+      console.error("Error fetching driver messages:", error);
+      return res.status(500).json({ message: "Failed to fetch driver messages" });
+    }
+  });
+
+  // My acquisition status
+  app.get("/api/driver/acquisition-status", isAuthenticated, async (req: any, res) => {
+    try {
+      const acquisition = await storage.getDriverAcquisition(req.user.id);
+      return res.json(acquisition || null);
+    } catch (error) {
+      console.error("Error fetching acquisition status:", error);
+      return res.status(500).json({ message: "Failed to fetch acquisition status" });
+    }
+  });
+
   return httpServer;
 }
