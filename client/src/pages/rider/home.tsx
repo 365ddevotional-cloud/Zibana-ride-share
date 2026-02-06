@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { CancellationWarning } from "@/components/cancellation-warning";
 import { ContextualHelpSuggestion } from "@/components/contextual-help";
 import { PaymentOnboardingModal } from "@/components/payment-onboarding-modal";
+import { RiderSimulationControls } from "@/components/simulation-ride-controls";
 
 interface WalletInfo {
   mainBalance: string;
@@ -72,6 +73,7 @@ export default function RiderHome() {
       <RiderLayout>
         <CancellationWarning role="rider" />
         <div className="p-4 space-y-6">
+          <RiderSimulationControls />
           <div className="pt-4 pb-2">
             <h1 className="text-2xl font-bold" data-testid="text-greeting">
               Where are you going?

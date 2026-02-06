@@ -34,6 +34,7 @@ import { TaxDocumentsPanel } from "@/components/admin/tax-documents-panel";
 import { TaxComplianceConfig } from "@/components/admin/tax-compliance-config";
 import { CashSettlementPanel } from "@/components/admin/cash-settlement-panel";
 import { CashDisputesPanel } from "@/components/admin/cash-disputes-panel";
+import { SimulationCenter } from "@/components/admin/simulation-center";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -2117,6 +2118,23 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                   <ChevronRight className="h-5 w-5 text-muted-foreground" />
                 </CardContent>
               </Card>
+
+              <Card 
+                className="cursor-pointer hover-elevate transition-all" 
+                onClick={() => setActiveTab("simulation")}
+                data-testid="card-super-admin-simulation"
+              >
+                <CardContent className="flex items-center gap-4 pt-6">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30">
+                    <Play className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-lg font-semibold">Simulation Center</p>
+                    <p className="text-sm text-muted-foreground">Generate simulation codes</p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                </CardContent>
+              </Card>
             </div>
           </div>
         )}
@@ -2328,6 +2346,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <TabsTrigger value="cash-disputes" className="admin-nav-trigger rounded-md" data-testid="tab-cash-disputes">
                 <ShieldAlert className="h-4 w-4 mr-2" />
                 Cash Disputes
+              </TabsTrigger>
+            )}
+            {isSuperAdmin && (
+              <TabsTrigger value="simulation" className="admin-nav-trigger rounded-md" data-testid="tab-simulation">
+                <Play className="h-4 w-4 mr-2" />
+                Simulation
               </TabsTrigger>
             )}
           </TabsList>
@@ -6644,6 +6668,11 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
           {(isSuperAdmin || userRole === "admin") && (
             <TabsContent value="cash-disputes">
               <CashDisputesPanel />
+            </TabsContent>
+          )}
+          {isSuperAdmin && (
+            <TabsContent value="simulation">
+              <SimulationCenter />
             </TabsContent>
           )}
         </Tabs>

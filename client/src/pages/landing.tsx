@@ -1,13 +1,51 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Shield, Clock, MapPin, Users, CheckCircle, Navigation, Wallet, Star } from "lucide-react";
+import { Shield, Clock, MapPin, Users, CheckCircle, Navigation, Wallet, Star, Play } from "lucide-react";
 import { getAppName } from "@/config/appMode";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 export default function LandingPage() {
   const appName = getAppName();
-  
+  const { toast } = useToast();
+  const [simDialogOpen, setSimDialogOpen] = useState(false);
+  const [simCode, setSimCode] = useState("");
+  const [simLoading, setSimLoading] = useState(false);
+  const [simError, setSimError] = useState("");
+
+  const handleSimCodeSubmit = async () => {
+    if (!simCode.trim()) return;
+    setSimLoading(true);
+    setSimError("");
+    try {
+      const res = await fetch("/api/simulation/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: simCode.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setSimError(data.message || "Invalid code");
+        return;
+      }
+      toast({
+        title: "Valid simulation code",
+        description: `Role: ${data.role}, Country: ${data.countryCode}. Sign in to begin.`,
+      });
+      sessionStorage.setItem("ziba-sim-code", simCode.trim());
+      window.location.href = `/api/login?role=${data.role === "admin" || data.role === "director" ? "admin" : data.role}`;
+    } catch {
+      setSimError("Failed to validate code");
+    } finally {
+      setSimLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="fixed top-0 left-0 right-0 z-50 border-b bg-background/80 backdrop-blur-md">
@@ -209,12 +247,59 @@ export default function LandingPage() {
         <div className="container mx-auto px-4">
           <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
             <Logo size="sm" />
-            <p className="text-sm text-muted-foreground">
-              &copy; {new Date().getFullYear()} {appName}. All rights reserved.
-            </p>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setSimDialogOpen(true)}
+                className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+                data-testid="button-enter-simulation"
+              >
+                Enter Simulation Code
+              </button>
+              <p className="text-sm text-muted-foreground">
+                &copy; {new Date().getFullYear()} {appName}. All rights reserved.
+              </p>
+            </div>
           </div>
         </div>
       </footer>
+
+      <Dialog open={simDialogOpen} onOpenChange={setSimDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Play className="h-5 w-5" />
+              Enter Simulation Code
+            </DialogTitle>
+            <DialogDescription>
+              Enter a simulation code provided by an administrator to experience the app in simulation mode.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <Input
+              placeholder="Enter 6-9 digit code"
+              value={simCode}
+              onChange={(e) => { setSimCode(e.target.value); setSimError(""); }}
+              data-testid="input-simulation-code"
+              maxLength={12}
+            />
+            {simError && (
+              <p className="text-sm text-destructive">{simError}</p>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setSimDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSimCodeSubmit}
+              disabled={!simCode.trim() || simLoading}
+              data-testid="button-submit-simulation-code"
+            >
+              {simLoading ? "Validating..." : "Continue"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

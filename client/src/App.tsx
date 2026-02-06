@@ -11,6 +11,7 @@ import { RiderAppGuard } from "@/components/rider-app-guard";
 import { DriverAppGuard } from "@/components/driver-app-guard";
 import { APP_MODE, isRoleAllowedInAppMode } from "@/config/appMode";
 import { AppModeProvider, useAppMode } from "@/context/AppModeContext";
+import { SimulationProvider, SimulationBanner } from "@/context/SimulationContext";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { FullPageLoading } from "@/components/loading-spinner";
@@ -611,9 +612,12 @@ function App() {
           <TooltipProvider>
             <AppModeProvider>
               <AppModeGuard>
-                <Toaster />
-                <NetworkStatusIndicator />
-                <MainRouter />
+                <SimulationProvider>
+                  <SimulationBanner />
+                  <Toaster />
+                  <NetworkStatusIndicator />
+                  <MainRouter />
+                </SimulationProvider>
               </AppModeGuard>
             </AppModeProvider>
           </TooltipProvider>

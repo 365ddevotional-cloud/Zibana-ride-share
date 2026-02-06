@@ -13,6 +13,7 @@ import { FullPageLoading } from "@/components/loading-spinner";
 import { UserAvatar } from "@/components/user-avatar";
 import { CancellationWarning } from "@/components/cancellation-warning";
 import { BehaviorAdvisory } from "@/components/driver/behavior-advisory";
+import { DriverSimulationControls } from "@/components/simulation-ride-controls";
 import { cn } from "@/lib/utils";
 import { useLocation } from "wouter";
 import type { DriverProfile, Trip } from "@shared/schema";
@@ -186,6 +187,7 @@ export default function DriverDashboard() {
     <DriverLayout>
       <CancellationWarning role="driver" />
       <div className="p-4 space-y-6">
+        <DriverSimulationControls />
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <UserAvatar user={user} size="lg" />
