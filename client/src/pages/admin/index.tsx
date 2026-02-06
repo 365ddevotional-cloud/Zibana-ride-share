@@ -25,6 +25,7 @@ import { AdminOverridePanel } from "@/components/admin/override-panel";
 import { UserGrowthPanel } from "@/components/admin/user-growth-panel";
 import { IncentivesPanel } from "@/components/admin/incentives-panel";
 import { LaunchReadinessPanel } from "@/components/admin/launch-readiness-panel";
+import { AcquisitionPanel } from "@/components/admin/acquisition-panel";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -72,7 +73,8 @@ import {
   Settings,
   TestTube,
   Trash2,
-  Rocket
+  Rocket,
+  UserPlus
 } from "lucide-react";
 import type { DriverProfile, Trip, User } from "@shared/schema";
 import { NotificationBell } from "@/components/notification-bell";
@@ -2102,6 +2104,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <TabsTrigger value="incentives" className="admin-nav-trigger rounded-md" data-testid="tab-incentives">
                 <Award className="h-4 w-4 mr-2" />
                 Incentives
+              </TabsTrigger>
+            )}
+            {(isSuperAdmin || userRole === "admin") && (
+              <TabsTrigger value="acquisition" className="admin-nav-trigger rounded-md" data-testid="tab-acquisition">
+                <UserPlus className="h-4 w-4 mr-2" />
+                Acquisition
               </TabsTrigger>
             )}
           </TabsList>
@@ -5949,6 +5957,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
           {(isSuperAdmin || userRole === "admin" || userRole === "finance") && (
             <TabsContent value="incentives">
               <IncentivesPanel />
+            </TabsContent>
+          )}
+
+          {(isSuperAdmin || userRole === "admin") && (
+            <TabsContent value="acquisition">
+              <AcquisitionPanel />
             </TabsContent>
           )}
         </Tabs>
