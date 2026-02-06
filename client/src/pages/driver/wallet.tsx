@@ -4,7 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
-import { Wallet, ArrowUpRight, ArrowDownLeft, CreditCard, Clock, Star, Info, DollarSign, FileText } from "lucide-react";
+import { Wallet, ArrowUpRight, ArrowDownLeft, CreditCard, Clock, Star, Info, DollarSign, FileText, Banknote, ChevronDown, ChevronUp } from "lucide-react";
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { DriverBankAccountSection } from "@/components/driver-bank-account-section";
 import type { Wallet as WalletType, WalletTransaction } from "@shared/schema";
@@ -19,6 +20,13 @@ export default function DriverWalletPage() {
 
   const { data: walletData, isLoading } = useQuery<WalletWithTransactions>({
     queryKey: ["/api/wallets/me"],
+    enabled: !!user,
+  });
+
+  const [settlementExpanded, setSettlementExpanded] = useState(false);
+
+  const { data: settlementSummary } = useQuery<{ totalOwed: number; totalPaid: number; pendingCount: number }>({
+    queryKey: ["/api/driver/settlement/summary"],
     enabled: !!user,
   });
 
@@ -132,6 +140,44 @@ export default function DriverWalletPage() {
             </div>
           </CardContent>
         </Card>
+
+        {settlementSummary && settlementSummary.totalOwed > 0 && (
+          <Card data-testid="card-settlement-summary">
+            <CardContent className="pt-4">
+              <button 
+                className="w-full flex items-center justify-between"
+                onClick={() => setSettlementExpanded(!settlementExpanded)}
+                data-testid="button-toggle-settlement"
+              >
+                <div className="flex items-center gap-2">
+                  <Banknote className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Platform Balance</span>
+                  <Badge variant="secondary" className="text-xs">
+                    {settlementSummary.pendingCount} pending
+                  </Badge>
+                </div>
+                {settlementExpanded ? (
+                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                )}
+              </button>
+              {settlementExpanded && (
+                <div className="mt-3 pt-3 border-t space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Outstanding balance</span>
+                    <span className="font-medium text-sm" data-testid="text-settlement-owed">
+                      {"\u20A6"}{settlementSummary.totalOwed.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    From cash trips. Settled automatically from future card/wallet trips.
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         <DriverBankAccountSection />
 

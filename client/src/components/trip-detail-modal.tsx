@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { MapPin, User, Car, Clock, DollarSign, XCircle } from "lucide-react";
+import { MapPin, User, Car, Clock, DollarSign, XCircle, Banknote } from "lucide-react";
 import { RatingForm } from "./rating-form";
 import { DisputeForm } from "./dispute-form";
 
@@ -107,7 +107,20 @@ export function TripDetailModal({ trip, open, onOpenChange, userRole }: TripDeta
                     </p>
                   </div>
                 </div>
-                {userRole !== "rider" && (
+                {userRole !== "rider" && trip.paymentSource === "CASH" && (
+                  <div className="pl-8">
+                    <div className="flex items-center gap-2">
+                      <Banknote className="h-4 w-4 text-emerald-600" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Cash collected from rider</p>
+                        <p className="font-medium text-emerald-600" data-testid="text-cash-collected">
+                          ${trip.fareAmount || "0.00"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {userRole !== "rider" && trip.paymentSource !== "CASH" && (
                   <div className="pl-8">
                     <div>
                       <p className="text-sm text-muted-foreground">You earned</p>

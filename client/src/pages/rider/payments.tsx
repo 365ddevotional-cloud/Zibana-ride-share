@@ -9,7 +9,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { 
-  Wallet, CheckCircle, ArrowLeft, AlertCircle, Beaker
+  Wallet, CheckCircle, ArrowLeft, AlertCircle, Beaker, Banknote
 } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -21,7 +21,7 @@ interface WalletData {
   defaultPaymentMethod: string;
 }
 
-type PaymentMethod = "MAIN_WALLET" | "TEST_WALLET";
+type PaymentMethod = "MAIN_WALLET" | "TEST_WALLET" | "CASH";
 
 export default function RiderPayments() {
   const [, setLocation] = useLocation();
@@ -46,7 +46,7 @@ export default function RiderPayments() {
       queryClient.invalidateQueries({ queryKey: ["/api/rider/wallet-info"] });
       toast({ 
         title: "Payment method updated", 
-        description: `Your rides will now use ${selectedMethod === "MAIN_WALLET" ? "Main Wallet" : "Test Wallet"}` 
+        description: `Your rides will now use ${selectedMethod === "MAIN_WALLET" ? "Main Wallet" : selectedMethod === "CASH" ? "Cash" : "Test Wallet"}` 
       });
     },
     onError: () => {
@@ -170,6 +170,43 @@ export default function RiderPayments() {
                   </CardContent>
                 </Card>
 
+                <Card 
+                  className={`cursor-pointer transition-all ${
+                    selectedMethod === "CASH" 
+                      ? "ring-2 ring-emerald-500 border-emerald-500" 
+                      : "hover-elevate"
+                  }`}
+                  onClick={() => handleSelectMethod("CASH")}
+                  data-testid="payment-method-cash"
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-full bg-emerald-100 dark:bg-emerald-900 flex items-center justify-center">
+                          <Banknote className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+                        </div>
+                        <div>
+                          <p className="font-semibold">Cash</p>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Pay driver directly
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            No wallet balance needed
+                          </p>
+                        </div>
+                      </div>
+                      {selectedMethod === "CASH" && (
+                        <div className="flex items-center gap-2">
+                          <Badge className="bg-emerald-500 text-white">
+                            Default
+                          </Badge>
+                          <CheckCircle className="h-6 w-6 text-emerald-500" />
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
                 {isTester && (
                   <Card 
                     className={`cursor-pointer transition-all ${
@@ -229,26 +266,30 @@ export default function RiderPayments() {
                 <div className="flex items-center gap-3">
                   {selectedMethod === "MAIN_WALLET" ? (
                     <Wallet className="h-5 w-5 text-primary" />
+                  ) : selectedMethod === "CASH" ? (
+                    <Banknote className="h-5 w-5 text-emerald-600" />
                   ) : (
                     <Beaker className="h-5 w-5 text-amber-500" />
                   )}
                   <div>
                     <p className="font-medium">
-                      {selectedMethod === "MAIN_WALLET" ? "Main Wallet" : "Test Wallet"}
+                      {selectedMethod === "MAIN_WALLET" ? "Main Wallet" : selectedMethod === "CASH" ? "Cash" : "Test Wallet"}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      Will be charged for your rides
+                      {selectedMethod === "CASH" ? "Pay driver directly" : "Will be charged for your rides"}
                     </p>
                   </div>
                 </div>
-                <p className="font-bold">
-                  {formatCurrency(
-                    selectedMethod === "MAIN_WALLET" 
-                      ? walletData?.mainBalance 
-                      : walletData?.testBalance, 
-                    currency
-                  )}
-                </p>
+                {selectedMethod !== "CASH" && (
+                  <p className="font-bold">
+                    {formatCurrency(
+                      selectedMethod === "MAIN_WALLET" 
+                        ? walletData?.mainBalance 
+                        : walletData?.testBalance, 
+                      currency
+                    )}
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>

@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Car, Clock, MapPin, Navigation, Check, FileWarning } from "lucide-react";
+import { Car, Clock, MapPin, Navigation, Check, FileWarning, Banknote } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { TripDetailModal } from "@/components/trip-detail-modal";
@@ -350,9 +350,18 @@ function TripCard({
         {showEarnings && (
           <div className="pt-2 border-t flex items-center justify-between gap-2 flex-wrap">
             <div className="flex items-center gap-3">
-              <p className="font-bold text-emerald-600">
-                +{trip.currencyCode} {driverPayout.toLocaleString()}
-              </p>
+              {trip.paymentSource === "CASH" ? (
+                <div className="flex items-center gap-1.5">
+                  <Banknote className="h-4 w-4 text-emerald-600" />
+                  <p className="font-bold text-emerald-600" data-testid={`text-cash-collected-${trip.id}`}>
+                    Cash collected: {trip.currencyCode} {parseFloat(trip.fareAmount || "0").toLocaleString()}
+                  </p>
+                </div>
+              ) : (
+                <p className="font-bold text-emerald-600" data-testid={`text-earning-${trip.id}`}>
+                  +{trip.currencyCode} {driverPayout.toLocaleString()}
+                </p>
+              )}
             </div>
             {onReport && (
               <Button 

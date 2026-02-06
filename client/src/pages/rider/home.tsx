@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Navigation, Calendar, ChevronRight, Wallet, Beaker, AlertCircle, BookOpen } from "lucide-react";
+import { MapPin, Navigation, Calendar, ChevronRight, Wallet, Beaker, AlertCircle, BookOpen, Banknote } from "lucide-react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -111,13 +111,15 @@ export default function RiderHome() {
                 <div className="flex items-center gap-3">
                   {paymentMethod === "TEST_WALLET" ? (
                     <Beaker className="h-5 w-5 text-amber-500" />
+                  ) : paymentMethod === "CASH" ? (
+                    <Banknote className="h-5 w-5 text-emerald-600" />
                   ) : (
                     <Wallet className="h-5 w-5 text-primary" />
                   )}
                   <div className="text-left">
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-sm">
-                        {paymentMethod === "TEST_WALLET" ? "Test Wallet" : "Main Wallet"}
+                        {paymentMethod === "TEST_WALLET" ? "Test Wallet" : paymentMethod === "CASH" ? "Cash" : "Main Wallet"}
                       </span>
                       {paymentMethod === "TEST_WALLET" && (
                         <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
@@ -125,15 +127,21 @@ export default function RiderHome() {
                         </Badge>
                       )}
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                      Balance: {formatCurrency(currentBalance, currency)}
-                    </span>
+                    {paymentMethod === "CASH" ? (
+                      <span className="text-xs text-muted-foreground">
+                        Pay driver directly
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">
+                        Balance: {formatCurrency(currentBalance, currency)}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <ChevronRight className="h-5 w-5 text-muted-foreground" />
               </button>
 
-              {hasLowBalance && (
+              {hasLowBalance && paymentMethod !== "CASH" && (
                 <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300">
                   <AlertCircle className="h-4 w-4 shrink-0" />
                   <span className="text-xs">
