@@ -13699,5 +13699,206 @@ export async function registerRoutes(
     }
   });
 
+  // =============================================
+  // PHASE 10A: HELP CENTER API ROUTES
+  // =============================================
+
+  // Public: Get help categories (audience-filtered)
+  app.get("/api/help/categories", async (req: any, res) => {
+    try {
+      const audience = req.query.audience as string | undefined;
+      const categories = await storage.getHelpCategories(audience);
+      return res.json(categories);
+    } catch (error) {
+      console.error("Error fetching help categories:", error);
+      return res.status(500).json({ message: "Failed to fetch help categories" });
+    }
+  });
+
+  // Public: Get published help articles (with filters)
+  app.get("/api/help/articles", async (req: any, res) => {
+    try {
+      const { categoryId, audience, featured, countryCode } = req.query;
+      const articles = await storage.getHelpArticles({
+        categoryId: categoryId as string,
+        audience: audience as string,
+        status: "PUBLISHED",
+        featured: featured === "true" ? true : undefined,
+        countryCode: countryCode as string,
+      });
+      return res.json(articles);
+    } catch (error) {
+      console.error("Error fetching help articles:", error);
+      return res.status(500).json({ message: "Failed to fetch help articles" });
+    }
+  });
+
+  // Public: Get article by slug and increment view
+  app.get("/api/help/articles/slug/:slug", async (req: any, res) => {
+    try {
+      const article = await storage.getHelpArticleBySlug(req.params.slug);
+      if (!article || article.status !== "PUBLISHED") {
+        return res.status(404).json({ message: "Article not found" });
+      }
+      await storage.incrementArticleView(article.id);
+      return res.json(article);
+    } catch (error) {
+      console.error("Error fetching help article:", error);
+      return res.status(500).json({ message: "Failed to fetch help article" });
+    }
+  });
+
+  // Public: Search help articles
+  app.get("/api/help/search", async (req: any, res) => {
+    try {
+      const { q, audience } = req.query;
+      if (!q || typeof q !== "string" || q.trim().length === 0) {
+        return res.json([]);
+      }
+      const results = await storage.searchHelpArticles(q.trim(), audience as string);
+      const userId = req.user?.id;
+      await storage.createHelpSearchLog({
+        userId: userId || null,
+        query: q.trim(),
+        resultsCount: results.length,
+      });
+      return res.json(results);
+    } catch (error) {
+      console.error("Error searching help articles:", error);
+      return res.status(500).json({ message: "Failed to search help articles" });
+    }
+  });
+
+  // Public: Rate article helpful
+  app.post("/api/help/articles/:id/rate", async (req: any, res) => {
+    try {
+      const { helpful } = req.body;
+      if (typeof helpful !== "boolean") {
+        return res.status(400).json({ message: "helpful must be a boolean" });
+      }
+      await storage.rateArticleHelpful(req.params.id, helpful);
+      return res.json({ success: true });
+    } catch (error) {
+      console.error("Error rating help article:", error);
+      return res.status(500).json({ message: "Failed to rate article" });
+    }
+  });
+
+  // Admin: Get all help categories (including inactive)
+  app.get("/api/admin/help/categories", isAuthenticated, requireRole(["super_admin", "admin", "support_agent"]), async (req: any, res) => {
+    try {
+      const categories = await storage.getHelpCategories();
+      return res.json(categories);
+    } catch (error) {
+      console.error("Error fetching admin help categories:", error);
+      return res.status(500).json({ message: "Failed to fetch help categories" });
+    }
+  });
+
+  // Admin: Create help category
+  app.post("/api/admin/help/categories", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const category = await storage.createHelpCategory(req.body);
+      return res.status(201).json(category);
+    } catch (error) {
+      console.error("Error creating help category:", error);
+      return res.status(500).json({ message: "Failed to create help category" });
+    }
+  });
+
+  // Admin: Update help category
+  app.patch("/api/admin/help/categories/:id", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const category = await storage.updateHelpCategory(req.params.id, req.body);
+      if (!category) return res.status(404).json({ message: "Category not found" });
+      return res.json(category);
+    } catch (error) {
+      console.error("Error updating help category:", error);
+      return res.status(500).json({ message: "Failed to update help category" });
+    }
+  });
+
+  // Admin: Delete help category
+  app.delete("/api/admin/help/categories/:id", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const deleted = await storage.deleteHelpCategory(req.params.id);
+      if (!deleted) return res.status(404).json({ message: "Category not found" });
+      return res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting help category:", error);
+      return res.status(500).json({ message: "Failed to delete help category" });
+    }
+  });
+
+  // Admin: Get all help articles (all statuses)
+  app.get("/api/admin/help/articles", isAuthenticated, requireRole(["super_admin", "admin", "support_agent"]), async (req: any, res) => {
+    try {
+      const { categoryId, status, audience } = req.query;
+      const articles = await storage.getHelpArticles({
+        categoryId: categoryId as string,
+        audience: audience as string,
+        status: status as string,
+      });
+      return res.json(articles);
+    } catch (error) {
+      console.error("Error fetching admin help articles:", error);
+      return res.status(500).json({ message: "Failed to fetch help articles" });
+    }
+  });
+
+  // Admin: Create help article
+  app.post("/api/admin/help/articles", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const article = await storage.createHelpArticle({
+        ...req.body,
+        createdBy: req.user.id,
+        updatedBy: req.user.id,
+      });
+      return res.status(201).json(article);
+    } catch (error) {
+      console.error("Error creating help article:", error);
+      return res.status(500).json({ message: "Failed to create help article" });
+    }
+  });
+
+  // Admin: Update help article
+  app.patch("/api/admin/help/articles/:id", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const article = await storage.updateHelpArticle(req.params.id, {
+        ...req.body,
+        updatedBy: req.user.id,
+      });
+      if (!article) return res.status(404).json({ message: "Article not found" });
+      return res.json(article);
+    } catch (error) {
+      console.error("Error updating help article:", error);
+      return res.status(500).json({ message: "Failed to update help article" });
+    }
+  });
+
+  // Admin: Delete help article
+  app.delete("/api/admin/help/articles/:id", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const deleted = await storage.deleteHelpArticle(req.params.id);
+      if (!deleted) return res.status(404).json({ message: "Article not found" });
+      return res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting help article:", error);
+      return res.status(500).json({ message: "Failed to delete help article" });
+    }
+  });
+
+  // Admin: Get search logs
+  app.get("/api/admin/help/search-logs", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 100;
+      const logs = await storage.getHelpSearchLogs(limit);
+      return res.json(logs);
+    } catch (error) {
+      console.error("Error fetching search logs:", error);
+      return res.status(500).json({ message: "Failed to fetch search logs" });
+    }
+  });
+
   return httpServer;
 }
