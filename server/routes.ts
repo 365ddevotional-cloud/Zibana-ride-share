@@ -901,6 +901,20 @@ export async function registerRoutes(
         } catch (behaviorError) {
           console.error("Error updating behavior stats:", behaviorError);
         }
+
+        // Accumulate trip mileage for annual tax reporting
+        try {
+          if (trip.driverId) {
+            const tripDistanceKm = parseFloat(trip.actualDistanceKm || trip.estimatedDistanceKm || "0");
+            if (tripDistanceKm > 0) {
+              const tripDistanceMiles = tripDistanceKm * 0.621371;
+              const taxYear = new Date().getFullYear();
+              await storage.addDriverMileage(trip.driverId, taxYear, tripDistanceMiles);
+            }
+          }
+        } catch (mileageError) {
+          console.error("Error accumulating driver mileage:", mileageError);
+        }
       }
 
       return res.json(trip);
@@ -14586,6 +14600,7 @@ export async function registerRoutes(
       const endOfYear = new Date(year + 1, 0, 1);
 
       const driverProfile = await storage.getDriverProfile(userId);
+      const mileageRecord = await storage.getDriverMileageForYear(userId, year);
 
       const driverTrips = await db.select()
         .from(trips)
@@ -14619,6 +14634,7 @@ export async function registerRoutes(
         reportableIncome: Math.round(totalGrossEarnings * 100) / 100,
         totalTrips,
         totalOnlineHours: 0,
+        totalMilesDrivenOnline: mileageRecord ? Math.round(parseFloat(mileageRecord.totalMilesOnline) * 100) / 100 : 0,
         currency: "NGN",
       });
     } catch (error) {
@@ -14697,6 +14713,7 @@ export async function registerRoutes(
       const endOfYear = new Date(year + 1, 0, 1);
 
       const driverProfile = await storage.getDriverProfile(userId);
+      const mileageRecord = await storage.getDriverMileageForYear(userId, year);
 
       const driverTrips = await db.select()
         .from(trips)
@@ -14717,6 +14734,7 @@ export async function registerRoutes(
       }
 
       const driverName = driverProfile?.fullName || "Driver";
+      const totalMiles = mileageRecord ? parseFloat(mileageRecord.totalMilesOnline) : 0;
 
       if (format === "csv") {
         const csvLines = [
@@ -14730,6 +14748,8 @@ export async function registerRoutes(
           `Total Service Fees,${totalCommission.toFixed(2)}`,
           `Reportable Income,${totalEarnings.toFixed(2)}`,
           `Total Trips,${driverTrips.length}`,
+          ``,
+          `Total miles driven while online (for tax reporting purposes),${totalMiles.toFixed(2)}`,
           ``,
           `Generated,${new Date().toISOString()}`,
           `This statement is provided for informational purposes. Consult a tax professional for filing guidance.`,
@@ -14747,6 +14767,42 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error downloading annual statement:", error);
       return res.status(500).json({ message: "Failed to download annual statement" });
+    }
+  });
+
+  app.post("/api/driver/mileage/report", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { miles } = req.body;
+
+      if (typeof miles !== "number" || miles <= 0 || miles > 500) {
+        return res.status(400).json({ message: "Invalid mileage value" });
+      }
+
+      const taxYear = new Date().getFullYear();
+      const record = await storage.addDriverMileage(userId, taxYear, miles);
+      return res.json({ totalMilesOnline: record.totalMilesOnline, taxYear });
+    } catch (error) {
+      console.error("Error reporting driver mileage:", error);
+      return res.status(500).json({ message: "Failed to report mileage" });
+    }
+  });
+
+  app.get("/api/driver/mileage/:year", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const year = parseInt(req.params.year);
+      if (isNaN(year)) return res.status(400).json({ message: "Invalid year" });
+
+      const record = await storage.getDriverMileageForYear(userId, year);
+      return res.json({
+        taxYear: year,
+        totalMilesOnline: record ? parseFloat(record.totalMilesOnline) : 0,
+        lastUpdatedAt: record?.lastUpdatedAt || null,
+      });
+    } catch (error) {
+      console.error("Error fetching driver mileage:", error);
+      return res.status(500).json({ message: "Failed to fetch mileage" });
     }
   });
 

@@ -372,6 +372,9 @@ import {
   type InsertMarketingAttribution,
   type CampaignWithDetails,
   type GrowthSafetyStatus,
+  driverMileageLogs,
+  type DriverMileageLog,
+  type InsertDriverMileageLog,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull } from "drizzle-orm";
@@ -8974,6 +8977,44 @@ export class DatabaseStorage implements IStorage {
       maxDailyReferrals: globalControl?.maxDailyReferrals ?? null,
       countryOverrides,
     };
+  }
+
+  async getDriverMileageForYear(driverUserId: string, taxYear: number): Promise<DriverMileageLog | undefined> {
+    const [record] = await db.select().from(driverMileageLogs)
+      .where(and(
+        eq(driverMileageLogs.driverUserId, driverUserId),
+        eq(driverMileageLogs.taxYear, taxYear)
+      ));
+    return record;
+  }
+
+  async addDriverMileage(driverUserId: string, taxYear: number, miles: number): Promise<DriverMileageLog> {
+    const existing = await this.getDriverMileageForYear(driverUserId, taxYear);
+    if (existing) {
+      const newTotal = parseFloat(existing.totalMilesOnline) + miles;
+      const [updated] = await db.update(driverMileageLogs)
+        .set({
+          totalMilesOnline: newTotal.toFixed(2),
+          lastUpdatedAt: new Date(),
+        })
+        .where(eq(driverMileageLogs.id, existing.id))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(driverMileageLogs)
+      .values({
+        driverUserId,
+        taxYear,
+        totalMilesOnline: miles.toFixed(2),
+      })
+      .returning();
+    return created;
+  }
+
+  async getAllDriverMileageLogs(driverUserId: string): Promise<DriverMileageLog[]> {
+    return db.select().from(driverMileageLogs)
+      .where(eq(driverMileageLogs.driverUserId, driverUserId))
+      .orderBy(desc(driverMileageLogs.taxYear));
   }
 }
 
