@@ -909,7 +909,7 @@ export async function registerRoutes(
             if (tripDistanceKm > 0) {
               const tripDistanceMiles = tripDistanceKm * 0.621371;
               const taxYear = new Date().getFullYear();
-              await storage.addDriverMileage(trip.driverId, taxYear, tripDistanceMiles);
+              await storage.addDriverMileage(trip.driverId, taxYear, tripDistanceMiles, "trip");
             }
           }
         } catch (mileageError) {
@@ -14770,17 +14770,150 @@ export async function registerRoutes(
     }
   });
 
+  // ============================================================
+  // MILEAGE TRACKING (TAX COMPLIANCE ONLY)
+  // Anti-fraud constants
+  const MAX_SPEED_MPH = 120;
+  const MAX_MILES_PER_UPDATE = 5;
+  const MIN_UPDATE_INTERVAL_MS = 5000;
+  // ============================================================
+
+  function haversineDistanceMiles(lat1: number, lng1: number, lat2: number, lng2: number): number {
+    const R = 3958.8;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  app.post("/api/driver/mileage/session/start", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { sessionId, lat, lng } = req.body;
+
+      if (!sessionId || typeof sessionId !== "string") {
+        return res.status(400).json({ message: "sessionId is required" });
+      }
+
+      const session = await storage.startMileageSession(userId, sessionId, lat, lng);
+      return res.json({ sessionId: session.sessionId, status: session.status });
+    } catch (error) {
+      console.error("Error starting mileage session:", error);
+      return res.status(500).json({ message: "Failed to start mileage session" });
+    }
+  });
+
+  app.post("/api/driver/mileage/session/update", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { sessionId, lat, lng } = req.body;
+
+      if (!sessionId || typeof lat !== "number" || typeof lng !== "number") {
+        return res.status(400).json({ message: "sessionId, lat, lng required" });
+      }
+
+      if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+        return res.status(400).json({ message: "Invalid GPS coordinates" });
+      }
+
+      const activeSession = await storage.getActiveMileageSession(userId);
+      if (!activeSession || activeSession.sessionId !== sessionId) {
+        return res.status(404).json({ message: "No active session found" });
+      }
+
+      let milesDelta = 0;
+      if (activeSession.lastLat && activeSession.lastLng) {
+        const prevLat = parseFloat(activeSession.lastLat);
+        const prevLng = parseFloat(activeSession.lastLng);
+
+        const rawDistance = haversineDistanceMiles(prevLat, prevLng, lat, lng);
+
+        if (rawDistance > MAX_MILES_PER_UPDATE) {
+          console.warn(`[MILEAGE ANTI-FRAUD] GPS jump detected for driver ${userId}: ${rawDistance.toFixed(2)} mi, session ${sessionId}`);
+          return res.json({ 
+            sessionId, 
+            totalMilesAccumulated: activeSession.totalMilesAccumulated,
+            warning: "GPS jump ignored" 
+          });
+        }
+
+        if (activeSession.lastUpdateAt) {
+          const timeDeltaMs = Date.now() - new Date(activeSession.lastUpdateAt).getTime();
+          if (timeDeltaMs < MIN_UPDATE_INTERVAL_MS) {
+            return res.json({ 
+              sessionId, 
+              totalMilesAccumulated: activeSession.totalMilesAccumulated,
+              warning: "Update too frequent" 
+            });
+          }
+          const timeDeltaHours = timeDeltaMs / (1000 * 60 * 60);
+          if (timeDeltaHours > 0) {
+            const speedMph = rawDistance / timeDeltaHours;
+            if (speedMph > MAX_SPEED_MPH) {
+              console.warn(`[MILEAGE ANTI-FRAUD] Unrealistic speed ${speedMph.toFixed(0)} mph for driver ${userId}, session ${sessionId}`);
+              return res.json({ 
+                sessionId, 
+                totalMilesAccumulated: activeSession.totalMilesAccumulated,
+                warning: "Speed threshold exceeded" 
+              });
+            }
+          }
+        }
+
+        milesDelta = rawDistance;
+      }
+
+      const updated = await storage.updateMileageSession(userId, sessionId, lat, lng, milesDelta);
+      return res.json({
+        sessionId,
+        totalMilesAccumulated: updated?.totalMilesAccumulated || "0.00",
+      });
+    } catch (error) {
+      console.error("Error updating mileage session:", error);
+      return res.status(500).json({ message: "Failed to update mileage session" });
+    }
+  });
+
+  app.post("/api/driver/mileage/session/end", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { sessionId } = req.body;
+
+      if (!sessionId) {
+        return res.status(400).json({ message: "sessionId is required" });
+      }
+
+      const session = await storage.endMileageSession(userId, sessionId);
+      if (!session) {
+        return res.status(404).json({ message: "No active session found" });
+      }
+
+      return res.json({
+        sessionId: session.sessionId,
+        totalMilesAccumulated: session.totalMilesAccumulated,
+        status: session.status,
+      });
+    } catch (error) {
+      console.error("Error ending mileage session:", error);
+      return res.status(500).json({ message: "Failed to end mileage session" });
+    }
+  });
+
   app.post("/api/driver/mileage/report", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { miles } = req.body;
+      const { miles, source } = req.body;
 
       if (typeof miles !== "number" || miles <= 0 || miles > 500) {
         return res.status(400).json({ message: "Invalid mileage value" });
       }
 
+      const validSource = source === "enroute" ? "enroute" : "trip";
       const taxYear = new Date().getFullYear();
-      const record = await storage.addDriverMileage(userId, taxYear, miles);
+      const record = await storage.addDriverMileage(userId, taxYear, miles, validSource as "trip" | "enroute");
       return res.json({ totalMilesOnline: record.totalMilesOnline, taxYear });
     } catch (error) {
       console.error("Error reporting driver mileage:", error);
@@ -14798,11 +14931,69 @@ export async function registerRoutes(
       return res.json({
         taxYear: year,
         totalMilesOnline: record ? parseFloat(record.totalMilesOnline) : 0,
+        totalTripMiles: record ? parseFloat(record.totalTripMiles) : 0,
+        totalEnrouteMiles: record ? parseFloat(record.totalEnrouteMiles) : 0,
         lastUpdatedAt: record?.lastUpdatedAt || null,
       });
     } catch (error) {
       console.error("Error fetching driver mileage:", error);
       return res.status(500).json({ message: "Failed to fetch mileage" });
+    }
+  });
+
+  // Admin compliance: read-only mileage views
+  app.get("/api/admin/mileage/driver/:driverId/:year", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const driverId = req.params.driverId;
+      const year = parseInt(req.params.year);
+      if (isNaN(year)) return res.status(400).json({ message: "Invalid year" });
+
+      const yearlyRecord = await storage.getDriverMileageForYear(driverId, year);
+      const startOfYear = new Date(year, 0, 1);
+      const endOfYear = new Date(year + 1, 0, 1);
+      const dailyRecords = await storage.getDriverMileageDailyRecords(driverId, startOfYear, endOfYear);
+
+      return res.json({
+        driverId,
+        taxYear: year,
+        totalMilesOnline: yearlyRecord ? parseFloat(yearlyRecord.totalMilesOnline) : 0,
+        totalTripMiles: yearlyRecord ? parseFloat(yearlyRecord.totalTripMiles) : 0,
+        totalEnrouteMiles: yearlyRecord ? parseFloat(yearlyRecord.totalEnrouteMiles) : 0,
+        lastUpdatedAt: yearlyRecord?.lastUpdatedAt || null,
+        dailyRecordCount: dailyRecords.length,
+        dailyRecords: dailyRecords.map(r => ({
+          date: r.date,
+          milesDriven: parseFloat(r.milesDriven),
+          source: r.source,
+        })),
+      });
+    } catch (error) {
+      console.error("Error fetching admin mileage:", error);
+      return res.status(500).json({ message: "Failed to fetch mileage data" });
+    }
+  });
+
+  app.get("/api/admin/mileage/export/:year", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const year = parseInt(req.params.year);
+      if (isNaN(year)) return res.status(400).json({ message: "Invalid year" });
+
+      const allRecords = await storage.getAllDriverMileageYearlySummaries();
+      const yearRecords = allRecords.filter(r => r.taxYear === year);
+
+      const csvLines = [
+        `Driver ID,Tax Year,Total Miles Online,Trip Miles,En-Route Miles,Last Updated`,
+        ...yearRecords.map(r =>
+          `${r.driverUserId},${r.taxYear},${parseFloat(r.totalMilesOnline).toFixed(2)},${parseFloat(r.totalTripMiles).toFixed(2)},${parseFloat(r.totalEnrouteMiles).toFixed(2)},${r.lastUpdatedAt?.toISOString() || ""}`
+        ),
+      ];
+
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", `attachment; filename="mileage-audit-${year}.csv"`);
+      return res.send(csvLines.join("\n"));
+    } catch (error) {
+      console.error("Error exporting mileage data:", error);
+      return res.status(500).json({ message: "Failed to export mileage data" });
     }
   });
 

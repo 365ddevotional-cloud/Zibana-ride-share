@@ -373,8 +373,14 @@ import {
   type CampaignWithDetails,
   type GrowthSafetyStatus,
   driverMileageLogs,
+  driverMileageDaily,
+  driverMileageSessions,
   type DriverMileageLog,
   type InsertDriverMileageLog,
+  type DriverMileageDaily,
+  type InsertDriverMileageDaily,
+  type DriverMileageSession,
+  type InsertDriverMileageSession,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull } from "drizzle-orm";
@@ -8988,13 +8994,27 @@ export class DatabaseStorage implements IStorage {
     return record;
   }
 
-  async addDriverMileage(driverUserId: string, taxYear: number, miles: number): Promise<DriverMileageLog> {
+  async addDriverMileage(driverUserId: string, taxYear: number, miles: number, source: "trip" | "enroute" = "trip"): Promise<DriverMileageLog> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    await db.insert(driverMileageDaily).values({
+      driverUserId,
+      date: today,
+      milesDriven: miles.toFixed(2),
+      source,
+    });
+
     const existing = await this.getDriverMileageForYear(driverUserId, taxYear);
     if (existing) {
       const newTotal = parseFloat(existing.totalMilesOnline) + miles;
+      const newTripMiles = parseFloat(existing.totalTripMiles) + (source === "trip" ? miles : 0);
+      const newEnrouteMiles = parseFloat(existing.totalEnrouteMiles) + (source === "enroute" ? miles : 0);
       const [updated] = await db.update(driverMileageLogs)
         .set({
           totalMilesOnline: newTotal.toFixed(2),
+          totalTripMiles: newTripMiles.toFixed(2),
+          totalEnrouteMiles: newEnrouteMiles.toFixed(2),
           lastUpdatedAt: new Date(),
         })
         .where(eq(driverMileageLogs.id, existing.id))
@@ -9006,6 +9026,8 @@ export class DatabaseStorage implements IStorage {
         driverUserId,
         taxYear,
         totalMilesOnline: miles.toFixed(2),
+        totalTripMiles: (source === "trip" ? miles : 0).toFixed(2),
+        totalEnrouteMiles: (source === "enroute" ? miles : 0).toFixed(2),
       })
       .returning();
     return created;
@@ -9014,6 +9036,101 @@ export class DatabaseStorage implements IStorage {
   async getAllDriverMileageLogs(driverUserId: string): Promise<DriverMileageLog[]> {
     return db.select().from(driverMileageLogs)
       .where(eq(driverMileageLogs.driverUserId, driverUserId))
+      .orderBy(desc(driverMileageLogs.taxYear));
+  }
+
+  async startMileageSession(driverUserId: string, sessionId: string, lat?: number, lng?: number): Promise<DriverMileageSession> {
+    const existingActive = await db.select().from(driverMileageSessions)
+      .where(and(
+        eq(driverMileageSessions.driverUserId, driverUserId),
+        eq(driverMileageSessions.status, "active")
+      ));
+    for (const session of existingActive) {
+      await db.update(driverMileageSessions)
+        .set({ status: "ended", endedAt: new Date() })
+        .where(eq(driverMileageSessions.id, session.id));
+    }
+
+    const [created] = await db.insert(driverMileageSessions)
+      .values({
+        sessionId,
+        driverUserId,
+        startedAt: new Date(),
+        lastLat: lat?.toFixed(7),
+        lastLng: lng?.toFixed(7),
+        lastUpdateAt: new Date(),
+        totalMilesAccumulated: "0.00",
+        status: "active",
+      })
+      .returning();
+    return created;
+  }
+
+  async updateMileageSession(driverUserId: string, sessionId: string, lat: number, lng: number, milesDelta: number): Promise<DriverMileageSession | undefined> {
+    const [session] = await db.select().from(driverMileageSessions)
+      .where(and(
+        eq(driverMileageSessions.sessionId, sessionId),
+        eq(driverMileageSessions.driverUserId, driverUserId),
+        eq(driverMileageSessions.status, "active")
+      ));
+    if (!session) return undefined;
+
+    const newTotal = parseFloat(session.totalMilesAccumulated) + milesDelta;
+    const [updated] = await db.update(driverMileageSessions)
+      .set({
+        lastLat: lat.toFixed(7),
+        lastLng: lng.toFixed(7),
+        lastUpdateAt: new Date(),
+        totalMilesAccumulated: newTotal.toFixed(2),
+      })
+      .where(eq(driverMileageSessions.id, session.id))
+      .returning();
+    return updated;
+  }
+
+  async endMileageSession(driverUserId: string, sessionId: string): Promise<DriverMileageSession | undefined> {
+    const [session] = await db.select().from(driverMileageSessions)
+      .where(and(
+        eq(driverMileageSessions.sessionId, sessionId),
+        eq(driverMileageSessions.driverUserId, driverUserId),
+        eq(driverMileageSessions.status, "active")
+      ));
+    if (!session) return undefined;
+
+    const totalMiles = parseFloat(session.totalMilesAccumulated);
+    if (totalMiles > 0) {
+      const taxYear = new Date().getFullYear();
+      await this.addDriverMileage(driverUserId, taxYear, totalMiles, "enroute");
+    }
+
+    const [updated] = await db.update(driverMileageSessions)
+      .set({ status: "ended", endedAt: new Date() })
+      .where(eq(driverMileageSessions.id, session.id))
+      .returning();
+    return updated;
+  }
+
+  async getActiveMileageSession(driverUserId: string): Promise<DriverMileageSession | undefined> {
+    const [session] = await db.select().from(driverMileageSessions)
+      .where(and(
+        eq(driverMileageSessions.driverUserId, driverUserId),
+        eq(driverMileageSessions.status, "active")
+      ));
+    return session;
+  }
+
+  async getDriverMileageDailyRecords(driverUserId: string, startDate: Date, endDate: Date): Promise<DriverMileageDaily[]> {
+    return db.select().from(driverMileageDaily)
+      .where(and(
+        eq(driverMileageDaily.driverUserId, driverUserId),
+        gte(driverMileageDaily.date, startDate),
+        lt(driverMileageDaily.date, endDate)
+      ))
+      .orderBy(desc(driverMileageDaily.date));
+  }
+
+  async getAllDriverMileageYearlySummaries(): Promise<DriverMileageLog[]> {
+    return db.select().from(driverMileageLogs)
       .orderBy(desc(driverMileageLogs.taxYear));
   }
 }
