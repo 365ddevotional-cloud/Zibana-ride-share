@@ -23,6 +23,7 @@ import { TripDetailModal } from "@/components/trip-detail-modal";
 import { AdminReservationsPanel } from "@/components/admin/reservations-panel";
 import { AdminOverridePanel } from "@/components/admin/override-panel";
 import { UserGrowthPanel } from "@/components/admin/user-growth-panel";
+import { IncentivesPanel } from "@/components/admin/incentives-panel";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -2093,6 +2094,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <TabsTrigger value="user-growth" className="admin-nav-trigger rounded-md" data-testid="tab-user-growth">
                 <TrendingUp className="h-4 w-4 mr-2" />
                 User Growth
+              </TabsTrigger>
+            )}
+            {(isSuperAdmin || userRole === "admin" || userRole === "finance") && (
+              <TabsTrigger value="incentives" className="admin-nav-trigger rounded-md" data-testid="tab-incentives">
+                <Award className="h-4 w-4 mr-2" />
+                Incentives
               </TabsTrigger>
             )}
           </TabsList>
@@ -6299,6 +6306,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
           {(isSuperAdmin || userRole === "admin") && (
             <TabsContent value="user-growth">
               <UserGrowthPanel />
+            </TabsContent>
+          )}
+
+          {(isSuperAdmin || userRole === "admin" || userRole === "finance") && (
+            <TabsContent value="incentives">
+              <IncentivesPanel />
             </TabsContent>
           )}
         </Tabs>

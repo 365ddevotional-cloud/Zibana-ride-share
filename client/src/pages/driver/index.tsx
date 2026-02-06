@@ -39,7 +39,7 @@ import {
   Target,
   Award
 } from "lucide-react";
-import type { DriverProfile, Trip, Ride } from "@shared/schema";
+import type { DriverProfile, Trip, Ride, IncentiveProgress } from "@shared/schema";
 import { NotificationBell } from "@/components/notification-bell";
 import { SupportSection } from "@/components/support-section";
 import { DriverRideCard } from "@/components/ride/driver-ride-card";
@@ -213,6 +213,16 @@ export default function DriverDashboard() {
 
   const pendingIncentives = incentiveEarnings
     .filter(e => e.status === "pending" || e.status === "approved");
+
+  const { data: incentiveProgress = [] } = useQuery<IncentiveProgress[]>({
+    queryKey: ["/api/incentives/progress"],
+    queryFn: async () => {
+      const res = await fetch("/api/incentives/progress", { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!user && !!profile?.id,
+  });
 
   const clearTripFilters = () => {
     setTripStatusFilter("");
@@ -677,6 +687,58 @@ export default function DriverDashboard() {
                       )}
                     </>
                   )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Phase 5 - Incentive Progress */}
+            {profile.status === "approved" && incentiveProgress.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Target className="h-5 w-5 text-primary" />
+                    Active Goals
+                  </CardTitle>
+                  <CardDescription>
+                    Your progress toward earning bonuses
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {incentiveProgress.map((prog) => (
+                    <div key={prog.programId} className="space-y-1" data-testid={`incentive-progress-${prog.programId}`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {prog.type === "trip" && <Target className="h-4 w-4 text-blue-500" />}
+                          {prog.type === "streak" && <Zap className="h-4 w-4 text-orange-500" />}
+                          {prog.type === "quality" && <Star className="h-4 w-4 text-yellow-500" />}
+                          {prog.type === "peak" && <Clock className="h-4 w-4 text-purple-500" />}
+                          {prog.type === "promo" && <Gift className="h-4 w-4 text-pink-500" />}
+                          <span className="text-sm font-medium">{prog.programName}</span>
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {prog.currency} {prog.rewardAmount}
+                        </span>
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full transition-all ${
+                            prog.status === "earned" ? "bg-green-500" :
+                            prog.status === "eligible" ? "bg-blue-500" :
+                            prog.status === "blocked" ? "bg-red-500" :
+                            "bg-primary"
+                          }`}
+                          style={{ width: `${Math.min(prog.progressPercent, 100)}%` }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>
+                          {prog.currentValue} / {prog.targetValue}
+                          {prog.status === "blocked" && prog.blockReason ? ` - ${prog.blockReason}` : ""}
+                        </span>
+                        <span>{Math.round(prog.progressPercent)}%</span>
+                      </div>
+                    </div>
+                  ))}
                 </CardContent>
               </Card>
             )}
