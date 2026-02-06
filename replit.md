@@ -49,6 +49,7 @@ Preferred communication style: Simple, everyday language.
 - **Production Switches**: Server-side, `SUPER_ADMIN`-protected switches for country-specific features.
 - **Test Mode Configuration**: Global test mode for simulated payments.
 - **Driver Payout Management**: Drivers manage bank/mobile money details, with admin processing.
+- **Tax Statement Mileage Disclosure**: Annual tax statements include total miles driven while online, aggregated per tax year. Mileage auto-accumulates from completed trips and is auditable via `driver_mileage_logs` table. Mileage shown only on annual tax statements and downloadable documents — never in daily trip views or earnings screens. Presentation is factual and neutral per TAX_PHILOSOPHY_LOCKED.
 - **Driver Identity & Withdrawal Verification**: Requires verified identity and country-specific documents for withdrawals.
 - **Financial Engine**: Rides locked to `currencyCode`, 80% driver / 20% platform revenue split using integer-safe math and append-only ledger entries.
 - **Navigation Architecture**: Internal distance/duration calculations; deep links to native GPS apps.

@@ -1,0 +1,109 @@
+You are implementing BACKEND MILEAGE TRACKING LOGIC for the ZIBA Driver system.
+This logic is used STRICTLY for tax reporting and compliance.
+
+DO NOT expose mileage in daily driver UI.
+DO NOT mix mileage with earnings or platform fee messaging.
+
+==============================
+CORE DEFINITIONS
+==============================
+• Mileage = distance accumulated while driver status = ONLINE
+• Includes:
+  - Active trip mileage
+  - En-route mileage while available for requests
+• Excludes:
+  - Offline driving
+  - App closed while offline
+  - Personal driving
+
+==============================
+DATA MODEL
+==============================
+Create or extend DriverMileage with:
+- driver_id
+- date
+- miles_driven
+- source (trip | enroute)
+- created_at
+
+Create aggregated table:
+DriverMileageYearly:
+- driver_id
+- tax_year
+- total_miles
+- last_calculated_at
+
+==============================
+TRACKING LOGIC
+==============================
+1. When driver status switches to ONLINE:
+   - Start mileage tracking session
+   - Capture starting GPS coordinate
+
+2. While driver status = ONLINE:
+   - Continuously calculate distance using GPS updates
+   - Accumulate mileage even if no trip is active
+
+3. When a trip starts:
+   - Continue mileage tracking (do NOT reset)
+   - Tag trip-related distance as source = trip
+
+4. When driver goes OFFLINE:
+   - End mileage tracking session
+   - Persist accumulated miles for that session
+
+5. If app crashes or disconnects:
+   - Resume mileage tracking on reconnect if driver was ONLINE
+   - Prevent duplicate counting using session_id
+
+==============================
+ANTI-FRAUD & ACCURACY
+==============================
+• Ignore GPS jumps exceeding realistic speed thresholds
+• Smooth noisy GPS signals
+• Cap mileage accumulation per minute to realistic driving limits
+• Log anomalies for admin review
+
+==============================
+AGGREGATION LOGIC
+==============================
+• Aggregate mileage daily per driver
+• Roll up daily mileage into yearly totals
+• Yearly totals recalculated incrementally (not full recompute)
+
+==============================
+EXPOSURE RULES (LOCKED)
+==============================
+Mileage data may ONLY be exposed in:
+• Annual tax statements
+• Downloadable tax documents (PDF / CSV)
+• Admin compliance views
+
+Mileage must NEVER be shown in:
+• Per-trip screens
+• Daily earnings
+• Wallet
+• Incentive views
+
+==============================
+ADMIN & AUDIT
+==============================
+• Admin can view mileage totals (read-only)
+• Admin cannot edit mileage
+• All mileage records must be auditable
+
+==============================
+FAIL-SAFE
+==============================
+• If GPS unavailable → pause mileage accumulation
+• If data missing → default to conservative estimate
+• System must never crash due to mileage tracking
+
+==============================
+FINAL REQUIREMENT
+==============================
+Mileage totals must be accurate, conservative, auditable,
+and suitable for US 1099 and international tax reporting.
+
+Implement exactly as specified.
+Confirm when complete.
