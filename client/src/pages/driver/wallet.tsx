@@ -151,10 +151,7 @@ export default function DriverWalletPage() {
               >
                 <div className="flex items-center gap-2">
                   <Banknote className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">Platform Balance</span>
-                  <Badge variant="secondary" className="text-xs">
-                    {settlementSummary.pendingCount} pending
-                  </Badge>
+                  <span className="text-sm font-medium">Platform Service Settlement (Summary)</span>
                 </div>
                 {settlementExpanded ? (
                   <ChevronUp className="h-4 w-4 text-muted-foreground" />
@@ -164,14 +161,14 @@ export default function DriverWalletPage() {
               </button>
               {settlementExpanded && (
                 <div className="mt-3 pt-3 border-t space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Outstanding balance</span>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm text-muted-foreground">Platform service settlement for period</span>
                     <span className="font-medium text-sm" data-testid="text-settlement-owed">
                       {"\u20A6"}{settlementSummary.totalOwed.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    From cash trips. Settled automatically from future card/wallet trips.
+                    This reflects platform service costs for the period. Cash payments are always collected directly by you.
                   </p>
                 </div>
               )}

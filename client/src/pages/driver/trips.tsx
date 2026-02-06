@@ -351,11 +351,14 @@ function TripCard({
           <div className="pt-2 border-t flex items-center justify-between gap-2 flex-wrap">
             <div className="flex items-center gap-3">
               {trip.paymentSource === "CASH" ? (
-                <div className="flex items-center gap-1.5">
-                  <Banknote className="h-4 w-4 text-emerald-600" />
-                  <p className="font-bold text-emerald-600" data-testid={`text-cash-collected-${trip.id}`}>
-                    Cash collected: {trip.currencyCode} {parseFloat(trip.fareAmount || "0").toLocaleString()}
-                  </p>
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-1.5">
+                    <Banknote className="h-4 w-4 text-emerald-600" />
+                    <p className="font-bold text-emerald-600" data-testid={`text-cash-collected-${trip.id}`}>
+                      Cash collected: {trip.currencyCode} {parseFloat(trip.fareAmount || "0").toLocaleString()}
+                    </p>
+                  </div>
+                  <span className="text-xs text-muted-foreground ml-5.5">Cash Trip</span>
                 </div>
               ) : (
                 <p className="font-bold text-emerald-600" data-testid={`text-earning-${trip.id}`}>

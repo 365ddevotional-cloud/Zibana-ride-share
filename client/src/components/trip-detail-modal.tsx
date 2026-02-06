@@ -108,16 +108,19 @@ export function TripDetailModal({ trip, open, onOpenChange, userRole }: TripDeta
                   </div>
                 </div>
                 {userRole !== "rider" && trip.paymentSource === "CASH" && (
-                  <div className="pl-8">
+                  <div className="pl-8 space-y-1">
                     <div className="flex items-center gap-2">
                       <Banknote className="h-4 w-4 text-emerald-600" />
                       <div>
-                        <p className="text-sm text-muted-foreground">Cash collected from rider</p>
+                        <p className="text-sm text-muted-foreground">Cash collected</p>
                         <p className="font-medium text-emerald-600" data-testid="text-cash-collected">
-                          ${trip.fareAmount || "0.00"}
+                          {trip.currencyCode || "$"}{parseFloat(trip.fareAmount || "0").toLocaleString()}
                         </p>
                       </div>
                     </div>
+                    <p className="text-xs text-muted-foreground ml-6">
+                      This amount was paid directly to you by the rider.
+                    </p>
                   </div>
                 )}
                 {userRole !== "rider" && trip.paymentSource !== "CASH" && (

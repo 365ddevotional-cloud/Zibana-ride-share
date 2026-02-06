@@ -53,9 +53,14 @@ export default function DriverEarnings() {
   const weekCompletedTrips = completedTrips.filter(t => t.completedAt && new Date(t.completedAt) >= startOfWeek);
   const monthCompletedTrips = completedTrips.filter(t => t.completedAt && new Date(t.completedAt) >= thirtyDaysAgo);
 
-  const todayEarnings = todayCompletedTrips.reduce((sum, t) => sum + parseFloat(t.driverPayout || "0"), 0);
-  const weekEarnings = weekCompletedTrips.reduce((sum, t) => sum + parseFloat(t.driverPayout || "0"), 0);
-  const monthEarnings = monthCompletedTrips.reduce((sum, t) => sum + parseFloat(t.driverPayout || "0"), 0);
+  const getEarning = (t: Trip) => t.paymentSource === "CASH" ? parseFloat(t.fareAmount || "0") : parseFloat(t.driverPayout || "0");
+  const todayEarnings = todayCompletedTrips.reduce((sum, t) => sum + getEarning(t), 0);
+  const weekEarnings = weekCompletedTrips.reduce((sum, t) => sum + getEarning(t), 0);
+  const monthEarnings = monthCompletedTrips.reduce((sum, t) => sum + getEarning(t), 0);
+
+  const todayCashEarnings = todayCompletedTrips.filter(t => t.paymentSource === "CASH").reduce((sum, t) => sum + parseFloat(t.fareAmount || "0"), 0);
+  const weekCashEarnings = weekCompletedTrips.filter(t => t.paymentSource === "CASH").reduce((sum, t) => sum + parseFloat(t.fareAmount || "0"), 0);
+  const monthCashEarnings = monthCompletedTrips.filter(t => t.paymentSource === "CASH").reduce((sum, t) => sum + parseFloat(t.fareAmount || "0"), 0);
 
   const todayTips = 0;
   const weekTips = 0;
@@ -146,6 +151,7 @@ export default function DriverEarnings() {
           <TabsContent value="today" className="mt-4 space-y-3">
             <EarningsPeriodSummary 
               earnings={todayEarnings} 
+              cashEarnings={todayCashEarnings}
               tips={todayTips} 
               tripCount={todayCompletedTrips.length} 
               testPrefix="today"
@@ -155,6 +161,7 @@ export default function DriverEarnings() {
           <TabsContent value="week" className="mt-4 space-y-3">
             <EarningsPeriodSummary 
               earnings={weekEarnings} 
+              cashEarnings={weekCashEarnings}
               tips={weekTips} 
               tripCount={weekCompletedTrips.length} 
               testPrefix="week"
@@ -164,6 +171,7 @@ export default function DriverEarnings() {
           <TabsContent value="month" className="mt-4 space-y-3">
             <EarningsPeriodSummary 
               earnings={monthEarnings} 
+              cashEarnings={monthCashEarnings}
               tips={monthTips} 
               tripCount={monthCompletedTrips.length} 
               testPrefix="month"
@@ -250,11 +258,14 @@ export default function DriverEarnings() {
                       </div>
                       <div className="text-right flex-shrink-0">
                         {trip.paymentSource === "CASH" ? (
-                          <div className="flex items-center gap-1">
-                            <Banknote className="h-3.5 w-3.5 text-emerald-600" />
-                            <p className="font-bold text-emerald-600" data-testid={`text-cash-earning-${trip.id}`}>
-                              {"\u20A6"}{parseFloat(trip.fareAmount || "0").toLocaleString()}
-                            </p>
+                          <div className="flex flex-col items-end">
+                            <div className="flex items-center gap-1">
+                              <Banknote className="h-3.5 w-3.5 text-emerald-600" />
+                              <p className="font-bold text-emerald-600" data-testid={`text-cash-earning-${trip.id}`}>
+                                {"\u20A6"}{parseFloat(trip.fareAmount || "0").toLocaleString()}
+                              </p>
+                            </div>
+                            <span className="text-xs text-muted-foreground">Cash Trip</span>
                           </div>
                         ) : (
                           <p className="font-bold text-emerald-600">
@@ -313,39 +324,60 @@ export default function DriverEarnings() {
 
 function EarningsPeriodSummary({ 
   earnings, 
+  cashEarnings,
   tips, 
   tripCount,
   testPrefix 
 }: { 
   earnings: number; 
+  cashEarnings: number;
   tips: number; 
   tripCount: number;
   testPrefix: string;
 }) {
   return (
-    <div className="grid grid-cols-3 gap-3">
-      <Card data-testid={`card-${testPrefix}-earnings`}>
-        <CardContent className="pt-4 text-center">
-          <p className="text-xs text-muted-foreground">Earnings</p>
-          <p className="text-lg font-bold mt-1">
-            {"\u20A6"}{earnings.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-          </p>
-        </CardContent>
-      </Card>
-      <Card data-testid={`card-${testPrefix}-tips`}>
-        <CardContent className="pt-4 text-center">
-          <p className="text-xs text-muted-foreground">Tips</p>
-          <p className="text-lg font-bold mt-1">
-            {"\u20A6"}{tips.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-          </p>
-        </CardContent>
-      </Card>
-      <Card data-testid={`card-${testPrefix}-trips`}>
-        <CardContent className="pt-4 text-center">
-          <p className="text-xs text-muted-foreground">Trips</p>
-          <p className="text-lg font-bold mt-1">{tripCount}</p>
-        </CardContent>
-      </Card>
+    <div className="space-y-3">
+      <div className="grid grid-cols-3 gap-3">
+        <Card data-testid={`card-${testPrefix}-earnings`}>
+          <CardContent className="pt-4 text-center">
+            <p className="text-xs text-muted-foreground">Earnings</p>
+            <p className="text-lg font-bold mt-1">
+              {"\u20A6"}{earnings.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+            </p>
+          </CardContent>
+        </Card>
+        <Card data-testid={`card-${testPrefix}-tips`}>
+          <CardContent className="pt-4 text-center">
+            <p className="text-xs text-muted-foreground">Tips</p>
+            <p className="text-lg font-bold mt-1">
+              {"\u20A6"}{tips.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+            </p>
+          </CardContent>
+        </Card>
+        <Card data-testid={`card-${testPrefix}-trips`}>
+          <CardContent className="pt-4 text-center">
+            <p className="text-xs text-muted-foreground">Trips</p>
+            <p className="text-lg font-bold mt-1">{tripCount}</p>
+          </CardContent>
+        </Card>
+      </div>
+      {cashEarnings > 0 && (
+        <Card className="border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/20" data-testid={`card-${testPrefix}-cash-earnings`}>
+          <CardContent className="pt-3 pb-3">
+            <div className="flex items-center gap-2">
+              <Banknote className="h-4 w-4 text-emerald-600 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-emerald-800 dark:text-emerald-200" data-testid={`text-${testPrefix}-cash-total`}>
+                  Cash earnings {testPrefix === "today" ? "today" : "this period"}: {"\u20A6"}{cashEarnings.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                </p>
+                <p className="text-xs text-emerald-700 dark:text-emerald-300">
+                  Cash payments are collected directly from riders.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

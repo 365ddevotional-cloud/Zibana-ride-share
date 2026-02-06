@@ -15,8 +15,12 @@ import {
   ChevronRight,
   FileWarning,
   CheckCircle,
-  Clock
+  Clock,
+  Banknote,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
+import { useState } from "react";
 import { useLocation } from "wouter";
 
 const helpCategories = [
@@ -177,6 +181,8 @@ export default function DriverHelpPage() {
           </Card>
         )}
 
+        <CashPaymentFAQ />
+
         <Card className="hover-elevate cursor-pointer" data-testid="card-full-help-center">
           <CardContent className="pt-4">
             <div className="flex items-center gap-3">
@@ -193,5 +199,54 @@ export default function DriverHelpPage() {
         </Card>
       </div>
     </DriverLayout>
+  );
+}
+
+function CashPaymentFAQ() {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <Card data-testid="card-cash-faq">
+      <CardContent className="pt-4">
+        <button
+          className="w-full flex items-center justify-between"
+          onClick={() => setExpanded(!expanded)}
+          data-testid="button-toggle-cash-faq"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center flex-shrink-0">
+              <Banknote className="h-5 w-5 text-emerald-600" />
+            </div>
+            <div className="text-left">
+              <p className="font-medium">How do cash payments work?</p>
+              <p className="text-sm text-muted-foreground">Learn about cash trip earnings</p>
+            </div>
+          </div>
+          {expanded ? (
+            <ChevronUp className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+          ) : (
+            <ChevronDown className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+          )}
+        </button>
+        {expanded && (
+          <div className="mt-4 pt-4 border-t space-y-4">
+            <div className="space-y-2">
+              <p className="text-sm">
+                When a rider pays with cash, you receive the full fare directly.
+                ZIBA settles platform service costs later through statements.
+                You never lose money at the point of collection.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium">How cash trips work</p>
+              <p className="text-sm text-muted-foreground">
+                For cash trips, riders pay you directly.
+                ZIBA handles platform settlement later, so you can focus on driving.
+              </p>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
