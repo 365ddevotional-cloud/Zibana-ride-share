@@ -3950,11 +3950,29 @@ export type CampaignWithDetails = MarketingCampaign & {
   details?: CampaignDetail;
 };
 
+export const mileageSourceEnum = pgEnum("mileage_source", ["trip", "enroute"]);
+
+export const driverMileageDaily = pgTable("driver_mileage_daily", {
+  id: serial("id").primaryKey(),
+  driverUserId: varchar("driver_user_id").notNull(),
+  date: timestamp("date").notNull(),
+  milesDriven: decimal("miles_driven", { precision: 10, scale: 2 }).notNull().default("0.00"),
+  source: mileageSourceEnum("source").notNull().default("enroute"),
+  sessionId: varchar("session_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertDriverMileageDailySchema = createInsertSchema(driverMileageDaily).omit({ id: true, createdAt: true });
+export type InsertDriverMileageDaily = z.infer<typeof insertDriverMileageDailySchema>;
+export type DriverMileageDaily = typeof driverMileageDaily.$inferSelect;
+
 export const driverMileageLogs = pgTable("driver_mileage_logs", {
   id: serial("id").primaryKey(),
   driverUserId: varchar("driver_user_id").notNull(),
   taxYear: integer("tax_year").notNull(),
   totalMilesOnline: decimal("total_miles_online", { precision: 12, scale: 2 }).notNull().default("0.00"),
+  totalTripMiles: decimal("total_trip_miles", { precision: 12, scale: 2 }).notNull().default("0.00"),
+  totalEnrouteMiles: decimal("total_enroute_miles", { precision: 12, scale: 2 }).notNull().default("0.00"),
   lastUpdatedAt: timestamp("last_updated_at").defaultNow(),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -3962,6 +3980,24 @@ export const driverMileageLogs = pgTable("driver_mileage_logs", {
 export const insertDriverMileageLogSchema = createInsertSchema(driverMileageLogs).omit({ id: true, createdAt: true, lastUpdatedAt: true });
 export type InsertDriverMileageLog = z.infer<typeof insertDriverMileageLogSchema>;
 export type DriverMileageLog = typeof driverMileageLogs.$inferSelect;
+
+export const driverMileageSessions = pgTable("driver_mileage_sessions", {
+  id: serial("id").primaryKey(),
+  sessionId: varchar("session_id").notNull(),
+  driverUserId: varchar("driver_user_id").notNull(),
+  startedAt: timestamp("started_at").notNull().defaultNow(),
+  endedAt: timestamp("ended_at"),
+  lastLat: decimal("last_lat", { precision: 10, scale: 7 }),
+  lastLng: decimal("last_lng", { precision: 10, scale: 7 }),
+  lastUpdateAt: timestamp("last_update_at").defaultNow(),
+  totalMilesAccumulated: decimal("total_miles_accumulated", { precision: 10, scale: 2 }).notNull().default("0.00"),
+  status: varchar("status", { length: 20 }).notNull().default("active"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertDriverMileageSessionSchema = createInsertSchema(driverMileageSessions).omit({ id: true, createdAt: true });
+export type InsertDriverMileageSession = z.infer<typeof insertDriverMileageSessionSchema>;
+export type DriverMileageSession = typeof driverMileageSessions.$inferSelect;
 
 export type GrowthSafetyStatus = {
   viralityEnabled: boolean;
