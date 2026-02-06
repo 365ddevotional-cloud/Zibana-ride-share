@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Receipt, MapPin, Clock, Navigation, DollarSign } from "lucide-react";
+import { Receipt, MapPin, Clock, Navigation, DollarSign, Banknote } from "lucide-react";
 
 interface FareBreakdown {
   baseFare: number;
@@ -24,6 +24,7 @@ interface FareReceiptProps {
   driverName?: string;
   completedAt?: Date;
   showDriverEarnings?: boolean;
+  paymentSource?: string;
 }
 
 export function FareReceipt({
@@ -36,6 +37,7 @@ export function FareReceipt({
   driverName,
   completedAt,
   showDriverEarnings = false,
+  paymentSource,
 }: FareReceiptProps) {
   const formatCurrency = (amount: number) => {
     return `$${amount.toFixed(2)}`;
@@ -154,6 +156,29 @@ export function FareReceipt({
             {formatCurrency(fareBreakdown.totalFare)}
           </span>
         </div>
+
+        {paymentSource && (
+          <>
+            <Separator />
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2">
+                {paymentSource === "CASH" ? (
+                  <Banknote className="h-4 w-4 text-emerald-600" />
+                ) : (
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                )}
+                <span className="text-muted-foreground">
+                  Payment method: {paymentSource === "CASH" ? "Cash" : "Card"}
+                </span>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground" data-testid="text-receipt-payment-note">
+              {paymentSource === "CASH"
+                ? "This trip was paid directly to the driver."
+                : "Payment processed in the app."}
+            </p>
+          </>
+        )}
 
         {showDriverEarnings && (
           <>

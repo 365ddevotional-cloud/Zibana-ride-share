@@ -45,8 +45,10 @@ export default function RiderPayments() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/rider/wallet-info"] });
       toast({ 
-        title: "Payment method updated", 
-        description: `Your rides will now use ${selectedMethod === "MAIN_WALLET" ? "Main Wallet" : selectedMethod === "CASH" ? "Cash" : "Test Wallet"}` 
+        title: selectedMethod === "CASH" ? "Cash payment selected" : "Card payment selected",
+        description: selectedMethod === "CASH" 
+          ? "You'll pay the driver the full trip amount in cash at the end of the ride."
+          : "Your payment will be handled securely in the app."
       });
     },
     onError: () => {
@@ -91,7 +93,7 @@ export default function RiderPayments() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <h1 className="text-2xl font-bold" data-testid="text-payments-title">
-              Payment Methods
+              Choose how you want to pay
             </h1>
           </div>
 
@@ -102,15 +104,8 @@ export default function RiderPayments() {
                 <div>
                   <p className="font-medium text-sm">How payments work</p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    ZIBA uses a wallet-based payment system. When you request a ride, 
-                    the fare is deducted from your selected wallet after the trip is completed. 
-                    No hidden fees or silent deductions.
+                    You can change your payment method before the trip starts.
                   </p>
-                  <ul className="text-sm text-muted-foreground mt-2 space-y-1 list-disc list-inside">
-                    <li>You're charged only after a trip ends</li>
-                    <li>Fares are calculated based on distance and time</li>
-                    <li>You'll see the estimated fare before confirming</li>
-                  </ul>
                 </div>
               </div>
             </CardContent>
@@ -118,7 +113,7 @@ export default function RiderPayments() {
 
           <div className="space-y-3">
             <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-              Select Payment Method
+              Payment Options
             </h2>
 
             {isLoading ? (
@@ -154,7 +149,7 @@ export default function RiderPayments() {
                             {formatCurrency(walletData?.mainBalance, currency)}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            Real funds for ride payments
+                            Pay securely in the app
                           </p>
                         </div>
                       </div>
@@ -188,10 +183,7 @@ export default function RiderPayments() {
                         <div>
                           <p className="font-semibold">Cash</p>
                           <p className="text-sm text-muted-foreground mt-1">
-                            Pay driver directly
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            No wallet balance needed
+                            Pay the driver directly in cash
                           </p>
                         </div>
                       </div>
@@ -276,7 +268,7 @@ export default function RiderPayments() {
                       {selectedMethod === "MAIN_WALLET" ? "Main Wallet" : selectedMethod === "CASH" ? "Cash" : "Test Wallet"}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      {selectedMethod === "CASH" ? "Pay driver directly" : "Will be charged for your rides"}
+                      {selectedMethod === "CASH" ? "Pay the driver directly in cash" : "Pay securely in the app"}
                     </p>
                   </div>
                 </div>
@@ -316,8 +308,7 @@ export default function RiderPayments() {
           </Card>
 
           <p className="text-xs text-muted-foreground text-center px-4">
-            Your payment selection is saved automatically. 
-            You can change it anytime before requesting a ride.
+            You can change your payment method before the trip starts.
           </p>
         </div>
       </RiderLayout>

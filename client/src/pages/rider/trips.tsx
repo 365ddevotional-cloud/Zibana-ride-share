@@ -18,6 +18,7 @@ interface Trip {
   createdAt: string;
   completedAt: string | null;
   driverName?: string;
+  paymentSource?: string;
 }
 
 export default function RiderTrips() {
@@ -137,10 +138,15 @@ export default function RiderTrips() {
                                 From: {trip.pickupLocation}
                               </p>
                             </div>
-                            <div className="flex items-center gap-2 ml-4">
+                            <div className="flex flex-col items-end gap-0.5 ml-4">
                               <span className="font-bold" data-testid={`text-trip-${trip.id}-fare`}>
                                 {formatCurrency(trip.fareAmount, trip.currencyCode)}
                               </span>
+                              {trip.paymentSource && (
+                                <span className="text-xs text-muted-foreground" data-testid={`text-trip-${trip.id}-payment`}>
+                                  {trip.paymentSource === "CASH" ? "Cash" : "Card"}
+                                </span>
+                              )}
                               <ChevronRight className="h-5 w-5 text-muted-foreground" />
                             </div>
                           </div>

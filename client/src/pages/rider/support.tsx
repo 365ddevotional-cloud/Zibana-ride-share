@@ -12,7 +12,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { 
   HelpCircle, Shield, Phone, MessageSquare, Plus, 
-  ChevronRight, FileText, AlertTriangle, AlertOctagon
+  ChevronRight, ChevronDown, ChevronUp, FileText, AlertTriangle, AlertOctagon, Banknote
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
@@ -241,6 +241,8 @@ export default function RiderSupport() {
             </CardContent>
           </Card>
 
+          <RiderPaymentFAQ />
+
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
@@ -274,5 +276,49 @@ export default function RiderSupport() {
         </div>
       </RiderLayout>
     </RiderRouteGuard>
+  );
+}
+
+function RiderPaymentFAQ() {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <Card data-testid="card-payment-faq">
+      <CardContent className="pt-4">
+        <button
+          className="w-full flex items-center justify-between"
+          onClick={() => setExpanded(!expanded)}
+          data-testid="button-toggle-payment-faq"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <Banknote className="h-5 w-5 text-primary" />
+            </div>
+            <div className="text-left">
+              <p className="font-medium">What's the difference between cash and card payments?</p>
+              <p className="text-sm text-muted-foreground">Payment options explained</p>
+            </div>
+          </div>
+          {expanded ? (
+            <ChevronUp className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+          ) : (
+            <ChevronDown className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+          )}
+        </button>
+        {expanded && (
+          <div className="mt-4 pt-4 border-t space-y-2">
+            <p className="text-sm">
+              With cash payments, you pay the driver directly at the end of the trip.
+            </p>
+            <p className="text-sm">
+              With card payments, payment is handled securely in the app.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Both options are supported for your convenience.
+            </p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

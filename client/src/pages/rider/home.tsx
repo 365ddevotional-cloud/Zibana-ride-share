@@ -129,11 +129,11 @@ export default function RiderHome() {
                     </div>
                     {paymentMethod === "CASH" ? (
                       <span className="text-xs text-muted-foreground">
-                        Pay driver directly
+                        Pay the driver directly in cash
                       </span>
                     ) : (
                       <span className="text-xs text-muted-foreground">
-                        Balance: {formatCurrency(currentBalance, currency)}
+                        Pay securely in the app
                       </span>
                     )}
                   </div>

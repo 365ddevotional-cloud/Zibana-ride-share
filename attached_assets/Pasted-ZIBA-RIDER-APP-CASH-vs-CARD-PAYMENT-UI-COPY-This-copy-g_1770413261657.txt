@@ -1,0 +1,135 @@
+ZIBA RIDER APP — CASH vs CARD PAYMENT UI COPY
+
+This copy governs ALL rider-facing text related to payment method selection.
+Tone must be simple, respectful, and neutral.
+Do NOT reference platform fees or driver earnings percentages.
+
+====================================
+PAYMENT METHOD SELECTION SCREEN
+====================================
+
+Title:
+“Choose how you want to pay”
+
+Options:
+
+• Card / Wallet
+  “Pay securely in the app”
+
+• Cash
+  “Pay the driver directly in cash”
+
+Helper text (below options):
+“You can change your payment method before the trip starts.”
+
+====================================
+CASH PAYMENT — CONFIRMATION SCREEN
+====================================
+
+Title:
+“Cash payment selected”
+
+Message:
+“You’ll pay the driver the full trip amount in cash at the end of the ride.”
+
+Small helper text:
+“Please have the correct amount ready.”
+
+====================================
+CARD PAYMENT — CONFIRMATION SCREEN
+====================================
+
+Title:
+“Card payment selected”
+
+Message:
+“Your payment will be handled securely in the app.”
+
+====================================
+DURING TRIP — PAYMENT REMINDER (CASH)
+====================================
+
+Banner (subtle):
+“Payment method: Cash”
+
+Small text:
+“Please pay the driver directly at the end of the trip.”
+
+====================================
+END OF TRIP — CASH PAYMENT SCREEN
+====================================
+
+Title:
+“Pay your driver”
+
+Amount display:
+“Trip total: ₦X / $X”
+
+Instruction:
+“Please pay this amount directly to the driver.”
+
+Confirmation button:
+“I’ve paid the driver”
+
+====================================
+END OF TRIP — CARD PAYMENT SCREEN
+====================================
+
+Title:
+“Trip completed”
+
+Message:
+“Your payment has been processed in the app.”
+
+====================================
+RECEIPT — CASH TRIP
+====================================
+
+Receipt label:
+“Payment method: Cash”
+
+Receipt note:
+“This trip was paid directly to the driver.”
+
+====================================
+RECEIPT — CARD TRIP
+====================================
+
+Receipt label:
+“Payment method: Card”
+
+Receipt note:
+“Payment processed in the app.”
+
+====================================
+HELP CENTER — RIDER FAQ COPY
+====================================
+
+Question:
+“What’s the difference between cash and card payments?”
+
+Answer:
+“With cash payments, you pay the driver directly at the end of the trip.
+With card payments, payment is handled securely in the app.
+Both options are supported for your convenience.”
+
+====================================
+IMPORTANT COPY RULES (LOCKED)
+====================================
+
+• Never mention platform fees
+• Never mention driver percentages
+• Never compare cash vs card pricing
+• Never imply drivers earn less with cash
+• Keep instructions simple and respectful
+
+====================================
+FINAL COPY PRINCIPLE
+====================================
+
+Riders should clearly understand:
+• Who to pay
+• When to pay
+• How much to pay
+
+Without ever seeing platform economics.

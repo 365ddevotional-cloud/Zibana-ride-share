@@ -107,6 +107,29 @@ export function TripDetailModal({ trip, open, onOpenChange, userRole }: TripDeta
                     </p>
                   </div>
                 </div>
+                {trip.paymentSource && (
+                  <div className="pl-8">
+                    <div className="flex items-center gap-2">
+                      {trip.paymentSource === "CASH" ? (
+                        <Banknote className="h-4 w-4 text-emerald-600" />
+                      ) : (
+                        <DollarSign className="h-4 w-4 text-muted-foreground" />
+                      )}
+                      <div>
+                        <p className="text-sm text-muted-foreground">
+                          Payment method: {trip.paymentSource === "CASH" ? "Cash" : "Card"}
+                        </p>
+                        {userRole === "rider" && (
+                          <p className="text-xs text-muted-foreground" data-testid="text-payment-note">
+                            {trip.paymentSource === "CASH"
+                              ? "This trip was paid directly to the driver."
+                              : "Payment processed in the app."}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {userRole !== "rider" && trip.paymentSource === "CASH" && (
                   <div className="pl-8 space-y-1">
                     <div className="flex items-center gap-2">
@@ -118,9 +141,6 @@ export function TripDetailModal({ trip, open, onOpenChange, userRole }: TripDeta
                         </p>
                       </div>
                     </div>
-                    <p className="text-xs text-muted-foreground ml-6">
-                      This amount was paid directly to you by the rider.
-                    </p>
                   </div>
                 )}
                 {userRole !== "rider" && trip.paymentSource !== "CASH" && (
