@@ -31,6 +31,7 @@ import { AcquisitionPanel } from "@/components/admin/acquisition-panel";
 import { HelpCenterPanel } from "@/components/admin/help-center-panel";
 import { SafetyPanel } from "@/components/admin/safety-panel";
 import { TaxDocumentsPanel } from "@/components/admin/tax-documents-panel";
+import { TaxComplianceConfig } from "@/components/admin/tax-compliance-config";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -6615,7 +6616,10 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
 
           {(isSuperAdmin || userRole === "admin") && (
             <TabsContent value="tax-documents">
-              <TaxDocumentsPanel />
+              <div className="space-y-6">
+                <TaxDocumentsPanel />
+                <TaxComplianceConfig />
+              </div>
             </TabsContent>
           )}
         </Tabs>

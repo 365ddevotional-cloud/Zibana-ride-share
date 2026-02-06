@@ -14924,6 +14924,10 @@ export async function registerRoutes(
       } else {
         if (!taxProfile.taxId) warnings.push("Tax ID not provided");
         if (!taxProfile.legalName) errors.push("Legal name missing");
+        const countryConfig = await storage.getCountryTaxConfig(taxProfile.country);
+        if (countryConfig && !countryConfig.taxDocumentsEnabled) {
+          errors.push(`Tax documents are disabled for ${countryConfig.countryName} (${taxProfile.country})`);
+        }
       }
 
       const mileageRecord = await storage.getDriverMileageForYear(driverId, year);
