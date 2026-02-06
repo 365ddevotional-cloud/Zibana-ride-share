@@ -322,8 +322,6 @@ function TripCard({
   };
 
   const driverPayout = trip.driverPayout ? parseFloat(trip.driverPayout) : 0;
-  const commissionAmount = trip.commissionAmount ? parseFloat(trip.commissionAmount) : 0;
-
   return (
     <Card 
       className="hover-elevate cursor-pointer" 
@@ -355,11 +353,6 @@ function TripCard({
               <p className="font-bold text-emerald-600">
                 +{trip.currencyCode} {driverPayout.toLocaleString()}
               </p>
-              {commissionAmount > 0 && (
-                <Badge variant="secondary" className="text-xs">
-                  Fee: {trip.currencyCode} {commissionAmount.toLocaleString()}
-                </Badge>
-              )}
             </div>
             {onReport && (
               <Button 

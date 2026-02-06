@@ -241,11 +241,6 @@ export default function DriverEarnings() {
                         <p className="font-bold text-emerald-600">
                           +{"\u20A6"}{parseFloat(trip.driverPayout || "0").toLocaleString()}
                         </p>
-                        {trip.commissionAmount && (
-                          <p className="text-xs text-muted-foreground">
-                            Fee: {"\u20A6"}{parseFloat(trip.commissionAmount).toLocaleString()}
-                          </p>
-                        )}
                       </div>
                     </div>
                   </CardContent>

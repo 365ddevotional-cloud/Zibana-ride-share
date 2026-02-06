@@ -107,16 +107,10 @@ export function TripDetailModal({ trip, open, onOpenChange, userRole }: TripDeta
                     </p>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4 pl-8">
+                <div className="pl-8">
                   <div>
-                    <p className="text-sm text-muted-foreground">ZIBA Commission (20%)</p>
-                    <p className="font-medium" data-testid="text-commission-amount">
-                      ${trip.commissionAmount || "0.00"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Driver Earnings (80%)</p>
-                    <p className="font-medium" data-testid="text-driver-payout">
+                    <p className="text-sm text-muted-foreground">You earned</p>
+                    <p className="font-medium text-emerald-600" data-testid="text-driver-payout">
                       ${trip.driverPayout || "0.00"}
                     </p>
                   </div>

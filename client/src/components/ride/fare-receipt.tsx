@@ -158,13 +158,9 @@ export function FareReceipt({
         {showDriverEarnings && (
           <>
             <Separator />
-            <div className="space-y-2 text-sm text-muted-foreground">
-              <div className="flex justify-between">
-                <span>Platform fee (20%)</span>
-                <span>-{formatCurrency(fareBreakdown.platformFee)}</span>
-              </div>
+            <div className="space-y-2 text-sm">
               <div className="flex justify-between font-medium text-foreground">
-                <span>Your earnings</span>
+                <span>You earned</span>
                 <span className="text-green-600 dark:text-green-400" data-testid="text-driver-earnings">
                   {formatCurrency(fareBreakdown.driverEarning)}
                 </span>
