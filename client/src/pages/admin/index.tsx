@@ -24,6 +24,7 @@ import { AdminReservationsPanel } from "@/components/admin/reservations-panel";
 import { AdminOverridePanel } from "@/components/admin/override-panel";
 import { UserGrowthPanel } from "@/components/admin/user-growth-panel";
 import { IncentivesPanel } from "@/components/admin/incentives-panel";
+import { LaunchReadinessPanel } from "@/components/admin/launch-readiness-panel";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -70,7 +71,8 @@ import {
   ChevronRight,
   Settings,
   TestTube,
-  Trash2
+  Trash2,
+  Rocket
 } from "lucide-react";
 import type { DriverProfile, Trip, User } from "@shared/schema";
 import { NotificationBell } from "@/components/notification-bell";
@@ -2031,12 +2033,6 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               </TabsTrigger>
             )}
             {!isDirector && !isTripCoordinator && (
-              <TabsTrigger value="incentives" className="admin-nav-trigger rounded-md" data-testid="tab-incentives">
-                <Gift className="h-4 w-4 mr-2" />
-                Incentives
-              </TabsTrigger>
-            )}
-            {!isDirector && !isTripCoordinator && (
               <TabsTrigger value="countries" className="admin-nav-trigger rounded-md" data-testid="tab-countries">
                 <Globe className="h-4 w-4 mr-2" />
                 Countries
@@ -2094,6 +2090,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <TabsTrigger value="user-growth" className="admin-nav-trigger rounded-md" data-testid="tab-user-growth">
                 <TrendingUp className="h-4 w-4 mr-2" />
                 User Growth
+              </TabsTrigger>
+            )}
+            {isSuperAdmin && (
+              <TabsTrigger value="launch-readiness" className="admin-nav-trigger rounded-md" data-testid="tab-launch-readiness">
+                <Rocket className="h-4 w-4 mr-2" />
+                Launch Control
               </TabsTrigger>
             )}
             {(isSuperAdmin || userRole === "admin" || userRole === "finance") && (
@@ -4478,390 +4480,6 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
             </TabsContent>
           )}
 
-          {/* Phase 14 - Incentives Tab */}
-          {!isDirector && !isTripCoordinator && (
-            <TabsContent value="incentives">
-              <div className="grid gap-4 md:grid-cols-4 mb-6">
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Active Programs</CardTitle>
-                    <Play className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{incentiveStats?.activePrograms || 0}</div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Pending Earnings</CardTitle>
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">${incentiveStats?.pendingEarnings || "0.00"}</div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Paid Earnings</CardTitle>
-                    <CheckCircle className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-green-600">${incentiveStats?.paidEarnings || "0.00"}</div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Revoked</CardTitle>
-                    <XCircle className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-red-600">${incentiveStats?.revokedEarnings || "0.00"}</div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <div className="grid gap-6 lg:grid-cols-2">
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between gap-2">
-                      <div>
-                        <CardTitle>Incentive Programs</CardTitle>
-                        <CardDescription>Manage driver incentive programs</CardDescription>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          onClick={() => evaluateIncentivesMutation.mutate()}
-                          disabled={evaluateIncentivesMutation.isPending}
-                          variant="outline"
-                          data-testid="button-evaluate-incentives"
-                        >
-                          <RefreshCw className={`h-4 w-4 mr-1 ${evaluateIncentivesMutation.isPending ? "animate-spin" : ""}`} />
-                          Evaluate
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={() => setShowCreateProgramDialog(true)}
-                          data-testid="button-create-program"
-                        >
-                          <Gift className="h-4 w-4 mr-1" />
-                          New Program
-                        </Button>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    {programsLoading ? (
-                      <div className="py-8 text-center text-muted-foreground">Loading programs...</div>
-                    ) : incentivePrograms.length === 0 ? (
-                      <EmptyState
-                        icon={Gift}
-                        title="No incentive programs"
-                        description="Create your first incentive program to motivate drivers"
-                      />
-                    ) : (
-                      <div className="overflow-x-auto">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Program</TableHead>
-                              <TableHead>Type</TableHead>
-                              <TableHead>Reward</TableHead>
-                              <TableHead>Status</TableHead>
-                              <TableHead>Dates</TableHead>
-                              <TableHead>Actions</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {incentivePrograms.map((program) => (
-                              <TableRow key={program.id} data-testid={`row-program-${program.id}`}>
-                                <TableCell>
-                                  <div className="font-medium">{program.name}</div>
-                                  <div className="text-xs text-muted-foreground">
-                                    {program.earnersCount || 0} earners | ${program.totalPaid || "0.00"} paid
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  <Badge variant="outline" className="capitalize">
-                                    {program.type === "trip" && <Target className="h-3 w-3 mr-1" />}
-                                    {program.type === "streak" && <Zap className="h-3 w-3 mr-1" />}
-                                    {program.type === "quality" && <Star className="h-3 w-3 mr-1" />}
-                                    {program.type === "peak" && <Clock className="h-3 w-3 mr-1" />}
-                                    {program.type === "promo" && <Gift className="h-3 w-3 mr-1" />}
-                                    {program.type}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="font-medium text-green-600">
-                                  ${program.rewardAmount}
-                                </TableCell>
-                                <TableCell>
-                                  <Badge
-                                    variant={program.status === "active" ? "default" : program.status === "paused" ? "secondary" : "outline"}
-                                    className="capitalize"
-                                  >
-                                    {program.status}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="text-xs text-muted-foreground">
-                                  {new Date(program.startAt).toLocaleDateString()} - {new Date(program.endAt).toLocaleDateString()}
-                                </TableCell>
-                                <TableCell>
-                                  <div className="flex gap-1">
-                                    {program.status === "active" && (
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => pauseProgramMutation.mutate(program.id)}
-                                        disabled={pauseProgramMutation.isPending}
-                                        data-testid={`button-pause-${program.id}`}
-                                      >
-                                        <Pause className="h-4 w-4" />
-                                      </Button>
-                                    )}
-                                    {program.status !== "ended" && (
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => endProgramMutation.mutate(program.id)}
-                                        disabled={endProgramMutation.isPending}
-                                        data-testid={`button-end-${program.id}`}
-                                      >
-                                        <StopCircle className="h-4 w-4" />
-                                      </Button>
-                                    )}
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Driver Earnings</CardTitle>
-                    <CardDescription>Pending and recent incentive earnings</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {earningsLoading ? (
-                      <div className="py-8 text-center text-muted-foreground">Loading earnings...</div>
-                    ) : incentiveEarnings.length === 0 ? (
-                      <EmptyState
-                        icon={Award}
-                        title="No earnings yet"
-                        description="Driver incentive earnings will appear here"
-                      />
-                    ) : (
-                      <div className="overflow-x-auto">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Driver</TableHead>
-                              <TableHead>Program</TableHead>
-                              <TableHead>Amount</TableHead>
-                              <TableHead>Status</TableHead>
-                              <TableHead>Actions</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {incentiveEarnings.map((earning) => (
-                              <TableRow key={earning.id} data-testid={`row-earning-${earning.id}`}>
-                                <TableCell className="font-medium">{earning.driverName}</TableCell>
-                                <TableCell>
-                                  <div>{earning.programName}</div>
-                                  <div className="text-xs text-muted-foreground capitalize">{earning.programType}</div>
-                                </TableCell>
-                                <TableCell className="font-medium text-green-600">${earning.amount}</TableCell>
-                                <TableCell>
-                                  <Badge
-                                    variant={
-                                      earning.status === "paid" ? "default" :
-                                      earning.status === "pending" ? "secondary" :
-                                      earning.status === "approved" ? "outline" :
-                                      "destructive"
-                                    }
-                                    className="capitalize"
-                                  >
-                                    {earning.status}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell>
-                                  <div className="flex gap-1">
-                                    {(earning.status === "pending" || earning.status === "approved") && (
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => approveEarningMutation.mutate(earning.id)}
-                                        disabled={approveEarningMutation.isPending}
-                                        data-testid={`button-approve-${earning.id}`}
-                                      >
-                                        <CheckCircle className="h-4 w-4 mr-1" />
-                                        Pay
-                                      </Button>
-                                    )}
-                                    {earning.status !== "revoked" && earning.status !== "paid" && (
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => {
-                                          setRevokeEarningId(earning.id);
-                                          setShowRevokeDialog(true);
-                                        }}
-                                        data-testid={`button-revoke-${earning.id}`}
-                                      >
-                                        <XCircle className="h-4 w-4" />
-                                      </Button>
-                                    )}
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Create Program Dialog */}
-              <Dialog open={showCreateProgramDialog} onOpenChange={setShowCreateProgramDialog}>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Create Incentive Program</DialogTitle>
-                    <DialogDescription>Set up a new driver incentive program</DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-sm font-medium">Program Name</label>
-                      <Input
-                        value={newProgram.name}
-                        onChange={(e) => setNewProgram({ ...newProgram, name: e.target.value })}
-                        placeholder="e.g., Complete 10 Trips Bonus"
-                        data-testid="input-program-name"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium">Type</label>
-                      <Select
-                        value={newProgram.type}
-                        onValueChange={(value: typeof newProgram.type) => setNewProgram({ ...newProgram, type: value })}
-                      >
-                        <SelectTrigger data-testid="select-program-type">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="trip">Trip Bonus</SelectItem>
-                          <SelectItem value="streak">Streak Bonus</SelectItem>
-                          <SelectItem value="peak">Peak Time Bonus</SelectItem>
-                          <SelectItem value="quality">Quality Bonus</SelectItem>
-                          <SelectItem value="promo">Promo Campaign</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium">Criteria (JSON)</label>
-                      <Textarea
-                        value={newProgram.criteria}
-                        onChange={(e) => setNewProgram({ ...newProgram, criteria: e.target.value })}
-                        placeholder='{"tripCount": 10}'
-                        className="font-mono text-sm"
-                        data-testid="input-program-criteria"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Examples: {"{"}"tripCount": 10{"}"}, {"{"}"streakDays": 5{"}"}, {"{"}"minRating": 4.5{"}"}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium">Reward Amount ($)</label>
-                      <Input
-                        type="number"
-                        value={newProgram.rewardAmount}
-                        onChange={(e) => setNewProgram({ ...newProgram, rewardAmount: e.target.value })}
-                        placeholder="25.00"
-                        data-testid="input-reward-amount"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-sm font-medium">Start Date</label>
-                        <Input
-                          type="datetime-local"
-                          value={newProgram.startAt}
-                          onChange={(e) => setNewProgram({ ...newProgram, startAt: e.target.value })}
-                          data-testid="input-start-date"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium">End Date</label>
-                        <Input
-                          type="datetime-local"
-                          value={newProgram.endAt}
-                          onChange={(e) => setNewProgram({ ...newProgram, endAt: e.target.value })}
-                          data-testid="input-end-date"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setShowCreateProgramDialog(false)}>
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={() => createProgramMutation.mutate(newProgram)}
-                      disabled={createProgramMutation.isPending || !newProgram.name || !newProgram.rewardAmount}
-                      data-testid="button-submit-program"
-                    >
-                      Create Program
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-
-              {/* Revoke Earning Dialog */}
-              <Dialog open={showRevokeDialog} onOpenChange={setShowRevokeDialog}>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Revoke Incentive Earning</DialogTitle>
-                    <DialogDescription>Provide a reason for revoking this earning</DialogDescription>
-                  </DialogHeader>
-                  <div>
-                    <Textarea
-                      value={revokeReason}
-                      onChange={(e) => setRevokeReason(e.target.value)}
-                      placeholder="Enter revocation reason..."
-                      data-testid="input-revoke-reason"
-                    />
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => {
-                      setShowRevokeDialog(false);
-                      setRevokeEarningId(null);
-                      setRevokeReason("");
-                    }}>
-                      Cancel
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      onClick={() => {
-                        if (revokeEarningId && revokeReason) {
-                          revokeEarningMutation.mutate({ earningId: revokeEarningId, reason: revokeReason });
-                        }
-                      }}
-                      disabled={revokeEarningMutation.isPending || !revokeReason}
-                      data-testid="button-confirm-revoke"
-                    >
-                      Revoke Earning
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </TabsContent>
-          )}
-
           {/* Countries Tab - Phase 15 */}
           {!isDirector && !isTripCoordinator && (
             <TabsContent value="countries">
@@ -6306,6 +5924,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
           {(isSuperAdmin || userRole === "admin") && (
             <TabsContent value="user-growth">
               <UserGrowthPanel />
+            </TabsContent>
+          )}
+
+          {isSuperAdmin && (
+            <TabsContent value="launch-readiness">
+              <LaunchReadinessPanel />
             </TabsContent>
           )}
 

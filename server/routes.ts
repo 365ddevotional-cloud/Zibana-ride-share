@@ -744,6 +744,13 @@ export async function registerRoutes(
         });
       }
 
+      // Phase 6: Kill-switch check for trip acceptance
+      const { checkTripAcceptanceAllowed } = await import("./launch-control");
+      const acceptanceCheck = await checkTripAcceptanceAllowed();
+      if (!acceptanceCheck.allowed) {
+        return res.status(403).json({ message: acceptanceCheck.reason, code: acceptanceCheck.code });
+      }
+
       // MANDATORY SETUP CHECK - Block ride acceptance if setup incomplete
       const missingFields: string[] = [];
       if (profile.locationPermissionStatus !== "granted") missingFields.push("locationPermission");
@@ -1760,8 +1767,18 @@ export async function registerRoutes(
     try {
       // ASSERT FINANCIAL ENGINE IS LOCKED
       assertFinancialEngineLocked();
-      
+
+      // Phase 6: Kill-switch and launch readiness check
+      const { checkTripRequestAllowed } = await import("./launch-control");
       const userId = req.user.claims.sub;
+      const userRoleForLaunch = await storage.getUserRole(userId);
+      const launchCountry = userRoleForLaunch?.countryCode || "NG";
+      const stateCode = req.body.stateCode;
+      const launchCheck = await checkTripRequestAllowed(launchCountry, stateCode);
+      if (!launchCheck.allowed) {
+        return res.status(403).json({ message: launchCheck.reason, code: launchCheck.code });
+      }
+      
       const parsed = insertTripSchema.safeParse({ ...req.body, riderId: userId });
       
       if (!parsed.success) {
