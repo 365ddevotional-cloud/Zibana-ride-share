@@ -3949,11 +3949,26 @@ export class DatabaseStorage implements IStorage {
           revenue: sql<string>`coalesce(sum(${trips.fareAmount}), 0)`
         }).from(trips).where(eq(trips.countryId, country.id));
 
+        let usdRate: number | null = null;
+        if (country.currency && country.currency !== "USD") {
+          const rate = await this.getLatestExchangeRate(country.currency, "USD");
+          if (rate) {
+            usdRate = parseFloat(String(rate.rate));
+          }
+        }
+
+        const totalRevenue = String(tripStats?.revenue || "0.00");
+        const revenueNum = parseFloat(totalRevenue);
+        const totalRevenueUsd = country.currency === "USD" ? totalRevenue :
+          usdRate ? (revenueNum * usdRate).toFixed(2) : null;
+
         return {
           ...country,
           taxRulesCount: Number(taxRuleCount?.count || 0),
           activeTripsCount: Number(tripStats?.tripCount || 0),
-          totalRevenue: String(tripStats?.revenue || "0.00")
+          totalRevenue,
+          totalRevenueUsd,
+          usdExchangeRate: usdRate,
         };
       })
     );

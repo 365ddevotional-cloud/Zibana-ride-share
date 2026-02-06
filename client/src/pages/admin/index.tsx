@@ -4594,7 +4594,20 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                               <TableCell>{country.currency}</TableCell>
                               <TableCell>{country.timezone}</TableCell>
                               <TableCell>{country.taxRulesCount}</TableCell>
-                              <TableCell>${country.totalRevenue}</TableCell>
+                              <TableCell>
+                                <div>
+                                  <span className="font-medium" data-testid={`text-revenue-native-${country.id}`}>
+                                    {country.currency} {parseFloat(country.totalRevenue || "0").toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </span>
+                                  {country.currency !== "USD" && (
+                                    <div className="text-xs text-muted-foreground" data-testid={`text-revenue-usd-${country.id}`}>
+                                      {country.totalRevenueUsd
+                                        ? `~ $${parseFloat(country.totalRevenueUsd).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`
+                                        : "USD rate unavailable"}
+                                    </div>
+                                  )}
+                                </div>
+                              </TableCell>
                               <TableCell>
                                 <Badge variant={country.active ? "default" : "secondary"}>
                                   {country.active ? "Active" : "Inactive"}
