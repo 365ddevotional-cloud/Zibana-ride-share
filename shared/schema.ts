@@ -1560,7 +1560,8 @@ export const settlementStatusEnum = pgEnum("settlement_status", [
   "pending",
   "partial",
   "settled",
-  "waived"
+  "waived",
+  "deferred"
 ]);
 
 export const settlementMethodEnum = pgEnum("settlement_method", [
@@ -1568,6 +1569,12 @@ export const settlementMethodEnum = pgEnum("settlement_method", [
   "card_trip_offset",
   "weekly_invoice",
   "manual"
+]);
+
+export const ledgerStatusEnum = pgEnum("ledger_status", [
+  "pending",
+  "settled",
+  "deferred"
 ]);
 
 export const platformSettlements = pgTable("platform_settlements", {
@@ -1595,6 +1602,36 @@ export const driverStanding = pgTable("driver_standing", {
   rating: decimal("rating", { precision: 3, scale: 2 }).default("5.00"),
   accountAge: integer("account_age_days").notNull().default(0),
   lastEvaluatedAt: timestamp("last_evaluated_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const cashSettlementLedger = pgTable("cash_settlement_ledger", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  driverId: varchar("driver_id").notNull(),
+  periodStart: timestamp("period_start").notNull(),
+  periodEnd: timestamp("period_end").notNull(),
+  totalCashCollected: decimal("total_cash_collected", { precision: 12, scale: 2 }).notNull().default("0.00"),
+  totalPlatformShareDue: decimal("total_platform_share_due", { precision: 12, scale: 2 }).notNull().default("0.00"),
+  totalSettled: decimal("total_settled", { precision: 12, scale: 2 }).notNull().default("0.00"),
+  settlementStatus: ledgerStatusEnum("settlement_status").notNull().default("pending"),
+  settlementMethod: settlementMethodEnum("settlement_method"),
+  currencyCode: varchar("currency_code", { length: 3 }).notNull().default("NGN"),
+  settledAt: timestamp("settled_at"),
+  deferredToLedgerId: varchar("deferred_to_ledger_id"),
+  adminNotes: text("admin_notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const countryCashConfig = pgTable("country_cash_config", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  countryCode: varchar("country_code", { length: 3 }).notNull().unique(),
+  cashEnabled: boolean("cash_enabled").notNull().default(true),
+  settlementCycle: varchar("settlement_cycle", { length: 10 }).notNull().default("weekly"),
+  maxDeferredBalance: decimal("max_deferred_balance", { precision: 12, scale: 2 }).notNull().default("50000.00"),
+  defaultDriverSharePercent: integer("default_driver_share_percent").notNull().default(70),
+  maxDriverSharePercent: integer("max_driver_share_percent").notNull().default(80),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -2022,6 +2059,18 @@ export const insertDriverStandingSchema = createInsertSchema(driverStanding).omi
 });
 export type InsertDriverStanding = z.infer<typeof insertDriverStandingSchema>;
 export type DriverStanding = typeof driverStanding.$inferSelect;
+
+export const insertCashSettlementLedgerSchema = createInsertSchema(cashSettlementLedger).omit({
+  id: true, createdAt: true, updatedAt: true
+});
+export type InsertCashSettlementLedger = z.infer<typeof insertCashSettlementLedgerSchema>;
+export type CashSettlementLedger = typeof cashSettlementLedger.$inferSelect;
+
+export const insertCountryCashConfigSchema = createInsertSchema(countryCashConfig).omit({
+  id: true, createdAt: true, updatedAt: true
+});
+export type InsertCountryCashConfig = z.infer<typeof insertCountryCashConfigSchema>;
+export type CountryCashConfig = typeof countryCashConfig.$inferSelect;
 
 // Phase 11 - Wallet schemas and types
 export const insertWalletSchema = createInsertSchema(wallets).omit({

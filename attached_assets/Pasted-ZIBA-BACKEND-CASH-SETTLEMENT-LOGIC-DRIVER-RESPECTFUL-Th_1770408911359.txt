@@ -1,0 +1,152 @@
+ZIBA BACKEND — CASH SETTLEMENT LOGIC (DRIVER-RESPECTFUL)
+
+This module governs how ZIBA settles platform share for CASH trips
+without creating driver resentment or real-time deductions.
+
+CASH IS DRIVER-COLLECTED FIRST.
+PLATFORM SETTLES LATER, QUIETLY, AND SAFELY.
+
+====================================
+CORE DEFINITIONS
+====================================
+• Cash Trip: rider pays full fare in cash directly to driver
+• Driver Share: up to 80% (tier-based, may start ~70%)
+• Platform Share: remainder, settled asynchronously
+• Settlement Cycle: weekly or monthly (configurable per country)
+
+====================================
+DATA MODELS
+====================================
+
+Trip:
+- trip_id
+- driver_id
+- fare_amount
+- payment_type (cash | card)
+- driver_share_amount
+- platform_share_amount
+- cash_collected (true/false)
+- completed_at
+
+DriverWallet:
+- driver_id
+- balance
+- currency
+- updated_at
+
+CashSettlementLedger:
+- settlement_id
+- driver_id
+- period_start
+- period_end
+- total_cash_collected
+- total_platform_share_due
+- settlement_status (pending | settled | deferred)
+- created_at
+
+====================================
+TRIP COMPLETION LOGIC (CASH)
+====================================
+
+On cash trip completion:
+1. Mark trip.payment_type = cash
+2. Mark trip.cash_collected = true
+3. Calculate driver_share_amount (tier-based, up to 80%)
+4. Calculate platform_share_amount internally
+5. DO NOT deduct anything from driver wallet
+6. DO NOT block driver for insufficient balance
+7. Show driver only:
+   “Cash collected: ₦X / $X”
+
+====================================
+PLATFORM SHARE ACCUMULATION
+====================================
+
+1. For each cash trip:
+   - Accumulate platform_share_amount into CashSettlementLedger
+2. Ledger groups by driver and settlement period
+3. Ledger is internal (driver cannot see per trip)
+
+====================================
+SETTLEMENT EXECUTION (ASYNC)
+====================================
+
+At settlement time (weekly/monthly):
+
+1. Calculate total_platform_share_due for driver
+2. Attempt settlement in this order:
+   a. Offset from future card earnings
+   b. Offset from wallet balance (if sufficient)
+   c. Carry forward as deferred balance
+
+3. NEVER:
+   - Deduct during a live trip
+   - Block driver immediately
+   - Display scary warnings
+
+====================================
+DRIVER VISIBILITY RULES
+====================================
+
+Driver sees:
+• Total cash collected (per trip)
+• Earnings from card trips
+• Calm statement showing:
+  “Platform service settlement for period: ₦X”
+
+Driver never sees:
+• Platform share per trip
+• Percentage deductions
+• Real-time cash deductions
+
+====================================
+FAIL-SAFE & DEFERRAL LOGIC
+====================================
+
+If settlement cannot be completed:
+• Mark settlement_status = deferred
+• Carry balance forward to next cycle
+• Allow driver to continue driving
+• Flag internally for admin review
+
+====================================
+ANTI-ABUSE CONTROLS
+====================================
+
+• Monitor excessive cash trips with no card offset
+• Cap allowable deferred balance per driver
+• Trigger soft admin review if cap exceeded
+• No automatic suspension without admin action
+
+====================================
+ADMIN CONTROLS
+====================================
+
+Admin can:
+• View settlement ledgers (read-only)
+• Adjust settlement schedules
+• Manually resolve disputes
+• Waive or defer balances (logged)
+
+All actions must be audited.
+
+====================================
+COUNTRY CONFIGURATION
+====================================
+
+Per country:
+• Enable/disable cash payments
+• Set settlement cycle (weekly/monthly)
+• Set max deferred balance
+• Set driver tier percentages
+
+====================================
+FINAL PRINCIPLE (LOCKED)
+====================================
+
+Drivers must always feel:
+“I earned this money first.
+ZIBA settles later.”
+
+Any logic that recreates Uber-style resentment
+is considered a critical defect.
