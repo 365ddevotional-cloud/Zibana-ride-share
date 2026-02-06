@@ -4,7 +4,7 @@ import { createHash } from "crypto";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { storage } from "./storage";
 import { db } from "./db";
-import { eq, and, count, sql, gte, isNotNull } from "drizzle-orm";
+import { eq, and, count, sql, gte, lt, isNotNull } from "drizzle-orm";
 import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions } from "@shared/schema";
 import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, evaluateAllDrivers, evaluateBehaviorAndWarnings, calculateDriverMatchingScore, getDriverIncentiveProgress, assignFirstRidePromo, assignReturnRiderPromo, applyPromoToTrip, voidPromosOnCancellation } from "./incentives";
 import { notificationService } from "./notification-service";
@@ -14514,6 +14514,239 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error fetching driver analytics:", error);
       return res.status(500).json({ message: "Failed to fetch driver analytics" });
+    }
+  });
+
+  app.get("/api/driver/statements/:year", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const year = parseInt(req.params.year);
+      if (isNaN(year)) return res.status(400).json({ message: "Invalid year" });
+
+      const startOfYear = new Date(year, 0, 1);
+      const endOfYear = new Date(year + 1, 0, 1);
+
+      const driverTrips = await db.select()
+        .from(trips)
+        .where(
+          and(
+            eq(trips.driverId, userId),
+            eq(trips.status, "completed"),
+            gte(trips.completedAt, startOfYear),
+            lt(trips.completedAt, endOfYear)
+          )
+        );
+
+      const monthMap = new Map<number, { earnings: number; tips: number; commission: number; count: number }>();
+
+      for (const trip of driverTrips) {
+        const completedDate = trip.completedAt ? new Date(trip.completedAt) : null;
+        if (!completedDate) continue;
+        const month = completedDate.getMonth() + 1;
+
+        if (!monthMap.has(month)) {
+          monthMap.set(month, { earnings: 0, tips: 0, commission: 0, count: 0 });
+        }
+        const entry = monthMap.get(month)!;
+        entry.earnings += parseFloat(trip.driverPayout || "0");
+        entry.commission += parseFloat(trip.commissionAmount || "0");
+        entry.count += 1;
+      }
+
+      const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+      const statements = Array.from(monthMap.entries()).map(([month, data]) => ({
+        month,
+        year,
+        monthLabel: `${monthNames[month - 1]} ${year}`,
+        totalDriverEarnings: Math.round(data.earnings * 100) / 100,
+        totalTips: Math.round(data.tips * 100) / 100,
+        totalIncentives: 0,
+        totalPlatformFee: Math.round(data.commission * 100) / 100,
+        netPayout: Math.round((data.earnings + data.tips) * 100) / 100,
+        tripCount: data.count,
+        onlineHours: 0,
+        currency: "NGN",
+      })).sort((a, b) => b.month - a.month);
+
+      return res.json(statements);
+    } catch (error) {
+      console.error("Error fetching monthly statements:", error);
+      return res.status(500).json({ message: "Failed to fetch statements" });
+    }
+  });
+
+  app.get("/api/driver/statements/annual/:year", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const year = parseInt(req.params.year);
+      if (isNaN(year)) return res.status(400).json({ message: "Invalid year" });
+
+      const startOfYear = new Date(year, 0, 1);
+      const endOfYear = new Date(year + 1, 0, 1);
+
+      const driverProfile = await storage.getDriverProfile(userId);
+
+      const driverTrips = await db.select()
+        .from(trips)
+        .where(
+          and(
+            eq(trips.driverId, userId),
+            eq(trips.status, "completed"),
+            gte(trips.completedAt, startOfYear),
+            lt(trips.completedAt, endOfYear)
+          )
+        );
+
+      let totalGrossEarnings = 0;
+      let totalPlatformFee = 0;
+      let totalTrips = 0;
+
+      for (const trip of driverTrips) {
+        totalGrossEarnings += parseFloat(trip.driverPayout || "0");
+        totalPlatformFee += parseFloat(trip.commissionAmount || "0");
+        totalTrips += 1;
+      }
+
+      return res.json({
+        year,
+        driverName: driverProfile?.fullName || "Driver",
+        driverId: userId.substring(0, 8).toUpperCase(),
+        totalGrossEarnings: Math.round(totalGrossEarnings * 100) / 100,
+        totalTips: 0,
+        totalIncentives: 0,
+        totalPlatformFee: Math.round(totalPlatformFee * 100) / 100,
+        reportableIncome: Math.round(totalGrossEarnings * 100) / 100,
+        totalTrips,
+        totalOnlineHours: 0,
+        currency: "NGN",
+      });
+    } catch (error) {
+      console.error("Error fetching annual statement:", error);
+      return res.status(500).json({ message: "Failed to fetch annual statement" });
+    }
+  });
+
+  app.get("/api/driver/statements/:year/:month/download", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const year = parseInt(req.params.year);
+      const month = parseInt(req.params.month);
+      const format = req.query.format || "csv";
+
+      if (isNaN(year) || isNaN(month)) return res.status(400).json({ message: "Invalid parameters" });
+
+      const startOfMonth = new Date(year, month - 1, 1);
+      const endOfMonth = new Date(year, month, 1);
+      const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+      const driverTrips = await db.select()
+        .from(trips)
+        .where(
+          and(
+            eq(trips.driverId, userId),
+            eq(trips.status, "completed"),
+            gte(trips.completedAt, startOfMonth),
+            lt(trips.completedAt, endOfMonth)
+          )
+        );
+
+      let totalEarnings = 0;
+      let totalCommission = 0;
+      for (const trip of driverTrips) {
+        totalEarnings += parseFloat(trip.driverPayout || "0");
+        totalCommission += parseFloat(trip.commissionAmount || "0");
+      }
+
+      if (format === "csv") {
+        const csvLines = [
+          `ZIBA Driver Earnings Statement`,
+          `Month,${monthNames[month - 1]} ${year}`,
+          `Total Trips,${driverTrips.length}`,
+          `Total Earnings,${totalEarnings.toFixed(2)}`,
+          `Total Service Fees,${totalCommission.toFixed(2)}`,
+          `Net Payout,${totalEarnings.toFixed(2)}`,
+          ``,
+          `Generated,${new Date().toISOString()}`,
+        ];
+        res.setHeader("Content-Type", "text/csv");
+        res.setHeader("Content-Disposition", `attachment; filename="ziba-statement-${year}-${month}.csv"`);
+        return res.send(csvLines.join("\n"));
+      }
+
+      return res.json({
+        message: "PDF generation is not yet available. Please download CSV.",
+        format: "csv",
+        downloadUrl: `/api/driver/statements/${year}/${month}/download?format=csv`,
+      });
+    } catch (error) {
+      console.error("Error downloading statement:", error);
+      return res.status(500).json({ message: "Failed to download statement" });
+    }
+  });
+
+  app.get("/api/driver/statements/annual/:year/download", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const year = parseInt(req.params.year);
+      const format = req.query.format || "csv";
+
+      if (isNaN(year)) return res.status(400).json({ message: "Invalid year" });
+
+      const startOfYear = new Date(year, 0, 1);
+      const endOfYear = new Date(year + 1, 0, 1);
+
+      const driverProfile = await storage.getDriverProfile(userId);
+
+      const driverTrips = await db.select()
+        .from(trips)
+        .where(
+          and(
+            eq(trips.driverId, userId),
+            eq(trips.status, "completed"),
+            gte(trips.completedAt, startOfYear),
+            lt(trips.completedAt, endOfYear)
+          )
+        );
+
+      let totalEarnings = 0;
+      let totalCommission = 0;
+      for (const trip of driverTrips) {
+        totalEarnings += parseFloat(trip.driverPayout || "0");
+        totalCommission += parseFloat(trip.commissionAmount || "0");
+      }
+
+      const driverName = driverProfile?.fullName || "Driver";
+
+      if (format === "csv") {
+        const csvLines = [
+          `ZIBA Annual Earnings Statement`,
+          `Tax Year,${year}`,
+          `Driver,${driverName}`,
+          `Driver ID,${userId.substring(0, 8).toUpperCase()}`,
+          ``,
+          `Total Gross Earnings,${totalEarnings.toFixed(2)}`,
+          `Total Tips,0.00`,
+          `Total Service Fees,${totalCommission.toFixed(2)}`,
+          `Reportable Income,${totalEarnings.toFixed(2)}`,
+          `Total Trips,${driverTrips.length}`,
+          ``,
+          `Generated,${new Date().toISOString()}`,
+          `This statement is provided for informational purposes. Consult a tax professional for filing guidance.`,
+        ];
+        res.setHeader("Content-Type", "text/csv");
+        res.setHeader("Content-Disposition", `attachment; filename="ziba-annual-${year}.csv"`);
+        return res.send(csvLines.join("\n"));
+      }
+
+      return res.json({
+        message: "PDF generation is not yet available. Please download CSV.",
+        format: "csv",
+        downloadUrl: `/api/driver/statements/annual/${year}/download?format=csv`,
+      });
+    } catch (error) {
+      console.error("Error downloading annual statement:", error);
+      return res.status(500).json({ message: "Failed to download annual statement" });
     }
   });
 

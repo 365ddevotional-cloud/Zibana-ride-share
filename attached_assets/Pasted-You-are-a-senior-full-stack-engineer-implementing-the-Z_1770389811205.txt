@@ -1,0 +1,133 @@
+You are a senior full-stack engineer implementing the ZIBA Driver Hub system.
+Build everything EXACTLY as specified below. Do not add features. Do not change wording.
+
+==============================
+PHASE 1 — DRIVER HUB STRUCTURE
+==============================
+Create a Driver Hub with exactly five bottom tabs:
+Home, Trips, Earnings, Wallet, Help.
+No hamburger menu. No hidden navigation.
+
+==============================
+PHASE 2 — HOME TAB
+==============================
+Display driver photo, name, Trust Score (0–100), driver tier, persistent Online/Offline toggle,
+today’s summary (trips, earnings, tips, online time),
+a large primary Go Online / Go Offline button,
+welcome-back screen for returning drivers,
+and system messages preview limited to three items.
+
+==============================
+PHASE 3 — TRIPS TAB
+==============================
+Show trip list with date, time, pickup and drop-off, driver earnings only, tip shown separately, and status.
+
+Trip detail view must include:
+route map, distance, duration,
+fare total earned by driver (no platform fee),
+driver private notes, rider trust indicator,
+and report trip button.
+
+==============================
+PHASE 4 — EARNINGS TAB
+==============================
+Show earnings for Today, This Week, and Last 30 Days.
+Display trips count, average tip, acceptance rate, cancellation rate,
+and supportive non-punitive insight messages.
+
+==============================
+PHASE 5 — WALLET TAB
+==============================
+Show available balance, pending balance, withdraw button, transaction history.
+Transaction history shows trip earnings, tips, withdrawals, adjustments.
+Platform fee must NOT appear here.
+
+==============================
+PHASE 6 — HELP TAB
+==============================
+Help Center categories:
+Getting Paid, Trips & Ratings, Safety, App Usage, Incentives.
+
+Safety Center includes:
+trip recording status, SOS button, report history with status,
+submit report with audio attachment.
+
+==============================
+PHASE 7 — AUTH & RETURN LOGIC
+==============================
+Implement token-based auto login.
+Driver stays logged in when app is closed.
+Require login only if driver logs out or deletes app.
+Persist authToken, refreshToken, lastLoginAt, logoutAt.
+
+==============================
+PHASE 8 — BEHAVIOR & CAUTION SYSTEM
+==============================
+When driver goes online, analyze acceptance and cancellation trends.
+Show respectful advisory messages only.
+No threats. No instant blocking.
+
+==============================
+PHASE 9 — ADMIN OVERRIDES
+==============================
+Admin can override trust score, reset cancellation metrics,
+adjust wallet balances, resolve disputes,
+and remove pairing blocks.
+Single override control per driver.
+
+==============================
+PHASE 10 — ANALYTICS
+==============================
+Track new vs returning drivers, daily active drivers,
+online time versus earnings, tip frequency, incentive effectiveness.
+
+====================================================
+PLATFORM FEE VISIBILITY — GLOBAL CORRECTION (LOCKED)
+====================================================
+Platform fee must NEVER be shown to riders.
+Platform fee must NOT be shown to drivers per trip.
+Per-trip views show ONLY what the driver earned (fare + tip).
+
+Platform fee may ONLY be shown to drivers in:
+monthly statements,
+quarterly statements (if applicable),
+annual tax documents (1099 or country equivalent).
+
+Platform fee must be aggregated totals only.
+No per-trip platform fee breakdown.
+Platform fee is calculated internally but hidden from daily UI.
+
+====================================================
+MONTHLY STATEMENT WIREFRAME
+====================================================
+Monthly statement screen shows:
+driver identity,
+statement month,
+total driver earnings (trips + tips + incentives),
+activity summary (trips, online hours),
+collapsed section for total platform fee (aggregated),
+net payout summary,
+download PDF / CSV buttons.
+
+Platform fee is collapsed by default and never itemized per trip.
+
+====================================================
+YEARLY STATEMENT / TAX WIREFRAME
+====================================================
+Yearly statement shows:
+driver identity,
+tax year,
+total gross earnings,
+aggregated annual platform fee (required for tax),
+reportable income,
+downloadable tax documents.
+
+No daily resurfacing of platform fee.
+
+====================================================
+FINAL RULES
+====================================================
+Daily driver experience must focus on earnings only.
+Platform earnings must never be repeatedly surfaced.
+Driver morale and trust take priority.
+Build exactly as specified and confirm when complete.

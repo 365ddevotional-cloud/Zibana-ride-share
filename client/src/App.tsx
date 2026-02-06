@@ -43,6 +43,8 @@ const DriverProfilePage = lazy(() => import("@/pages/driver/profile"));
 const DriverSettingsPage = lazy(() => import("@/pages/driver/settings"));
 const DriverWalletPage = lazy(() => import("@/pages/driver/wallet"));
 const DriverHelpPage = lazy(() => import("@/pages/driver/help"));
+const DriverStatementsPage = lazy(() => import("@/pages/driver/statements"));
+const DriverAnnualStatementPage = lazy(() => import("@/pages/driver/annual-statement"));
 const DriverWelcomePage = lazy(() => import("@/pages/driver/welcome"));
 const DriverRegisterPage = lazy(() => import("@/pages/driver/register"));
 const DriverWelcomeBackPage = lazy(() => import("@/pages/driver/welcome-back"));
@@ -244,6 +246,12 @@ function DriverRouter() {
       </Route>
       <Route path="/driver/wallet">
         <LazyComponent><DriverWalletPage /></LazyComponent>
+      </Route>
+      <Route path="/driver/statements/annual">
+        <LazyComponent><DriverAnnualStatementPage /></LazyComponent>
+      </Route>
+      <Route path="/driver/statements">
+        <LazyComponent><DriverStatementsPage /></LazyComponent>
       </Route>
       <Route path="/driver/help">
         <LazyComponent><DriverHelpPage /></LazyComponent>

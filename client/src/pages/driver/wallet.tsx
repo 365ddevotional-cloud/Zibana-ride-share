@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
-import { Wallet, ArrowUpRight, ArrowDownLeft, CreditCard, Clock, Star, Info, DollarSign } from "lucide-react";
+import { Wallet, ArrowUpRight, ArrowDownLeft, CreditCard, Clock, Star, Info, DollarSign, FileText } from "lucide-react";
 import { useLocation } from "wouter";
 import { DriverBankAccountSection } from "@/components/driver-bank-account-section";
 import type { Wallet as WalletType, WalletTransaction } from "@shared/schema";
@@ -118,6 +118,16 @@ export default function DriverWalletPage() {
               <div className="space-y-1">
                 <p className="text-sm font-medium text-blue-900 dark:text-blue-200">Your earnings are deposited to your wallet after each trip.</p>
                 <p className="text-xs text-blue-700 dark:text-blue-300">Tips are 100% yours. Detailed fee statements are available monthly.</p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-auto p-0 text-xs text-blue-600 dark:text-blue-400"
+                  onClick={() => setLocation("/driver/statements")}
+                  data-testid="button-view-statements"
+                >
+                  <FileText className="h-3 w-3 mr-1" />
+                  View Statements
+                </Button>
               </div>
             </div>
           </CardContent>

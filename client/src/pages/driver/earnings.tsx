@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
-import { Wallet, TrendingUp, Calendar, ArrowUpRight, Star, CheckCircle, Lightbulb } from "lucide-react";
+import { Wallet, TrendingUp, Calendar, ArrowUpRight, Star, CheckCircle, Lightbulb, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import type { DriverProfile, Trip } from "@shared/schema";
@@ -99,7 +99,18 @@ export default function DriverEarnings() {
   return (
     <DriverLayout>
       <div className="p-4 space-y-4">
-        <h1 className="text-xl font-bold" data-testid="text-earnings-title">Earnings</h1>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <h1 className="text-xl font-bold" data-testid="text-earnings-title">Earnings</h1>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setLocation("/driver/statements")}
+            data-testid="button-earnings-statements"
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            Statements
+          </Button>
+        </div>
 
         <Card className="bg-emerald-600 text-white" data-testid="card-wallet-balance">
           <CardHeader className="pb-2">
