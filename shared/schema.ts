@@ -4246,3 +4246,47 @@ export type GrowthSafetyStatus = {
   maxDailyReferrals: number | null;
   countryOverrides: GrowthSafetyControl[];
 };
+
+// =============================================
+// SIMULATION CENTER
+// =============================================
+export const simulationRoleEnum = pgEnum("simulation_role", ["rider", "driver", "director", "admin"]);
+
+export const simulationCodes = pgTable("simulation_codes", {
+  id: serial("id").primaryKey(),
+  code: varchar("code", { length: 12 }).notNull().unique(),
+  role: simulationRoleEnum("role").notNull(),
+  countryCode: varchar("country_code", { length: 3 }).notNull().default("NG"),
+  city: varchar("city", { length: 100 }),
+  driverTier: varchar("driver_tier", { length: 20 }),
+  walletBalance: decimal("wallet_balance", { precision: 12, scale: 2 }).default("0.00"),
+  ratingState: decimal("rating_state", { precision: 3, scale: 2 }).default("4.50"),
+  cashEnabled: boolean("cash_enabled").notNull().default(true),
+  reusable: boolean("reusable").notNull().default(false),
+  used: boolean("used").notNull().default(false),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdBy: varchar("created_by").notNull(),
+  revokedAt: timestamp("revoked_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSimulationCodeSchema = createInsertSchema(simulationCodes).omit({ id: true, createdAt: true, used: true, revokedAt: true });
+export type InsertSimulationCode = z.infer<typeof insertSimulationCodeSchema>;
+export type SimulationCode = typeof simulationCodes.$inferSelect;
+
+export const simulationSessions = pgTable("simulation_sessions", {
+  id: serial("id").primaryKey(),
+  codeId: integer("code_id").notNull(),
+  userId: varchar("user_id").notNull(),
+  role: simulationRoleEnum("role").notNull(),
+  countryCode: varchar("country_code", { length: 3 }).notNull(),
+  config: text("config"),
+  active: boolean("active").notNull().default(true),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  endedAt: timestamp("ended_at"),
+});
+
+export const insertSimulationSessionSchema = createInsertSchema(simulationSessions).omit({ id: true, createdAt: true, endedAt: true });
+export type InsertSimulationSession = z.infer<typeof insertSimulationSessionSchema>;
+export type SimulationSession = typeof simulationSessions.$inferSelect;

@@ -407,6 +407,12 @@ import {
   type InsertCashSettlementLedger,
   type CountryCashConfig,
   type InsertCountryCashConfig,
+  simulationCodes,
+  simulationSessions,
+  type SimulationCode,
+  type InsertSimulationCode,
+  type SimulationSession,
+  type InsertSimulationSession,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull } from "drizzle-orm";
@@ -1228,6 +1234,19 @@ export interface IStorage {
   getCountryCashConfig(countryCode: string): Promise<CountryCashConfig | null>;
   getAllCountryCashConfigs(): Promise<CountryCashConfig[]>;
   upsertCountryCashConfig(data: InsertCountryCashConfig): Promise<CountryCashConfig>;
+
+  // Simulation Center
+  createSimulationCode(data: InsertSimulationCode): Promise<SimulationCode>;
+  getSimulationCode(code: string): Promise<SimulationCode | null>;
+  getSimulationCodeById(id: number): Promise<SimulationCode | null>;
+  getAllSimulationCodes(): Promise<SimulationCode[]>;
+  markSimulationCodeUsed(id: number): Promise<void>;
+  revokeSimulationCode(id: number): Promise<void>;
+  createSimulationSession(data: InsertSimulationSession): Promise<SimulationSession>;
+  getActiveSimulationSession(userId: string): Promise<SimulationSession | null>;
+  getAllSimulationSessions(): Promise<SimulationSession[]>;
+  endSimulationSession(sessionId: number): Promise<void>;
+  cleanupExpiredSimulations(): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -9773,6 +9792,73 @@ export class DatabaseStorage implements IStorage {
     }
     const [created] = await db.insert(countryCashConfig).values(data).returning();
     return created;
+  }
+
+  // ============================================================
+  // SIMULATION CENTER
+  // ============================================================
+
+  async createSimulationCode(data: InsertSimulationCode): Promise<SimulationCode> {
+    const [code] = await db.insert(simulationCodes).values(data).returning();
+    return code;
+  }
+
+  async getSimulationCode(code: string): Promise<SimulationCode | null> {
+    const [result] = await db.select().from(simulationCodes).where(eq(simulationCodes.code, code));
+    return result || null;
+  }
+
+  async getSimulationCodeById(id: number): Promise<SimulationCode | null> {
+    const [result] = await db.select().from(simulationCodes).where(eq(simulationCodes.id, id));
+    return result || null;
+  }
+
+  async getAllSimulationCodes(): Promise<SimulationCode[]> {
+    return db.select().from(simulationCodes).orderBy(desc(simulationCodes.createdAt));
+  }
+
+  async markSimulationCodeUsed(id: number): Promise<void> {
+    await db.update(simulationCodes).set({ used: true }).where(eq(simulationCodes.id, id));
+  }
+
+  async revokeSimulationCode(id: number): Promise<void> {
+    await db.update(simulationCodes).set({ revokedAt: new Date() }).where(eq(simulationCodes.id, id));
+  }
+
+  async createSimulationSession(data: InsertSimulationSession): Promise<SimulationSession> {
+    const [session] = await db.insert(simulationSessions).values(data).returning();
+    return session;
+  }
+
+  async getActiveSimulationSession(userId: string): Promise<SimulationSession | null> {
+    const [session] = await db.select().from(simulationSessions)
+      .where(and(
+        eq(simulationSessions.userId, userId),
+        eq(simulationSessions.active, true)
+      ));
+    return session || null;
+  }
+
+  async getAllSimulationSessions(): Promise<SimulationSession[]> {
+    return db.select().from(simulationSessions).orderBy(desc(simulationSessions.createdAt));
+  }
+
+  async endSimulationSession(sessionId: number): Promise<void> {
+    await db.update(simulationSessions)
+      .set({ active: false, endedAt: new Date() })
+      .where(eq(simulationSessions.id, sessionId));
+  }
+
+  async cleanupExpiredSimulations(): Promise<number> {
+    const now = new Date();
+    const expired = await db.update(simulationSessions)
+      .set({ active: false, endedAt: now })
+      .where(and(
+        eq(simulationSessions.active, true),
+        lt(simulationSessions.expiresAt, now)
+      ))
+      .returning();
+    return expired.length;
   }
 }
 

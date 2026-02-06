@@ -1,0 +1,165 @@
+ZIBA SYSTEM — FULL ROLE EMULATION & EXPERIENCE SIMULATOR
+
+This module enables Super Admin and Admin to generate a Simulation Code
+that launches a FULL, END-TO-END, REALISTIC experience of the ZIBA app
+for Rider, Driver, Director, or Admin roles.
+
+THIS IS NOT A DEMO.
+THIS IS FULL ROLE EMULATION.
+
+================================================
+SIMULATION OBJECTIVE
+================================================
+
+Simulation must:
+• Walk through ALL onboarding steps
+• Require ALL real inputs
+• Accept ALL inputs (real or fake)
+• Auto-approve verification stages
+• Simulate ALL ride lifecycle states
+• Match EXACTLY what real users will experience
+
+The simulated experience MUST be identical to production UI/UX.
+
+================================================
+SIMULATION ENTRY (ADMIN)
+================================================
+
+Admin Dashboard → “Simulation Center”
+
+Admin selects:
+• Role:
+  - Rider
+  - Driver
+  - Director
+  - Admin
+• Country (e.g. Nigeria, USA, Jamaica)
+• Optional:
+  - City / State
+  - Driver tier (new / veteran)
+  - Wallet balance
+  - Rating state
+  - Cash enabled / disabled
+
+System generates:
+• 6–9 digit Simulation Code
+• Time-limited
+• One-time or reusable (admin choice)
+
+================================================
+APP ENTRY FLOW (SIMULATION)
+================================================
+
+On Welcome Screen:
+• Option: “Enter Simulation Code”
+
+When valid code entered:
+• App enters SIMULATION MODE
+• Simulation banner shown internally
+• User proceeds through FULL onboarding
+
+================================================
+FULL ONBOARDING — DRIVER (SIMULATED)
+================================================
+
+Driver must complete ALL steps:
+• Personal details
+• Vehicle type
+• Plate number
+• Car color
+• Driver’s license
+• NIN
+• Insurance (if required)
+• Map & location permissions
+
+SIMULATION RULE:
+• All fields MUST be filled
+• App may suggest dummy values
+• Validation passes automatically
+• Verification auto-approved
+
+NO STEP IS SKIPPED.
+NO STEP IS HIDDEN.
+
+================================================
+FULL EXPERIENCE — DRIVER (SIMULATED)
+================================================
+
+Driver can:
+• Go online / offline
+• View map
+• Receive simulated ride requests
+• Accept / reject rides
+• Navigate to pickup
+• Wait for rider
+• Experience rider cancellation
+• Start trip
+• Drive to destination
+• End trip
+• Receive cash / card simulation
+• See earnings simulation
+• See warnings, nudges, tips
+
+Maps:
+• Use mocked GPS movement
+• Animate route, arrival, pickup, destination
+• Mirror real navigation transitions
+
+================================================
+FULL EXPERIENCE — RIDER (SIMULATED)
+================================================
+
+Rider can:
+• Request rides
+• Select cash or card
+• See ETA
+• Cancel rides
+• Pay driver (simulated)
+• Rate driver
+
+================================================
+FULL EXPERIENCE — DIRECTOR / ADMIN (SIMULATED)
+================================================
+
+Director / Admin can:
+• View dashboards
+• Manage drivers
+• See trips
+• Trigger incentives
+• Observe system behavior
+
+================================================
+BACKEND SIMULATION RULES
+================================================
+
+• All flows hit the SAME code paths as production
+• Payments are sandboxed
+• GPS is mocked
+• No real money
+• No real notifications
+• No real users affected
+
+================================================
+SIMULATION DATA HANDLING
+================================================
+
+• Simulation data stored separately
+• Auto-deleted after session
+• Cannot leak into production
+
+================================================
+EXIT & SAFETY
+================================================
+
+• Logout exits simulation immediately
+• Admin can revoke simulation anytime
+• Simulation expires automatically
+
+================================================
+FINAL PRINCIPLE (LOCKED)
+================================================
+
+If a real user can experience it,
+a simulated user MUST be able to experience it too.
+
+Any missing flow is a simulation defect.

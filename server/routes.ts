@@ -16048,6 +16048,363 @@ export async function registerRoutes(
     }
   });
 
+  // =============================================
+  // SIMULATION CENTER
+  // =============================================
+
+  // Admin: Create simulation code
+  app.post("/api/admin/simulation/codes", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { role, countryCode, city, driverTier, walletBalance, ratingState, cashEnabled, reusable, expiresInHours } = req.body;
+
+      if (!role || !["rider", "driver", "director", "admin"].includes(role)) {
+        return res.status(400).json({ message: "Valid role required (rider, driver, director, admin)" });
+      }
+
+      const digits = Math.max(6, Math.min(9, expiresInHours ? 9 : 6));
+      const min = Math.pow(10, digits - 1);
+      const max = Math.pow(10, digits) - 1;
+      const code = String(Math.floor(min + Math.random() * (max - min + 1)));
+
+      const hours = expiresInHours || 24;
+      const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000);
+
+      const simCode = await storage.createSimulationCode({
+        code,
+        role,
+        countryCode: countryCode || "NG",
+        city: city || null,
+        driverTier: driverTier || null,
+        walletBalance: walletBalance || "0.00",
+        ratingState: ratingState || "4.50",
+        cashEnabled: cashEnabled !== false,
+        reusable: reusable === true,
+        expiresAt,
+        createdBy: userId,
+      });
+
+      return res.json(simCode);
+    } catch (error) {
+      console.error("Error creating simulation code:", error);
+      return res.status(500).json({ message: "Failed to create simulation code" });
+    }
+  });
+
+  // Admin: List all simulation codes
+  app.get("/api/admin/simulation/codes", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const codes = await storage.getAllSimulationCodes();
+      return res.json(codes);
+    } catch (error) {
+      console.error("Error fetching simulation codes:", error);
+      return res.status(500).json({ message: "Failed to fetch simulation codes" });
+    }
+  });
+
+  // Admin: Revoke simulation code
+  app.post("/api/admin/simulation/codes/:id/revoke", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ message: "Invalid code ID" });
+      await storage.revokeSimulationCode(id);
+      return res.json({ success: true });
+    } catch (error) {
+      console.error("Error revoking simulation code:", error);
+      return res.status(500).json({ message: "Failed to revoke simulation code" });
+    }
+  });
+
+  // Admin: List all simulation sessions
+  app.get("/api/admin/simulation/sessions", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const sessions = await storage.getAllSimulationSessions();
+      return res.json(sessions);
+    } catch (error) {
+      console.error("Error fetching simulation sessions:", error);
+      return res.status(500).json({ message: "Failed to fetch simulation sessions" });
+    }
+  });
+
+  // Admin: End a simulation session
+  app.post("/api/admin/simulation/sessions/:id/end", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ message: "Invalid session ID" });
+      await storage.endSimulationSession(id);
+      return res.json({ success: true });
+    } catch (error) {
+      console.error("Error ending simulation session:", error);
+      return res.status(500).json({ message: "Failed to end simulation session" });
+    }
+  });
+
+  // Public: Validate simulation code (no auth required — this is the entry point)
+  app.post("/api/simulation/validate", async (req: any, res) => {
+    try {
+      const { code } = req.body;
+      if (!code) return res.status(400).json({ message: "Simulation code required" });
+
+      const simCode = await storage.getSimulationCode(code.trim());
+      if (!simCode) return res.status(404).json({ message: "Invalid simulation code" });
+
+      if (simCode.revokedAt) return res.status(410).json({ message: "This simulation code has been revoked" });
+      if (new Date(simCode.expiresAt) < new Date()) return res.status(410).json({ message: "This simulation code has expired" });
+      if (simCode.used && !simCode.reusable) return res.status(410).json({ message: "This simulation code has already been used" });
+
+      return res.json({
+        valid: true,
+        role: simCode.role,
+        countryCode: simCode.countryCode,
+        city: simCode.city,
+        cashEnabled: simCode.cashEnabled,
+      });
+    } catch (error) {
+      console.error("Error validating simulation code:", error);
+      return res.status(500).json({ message: "Failed to validate code" });
+    }
+  });
+
+  // Auth'd: Enter simulation mode
+  app.post("/api/simulation/enter", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { code } = req.body;
+      if (!code) return res.status(400).json({ message: "Simulation code required" });
+
+      const simCode = await storage.getSimulationCode(code.trim());
+      if (!simCode) return res.status(404).json({ message: "Invalid simulation code" });
+      if (simCode.revokedAt) return res.status(410).json({ message: "This simulation code has been revoked" });
+      if (new Date(simCode.expiresAt) < new Date()) return res.status(410).json({ message: "This simulation code has expired" });
+      if (simCode.used && !simCode.reusable) return res.status(410).json({ message: "This simulation code has already been used" });
+
+      // Check if user already has an active simulation
+      const existing = await storage.getActiveSimulationSession(userId);
+      if (existing) {
+        await storage.endSimulationSession(existing.id);
+      }
+
+      // Mark code used
+      if (!simCode.reusable) {
+        await storage.markSimulationCodeUsed(simCode.id);
+      }
+
+      const sessionExpiry = new Date(simCode.expiresAt);
+
+      const session = await storage.createSimulationSession({
+        codeId: simCode.id,
+        userId,
+        role: simCode.role,
+        countryCode: simCode.countryCode,
+        config: JSON.stringify({
+          city: simCode.city,
+          driverTier: simCode.driverTier,
+          walletBalance: simCode.walletBalance,
+          ratingState: simCode.ratingState,
+          cashEnabled: simCode.cashEnabled,
+        }),
+        active: true,
+        expiresAt: sessionExpiry,
+      });
+
+      return res.json({
+        sessionId: session.id,
+        role: simCode.role,
+        countryCode: simCode.countryCode,
+        config: JSON.parse(session.config || "{}"),
+        expiresAt: sessionExpiry,
+      });
+    } catch (error) {
+      console.error("Error entering simulation:", error);
+      return res.status(500).json({ message: "Failed to enter simulation" });
+    }
+  });
+
+  // Auth'd: Check current simulation session
+  app.get("/api/simulation/status", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const session = await storage.getActiveSimulationSession(userId);
+
+      if (!session || new Date(session.expiresAt) < new Date()) {
+        if (session) await storage.endSimulationSession(session.id);
+        return res.json({ active: false });
+      }
+
+      return res.json({
+        active: true,
+        sessionId: session.id,
+        role: session.role,
+        countryCode: session.countryCode,
+        config: JSON.parse(session.config || "{}"),
+        expiresAt: session.expiresAt,
+      });
+    } catch (error) {
+      console.error("Error checking simulation status:", error);
+      return res.status(500).json({ message: "Failed to check simulation status" });
+    }
+  });
+
+  // Auth'd: Exit simulation mode
+  app.post("/api/simulation/exit", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const session = await storage.getActiveSimulationSession(userId);
+      if (session) {
+        await storage.endSimulationSession(session.id);
+      }
+      return res.json({ success: true });
+    } catch (error) {
+      console.error("Error exiting simulation:", error);
+      return res.status(500).json({ message: "Failed to exit simulation" });
+    }
+  });
+
+  // Simulation: Generate a simulated ride event for driver
+  app.post("/api/simulation/generate-ride", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const session = await storage.getActiveSimulationSession(userId);
+      if (!session || session.role !== "driver") {
+        return res.status(403).json({ message: "Active driver simulation required" });
+      }
+
+      const config = JSON.parse(session.config || "{}");
+      const pickupLocations = [
+        "Lagos Marina, Victoria Island",
+        "Lekki Phase 1, Lagos",
+        "Ikeja City Mall, Alausa",
+        "Surulere Junction, Lagos",
+        "Yaba Technology Hub",
+        "Ajah Town Center",
+        "Maryland Mall, Lagos",
+        "Allen Avenue, Ikeja",
+      ];
+      const dropoffLocations = [
+        "Banana Island, Ikoyi",
+        "Computer Village, Ikeja",
+        "Oshodi Terminal",
+        "Apapa Port Complex",
+        "National Theatre, Iganmu",
+        "Third Mainland Bridge Plaza",
+        "Festac Town Square",
+        "Murtala Muhammed Airport",
+      ];
+
+      const pickup = pickupLocations[Math.floor(Math.random() * pickupLocations.length)];
+      const dropoff = dropoffLocations[Math.floor(Math.random() * dropoffLocations.length)];
+      const fare = (Math.floor(Math.random() * 4000) + 1000).toFixed(2);
+      const paymentSource = config.cashEnabled && Math.random() > 0.5 ? "CASH" : "CARD";
+
+      return res.json({
+        simulated: true,
+        rideRequest: {
+          id: `sim-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          pickupLocation: pickup,
+          dropoffLocation: dropoff,
+          fareAmount: fare,
+          paymentSource,
+          passengerCount: Math.floor(Math.random() * 3) + 1,
+          riderName: "Simulated Rider",
+          estimatedDuration: `${Math.floor(Math.random() * 30) + 10} min`,
+          estimatedDistance: `${(Math.random() * 15 + 2).toFixed(1)} km`,
+        },
+      });
+    } catch (error) {
+      console.error("Error generating simulated ride:", error);
+      return res.status(500).json({ message: "Failed to generate simulated ride" });
+    }
+  });
+
+  // Simulation: Progress ride state (mock driver actions)
+  app.post("/api/simulation/progress-ride", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const session = await storage.getActiveSimulationSession(userId);
+      if (!session) {
+        return res.status(403).json({ message: "Active simulation required" });
+      }
+
+      const { currentState, rideId } = req.body;
+      const stateFlow = ["accepted", "driver_en_route", "arrived", "waiting", "in_progress", "completed"];
+      const currentIdx = stateFlow.indexOf(currentState);
+
+      if (currentIdx < 0 || currentIdx >= stateFlow.length - 1) {
+        return res.json({ simulated: true, rideId, state: "completed", message: "Ride simulation complete" });
+      }
+
+      const nextState = stateFlow[currentIdx + 1];
+      const delays: Record<string, number> = {
+        driver_en_route: 3,
+        arrived: 5,
+        waiting: 2,
+        in_progress: 8,
+        completed: 0,
+      };
+
+      return res.json({
+        simulated: true,
+        rideId,
+        previousState: currentState,
+        state: nextState,
+        estimatedSeconds: delays[nextState] || 3,
+        message: nextState === "completed"
+          ? "Trip completed! Earnings have been simulated."
+          : `Moving to: ${nextState.replace(/_/g, " ")}`,
+      });
+    } catch (error) {
+      console.error("Error progressing simulated ride:", error);
+      return res.status(500).json({ message: "Failed to progress ride" });
+    }
+  });
+
+  // Simulation: Generate rider ride request (simulated driver assignment)
+  app.post("/api/simulation/rider-request", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const session = await storage.getActiveSimulationSession(userId);
+      if (!session || session.role !== "rider") {
+        return res.status(403).json({ message: "Active rider simulation required" });
+      }
+
+      const { pickup, dropoff, paymentMethod } = req.body;
+      const fare = (Math.floor(Math.random() * 4000) + 1000).toFixed(2);
+
+      return res.json({
+        simulated: true,
+        ride: {
+          id: `sim-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          status: "accepted",
+          pickupLocation: pickup || "Simulated Pickup",
+          dropoffLocation: dropoff || "Simulated Dropoff",
+          fareAmount: fare,
+          paymentSource: paymentMethod || "CARD",
+          driverName: "Simulated Driver",
+          driverRating: "4.8",
+          vehicleMake: "Toyota",
+          vehicleModel: "Camry",
+          licensePlate: "SIM-001",
+          estimatedArrival: `${Math.floor(Math.random() * 10) + 3} min`,
+        },
+      });
+    } catch (error) {
+      console.error("Error generating rider simulation:", error);
+      return res.status(500).json({ message: "Failed to generate rider ride" });
+    }
+  });
+
+  // Simulation cleanup scheduler — runs every minute
+  setInterval(async () => {
+    try {
+      const cleaned = await storage.cleanupExpiredSimulations();
+      if (cleaned > 0) {
+        console.log(`[SIMULATION] Cleaned up ${cleaned} expired simulation sessions`);
+      }
+    } catch (error) {
+      console.error("[SIMULATION SCHEDULER] Error:", error);
+    }
+  }, 60 * 1000);
+
   // Cash Settlement Ledger Scheduler — runs every hour
   const SETTLEMENT_INTERVAL = 60 * 60 * 1000;
   setInterval(async () => {
