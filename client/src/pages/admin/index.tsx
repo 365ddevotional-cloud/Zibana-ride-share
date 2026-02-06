@@ -27,6 +27,7 @@ import { IncentivesPanel } from "@/components/admin/incentives-panel";
 import { LaunchReadinessPanel } from "@/components/admin/launch-readiness-panel";
 import { AcquisitionPanel } from "@/components/admin/acquisition-panel";
 import { HelpCenterPanel } from "@/components/admin/help-center-panel";
+import { SafetyPanel } from "@/components/admin/safety-panel";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -2118,6 +2119,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <TabsTrigger value="help-center" className="admin-nav-trigger rounded-md" data-testid="tab-help-center">
                 <BookOpen className="h-4 w-4 mr-2" />
                 Help Center
+              </TabsTrigger>
+            )}
+            {(isSuperAdmin || userRole === "admin") && (
+              <TabsTrigger value="safety" className="admin-nav-trigger rounded-md" data-testid="tab-safety">
+                <ShieldAlert className="h-4 w-4 mr-2" />
+                Safety
               </TabsTrigger>
             )}
           </TabsList>
@@ -5977,6 +5984,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
           {(isSuperAdmin || userRole === "admin" || userRole === "support_agent") && (
             <TabsContent value="help-center">
               <HelpCenterPanel />
+            </TabsContent>
+          )}
+
+          {(isSuperAdmin || userRole === "admin") && (
+            <TabsContent value="safety">
+              <SafetyPanel />
             </TabsContent>
           )}
         </Tabs>

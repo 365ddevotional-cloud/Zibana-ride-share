@@ -54,6 +54,9 @@ import { useRideOffers } from "@/hooks/use-ride-offers";
 import { useSafetyCheck } from "@/hooks/use-safety-check";
 import { DriverNavigationSetup } from "@/components/driver-navigation-setup";
 import { DriverBankAccountSection } from "@/components/driver-bank-account-section";
+import { SOSButton } from "@/components/ride/sos-button";
+import { ShareTripButton } from "@/components/ride/share-trip-button";
+import { IncidentReportModal } from "@/components/ride/incident-report-modal";
 
 type TripWithRider = Trip & { riderName?: string };
 
@@ -102,6 +105,9 @@ export default function DriverDashboard() {
   const [tripEndDate, setTripEndDate] = useState("");
   const [selectedTrip, setSelectedTrip] = useState<TripWithDetails | null>(null);
   const [tripDetailOpen, setTripDetailOpen] = useState(false);
+  const [incidentReportOpen, setIncidentReportOpen] = useState(false);
+  const [incidentTripId, setIncidentTripId] = useState("");
+  const [incidentAccusedUserId, setIncidentAccusedUserId] = useState("");
 
   const { data: profile, isLoading: profileLoading } = useQuery<DriverProfile>({
     queryKey: ["/api/driver/profile"],
@@ -821,6 +827,17 @@ export default function DriverDashboard() {
                       </Button>
                     )}
                   </div>
+                  {currentTrip.status === "in_progress" && (
+                    <div className="flex items-center gap-2 mt-4">
+                      <SOSButton
+                        role="driver"
+                        tripId={currentTrip.id}
+                        riderId={currentTrip.riderId || ""}
+                        driverId={user?.id || ""}
+                      />
+                      <ShareTripButton tripId={currentTrip.id} />
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -997,6 +1014,22 @@ export default function DriverDashboard() {
                                     : "-"}
                                 </span>
                               </div>
+                              {trip.status === "completed" && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="mt-1 text-destructive"
+                                  data-testid={`button-report-driver-trip-${trip.id}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIncidentTripId(trip.id);
+                                    setIncidentAccusedUserId(trip.riderId || "");
+                                    setIncidentReportOpen(true);
+                                  }}
+                                >
+                                  Report Issue
+                                </Button>
+                              )}
                             </div>
                           </div>
                         </CardContent>
@@ -1031,6 +1064,13 @@ export default function DriverDashboard() {
         onSafe={handleSafe}
         onNeedHelp={handleNeedHelp}
         role="driver"
+      />
+      <IncidentReportModal
+        open={incidentReportOpen}
+        onOpenChange={setIncidentReportOpen}
+        tripId={incidentTripId}
+        role="driver"
+        accusedUserId={incidentAccusedUserId}
       />
     </div>
   );

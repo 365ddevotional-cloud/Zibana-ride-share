@@ -46,6 +46,8 @@ const DriverRegisterPage = lazy(() => import("@/pages/driver/register"));
 const DriverWelcomeBackPage = lazy(() => import("@/pages/driver/welcome-back"));
 const RiderWelcomeBackPage = lazy(() => import("@/pages/rider/welcome-back"));
 const HelpCenterPage = lazy(() => import("@/pages/help-center"));
+const TrustedContactsPage = lazy(() => import("@/pages/rider/trusted-contacts"));
+const TripSharePage = lazy(() => import("@/pages/trip-share"));
 
 const ADMIN_ROLES = ["super_admin", "admin", "finance_admin", "support_agent", "trip_coordinator", "director"];
 
@@ -470,6 +472,16 @@ function RiderRouter() {
         <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["rider"]}>
           <LazyComponent><HelpCenterPage audience="RIDER" /></LazyComponent>
         </ProtectedRoute>
+      </Route>
+      
+      <Route path="/rider/safety">
+        <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["rider"]}>
+          <LazyComponent><TrustedContactsPage /></LazyComponent>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/trip-share/:token">
+        <LazyComponent><TripSharePage /></LazyComponent>
       </Route>
       
       <Route path="/unauthorized">

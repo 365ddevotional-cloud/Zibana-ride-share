@@ -35,7 +35,8 @@ import {
   XCircle,
   Star,
   User,
-  Calendar
+  Calendar,
+  Shield
 } from "lucide-react";
 import type { Trip, RiderProfile, Ride } from "@shared/schema";
 import { NotificationBell } from "@/components/notification-bell";
@@ -47,6 +48,9 @@ import { UpcomingReservations } from "@/components/ride/upcoming-reservations";
 import { RiderPaymentMethods } from "@/components/rider-payment-methods";
 import { useRiderRide, type RideWithDetails } from "@/hooks/use-ride-lifecycle";
 import { useSafetyCheck } from "@/hooks/use-safety-check";
+import { SOSButton } from "@/components/ride/sos-button";
+import { ShareTripButton } from "@/components/ride/share-trip-button";
+import { IncidentReportModal } from "@/components/ride/incident-report-modal";
 
 const rideRequestSchema = z.object({
   pickupLocation: z.string().min(3, "Please enter a pickup location"),
@@ -70,6 +74,9 @@ export default function RiderDashboard() {
   const [tripEndDate, setTripEndDate] = useState("");
   const [selectedTrip, setSelectedTrip] = useState<TripWithDetails | null>(null);
   const [tripDetailOpen, setTripDetailOpen] = useState(false);
+  const [incidentReportOpen, setIncidentReportOpen] = useState(false);
+  const [incidentTripId, setIncidentTripId] = useState("");
+  const [incidentAccusedUserId, setIncidentAccusedUserId] = useState("");
 
   const { data: riderProfile } = useQuery<RiderProfile | null>({
     queryKey: ["/api/rider/profile"],
@@ -500,11 +507,26 @@ export default function RiderDashboard() {
                   )}
                   
                   {currentTrip.status === "in_progress" && (
-                    <div className="pt-2">
+                    <div className="pt-2 space-y-4">
                       <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
                         <Navigation className="h-4 w-4" />
                         <span>You're on your way to your destination!</span>
                       </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <ShareTripButton tripId={currentTrip.id} />
+                        <SOSButton
+                          tripId={currentTrip.id}
+                          role="rider"
+                          riderId={user?.id || ""}
+                          driverId={currentTrip.driverId || undefined}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {currentTrip.status === "accepted" && user && (
+                    <div className="flex items-center justify-end mt-2">
+                      <ShareTripButton tripId={currentTrip.id} />
                     </div>
                   )}
                 </CardContent>
@@ -607,6 +629,22 @@ export default function RiderDashboard() {
                                   </>
                                 )}
                               </div>
+                              {trip.status === "completed" && trip.driverId && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="mt-1 text-destructive"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIncidentTripId(trip.id);
+                                    setIncidentAccusedUserId(trip.driverId || "");
+                                    setIncidentReportOpen(true);
+                                  }}
+                                  data-testid={`button-report-trip-${trip.id}`}
+                                >
+                                  Report Issue
+                                </Button>
+                              )}
                             </div>
                           </div>
                         </CardContent>
@@ -659,6 +697,18 @@ export default function RiderDashboard() {
               </CardContent>
             </Card>
 
+            <Card className="hover-elevate cursor-pointer" onClick={() => setLocation("/rider/safety")}>
+              <CardContent className="flex items-center gap-4 py-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10">
+                  <Shield className="h-5 w-5 text-destructive" />
+                </div>
+                <div>
+                  <h3 className="font-medium text-sm">Trusted Contacts</h3>
+                  <p className="text-xs text-muted-foreground">Manage your emergency contacts</p>
+                </div>
+              </CardContent>
+            </Card>
+
             <SupportSection 
               userTrips={tripHistory.map((t: TripWithDetails) => ({ 
                 id: t.id, 
@@ -676,13 +726,20 @@ export default function RiderDashboard() {
         userRole="rider"
       />
       
-      {/* Phase 23 - Safety Check Modal */}
       <SafetyCheckModal
         open={showSafetyModal}
         onOpenChange={setShowSafetyModal}
         onSafe={handleSafe}
         onNeedHelp={handleNeedHelp}
         role="rider"
+      />
+
+      <IncidentReportModal
+        open={incidentReportOpen}
+        onOpenChange={setIncidentReportOpen}
+        tripId={incidentTripId}
+        role="rider"
+        accusedUserId={incidentAccusedUserId}
       />
     </div>
   );

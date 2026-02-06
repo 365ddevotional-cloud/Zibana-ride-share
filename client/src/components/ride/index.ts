@@ -13,3 +13,4 @@ export { UpcomingReservations } from "./upcoming-reservations";
 export { DriverReservedTrips } from "./driver-reserved-trips";
 export { IncidentReportModal } from "./incident-report-modal";
 export { ShareTripButton } from "./share-trip-button";
+export { SOSButton } from "./sos-button";
