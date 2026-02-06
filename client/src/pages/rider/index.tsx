@@ -51,6 +51,7 @@ import { useSafetyCheck } from "@/hooks/use-safety-check";
 import { SOSButton } from "@/components/ride/sos-button";
 import { ShareTripButton } from "@/components/ride/share-trip-button";
 import { IncidentReportModal } from "@/components/ride/incident-report-modal";
+import { ShareableMomentBanner } from "@/components/shareable-moment-banner";
 
 const rideRequestSchema = z.object({
   pickupLocation: z.string().min(3, "Please enter a pickup location"),
@@ -235,6 +236,7 @@ export default function RiderDashboard() {
       </header>
 
       <main className="container mx-auto px-4 py-6">
+        <ShareableMomentBanner />
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">Welcome back!</h1>

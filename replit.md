@@ -63,6 +63,7 @@ Preferred communication style: Simple, everyday language.
 - **Driver Acquisition Automation**: Structured driver supply growth with multiple channels and onboarding stages.
 - **In-App Q&A & Help Center**: Full-featured help center with FAQ system for all user roles.
 - **Rider & Driver Trust, Safety & Incident Management**: Full safety UI layer for SOS, incident reporting, trusted contacts, and trip sharing.
+- **Growth, Marketing & Virality Systems (Phase 11A)**: Sustainable growth loops with rider referral rewards (reward after first ride completion), shareable moments (celebratory prompts at first ride, milestone earnings, high ratings), enhanced campaign engine (target audience, country/subregion, incentive rules, redemption tracking), reactivation automation rules (configurable inactive thresholds with gentle reminders), marketing attribution tracking (REFERRAL, CAMPAIGN, ORGANIC, ADMIN_INVITE sources), and growth safety controls (admin toggles for virality, share moments, reactivation; referral reward caps; per-country overrides). Admin Growth tab enhanced with campaign details, reactivation rules management, attribution stats, and safety controls panel.
 
 ## External Dependencies
 
