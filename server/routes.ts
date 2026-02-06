@@ -14866,6 +14866,72 @@ export async function registerRoutes(
   // ADMIN TAX MANAGEMENT (read-only views, generate, issue)
   // ============================================================
 
+  // Admin: validate driver data before generation
+  app.get("/api/admin/tax/validate/:driverId/:year", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const driverId = req.params.driverId;
+      const year = parseInt(req.params.year);
+      if (isNaN(year)) return res.status(400).json({ message: "Invalid year" });
+
+      const errors: string[] = [];
+      const warnings: string[] = [];
+
+      const taxProfile = await storage.getDriverTaxProfile(driverId);
+      if (!taxProfile) {
+        errors.push("DriverTaxProfile does not exist");
+      } else {
+        if (!taxProfile.taxId) warnings.push("Tax ID not provided");
+        if (!taxProfile.legalName) errors.push("Legal name missing");
+      }
+
+      const mileageRecord = await storage.getDriverMileageForYear(driverId, year);
+      if (!mileageRecord || parseFloat(mileageRecord.totalMilesOnline) === 0) {
+        warnings.push("No mileage data for this year");
+      }
+
+      const computed = await computeTaxYearData(driverId, year);
+      if (computed.tripCount === 0) {
+        errors.push("No completed trips found for this tax year");
+      }
+
+      const canGenerate = errors.length === 0;
+      return res.json({ canGenerate, errors, warnings, driverId, taxYear: year });
+    } catch (error) {
+      console.error("Error validating tax data:", error);
+      return res.status(500).json({ message: "Failed to validate tax data" });
+    }
+  });
+
+  // Admin: list all drivers with their tax generation status
+  app.get("/api/admin/tax/drivers/:year", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const year = parseInt(req.params.year);
+      if (isNaN(year)) return res.status(400).json({ message: "Invalid year" });
+
+      const allDriverProfiles = await db.select().from(driverProfiles);
+      const summaries = await storage.getAllTaxYearSummariesForYear(year);
+      const summaryMap = new Map(summaries.map(s => [s.driverUserId, s]));
+
+      const drivers = allDriverProfiles.map(dp => {
+        const summary = summaryMap.get(dp.userId);
+        return {
+          driverId: dp.userId,
+          driverName: dp.fullName,
+          country: dp.countryCode || "NG",
+          status: summary?.status || "not_generated",
+          totalGrossEarnings: summary ? parseFloat(summary.totalGrossEarnings) : null,
+          reportableIncome: summary ? parseFloat(summary.reportableIncome) : null,
+          generatedAt: summary?.generatedAt || null,
+        };
+      });
+
+      return res.json(drivers);
+    } catch (error) {
+      console.error("Error fetching tax drivers:", error);
+      return res.status(500).json({ message: "Failed to fetch driver list" });
+    }
+  });
+
   // Admin: generate/regenerate tax summary from source data
   app.post("/api/admin/tax/generate/:driverId/:year", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {
@@ -14939,7 +15005,19 @@ export async function registerRoutes(
         generatedBy: adminId,
       });
 
-      await storage.logTaxGenerationEvent(driverId, year, "document_created", adminId, `Document ${doc.id} type=${docType}`);
+      await storage.logTaxGenerationEvent(driverId, year, "document_created", adminId, `Document ${doc.id} v${doc.version} type=${docType}`);
+
+      try {
+        await notificationService.notifyUser(driverId, {
+          type: "system",
+          title: `Tax Document Available`,
+          message: `Your ${year} annual tax statement is now available for download in your Statements section.`,
+          role: "driver",
+        });
+      } catch (notifyErr) {
+        console.warn("Failed to notify driver of tax document:", notifyErr);
+      }
+
       return res.json({ summary, document: doc });
     } catch (error: any) {
       console.error("Error issuing tax summary:", error);

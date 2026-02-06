@@ -4048,7 +4048,9 @@ export const driverTaxDocuments = pgTable("driver_tax_documents", {
   driverUserId: varchar("driver_user_id").notNull(),
   taxYear: integer("tax_year").notNull(),
   documentType: taxDocumentTypeEnum("document_type").notNull(),
+  version: integer("version").notNull().default(1),
   fileUrl: text("file_url"),
+  isLatest: boolean("is_latest").notNull().default(true),
   generatedAt: timestamp("generated_at").defaultNow(),
   generatedBy: varchar("generated_by"),
 });

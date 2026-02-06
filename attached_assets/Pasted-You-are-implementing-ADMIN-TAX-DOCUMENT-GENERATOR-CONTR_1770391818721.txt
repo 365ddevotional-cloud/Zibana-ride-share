@@ -1,0 +1,114 @@
+You are implementing ADMIN TAX DOCUMENT GENERATOR CONTROLS for the ZIBA platform.
+This module allows authorized admins to generate, issue, and manage driver tax documents
+(e.g. US 1099 and country-equivalent forms).
+
+THIS MODULE IS ADMIN-ONLY.
+NO DRIVER CAN TRIGGER TAX DOCUMENT GENERATION.
+
+==============================
+ADMIN ACCESS & PERMISSIONS
+==============================
+• Only users with Admin role + Tax permission may access this module
+• All actions require confirmation
+• All actions must be audited
+
+==============================
+ADMIN UI — TAX DOCUMENTS PANEL
+==============================
+Create an Admin panel section called:
+“Tax Documents & Statements”
+
+Admin can:
+• Select country
+• Select tax year
+• Filter drivers (all / individual)
+• View generation status per driver
+
+==============================
+GENERATION CONTROLS
+==============================
+Admin actions:
+• Generate Draft Tax Summary
+• Review Aggregated Data
+• Finalize Tax Summary
+• Generate Tax Documents (PDF / CSV)
+• Issue Tax Documents to Driver
+
+Rules:
+• Draft → Finalize → Issue (strict order)
+• Issued documents become read-only
+• Regeneration requires new version, not overwrite
+
+==============================
+DATA VALIDATION BEFORE GENERATION
+==============================
+Before generation, system must validate:
+• DriverTaxProfile exists
+• Tax ID present and valid
+• Mileage data exists
+• Earnings data complete
+• Platform fees aggregated
+
+If any data missing → block generation and show error
+
+==============================
+DOCUMENT TYPES SUPPORTED
+==============================
+• Annual Earnings Statement
+• US 1099 (or equivalent)
+• Country-specific tax summary
+
+Document must include:
+• Driver identity
+• Tax year
+• Total gross earnings
+• Aggregated platform fees
+• Total miles driven while online
+• Reportable income
+
+==============================
+ISSUANCE & DELIVERY
+==============================
+When admin issues a document:
+• Document status → issued
+• File stored securely
+• Driver notified in-app
+• Driver can download (read-only)
+
+No email delivery unless enabled by admin.
+
+==============================
+VERSIONING & REGENERATION
+==============================
+• Each issued document has a version number
+• Corrections generate a new version
+• Old versions remain archived
+• Driver sees latest version only
+
+==============================
+AUDIT & LOGGING
+==============================
+Log every admin action with:
+• admin_id
+• driver_id
+• tax_year
+• action_type
+• timestamp
+
+Logs must be immutable.
+
+==============================
+FAIL-SAFE & COMPLIANCE
+==============================
+• If generation fails → no partial documents issued
+• If admin session expires → abort safely
+• System must never expose tax data publicly
+
+==============================
+FINAL REQUIREMENT
+==============================
+Admin must be able to generate, review, finalize, and issue
+accurate, compliant tax documents without editing raw data.
+
+Implement exactly as specified.
+Confirm when complete.

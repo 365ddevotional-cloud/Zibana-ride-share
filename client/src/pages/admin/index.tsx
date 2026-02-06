@@ -30,6 +30,7 @@ import { LaunchReadinessPanel } from "@/components/admin/launch-readiness-panel"
 import { AcquisitionPanel } from "@/components/admin/acquisition-panel";
 import { HelpCenterPanel } from "@/components/admin/help-center-panel";
 import { SafetyPanel } from "@/components/admin/safety-panel";
+import { TaxDocumentsPanel } from "@/components/admin/tax-documents-panel";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -79,7 +80,8 @@ import {
   Trash2,
   Rocket,
   UserPlus,
-  BookOpen
+  BookOpen,
+  ScrollText
 } from "lucide-react";
 import type { DriverProfile, Trip, User } from "@shared/schema";
 import { NotificationBell } from "@/components/notification-bell";
@@ -2305,6 +2307,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <TabsTrigger value="safety" className="admin-nav-trigger rounded-md" data-testid="tab-safety">
                 <ShieldAlert className="h-4 w-4 mr-2" />
                 Safety
+              </TabsTrigger>
+            )}
+            {(isSuperAdmin || userRole === "admin") && (
+              <TabsTrigger value="tax-documents" className="admin-nav-trigger rounded-md" data-testid="tab-tax-documents">
+                <ScrollText className="h-4 w-4 mr-2" />
+                Tax Documents
               </TabsTrigger>
             )}
           </TabsList>
@@ -6602,6 +6610,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
           {(isSuperAdmin || userRole === "admin") && (
             <TabsContent value="safety">
               <SafetyPanel />
+            </TabsContent>
+          )}
+
+          {(isSuperAdmin || userRole === "admin") && (
+            <TabsContent value="tax-documents">
+              <TaxDocumentsPanel />
             </TabsContent>
           )}
         </Tabs>

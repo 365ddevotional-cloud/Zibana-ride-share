@@ -9244,8 +9244,28 @@ export class DatabaseStorage implements IStorage {
   // ============================================================
 
   async createTaxDocument(data: InsertDriverTaxDocument): Promise<DriverTaxDocument> {
+    const existing = await db.select().from(driverTaxDocuments)
+      .where(and(
+        eq(driverTaxDocuments.driverUserId, data.driverUserId),
+        eq(driverTaxDocuments.taxYear, data.taxYear),
+        eq(driverTaxDocuments.documentType, data.documentType),
+      ))
+      .orderBy(desc(driverTaxDocuments.version));
+
+    let nextVersion = 1;
+    if (existing.length > 0) {
+      nextVersion = existing[0].version + 1;
+      await db.update(driverTaxDocuments)
+        .set({ isLatest: false })
+        .where(and(
+          eq(driverTaxDocuments.driverUserId, data.driverUserId),
+          eq(driverTaxDocuments.taxYear, data.taxYear),
+          eq(driverTaxDocuments.documentType, data.documentType),
+        ));
+    }
+
     const [created] = await db.insert(driverTaxDocuments)
-      .values(data)
+      .values({ ...data, version: nextVersion, isLatest: true })
       .returning();
     return created;
   }
