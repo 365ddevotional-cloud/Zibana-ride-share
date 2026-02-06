@@ -122,8 +122,8 @@ export default function SimulationEntryPage() {
                   type="text"
                   inputMode="numeric"
                   pattern="[0-9]*"
-                  maxLength={systemStatus?.codeLength || 9}
-                  placeholder={`${systemStatus?.codeLength || 9}-digit code`}
+                  maxLength={systemStatus?.codeLength || 6}
+                  placeholder={`${systemStatus?.codeLength || 6}-digit code`}
                   value={code}
                   onChange={(e) => {
                     const val = e.target.value.replace(/\D/g, "");

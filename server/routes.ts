@@ -16086,9 +16086,9 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Valid role required (rider, driver, director, admin)" });
       }
 
-      const digits = Math.max(6, Math.min(9, expiresInHours ? 9 : 6));
-      const min = Math.pow(10, digits - 1);
-      const max = Math.pow(10, digits) - 1;
+      const { codeLength } = getSimulationConfig();
+      const min = Math.pow(10, codeLength - 1);
+      const max = Math.pow(10, codeLength) - 1;
       const code = String(Math.floor(min + Math.random() * (max - min + 1)));
 
       const hours = expiresInHours || 24;
