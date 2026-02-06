@@ -3267,7 +3267,10 @@ export const launchSettings = pgTable("launch_settings", {
 // Kill switch states (emergency controls)
 export const killSwitchStates = pgTable("kill_switch_states", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  switchName: varchar("switch_name", { length: 100 }).notNull().unique(),
+  switchName: varchar("switch_name", { length: 100 }).notNull(),
+  scope: varchar("scope", { length: 20 }).notNull().default("GLOBAL"),
+  scopeCountryCode: varchar("scope_country_code", { length: 3 }),
+  scopeSubregionCode: varchar("scope_subregion_code", { length: 10 }),
   isActive: boolean("is_active").default(false).notNull(),
   reason: text("reason"),
   activatedBy: varchar("activated_by"),
@@ -3465,11 +3468,30 @@ export const systemModeEnum = pgEnum("system_mode", ["NORMAL", "LIMITED", "EMERG
 
 export const vehicleTypeEnum = pgEnum("vehicle_type_supply", ["car", "bike"]);
 
+export const killSwitchScopeEnum = pgEnum("kill_switch_scope", ["GLOBAL", "COUNTRY", "SUBREGION"]);
+
+export const subregionTypeEnum = pgEnum("subregion_type", ["state", "province", "region", "county"]);
+
+export const countries = pgTable("countries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  countryCode: varchar("country_code", { length: 3 }).notNull().unique(),
+  countryName: varchar("country_name", { length: 100 }).notNull(),
+  countryEnabled: boolean("country_enabled").notNull().default(false),
+  defaultCurrency: varchar("default_currency", { length: 5 }).notNull().default("USD"),
+  defaultSystemMode: systemModeEnum("default_system_mode").notNull().default("NORMAL"),
+  systemModeReason: text("system_mode_reason"),
+  systemModeChangedBy: varchar("system_mode_changed_by"),
+  systemModeChangedAt: timestamp("system_mode_changed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const stateLaunchConfigs = pgTable("state_launch_configs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   countryCode: varchar("country_code", { length: 3 }).notNull().default("NG"),
   stateCode: varchar("state_code", { length: 5 }).notNull(),
   stateName: varchar("state_name", { length: 100 }).notNull(),
+  subregionType: subregionTypeEnum("subregion_type").notNull().default("state"),
   stateEnabled: boolean("state_enabled").notNull().default(false),
   minOnlineDriversCar: integer("min_online_drivers_car").notNull().default(3),
   minOnlineDriversBike: integer("min_online_drivers_bike").notNull().default(2),
@@ -3486,11 +3508,21 @@ export const stateLaunchConfigs = pgTable("state_launch_configs", {
 export const systemModeConfig = pgTable("system_mode_config", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   currentMode: systemModeEnum("current_mode").notNull().default("NORMAL"),
+  scopeLevel: varchar("scope_level", { length: 20 }).notNull().default("GLOBAL"),
+  scopeRef: varchar("scope_ref", { length: 10 }),
   reason: text("reason"),
   changedBy: varchar("changed_by"),
   changedAt: timestamp("changed_at").defaultNow().notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+export const insertCountrySchema = createInsertSchema(countries).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertCountry = z.infer<typeof insertCountrySchema>;
+export type Country = typeof countries.$inferSelect;
 
 export const insertStateLaunchConfigSchema = createInsertSchema(stateLaunchConfigs).omit({
   id: true,
@@ -3507,7 +3539,7 @@ export type InsertSystemModeConfig = z.infer<typeof insertSystemModeConfigSchema
 export type SystemModeConfig = typeof systemModeConfig.$inferSelect;
 
 export type LaunchReadinessStatus = {
-  countryEnabled: boolean;
+  country: Country | null;
   systemMode: "NORMAL" | "LIMITED" | "EMERGENCY";
   systemModeReason: string | null;
   states: StateLaunchConfig[];

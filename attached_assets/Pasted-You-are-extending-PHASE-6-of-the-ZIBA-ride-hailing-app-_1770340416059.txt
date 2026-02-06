@@ -1,0 +1,164 @@
+You are extending PHASE 6 of the ZIBA ride-hailing app to support MULTI-COUNTRY
+launch readiness, kill-switches, and operational safety using the SAME logic
+already implemented for Nigeria.
+
+DO NOT DUPLICATE LOGIC.
+REUSE AND GENERALIZE EXISTING PHASE 6 STRUCTURE.
+
+=====================================
+1) COUNTRY MODEL (GLOBAL)
+=====================================
+
+Implement a Country entity with the following fields:
+
+- country_code (ISO-2, e.g. NG, US, CA, MX, GH, LR)
+- country_name
+- country_enabled (true/false)
+- default_currency
+- default_system_mode (NORMAL | LIMITED | EMERGENCY)
+- created_at
+- updated_at
+
+Rules:
+• If country_enabled = false → no trips allowed in that country
+• Users may still log in and view app
+• Country setting overrides all sub-levels
+
+=====================================
+2) SUB-REGION GENERALIZATION
+=====================================
+
+Generalize "State Launch Control" into a unified SubRegion model.
+
+SubRegion represents:
+• State (Nigeria, USA, Mexico)
+• Province (Canada)
+• Region (Ghana)
+• County (Liberia)
+
+Required fields:
+- subregion_id
+- country_code
+- subregion_code
+- subregion_name
+- subregion_type (state | province | region | county)
+- subregion_enabled (true/false)
+
+Rules:
+• SubRegion launch is controlled independently
+• SubRegion cannot be enabled if country is disabled
+
+=====================================
+3) SUPPLY READINESS THRESHOLDS (REUSED)
+=====================================
+
+Reuse existing Nigeria logic for ALL countries:
+
+Per SubRegion:
+- min_car_drivers_online
+- min_bike_drivers_online
+- max_average_wait_minutes
+
+Rules:
+• Rider trip requests are blocked if thresholds not met
+• Driver app remains usable
+• Messaging must be graceful and informative
+
+=====================================
+4) KILL-SWITCHES (GLOBAL + LOCAL)
+=====================================
+
+Reuse existing Kill Switch system and apply scope:
+
+Kill-switch scope:
+- GLOBAL (all countries)
+- COUNTRY
+- SUBREGION
+
+Supported switches:
+- trip_requests
+- trip_acceptance
+- incentives
+- wallet_payouts
+- driver_onboarding
+- rider_onboarding
+
+Rules:
+• GLOBAL overrides everything
+• COUNTRY overrides subregions
+• SUBREGION overrides local zones only
+• All switches must be reversible instantly
+
+=====================================
+5) SYSTEM MODES (REUSED)
+=====================================
+
+Reuse system modes exactly as implemented:
+
+- NORMAL
+- LIMITED
+- EMERGENCY
+
+Behavior:
+• NORMAL → full operations
+• LIMITED → incentives off, reduced matching radius
+• EMERGENCY → no new trips, existing trips finish safely
+
+Modes can be applied at:
+- Global
+- Country
+- SubRegion level
+
+=====================================
+6) ADMIN UI — COUNTRY-AWARE LAUNCH CONTROL
+=====================================
+
+Extend the Admin Launch Control panel to support:
+
+• Country selector (dropdown)
+• Country enable/disable toggle
+• SubRegion table filtered by country
+• Per-SubRegion thresholds & status
+• Active kill-switch indicators
+• Current system mode per scope
+
+Rules:
+• UI must reuse existing Nigeria components
+• No duplicated panels
+• One Launch Control system for all countries
+
+=====================================
+7) DATA INTEGRITY & SAFETY
+=====================================
+
+• If country config missing → default to DISABLED
+• If subregion config missing → subregion DISABLED
+• Kill-switches always override pricing and incentives
+• No crash allowed due to missing geo config
+
+=====================================
+8) SUPPORTED COUNTRIES (INITIAL)
+=====================================
+
+Initialize system with:
+- Nigeria (NG)
+- United States (US)
+- Canada (CA)
+- Mexico (MX)
+- Ghana (GH)
+- Liberia (LR)
+
+More countries must be addable without code changes.
+
+=====================================
+9) FINAL VALIDATION
+=====================================
+
+This phase is complete only when:
+• Phase 6 Nigeria logic is reused, not duplicated
+• Countries can be enabled/disabled independently
+• Subregions behave exactly like Nigerian states
+• Kill-switches work at all levels
+• Admin UI remains clean and consistent
+
+This phase prepares ZIBA for safe global expansion.
