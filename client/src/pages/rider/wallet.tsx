@@ -6,8 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useQuery } from "@tanstack/react-query";
-import { Wallet, CreditCard, Plus, Clock, CheckCircle, XCircle, AlertCircle, X } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { Wallet, CreditCard, Plus, Clock, CheckCircle, XCircle, AlertCircle, X, RefreshCw, Settings } from "lucide-react";
 
 interface WalletData {
   balance: string;
@@ -23,14 +28,45 @@ interface Refund {
   reason: string;
 }
 
+interface AutoTopUpSettings {
+  enabled: boolean;
+  threshold: string;
+  amount: string;
+  paymentMethodId: string | null;
+  failureCount: number;
+}
+
 export default function RiderWallet() {
+  const { toast } = useToast();
   const [showCardModal, setShowCardModal] = useState(false);
+  const [showAutoTopUp, setShowAutoTopUp] = useState(false);
+  const [topUpThreshold, setTopUpThreshold] = useState("500");
+  const [topUpAmount, setTopUpAmount] = useState("1000");
+
   const { data: wallet, isLoading: walletLoading } = useQuery<WalletData>({
     queryKey: ["/api/wallet/rider"],
   });
 
   const { data: refunds, isLoading: refundsLoading } = useQuery<Refund[]>({
     queryKey: ["/api/refunds/rider"],
+  });
+
+  const { data: autoTopUp, isLoading: autoTopUpLoading } = useQuery<AutoTopUpSettings>({
+    queryKey: ["/api/rider/auto-topup"],
+  });
+
+  const autoTopUpMutation = useMutation({
+    mutationFn: async (settings: { enabled: boolean; threshold?: number; amount?: number }) => {
+      const res = await apiRequest("POST", "/api/rider/auto-topup", settings);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/rider/auto-topup"] });
+      toast({ title: "Auto top-up settings updated" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update auto top-up", variant: "destructive" });
+    },
   });
 
   const formatCurrency = (amount: string | null, currency: string) => {
@@ -90,6 +126,118 @@ export default function RiderWallet() {
               <p className="text-xs text-muted-foreground text-center">
                 Payment methods are managed in test mode
               </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <RefreshCw className="h-5 w-5" />
+                  Auto Top-Up
+                </div>
+                {autoTopUpLoading ? (
+                  <Skeleton className="h-6 w-10" />
+                ) : (
+                  <Switch
+                    checked={autoTopUp?.enabled ?? false}
+                    onCheckedChange={(checked) => {
+                      autoTopUpMutation.mutate({
+                        enabled: checked,
+                        threshold: parseFloat(topUpThreshold) || 500,
+                        amount: parseFloat(topUpAmount) || 1000,
+                      });
+                    }}
+                    disabled={autoTopUpMutation.isPending}
+                    data-testid="switch-auto-topup"
+                  />
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Automatically add funds to your wallet when your balance drops below a set amount.
+              </p>
+
+              {autoTopUp?.enabled && (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="topup-threshold" className="text-sm">
+                      Top up when balance falls below
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">
+                        {wallet?.currencyCode === "NGN" ? "₦" : wallet?.currencyCode || "₦"}
+                      </span>
+                      <Input
+                        id="topup-threshold"
+                        type="number"
+                        min="100"
+                        value={topUpThreshold}
+                        onChange={(e) => setTopUpThreshold(e.target.value)}
+                        data-testid="input-topup-threshold"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="topup-amount" className="text-sm">
+                      Amount to add each time
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">
+                        {wallet?.currencyCode === "NGN" ? "₦" : wallet?.currencyCode || "₦"}
+                      </span>
+                      <Input
+                        id="topup-amount"
+                        type="number"
+                        min="200"
+                        value={topUpAmount}
+                        onChange={(e) => setTopUpAmount(e.target.value)}
+                        data-testid="input-topup-amount"
+                      />
+                    </div>
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      const threshold = parseFloat(topUpThreshold);
+                      const amount = parseFloat(topUpAmount);
+                      if (threshold < 100) {
+                        toast({ title: "Minimum threshold is 100", variant: "destructive" });
+                        return;
+                      }
+                      if (amount < 200) {
+                        toast({ title: "Minimum top-up amount is 200", variant: "destructive" });
+                        return;
+                      }
+                      autoTopUpMutation.mutate({
+                        enabled: true,
+                        threshold,
+                        amount,
+                      });
+                    }}
+                    disabled={autoTopUpMutation.isPending}
+                    data-testid="button-save-auto-topup"
+                  >
+                    {autoTopUpMutation.isPending ? "Saving..." : "Save Settings"}
+                  </Button>
+
+                  {autoTopUp.failureCount > 0 && (
+                    <div className="p-3 rounded-lg bg-destructive/10 text-sm text-destructive">
+                      Auto top-up paused due to payment issues. Please check your payment method and try again.
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {!autoTopUp?.enabled && (
+                <p className="text-xs text-muted-foreground">
+                  Turn on auto top-up so you never run out of wallet balance during a trip.
+                </p>
+              )}
             </CardContent>
           </Card>
 

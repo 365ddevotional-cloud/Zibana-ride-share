@@ -125,6 +125,18 @@ const ARTICLES: HelpArticle[] = [
     keywords: ["card", "secure", "security", "safe", "encrypted", "payment", "credit", "debit"],
   },
   {
+    id: "pw-6", categoryId: "payments", title: "What is Auto Top-Up?",
+    summary: "Automatically keep your wallet funded",
+    content: "Auto Top-Up automatically adds money to your wallet whenever your balance drops below a set amount. This way, you never run out of balance during a trip.\n\nTo set it up:\n\n1. Go to your Wallet screen.\n2. Find the Auto Top-Up section.\n3. Turn on the toggle.\n4. Set your preferred threshold (minimum balance before top-up triggers) and the amount to add.\n5. Save your settings.\n\nFor example, if you set the threshold to 500 and the top-up amount to 1,000, your wallet will automatically be topped up with 1,000 whenever your balance falls below 500.\n\nIf the auto top-up fails 3 times in a row, it will be paused automatically. You can re-enable it at any time from the Wallet screen.",
+    keywords: ["auto", "top", "up", "automatic", "topup", "refill", "threshold", "low", "balance"],
+  },
+  {
+    id: "pw-7", categoryId: "payments", title: "What are cancellation fees?",
+    summary: "When you may be charged for cancelling",
+    content: "If you cancel a ride after the 3-minute grace period and your driver is already on the way or has arrived, a cancellation fee may be deducted from your wallet.\n\n\u2022 If the driver is on the way: A standard cancellation fee applies.\n\u2022 If the driver has arrived at your location: A higher fee applies, since the driver has already reached you.\n\nThe app will warn you about any potential fees before you confirm the cancellation. If you cancel within 3 minutes of the driver accepting, there is no charge.\n\nCancellation fees are deducted from your wallet balance. If your wallet doesn't have enough funds, the remaining amount may be recorded as a balance owed.",
+    keywords: ["cancellation", "fee", "charge", "cancel", "cost", "wallet", "deducted", "grace", "period"],
+  },
+  {
     id: "cs-1", categoryId: "cash", title: "How does paying with cash work?",
     summary: "Everything about cash payments",
     content: "Paying with cash is simple:\n\n1. Select \"Cash\" as your payment method before requesting a ride.\n2. Complete your trip as normal.\n3. At the end of the trip, pay the driver the fare amount shown in the app.\n\nCash is a great option if you prefer not to use digital payments. The exact fare will be displayed in the app so you know exactly how much to pay.",
