@@ -267,6 +267,18 @@ export async function registerRoutes(
       // DEFAULT RATING: Create trust profile with 5.0 stars on signup
       await storage.getOrCreateUserTrustProfile(userId);
 
+      // WELCOME MESSAGE: Send inbox welcome message to new rider
+      try {
+        await storage.createRiderInboxMessage({
+          userId,
+          title: "Welcome to ZIBA",
+          body: "Welcome to ZIBA! You can book rides, save your favorite places, and manage your wallet all from the Home tab. If you ever need help, visit the Help section or tap the support button.",
+          type: "system_announcement",
+        });
+      } catch (e) {
+        console.warn("[INBOX] Failed to send welcome message:", e);
+      }
+
       // Return all roles for the user
       const allRoles = await storage.getAllUserRoles(userId);
       return res.json({ 
@@ -1472,6 +1484,17 @@ export async function registerRoutes(
           message: `Your trip has been completed. Fare: ₦${fareInNaira}`,
           type: "success",
         });
+
+        try {
+          await storage.createRiderInboxMessage({
+            userId: trip.riderId,
+            title: "Trip Completed",
+            body: `Your trip from ${trip.pickupLocation} to ${trip.dropoffLocation} has been completed. Fare: ₦${fareInNaira}. Thank you for riding with ZIBA!`,
+            type: "trip_update",
+          });
+        } catch (e) {
+          console.warn("[INBOX] Failed to send trip completion message:", e);
+        }
         
         await storage.notifyAdminsAndDirectors(
           "Trip Completed",
