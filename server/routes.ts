@@ -12126,9 +12126,21 @@ export async function registerRoutes(
       const userId = req.user?.claims?.sub;
       const settings = await storage.getAutoTopUpSettings(userId);
       if (!settings) {
-        return res.status(404).json({ message: "Wallet not found" });
+        return res.json({
+          enabled: false,
+          threshold: "500.00",
+          amount: "1000.00",
+          paymentMethodId: null,
+          failureCount: 0,
+        });
       }
-      return res.json(settings);
+      return res.json({
+        enabled: settings.autoTopUpEnabled,
+        threshold: settings.autoTopUpThreshold,
+        amount: settings.autoTopUpAmount,
+        paymentMethodId: settings.autoTopUpPaymentMethodId,
+        failureCount: settings.autoTopUpFailureCount,
+      });
     } catch (error) {
       console.error("Error fetching auto top-up settings:", error);
       return res.status(500).json({ message: "Failed to fetch auto top-up settings" });
@@ -12152,13 +12164,6 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Amount must be at least 200" });
       }
 
-      if (enabled && !paymentMethodId) {
-        const existingSettings = await storage.getAutoTopUpSettings(userId);
-        if (!existingSettings?.autoTopUpPaymentMethodId) {
-          return res.status(400).json({ message: "A payment method is required to enable auto top-up" });
-        }
-      }
-
       if (paymentMethodId) {
         const method = await storage.getRiderPaymentMethod(paymentMethodId);
         if (!method || method.userId !== userId) {
@@ -12169,6 +12174,12 @@ export async function registerRoutes(
         }
       }
 
+      let existingWallet = await storage.getRiderWallet(userId);
+      if (!existingWallet) {
+        const currency = await getUserCurrency(userId);
+        existingWallet = await storage.createRiderWallet({ userId, currency });
+      }
+
       const wallet = await storage.updateAutoTopUpSettings(userId, {
         enabled,
         threshold: threshold !== undefined ? threshold.toString() : undefined,
@@ -12177,7 +12188,7 @@ export async function registerRoutes(
       });
 
       if (!wallet) {
-        return res.status(404).json({ message: "Wallet not found" });
+        return res.status(500).json({ message: "Failed to update auto top-up settings" });
       }
 
       return res.json({
@@ -17908,7 +17919,8 @@ export async function registerRoutes(
   // Saved Places
   app.get("/api/rider/saved-places", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.id;
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ message: "Not authenticated" });
       const places = await storage.getSavedPlaces(userId);
       return res.json(places);
     } catch (error) {
@@ -17919,7 +17931,8 @@ export async function registerRoutes(
 
   app.put("/api/rider/saved-places/:type", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.id;
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ message: "Not authenticated" });
       const { type } = req.params;
       if (type !== "home" && type !== "work") {
         return res.status(400).json({ message: "Type must be 'home' or 'work'" });

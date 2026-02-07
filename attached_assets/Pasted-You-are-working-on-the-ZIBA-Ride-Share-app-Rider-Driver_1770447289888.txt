@@ -1,0 +1,125 @@
+You are working on the ZIBA Ride Share app (Rider, Driver, Admin).
+
+GOAL:
+Fix saved addresses (Home & Work), fix wallet auto top-up toggle, and ensure wallet/bank funding features work correctly. 
+Do NOT change pricing splits, commissions, or ride fare logic.
+
+====================================
+1️⃣ FIX: SAVED HOME & WORK ADDRESSES
+====================================
+
+CURRENT ISSUE:
+- "Add Home Address" and "Add Work Address" are clickable
+- Form opens correctly
+- User fills address and clicks SAVE
+- Error appears: "Failed to save address"
+- Address does NOT persist or return to previous screen
+
+REQUIRED FIX:
+- Implement proper backend persistence for saved addresses
+- Ensure address records are stored with:
+  - user_id
+  - label ("home" | "work")
+  - address_text
+  - notes (optional)
+  - latitude
+  - longitude
+  - created_at
+- API endpoint example:
+  POST /users/saved-addresses
+- On success:
+  - Return 200 OK
+  - Navigate back to Home screen
+  - Immediately display saved address under Home / Work
+- On failure:
+  - Show real backend error message (not generic failure)
+- Prevent duplicate Home or Work entries per user
+
+VALIDATION:
+- Add Home → Save → return → Home shows address
+- Add Work → Save → return → Work shows address
+
+====================================
+2️⃣ FIX: WALLET AUTO TOP-UP TOGGLE
+====================================
+
+CURRENT ISSUE:
+- Auto Top-Up toggle is visible
+- Clicking toggle shows error:
+  "Failed to update auto top-up"
+- Toggle does not persist state
+
+REQUIRED FIX:
+- Implement backend support for auto top-up settings
+- Store auto top-up preferences:
+  - user_id
+  - enabled (true/false)
+  - trigger_balance
+  - topup_amount
+  - payment_source (card or bank)
+- API example:
+  PATCH /wallet/auto-topup
+- Toggle should:
+  - Enable → open configuration modal (amount + trigger)
+  - Save settings successfully
+  - Persist state across reloads
+- Disable toggle if no payment method is attached
+- Show clear message if card/bank not linked
+
+VALIDATION:
+- Toggle ON → configure → save → stays ON
+- Reload app → toggle still ON
+- Toggle OFF → persists OFF
+
+====================================
+3️⃣ FIX: WALLET BANK TRANSFER & FUNDING FLOW
+====================================
+
+CURRENT ISSUE:
+- Wallet page shows "No bank transfers"
+- Auto top-up and funding actions fail
+
+REQUIRED FIX:
+- Implement wallet funding via:
+  - Bank transfer (manual or virtual account)
+  - Card funding (for wallet only, not direct rides)
+- Wallet must support:
+  - Pending transfers
+  - Successful credits
+  - Failed credits
+- Bank transfer records should store:
+  - user_id
+  - reference
+  - amount
+  - status (pending | completed | failed)
+  - created_at
+- Display transfers in Wallet screen immediately
+- Allow Admin to confirm bank transfers manually (if needed)
+
+VALIDATION:
+- User initiates bank transfer → record appears
+- Admin confirms → wallet balance updates
+- Wallet balance usable for rides & penalties
+
+====================================
+4️⃣ UI & UX REQUIREMENTS
+====================================
+
+- No silent failures
+- All errors must show real reason
+- Disable buttons only when truly unavailable
+- Never show features that backend does not support
+- Keep UI responsive and immediate
+
+====================================
+5️⃣ FINAL CONFIRMATION CHECKLIST
+====================================
+
+✔ Home address saves and displays
+✔ Work address saves and displays
+✔ Auto top-up toggle works and persists
+✔ Wallet funding via bank/card works
+✔ Errors are meaningful
+✔ No commission or pricing logic touched
+
+Proceed carefully. Test end-to-end before marking complete.

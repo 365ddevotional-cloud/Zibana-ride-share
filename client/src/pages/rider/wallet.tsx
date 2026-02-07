@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { RiderLayout } from "@/components/rider/RiderLayout";
 import { RiderRouteGuard } from "@/components/rider/RiderRouteGuard";
@@ -16,8 +16,11 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Wallet, CreditCard, Plus, Clock, CheckCircle, XCircle, AlertCircle, X, RefreshCw, Settings, Building2, Copy } from "lucide-react";
 
 interface WalletData {
-  balance: string;
+  mainBalance: string;
+  testBalance: string;
   currencyCode: string;
+  isTester: boolean;
+  defaultPaymentMethod: string;
 }
 
 interface Refund {
@@ -47,7 +50,7 @@ interface BankTransferInfo {
 interface BankTransfer {
   id: string;
   amount: string;
-  currencyCode: string;
+  currency: string;
   status: string;
   referenceCode: string;
   createdAt: string;
@@ -64,16 +67,23 @@ export default function RiderWallet() {
   const [topUpAmount, setTopUpAmount] = useState("1000");
 
   const { data: wallet, isLoading: walletLoading } = useQuery<WalletData>({
-    queryKey: ["/api/wallet/rider"],
+    queryKey: ["/api/rider/wallet-info"],
   });
 
   const { data: refunds, isLoading: refundsLoading } = useQuery<Refund[]>({
-    queryKey: ["/api/refunds/rider"],
+    queryKey: ["/api/rider/refunds"],
   });
 
   const { data: autoTopUp, isLoading: autoTopUpLoading } = useQuery<AutoTopUpSettings>({
     queryKey: ["/api/rider/auto-topup"],
   });
+
+  useEffect(() => {
+    if (autoTopUp) {
+      setTopUpThreshold(autoTopUp.threshold || "500");
+      setTopUpAmount(autoTopUp.amount || "1000");
+    }
+  }, [autoTopUp]);
 
   const autoTopUpMutation = useMutation({
     mutationFn: async (settings: { enabled: boolean; threshold?: number; amount?: number }) => {
@@ -84,8 +94,8 @@ export default function RiderWallet() {
       queryClient.invalidateQueries({ queryKey: ["/api/rider/auto-topup"] });
       toast({ title: "Auto top-up settings updated" });
     },
-    onError: () => {
-      toast({ title: "Failed to update auto top-up", variant: "destructive" });
+    onError: (error: Error) => {
+      toast({ title: error.message || "Failed to update auto top-up", variant: "destructive" });
     },
   });
 
@@ -103,8 +113,8 @@ export default function RiderWallet() {
       queryClient.invalidateQueries({ queryKey: ["/api/wallet/bank-transfers"] });
       toast({ title: "Transfer instructions generated" });
     },
-    onError: () => {
-      toast({ title: "Failed to generate transfer instructions", variant: "destructive" });
+    onError: (error: Error) => {
+      toast({ title: error.message || "Failed to generate transfer instructions", variant: "destructive" });
     },
   });
 
@@ -156,7 +166,7 @@ export default function RiderWallet() {
                   <span className="text-sm opacity-90">Available Balance</span>
                 </div>
                 <p className="text-3xl font-bold" data-testid="text-wallet-balance">
-                  {wallet ? formatCurrency(wallet.balance, wallet.currencyCode) : "₦ 0.00"}
+                  {wallet ? formatCurrency(wallet.mainBalance, wallet.currencyCode) : "₦ 0.00"}
                 </p>
               </CardContent>
             </Card>
@@ -228,7 +238,7 @@ export default function RiderWallet() {
                           <Building2 className="h-4 w-4 text-muted-foreground" />
                           <div>
                             <p className="font-medium" data-testid={`text-transfer-amount-${transfer.id}`}>
-                              {formatCurrency(transfer.amount, transfer.currencyCode)}
+                              {formatCurrency(transfer.amount, transfer.currency)}
                             </p>
                             <p className="text-sm text-muted-foreground" data-testid={`text-transfer-ref-${transfer.id}`}>
                               Ref: {transfer.referenceCode}

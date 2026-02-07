@@ -56,8 +56,8 @@ export default function SavedPlaceForm() {
       queryClient.invalidateQueries({ queryKey: ["/api/rider/saved-places"] });
       setLocation("/rider/home");
     },
-    onError: () => {
-      toast({ title: "Failed to save address", variant: "destructive" });
+    onError: (error: Error) => {
+      toast({ title: error.message || "Failed to save address", variant: "destructive" });
     },
   });
 
