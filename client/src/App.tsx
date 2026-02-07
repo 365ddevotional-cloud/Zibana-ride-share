@@ -49,6 +49,7 @@ const DriverAnnualStatementPage = lazy(() => import("@/pages/driver/annual-state
 const DriverWelcomePage = lazy(() => import("@/pages/driver/welcome"));
 const DriverRegisterPage = lazy(() => import("@/pages/driver/register"));
 const DriverWelcomeBackPage = lazy(() => import("@/pages/driver/welcome-back"));
+const DriverLostItemsPage = lazy(() => import("@/pages/driver/lost-items"));
 const RiderSchedulePage = lazy(() => import("@/pages/rider/schedule"));
 const RiderInboxPage = lazy(() => import("@/pages/rider/inbox"));
 const RiderActivityPage = lazy(() => import("@/pages/rider/activity"));
@@ -57,6 +58,7 @@ const RiderAccountPage = lazy(() => import("@/pages/rider/account"));
 const RiderWelcomeBackPage = lazy(() => import("@/pages/rider/welcome-back"));
 const HelpCenterPage = lazy(() => import("@/pages/help-center"));
 const TrustedContactsPage = lazy(() => import("@/pages/rider/trusted-contacts"));
+const SafetyHubPage = lazy(() => import("@/pages/rider/safety-hub"));
 const TripSharePage = lazy(() => import("@/pages/trip-share"));
 const SimulationEntryPage = lazy(() => import("@/pages/simulation-entry"));
 const SavedPlaceFormPage = lazy(() => import("@/pages/rider/saved-place-form"));
@@ -263,6 +265,9 @@ function DriverRouter() {
       </Route>
       <Route path="/driver/help">
         <LazyComponent><DriverHelpPage /></LazyComponent>
+      </Route>
+      <Route path="/driver/lost-items">
+        <LazyComponent><DriverLostItemsPage /></LazyComponent>
       </Route>
       <Route>
         <Redirect to="/driver/dashboard" />
@@ -532,6 +537,12 @@ function RiderRouter() {
       </Route>
       
       <Route path="/rider/safety">
+        <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["rider"]}>
+          <LazyComponent><SafetyHubPage /></LazyComponent>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/rider/trusted-contacts">
         <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["rider"]}>
           <LazyComponent><TrustedContactsPage /></LazyComponent>
         </ProtectedRoute>

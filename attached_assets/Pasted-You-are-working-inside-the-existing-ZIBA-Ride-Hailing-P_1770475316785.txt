@@ -1,0 +1,204 @@
+You are working inside the existing ZIBA Ride-Hailing Platform
+(Rider App, Driver App, Admin Dashboard).
+
+⚠️ CRITICAL RULES:
+- DO NOT delete or refactor existing logic unless strictly necessary
+- DO NOT break payments, wallets, ratings, trips, or authentication
+- FIRST audit what already exists
+- ONLY add what is missing
+- If something partially exists, extend it
+- All changes must be backward-compatible
+
+====================================================
+PHASE 0 — SYSTEM AUDIT (MANDATORY)
+====================================================
+
+Before adding anything, perform a READ-ONLY audit:
+
+Check if the following already exist (fully or partially):
+- Accident reporting flows
+- Lost item reporting flows
+- Admin moderation dashboards
+- Wallet fee logic
+- Trust / rating logic
+- Notifications / inbox system
+- Safety flags
+- Insurance references
+
+Create an internal checklist:
+- ✅ Exists (do nothing)
+- 🟡 Partial (extend safely)
+- ❌ Missing (add cleanly)
+
+ONLY proceed to implementation after this audit.
+
+====================================================
+PHASE 1 — INSURANCE PARTNER INTEGRATION
+====================================================
+
+GOAL:
+Add insurance support WITHOUT embedding ZIBA into liability.
+
+IMPLEMENT (ONLY IF MISSING):
+
+Admin → Safety → Insurance Partners
+- Add insurance partner profiles:
+  - Company name
+  - Coverage type (driver / rider / vehicle)
+  - Contact API or manual claim URL
+  - Active regions
+
+Accident Flow Enhancement:
+- If accident severity = Moderate or Serious:
+  - Show “Insurance Support Available”
+  - Provide partner contact or claim link
+  - Log insurance referral (no data auto-sharing)
+
+RULE:
+- ZIBA never auto-files claims
+- Rider/Driver explicitly opt-in
+
+====================================================
+PHASE 2 — DRIVER ACCIDENT RELIEF FUND
+====================================================
+
+GOAL:
+Support drivers financially without touching base fare logic.
+
+IMPLEMENT:
+
+Admin → Finance → Driver Relief Fund
+- Configurable fund pool
+- Funding sources:
+  - % of cancellation fees
+  - % of lost item fees
+  - Admin top-ups
+
+Driver Eligibility:
+- Accident verified
+- Driver not at fault OR shared fault
+- Minimum trust score threshold
+
+Driver App:
+- “Accident Support Available”
+- Show:
+  - Approved amount
+  - Status
+  - Expected payout date
+
+Payout:
+- Wallet credit
+- Clearly labeled “Relief Fund Credit”
+
+====================================================
+PHASE 3 — AI FRAUD DETECTION (LOST ITEMS)
+====================================================
+
+GOAL:
+Stop abuse while protecting honest drivers.
+
+IMPLEMENT SILENTLY (NO USER UI):
+
+Signals to Track:
+- Rider reports lost item frequently
+- Same item type repeated
+- Driver frequently accused but items not found
+- GPS + time mismatch
+- No proof uploads
+
+Risk Scoring:
+- Low → no action
+- Medium → require extra verification
+- High → manual admin review
+
+Admin Dashboard:
+- “Fraud Risk” tag
+- Pattern visualization
+- Manual override tools
+
+RULE:
+- Never auto-ban
+- Never auto-accuse
+
+====================================================
+PHASE 4 — TRUST SCORE IMPACT LOGIC
+====================================================
+
+GOAL:
+Make trust scores meaningful but fair.
+
+EXTEND EXISTING RATING SYSTEM (DO NOT REPLACE):
+
+Inputs:
+- Ride ratings
+- Cancellation behavior
+- Accident honesty
+- Lost item cooperation
+- Fraud flags (low weight)
+
+Outputs:
+- Trust Score (0–100)
+- Visibility tier
+- Feature access priority
+
+Effects:
+- Higher trust = priority matching
+- Lower trust = warnings first, not punishment
+
+Admin:
+- Manual adjustment allowed
+- Full audit trail required
+
+====================================================
+PHASE 5 — VISUAL UI WIREFRAMES (NON-BINDING)
+====================================================
+
+GOAL:
+Design reference UI without forcing frontend refactor.
+
+CREATE:
+- Wireframes (concept-level) for:
+  - Safety Hub
+  - Lost Item Flow
+  - Accident Flow
+  - Driver Relief Fund
+  - Admin Safety Panel
+
+RULES:
+- Match existing ZIBA visual language
+- Improve clarity, spacing, font size
+- Do NOT hard-code styles yet
+- Mark as “Design Reference Only”
+
+====================================================
+PHASE 6 — SYSTEM SAFETY CHECK
+====================================================
+
+Before finalizing:
+
+✔ Payments still work
+✔ Wallet logic unchanged
+✔ Trips unaffected
+✔ Ratings intact
+✔ Notifications unaffected
+✔ Admin access preserved
+
+If any risk is detected:
+- Roll back ONLY that module
+- Log issue clearly
+
+====================================================
+FINAL INSTRUCTION
+====================================================
+
+Proceed carefully.
+Audit first.
+Add only missing components.
+Extend, never replace.
+Preserve platform stability.
+Log all changes.
+
+Confirm completion with a summary of:
+- What existed
+- What was extended
+- What was newly added
