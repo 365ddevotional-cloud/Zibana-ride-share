@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { FileText, Shield, Users, RefreshCw, AlertTriangle } from "lucide-react";
+import { FileText, Shield, Users, RefreshCw, AlertTriangle, Bot } from "lucide-react";
 
 export default function LegalPage() {
   const [activeTab, setActiveTab] = useState("terms");
@@ -16,7 +16,7 @@ export default function LegalPage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-5 mb-6">
+          <TabsList className="grid w-full grid-cols-6 mb-6">
             <TabsTrigger value="terms" data-testid="tab-terms" className="flex items-center gap-2">
               <FileText className="h-4 w-4" />
               <span className="hidden sm:inline">Terms</span>
@@ -36,6 +36,10 @@ export default function LegalPage() {
             <TabsTrigger value="safety" data-testid="tab-safety" className="flex items-center gap-2">
               <AlertTriangle className="h-4 w-4" />
               <span className="hidden sm:inline">Safety</span>
+            </TabsTrigger>
+            <TabsTrigger value="ai-disclosure" data-testid="tab-ai-disclosure" className="flex items-center gap-2">
+              <Bot className="h-4 w-4" />
+              <span className="hidden sm:inline">AI</span>
             </TabsTrigger>
           </TabsList>
 
@@ -201,9 +205,16 @@ export default function LegalPage() {
                     </section>
 
                     <section>
-                      <h3 className="font-semibold text-lg mb-2">6. Your Rights</h3>
+                      <h3 className="font-semibold text-lg mb-2">6. AI-Powered Features</h3>
+                      <p className="text-muted-foreground mb-2">
+                        ZIBA uses automated support tools. See the "AI" tab for full disclosure on data handling and limitations.
+                      </p>
+                    </section>
+
+                    <section>
+                      <h3 className="font-semibold text-lg mb-2">7. Your Rights</h3>
                       <p className="text-muted-foreground">
-                        You have the right to access, correct, or request deletion of your personal data by contacting our support team.
+                        You have the right to access, correct, or request deletion of your personal data by contacting our support team. Data deletion requests are processed within 30 days, subject to legal retention requirements.
                       </p>
                     </section>
 
@@ -506,6 +517,88 @@ export default function LegalPage() {
                       <h3 className="font-semibold text-lg mb-2">8. Liability Limitation</h3>
                       <p className="text-muted-foreground">
                         ZIBA acts as a technology platform connecting riders and drivers. ZIBA is not liable for personal injuries, property damage, or lost items arising from the use of transportation services. All users are encouraged to maintain appropriate personal insurance.
+                      </p>
+                    </section>
+
+                    <p className="text-xs text-muted-foreground mt-8">
+                      Last updated: February 2026
+                    </p>
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="ai-disclosure">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Bot className="h-5 w-5" />
+                  AI-Generated Content Disclosure
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-[500px] pr-4">
+                  <div className="space-y-6 text-sm text-foreground" data-testid="content-ai-disclosure">
+                    <section>
+                      <h3 className="font-semibold text-lg mb-2">1. AI-Powered Support (ZIBA Support)</h3>
+                      <p className="text-muted-foreground mb-2">
+                        ZIBA uses an AI-powered support system ("ZIBA Support") to provide automated assistance to users. This system uses pattern-matching and structured templates to respond to common questions and issues.
+                      </p>
+                      <ul className="list-disc pl-6 text-muted-foreground space-y-1">
+                        <li>ZIBA Support is not a human agent. It uses pre-defined templates to assist users.</li>
+                        <li>Responses are generated based on your question, your role on the platform, and your current screen context.</li>
+                        <li>ZIBA Support does not use generative AI, large language models, or deep learning to produce responses.</li>
+                        <li>No user conversations with ZIBA Support are used to train AI models.</li>
+                        <li>You may escalate any conversation to a human support agent at any time.</li>
+                      </ul>
+                    </section>
+
+                    <section>
+                      <h3 className="font-semibold text-lg mb-2">2. Data Collected by AI Support</h3>
+                      <ul className="list-disc pl-6 text-muted-foreground space-y-1">
+                        <li>Your messages to ZIBA Support are logged for quality assurance and improvement purposes.</li>
+                        <li>Conversation metadata (role, screen context, timestamp) is recorded.</li>
+                        <li>Escalated conversations are forwarded to human agents along with the conversation transcript.</li>
+                        <li>Support interaction logs may be reviewed by authorized administrators.</li>
+                        <li>You may request deletion of your support conversation history by contacting our team.</li>
+                      </ul>
+                    </section>
+
+                    <section>
+                      <h3 className="font-semibold text-lg mb-2">3. Limitations of AI Support</h3>
+                      <ul className="list-disc pl-6 text-muted-foreground space-y-1">
+                        <li>ZIBA Support provides informational guidance only and does not make binding commitments.</li>
+                        <li>Responses may not cover every situation. For complex issues, escalate to a human agent.</li>
+                        <li>ZIBA Support cannot process payments, modify accounts, or take actions on your behalf.</li>
+                        <li>Information provided by ZIBA Support is advisory and should not be relied upon as legal, financial, or safety advice.</li>
+                      </ul>
+                    </section>
+
+                    <section>
+                      <h3 className="font-semibold text-lg mb-2">4. Governance & Safety</h3>
+                      <p className="text-muted-foreground mb-2">
+                        ZIBA maintains governance controls over the AI support system:
+                      </p>
+                      <ul className="list-disc pl-6 text-muted-foreground space-y-1">
+                        <li>Authorized administrators can enable or disable AI support globally or per user role.</li>
+                        <li>A safe mode restricts responses to verified FAQ content only.</li>
+                        <li>A phrase blacklist prevents certain words or phrases from appearing in responses.</li>
+                        <li>All governance changes are logged in an immutable audit trail.</li>
+                        <li>Users can always escalate to human support regardless of AI availability.</li>
+                      </ul>
+                    </section>
+
+                    <section>
+                      <h3 className="font-semibold text-lg mb-2">5. Your Consent</h3>
+                      <p className="text-muted-foreground">
+                        By using ZIBA Support, you acknowledge that you are interacting with an automated system. You may choose not to use ZIBA Support and instead contact our human support team directly through the Help Center. Your continued use of ZIBA Support constitutes acceptance of this disclosure.
+                      </p>
+                    </section>
+
+                    <section>
+                      <h3 className="font-semibold text-lg mb-2">6. Data Deletion & Account Requests</h3>
+                      <p className="text-muted-foreground">
+                        You have the right to request deletion of your personal data, including support conversation history. To submit a data deletion request, contact our support team through the Help Center. Data deletion requests will be processed within 30 days, subject to legal retention requirements.
                       </p>
                     </section>
 
