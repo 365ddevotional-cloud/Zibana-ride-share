@@ -69,7 +69,8 @@ Preferred communication style: Simple, everyday language.
 - **Marketing Tip Banner**: Rate-limited, dismissible marketing tips on the rider home page.
 - **Wallet Auto Top-Up**: Riders can configure automatic wallet funding when the balance drops below a threshold.
 - **Support Ticket Wallet Context**: Support ticket details are enriched with wallet information for agents.
-- **Driver Hub Structure**: Restructured driver app with 5-tab bottom navigation (Home, Trips, Earnings, Wallet, Help), including performance insights and admin override capabilities.
+- **Driver Hub Structure**: Restructured driver app with 5-tab bottom navigation (Home, Trips, Earnings, Wallet, Help), including performance insights, admin override capabilities, and header theme toggle.
+- **Rider App Structure**: Restructured rider app with 5-tab bottom navigation (Home, Services, Activity, Inbox, Account). Services page has scheduled rides, corporate rides, and special rides. Activity page has tabbed trip history, cancellations, and penalties. Account page has structured settings sections for Communication (notifications, marketing), Appearance (Light/Dark/System theme), Privacy, Safety, and Support.
 
 ## External Dependencies
 
