@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { RiderLayout } from "@/components/rider/RiderLayout";
 import { RiderRouteGuard } from "@/components/rider/RiderRouteGuard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -5,8 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
-import { MapPin, Navigation, Clock, Star, Receipt, ChevronRight } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { MapPin, Navigation, Clock, ChevronRight, Calendar, History } from "lucide-react";
+import { formatDistanceToNow, format } from "date-fns";
 
 interface Trip {
   id: string;
@@ -19,19 +20,36 @@ interface Trip {
   completedAt: string | null;
   driverName?: string;
   paymentSource?: string;
+  isReserved?: boolean;
+  scheduledPickupAt?: string | null;
+  reservationStatus?: string | null;
 }
 
 export default function RiderTrips() {
+  const params = new URLSearchParams(window.location.search);
+  const initialTab = params.get("tab") === "scheduled" ? "scheduled" : "history";
+  const [activeTab, setActiveTab] = useState<"scheduled" | "history">(initialTab);
+
+  useEffect(() => {
+    const tabParam = new URLSearchParams(window.location.search).get("tab");
+    if (tabParam === "scheduled") setActiveTab("scheduled");
+  }, []);
+
   const { data: trips, isLoading } = useQuery<Trip[]>({
-    queryKey: ["/api/trips/rider"],
+    queryKey: ["/api/rider/trip-history"],
   });
 
-  const activeTrip = trips?.find(t => 
+  const activeTrip = trips?.find(t =>
     ["pending", "accepted", "in_progress", "driver_arrived"].includes(t.status)
   );
 
-  const completedTrips = trips?.filter(t => 
-    ["completed", "cancelled"].includes(t.status)
+  const scheduledTrips = trips?.filter(t =>
+    t.isReserved && t.reservationStatus === "scheduled"
+  ) || [];
+
+  const historyTrips = trips?.filter(t =>
+    ["completed", "cancelled"].includes(t.status) &&
+    !(t.isReserved && t.reservationStatus === "scheduled")
   ) || [];
 
   const getStatusColor = (status: string) => {
@@ -46,8 +64,8 @@ export default function RiderTrips() {
   };
 
   const formatCurrency = (amount: string | null, currency: string) => {
-    if (!amount) return "—";
-    const symbols: Record<string, string> = { NGN: "₦", USD: "$", ZAR: "R" };
+    if (!amount) return "\u2014";
+    const symbols: Record<string, string> = { NGN: "\u20A6", USD: "$", ZAR: "R" };
     return `${symbols[currency] || currency} ${parseFloat(amount).toLocaleString()}`;
   };
 
@@ -68,7 +86,7 @@ export default function RiderTrips() {
               {activeTrip && (
                 <Card className="border-primary shadow-md">
                   <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-2">
                       <CardTitle className="text-lg">Active Trip</CardTitle>
                       <Badge className={getStatusColor(activeTrip.status)}>
                         {activeTrip.status.replace("_", " ").toUpperCase()}
@@ -101,29 +119,103 @@ export default function RiderTrips() {
                 </Card>
               )}
 
-              <div className="space-y-3">
-                <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                  Trip History
-                </h2>
+              <div className="flex gap-1 p-1 rounded-lg bg-muted">
+                <Button
+                  variant={activeTab === "scheduled" ? "default" : "ghost"}
+                  size="sm"
+                  className="flex-1 gap-2"
+                  onClick={() => setActiveTab("scheduled")}
+                  data-testid="tab-scheduled"
+                >
+                  <Calendar className="h-4 w-4" />
+                  Scheduled
+                  {scheduledTrips.length > 0 && (
+                    <Badge variant="secondary" className="ml-1">{scheduledTrips.length}</Badge>
+                  )}
+                </Button>
+                <Button
+                  variant={activeTab === "history" ? "default" : "ghost"}
+                  size="sm"
+                  className="flex-1 gap-2"
+                  onClick={() => setActiveTab("history")}
+                  data-testid="tab-history"
+                >
+                  <History className="h-4 w-4" />
+                  History
+                </Button>
+              </div>
 
-                {completedTrips.length === 0 ? (
-                  <Card>
-                    <CardContent className="p-6 text-center">
-                      <Clock className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                      <p className="text-muted-foreground">No trips yet</p>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Your completed trips will appear here
-                      </p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <div className="space-y-3">
-                    {completedTrips.map((trip) => (
+              {activeTab === "scheduled" && (
+                <div className="space-y-3">
+                  {scheduledTrips.length === 0 ? (
+                    <Card>
+                      <CardContent className="p-6 text-center">
+                        <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                        <p className="text-muted-foreground">No scheduled rides</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Your upcoming rides will appear here
+                        </p>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    scheduledTrips.map((trip) => (
+                      <Card key={trip.id} data-testid={`card-scheduled-trip-${trip.id}`}>
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between gap-2 mb-3">
+                            <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                              Scheduled
+                            </Badge>
+                            {trip.scheduledPickupAt && (
+                              <span className="text-sm font-medium text-muted-foreground" data-testid={`text-scheduled-time-${trip.id}`}>
+                                {format(new Date(trip.scheduledPickupAt), "MMM d, h:mm a")}
+                              </span>
+                            )}
+                          </div>
+                          <div className="space-y-2">
+                            <div className="flex items-start gap-3">
+                              <MapPin className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                              <p className="text-sm font-medium" data-testid={`text-scheduled-pickup-${trip.id}`}>
+                                {trip.pickupLocation}
+                              </p>
+                            </div>
+                            <div className="flex items-start gap-3">
+                              <Navigation className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                              <p className="text-sm" data-testid={`text-scheduled-dropoff-${trip.id}`}>
+                                {trip.dropoffLocation}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="mt-3 pt-2 border-t">
+                            <p className="text-xs text-muted-foreground">
+                              {trip.paymentSource === "CASH" ? "Cash payment" : "Wallet payment"} &middot; Fare confirmed closer to pickup
+                            </p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {activeTab === "history" && (
+                <div className="space-y-3">
+                  {historyTrips.length === 0 ? (
+                    <Card>
+                      <CardContent className="p-6 text-center">
+                        <Clock className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                        <p className="text-muted-foreground">No trips yet</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Your completed trips will appear here
+                        </p>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    historyTrips.map((trip) => (
                       <Card key={trip.id} className="hover-elevate cursor-pointer">
                         <CardContent className="p-4">
                           <div className="flex items-center justify-between">
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
+                              <div className="flex items-center gap-2 flex-wrap mb-1">
                                 <Badge variant="outline" className={getStatusColor(trip.status)}>
                                   {trip.status}
                                 </Badge>
@@ -144,7 +236,7 @@ export default function RiderTrips() {
                               </span>
                               {trip.paymentSource && (
                                 <span className="text-xs text-muted-foreground" data-testid={`text-trip-${trip.id}-payment`}>
-                                  {trip.paymentSource === "CASH" ? "Cash" : "Card"}
+                                  {trip.paymentSource === "CASH" ? "Cash" : "Wallet"}
                                 </span>
                               )}
                               <ChevronRight className="h-5 w-5 text-muted-foreground" />
@@ -152,10 +244,10 @@ export default function RiderTrips() {
                           </div>
                         </CardContent>
                       </Card>
-                    ))}
-                  </div>
-                )}
-              </div>
+                    ))
+                  )}
+                </div>
+              )}
             </>
           )}
         </div>

@@ -2571,6 +2571,50 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/trips/schedule", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { pickupLocation, dropoffLocation, scheduledPickupAt, paymentSource } = req.body;
+
+      if (!pickupLocation || !dropoffLocation || !scheduledPickupAt) {
+        return res.status(400).json({ message: "Pickup, drop-off, and scheduled time are required" });
+      }
+
+      const scheduledDate = new Date(scheduledPickupAt);
+      if (isNaN(scheduledDate.getTime()) || scheduledDate <= new Date()) {
+        return res.status(400).json({ message: "Scheduled time must be in the future" });
+      }
+
+      const resolvedPayment = paymentSource === "CASH" ? "CASH" : "MAIN_WALLET";
+
+      const userRole = await storage.getUserRole(userId);
+      const countryCode = userRole?.countryCode || "NG";
+      const countryCurrencies: Record<string, string> = { NG: "NGN", US: "USD", ZA: "ZAR", GH: "GHS", CA: "CAD", KE: "KES" };
+      const tripCurrency = countryCurrencies[countryCode] || "NGN";
+
+      const trip = await storage.createTrip({
+        riderId: userId,
+        pickupLocation,
+        dropoffLocation,
+        passengerCount: 1,
+        paymentSource: resolvedPayment as any,
+        isTestTrip: false,
+        currencyCode: tripCurrency,
+        countryId: countryCode,
+        isReserved: true,
+        scheduledPickupAt: scheduledDate,
+        reservationStatus: "scheduled",
+      });
+
+      console.log(`[SCHEDULED RIDE] tripId=${trip.id}, userId=${userId}, scheduledAt=${scheduledPickupAt}, payment=${resolvedPayment}`);
+
+      return res.json(trip);
+    } catch (error) {
+      console.error("Error scheduling ride:", error);
+      return res.status(500).json({ message: "Failed to schedule ride" });
+    }
+  });
+
   app.get("/api/rider/cancellation-metrics", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;

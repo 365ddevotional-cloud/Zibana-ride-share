@@ -173,7 +173,7 @@ export default function RiderHome() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-sm hover-elevate cursor-pointer" onClick={() => setLocation("/rider/trips?action=schedule")}>
+          <Card className="shadow-sm hover-elevate cursor-pointer" onClick={() => setLocation("/rider/schedule")} data-testid="card-schedule-ride">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
