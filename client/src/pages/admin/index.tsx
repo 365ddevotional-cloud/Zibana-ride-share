@@ -39,6 +39,8 @@ import { SimulationCenter } from "@/components/admin/simulation-center";
 import { CorporateRidesPanel } from "@/components/admin/corporate-rides-panel";
 import { BankTransfersPanel } from "@/components/admin/bank-transfers-panel";
 import { AdminCancellationFeeSettings } from "@/components/admin/cancellation-fee-settings";
+import { LostItemsPanel } from "@/components/admin/lost-items-panel";
+import { AccidentReportsPanel } from "@/components/admin/accident-reports-panel";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -90,7 +92,8 @@ import {
   UserPlus,
   BookOpen,
   ScrollText,
-  Banknote
+  Banknote,
+  Package
 } from "lucide-react";
 import type { DriverProfile, Trip, User } from "@shared/schema";
 import { NotificationBell } from "@/components/notification-bell";
@@ -2506,6 +2509,18 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <TabsTrigger value="simulation" className="admin-nav-trigger rounded-md" data-testid="tab-simulation">
                 <Play className="h-4 w-4 mr-2" />
                 Simulation
+              </TabsTrigger>
+            )}
+            {isSuperAdmin && (
+              <TabsTrigger value="lost-items" className="admin-nav-trigger rounded-md" data-testid="tab-lost-items">
+                <Package className="h-4 w-4 mr-2" />
+                Lost Items
+              </TabsTrigger>
+            )}
+            {isSuperAdmin && (
+              <TabsTrigger value="accident-reports" className="admin-nav-trigger rounded-md" data-testid="tab-accident-reports">
+                <AlertTriangle className="h-4 w-4 mr-2" />
+                Accidents
               </TabsTrigger>
             )}
           </TabsList>
@@ -6848,6 +6863,16 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
           {isSuperAdmin && (
             <TabsContent value="simulation">
               <SimulationCenter />
+            </TabsContent>
+          )}
+          {isSuperAdmin && (
+            <TabsContent value="lost-items">
+              <LostItemsPanel />
+            </TabsContent>
+          )}
+          {isSuperAdmin && (
+            <TabsContent value="accident-reports">
+              <AccidentReportsPanel />
             </TabsContent>
           )}
         </Tabs>
