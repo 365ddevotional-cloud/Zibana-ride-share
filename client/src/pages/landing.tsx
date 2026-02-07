@@ -193,9 +193,9 @@ export default function LandingPage() {
                   <div className="mb-4 mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
                     <Wallet className="h-6 w-6 text-green-600 dark:text-green-400" />
                   </div>
-                  <h3 className="mb-2 font-semibold">Easy Payments</h3>
+                  <h3 className="mb-2 font-semibold">Flexible Payments</h3>
                   <p className="text-muted-foreground text-sm">
-                    Pay securely with your wallet
+                    Pay using cash or wallet balance. Wallets can be funded using cards or bank transfers.
                   </p>
                 </CardContent>
               </Card>
@@ -250,20 +250,27 @@ export default function LandingPage() {
 
       <footer className="border-t py-8">
         <div className="container mx-auto px-4">
-          <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
-            <Logo size="sm" />
-            <div className="flex items-center gap-4">
-              {simSystemStatus?.enabled && (
-                <button
-                  onClick={() => setSimDialogOpen(true)}
-                  className="text-sm text-muted-foreground underline-offset-4 hover:underline"
-                  data-testid="button-enter-simulation"
-                >
-                  Enter Simulation Code
-                </button>
-              )}
-              <p className="text-sm text-muted-foreground">
-                &copy; {new Date().getFullYear()} {appName}. All rights reserved.
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
+              <Logo size="sm" />
+              <div className="flex items-center gap-4">
+                {simSystemStatus?.enabled && (
+                  <button
+                    onClick={() => setSimDialogOpen(true)}
+                    className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+                    data-testid="button-enter-simulation"
+                  >
+                    Enter Simulation Code
+                  </button>
+                )}
+                <p className="text-sm text-muted-foreground">
+                  &copy; {new Date().getFullYear()} {appName}. All rights reserved.
+                </p>
+              </div>
+            </div>
+            <div className="border-t pt-4">
+              <p className="text-xs text-muted-foreground text-center max-w-3xl mx-auto" data-testid="text-disclaimer">
+                Fees, availability, and features may vary by city and are subject to change. Payment options may vary by location. If a driver has already started the trip or is on the way, a cancellation fee may apply. Scheduled rides allow users to request trips ahead of time, subject to driver supply and location. Organizations may book rides for members using a shared wallet, subject to account limits and availability.
               </p>
             </div>
           </div>
