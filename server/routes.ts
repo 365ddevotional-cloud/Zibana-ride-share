@@ -7767,6 +7767,7 @@ export async function registerRoutes(
       const messages = await storage.getSupportMessages(ticketId, includeInternal);
       
       let supportContext = null;
+      let walletContext = null;
       if (isSupportAgent || isAdmin) {
         try {
           const auditLogs = await storage.getAuditLogsByEntity("support_ticket", ticketId);
@@ -7778,9 +7779,29 @@ export async function registerRoutes(
         } catch (e) {
           // Context retrieval is optional, don't fail the request
         }
+        try {
+          const ticketUserId = ticket.createdByUserId;
+          const wallet = await storage.getWalletByUserId(ticketUserId);
+          if (wallet) {
+            const autoTopUp = await storage.getAutoTopUpSettings(ticketUserId);
+            walletContext = {
+              balance: wallet.balance,
+              currency: wallet.currency,
+              isFrozen: wallet.isFrozen,
+              autoTopUp: autoTopUp ? {
+                enabled: autoTopUp.enabled,
+                threshold: autoTopUp.threshold,
+                amount: autoTopUp.amount,
+                failureCount: autoTopUp.failureCount,
+              } : null,
+            };
+          }
+        } catch (e) {
+          // Wallet context retrieval is optional
+        }
       }
       
-      return res.json({ ticket, messages, supportContext });
+      return res.json({ ticket, messages, supportContext, walletContext });
     } catch (error) {
       console.error("Error fetching ticket details:", error);
       return res.status(500).json({ message: "Failed to fetch ticket details" });
