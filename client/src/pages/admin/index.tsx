@@ -46,6 +46,7 @@ import { ReliefFundPanel } from "@/components/admin/relief-fund-panel";
 import { LostItemFraudPanel } from "@/components/admin/lost-item-fraud-panel";
 import { ComplianceLogPanel } from "@/components/admin/compliance-log-panel";
 import { SupportLogsPanel } from "@/components/admin/support-logs-panel";
+import { InboxViewerPanel } from "@/components/admin/inbox-viewer-panel";
 import { ZibaSupport } from "@/components/ziba-support";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -101,7 +102,8 @@ import {
   Banknote,
   Package,
   Heart,
-  Headphones
+  Headphones,
+  Mail
 } from "lucide-react";
 import type { DriverProfile, Trip, User } from "@shared/schema";
 import { NotificationBell } from "@/components/notification-bell";
@@ -2560,6 +2562,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <TabsTrigger value="lost-item-fraud" className="admin-nav-trigger rounded-md" data-testid="tab-lost-item-fraud">
                 <ShieldAlert className="h-4 w-4 mr-2" />
                 Fraud Detection
+              </TabsTrigger>
+            )}
+            {(isSuperAdmin || userRole === "admin") && (
+              <TabsTrigger value="inbox" className="admin-nav-trigger rounded-md" data-testid="tab-inbox">
+                <Mail className="h-4 w-4 mr-2" />
+                Inbox
               </TabsTrigger>
             )}
           </TabsList>
@@ -6933,6 +6941,11 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
           <TabsContent value="lost-item-fraud">
             <LostItemFraudPanel />
           </TabsContent>
+          {(isSuperAdmin || userRole === "admin") && (
+          <TabsContent value="inbox">
+            <InboxViewerPanel />
+          </TabsContent>
+          )}
         </Tabs>
         </div>
       </main>

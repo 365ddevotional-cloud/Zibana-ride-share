@@ -5,7 +5,7 @@ import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integra
 import { storage } from "./storage";
 import { db } from "./db";
 import { eq, and, count, sql, gte, lt, isNotNull, inArray, desc } from "drizzle-orm";
-import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages } from "@shared/schema";
+import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, driverInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages } from "@shared/schema";
 import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, evaluateAllDrivers, evaluateBehaviorAndWarnings, calculateDriverMatchingScore, getDriverIncentiveProgress, assignFirstRidePromo, assignReturnRiderPromo, applyPromoToTrip, voidPromosOnCancellation } from "./incentives";
 import { notificationService } from "./notification-service";
 import { getCurrencyFromCountry, getCountryConfig, FINANCIAL_ENGINE_LOCKED } from "@shared/currency";
@@ -521,6 +521,15 @@ export async function registerRoutes(
       // DEFAULT RATING: Create trust profile with 5.0 stars on signup
       await storage.getOrCreateUserTrustProfile(userId);
 
+      try {
+        await storage.createDriverInboxMessage({
+          userId,
+          title: "Welcome to ZIBA",
+          body: "Welcome to the ZIBA driver platform! Complete your profile setup, add your vehicle details, and wait for admin approval. Once approved, you can start accepting rides.",
+          type: "system_announcement",
+        });
+      } catch (e) { console.warn("[INBOX] Failed to send driver welcome message:", e); }
+
       console.log(`[DRIVER REGISTRATION] New driver registered: userId=${userId}, timestamp=${new Date().toISOString()}`);
       return res.json({ role: userRole.role, message: "Successfully registered as driver" });
     } catch (error) {
@@ -671,6 +680,40 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error settling ledger entry:", error);
       return res.status(500).json({ message: "Failed to settle ledger entry" });
+    }
+  });
+
+  app.get("/api/admin/inbox-messages", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { type, userId, limit: limitParam } = req.query;
+      const messageLimit = Math.min(parseInt(limitParam as string) || 100, 500);
+
+      let riderMessages: any[] = [];
+      let driverMessages: any[] = [];
+
+      if (!type || type === "rider" || type === "all") {
+        if (userId) {
+          riderMessages = await storage.getRiderInboxMessages(userId as string);
+        } else {
+          riderMessages = await storage.getAllRiderInboxMessages(messageLimit);
+        }
+      }
+
+      if (!type || type === "driver" || type === "all") {
+        if (userId) {
+          driverMessages = await storage.getDriverInboxMessages(userId as string);
+        } else {
+          driverMessages = await storage.getAllDriverInboxMessages(messageLimit);
+        }
+      }
+
+      return res.json({
+        rider: riderMessages.map(m => ({ ...m, inboxType: "rider" })),
+        driver: driverMessages.map(m => ({ ...m, inboxType: "driver" })),
+      });
+    } catch (error) {
+      console.error("Error fetching admin inbox messages:", error);
+      return res.status(500).json({ message: "Failed to fetch inbox messages" });
     }
   });
 
@@ -1500,6 +1543,15 @@ export async function registerRoutes(
         message: `A driver has accepted your ride from ${trip.pickupLocation} to ${trip.dropoffLocation}`,
         type: "success",
       });
+
+      try {
+        await storage.createRiderInboxMessage({
+          userId: trip.riderId,
+          title: "Driver Assigned",
+          body: `A driver has been assigned to your ride from ${trip.pickupLocation} to ${trip.dropoffLocation}. They are on their way!`,
+          type: "trip_update",
+        });
+      } catch (e) { console.warn("[INBOX] Failed to send driver assigned message:", e); }
 
       return res.json(trip);
     } catch (error) {
@@ -3396,6 +3448,14 @@ export async function registerRoutes(
           message: "Congratulations! Your driver account has been approved. You can now go online and accept rides.",
           type: "success",
         });
+        try {
+          await storage.createDriverInboxMessage({
+            userId: driverId,
+            title: "Account Approved",
+            body: "Your driver account has been approved. You can now go online and start accepting rides.",
+            type: "approval_update",
+          });
+        } catch (e) { console.warn("[INBOX] Failed to send driver approval message:", e); }
       } else if (status === "suspended") {
         await storage.createNotification({
           userId: driverId,
@@ -3452,6 +3512,14 @@ export async function registerRoutes(
           message: "Congratulations! Your driver account has been approved. You can now go online and accept rides.",
           type: "success",
         });
+        try {
+          await storage.createDriverInboxMessage({
+            userId: id,
+            title: "Account Approved",
+            body: "Your driver account has been approved. You can now go online and start accepting rides.",
+            type: "approval_update",
+          });
+        } catch (e) { console.warn("[INBOX] Failed to send driver approval message:", e); }
         
         return res.json({ success: true, driver });
       }
@@ -3484,6 +3552,14 @@ export async function registerRoutes(
           message: reason || "Your driver application has been rejected. Please contact support for more information.",
           type: "warning",
         });
+        try {
+          await storage.createDriverInboxMessage({
+            userId: id,
+            title: "Application Update",
+            body: reason || "Your driver application was not approved at this time. Please contact support for details.",
+            type: "approval_update",
+          });
+        } catch (e) { console.warn("[INBOX] Failed to send driver rejection message:", e); }
         
         return res.json({ success: true, driver });
       }
@@ -3522,6 +3598,14 @@ export async function registerRoutes(
         message: "Congratulations! Your driver account has been approved. You can now go online and accept rides.",
         type: "success",
       });
+      try {
+        await storage.createDriverInboxMessage({
+          userId: driverId,
+          title: "Account Approved",
+          body: "Your driver account has been approved. You can now go online and start accepting rides.",
+          type: "approval_update",
+        });
+      } catch (e) { console.warn("[INBOX] Failed to send driver approval message:", e); }
       
       return res.json({ success: true, driver });
     } catch (error) {
@@ -3546,6 +3630,14 @@ export async function registerRoutes(
         message: reason || "Your driver application was not approved at this time. Please contact support for more details.",
         type: "warning",
       });
+      try {
+        await storage.createDriverInboxMessage({
+          userId: driverId,
+          title: "Application Update",
+          body: reason || "Your driver application was not approved at this time. Please contact support for details.",
+          type: "approval_update",
+        });
+      } catch (e) { console.warn("[INBOX] Failed to send driver rejection message:", e); }
       
       return res.json({ success: true, driver });
     } catch (error) {
@@ -10514,6 +10606,15 @@ export async function registerRoutes(
           message: `A cancellation fee of ₦${feeAmount.toFixed(2)} has been deducted from your wallet.`,
         });
 
+        try {
+          await storage.createRiderInboxMessage({
+            userId,
+            title: "Cancellation Fee Applied",
+            body: `A cancellation fee of ₦${feeAmount.toFixed(2)} has been applied to your account. Check your wallet for details.`,
+            type: "trip_update",
+          });
+        } catch (e) { console.warn("[INBOX] Failed to send cancellation fee message:", e); }
+
         // Check auto top-up trigger after cancellation fee debit
         if (walletDebitSuccess) {
           const shouldTopUp = await storage.shouldTriggerAutoTopUp(userId);
@@ -16595,6 +16696,15 @@ export async function registerRoutes(
         title: "Application Approved",
         message: "Your driver application has been approved. You can now go online and accept trips!",
       });
+
+      try {
+        await storage.createDriverInboxMessage({
+          userId: driverUserId,
+          title: "Account Approved",
+          body: "Your driver account has been approved. You can now go online and start accepting rides.",
+          type: "approval_update",
+        });
+      } catch (e) { console.warn("[INBOX] Failed to send driver approval message:", e); }
 
       return res.json(updated);
     } catch (error) {

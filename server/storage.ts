@@ -1359,6 +1359,7 @@ export interface IStorage {
   markRiderInboxMessageRead(messageId: string, userId: string): Promise<RiderInboxMessage | null>;
   markAllRiderInboxMessagesRead(userId: string): Promise<void>;
   getRiderUnreadMessageCount(userId: string): Promise<number>;
+  getAllRiderInboxMessages(limit: number): Promise<RiderInboxMessage[]>;
 
   // Driver Inbox Messages
   createDriverInboxMessage(data: InsertDriverInboxMessage): Promise<DriverInboxMessage>;
@@ -1366,6 +1367,7 @@ export interface IStorage {
   markDriverInboxMessageRead(userId: string, messageId: string): Promise<DriverInboxMessage | undefined>;
   markAllDriverInboxMessagesRead(userId: string): Promise<void>;
   getDriverInboxUnreadCount(userId: string): Promise<number>;
+  getAllDriverInboxMessages(limit: number): Promise<DriverInboxMessage[]>;
 
   // Notification Preferences
   getNotificationPreferences(userId: string): Promise<NotificationPreferences>;
@@ -10383,6 +10385,10 @@ export class DatabaseStorage implements IStorage {
     return result?.count || 0;
   }
 
+  async getAllRiderInboxMessages(limit: number): Promise<RiderInboxMessage[]> {
+    return db.select().from(riderInboxMessages).orderBy(desc(riderInboxMessages.createdAt)).limit(limit);
+  }
+
   // Driver Inbox Messages
   async createDriverInboxMessage(data: InsertDriverInboxMessage): Promise<DriverInboxMessage> {
     const [message] = await db.insert(driverInboxMessages).values(data).returning();
@@ -10422,6 +10428,10 @@ export class DatabaseStorage implements IStorage {
         eq(driverInboxMessages.read, false)
       ));
     return result?.count || 0;
+  }
+
+  async getAllDriverInboxMessages(limit: number): Promise<DriverInboxMessage[]> {
+    return db.select().from(driverInboxMessages).orderBy(desc(driverInboxMessages.createdAt)).limit(limit);
   }
 
   // Notification Preferences
