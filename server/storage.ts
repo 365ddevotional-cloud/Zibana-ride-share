@@ -431,6 +431,15 @@ import {
   type InsertMarketingMessage,
   type SavedPlace,
   type InsertSavedPlace,
+  lostItemReports,
+  lostItemFeeConfig,
+  accidentReports,
+  type LostItemReport,
+  type InsertLostItemReport,
+  type LostItemFeeConfig,
+  type InsertLostItemFeeConfig,
+  type AccidentReport,
+  type InsertAccidentReport,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull } from "drizzle-orm";
@@ -1320,6 +1329,30 @@ export interface IStorage {
   getSavedPlaces(riderId: string): Promise<SavedPlace[]>;
   getSavedPlace(riderId: string, type: string): Promise<SavedPlace | null>;
   upsertSavedPlace(riderId: string, type: string, data: { address: string; notes?: string | null; lat?: string | null; lng?: string | null }): Promise<SavedPlace>;
+
+  // Lost Item Reports
+  createLostItemReport(data: InsertLostItemReport): Promise<LostItemReport>;
+  getLostItemReport(id: string): Promise<LostItemReport | null>;
+  getLostItemReportsByRider(riderId: string): Promise<LostItemReport[]>;
+  getLostItemReportsByDriver(driverId: string): Promise<LostItemReport[]>;
+  getLostItemReportsByTrip(tripId: string): Promise<LostItemReport[]>;
+  getAllLostItemReports(): Promise<LostItemReport[]>;
+  getLostItemReportsByStatus(status: string): Promise<LostItemReport[]>;
+  updateLostItemReport(id: string, data: Partial<LostItemReport>): Promise<LostItemReport | null>;
+  
+  // Lost Item Fee Config
+  getLostItemFeeConfig(countryCode: string): Promise<LostItemFeeConfig | null>;
+  getAllLostItemFeeConfigs(): Promise<LostItemFeeConfig[]>;
+  upsertLostItemFeeConfig(data: InsertLostItemFeeConfig): Promise<LostItemFeeConfig>;
+
+  // Accident Reports
+  createAccidentReport(data: InsertAccidentReport): Promise<AccidentReport>;
+  getAccidentReport(id: string): Promise<AccidentReport | null>;
+  getAccidentReportByIncident(incidentId: string): Promise<AccidentReport | null>;
+  getAccidentReportsByTrip(tripId: string): Promise<AccidentReport[]>;
+  getAllAccidentReports(): Promise<AccidentReport[]>;
+  getAccidentReportsByStatus(status: string): Promise<AccidentReport[]>;
+  updateAccidentReport(id: string, data: Partial<AccidentReport>): Promise<AccidentReport | null>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -10289,6 +10322,95 @@ export class DatabaseStorage implements IStorage {
       .values({ riderId, type, ...data })
       .returning();
     return created;
+  }
+
+  // Lost Item Reports
+  async createLostItemReport(data: InsertLostItemReport): Promise<LostItemReport> {
+    const [report] = await db.insert(lostItemReports).values(data).returning();
+    return report;
+  }
+
+  async getLostItemReport(id: string): Promise<LostItemReport | null> {
+    const [report] = await db.select().from(lostItemReports).where(eq(lostItemReports.id, id));
+    return report || null;
+  }
+
+  async getLostItemReportsByRider(riderId: string): Promise<LostItemReport[]> {
+    return db.select().from(lostItemReports).where(eq(lostItemReports.riderId, riderId)).orderBy(desc(lostItemReports.createdAt));
+  }
+
+  async getLostItemReportsByDriver(driverId: string): Promise<LostItemReport[]> {
+    return db.select().from(lostItemReports).where(eq(lostItemReports.driverId, driverId)).orderBy(desc(lostItemReports.createdAt));
+  }
+
+  async getLostItemReportsByTrip(tripId: string): Promise<LostItemReport[]> {
+    return db.select().from(lostItemReports).where(eq(lostItemReports.tripId, tripId)).orderBy(desc(lostItemReports.createdAt));
+  }
+
+  async getAllLostItemReports(): Promise<LostItemReport[]> {
+    return db.select().from(lostItemReports).orderBy(desc(lostItemReports.createdAt));
+  }
+
+  async getLostItemReportsByStatus(status: string): Promise<LostItemReport[]> {
+    return db.select().from(lostItemReports).where(eq(lostItemReports.status, status)).orderBy(desc(lostItemReports.createdAt));
+  }
+
+  async updateLostItemReport(id: string, data: Partial<LostItemReport>): Promise<LostItemReport | null> {
+    const [updated] = await db.update(lostItemReports).set({ ...data, updatedAt: new Date() }).where(eq(lostItemReports.id, id)).returning();
+    return updated || null;
+  }
+
+  // Lost Item Fee Config
+  async getLostItemFeeConfig(countryCode: string): Promise<LostItemFeeConfig | null> {
+    const [config] = await db.select().from(lostItemFeeConfig).where(and(eq(lostItemFeeConfig.countryCode, countryCode), eq(lostItemFeeConfig.isActive, true)));
+    return config || null;
+  }
+
+  async getAllLostItemFeeConfigs(): Promise<LostItemFeeConfig[]> {
+    return db.select().from(lostItemFeeConfig).orderBy(desc(lostItemFeeConfig.createdAt));
+  }
+
+  async upsertLostItemFeeConfig(data: InsertLostItemFeeConfig): Promise<LostItemFeeConfig> {
+    const existing = await this.getLostItemFeeConfig(data.countryCode);
+    if (existing) {
+      const [updated] = await db.update(lostItemFeeConfig).set({ ...data, updatedAt: new Date() }).where(eq(lostItemFeeConfig.id, existing.id)).returning();
+      return updated;
+    }
+    const [created] = await db.insert(lostItemFeeConfig).values(data).returning();
+    return created;
+  }
+
+  // Accident Reports
+  async createAccidentReport(data: InsertAccidentReport): Promise<AccidentReport> {
+    const [report] = await db.insert(accidentReports).values(data).returning();
+    return report;
+  }
+
+  async getAccidentReport(id: string): Promise<AccidentReport | null> {
+    const [report] = await db.select().from(accidentReports).where(eq(accidentReports.id, id));
+    return report || null;
+  }
+
+  async getAccidentReportByIncident(incidentId: string): Promise<AccidentReport | null> {
+    const [report] = await db.select().from(accidentReports).where(eq(accidentReports.incidentId, incidentId));
+    return report || null;
+  }
+
+  async getAccidentReportsByTrip(tripId: string): Promise<AccidentReport[]> {
+    return db.select().from(accidentReports).where(eq(accidentReports.tripId, tripId)).orderBy(desc(accidentReports.createdAt));
+  }
+
+  async getAllAccidentReports(): Promise<AccidentReport[]> {
+    return db.select().from(accidentReports).orderBy(desc(accidentReports.createdAt));
+  }
+
+  async getAccidentReportsByStatus(status: string): Promise<AccidentReport[]> {
+    return db.select().from(accidentReports).where(eq(accidentReports.adminReviewStatus, status)).orderBy(desc(accidentReports.createdAt));
+  }
+
+  async updateAccidentReport(id: string, data: Partial<AccidentReport>): Promise<AccidentReport | null> {
+    const [updated] = await db.update(accidentReports).set(data).where(eq(accidentReports.id, id)).returning();
+    return updated || null;
   }
 }
 
