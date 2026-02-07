@@ -97,7 +97,7 @@ const ARTICLES: HelpArticle[] = [
   {
     id: "pw-1", categoryId: "payments", title: "What payment methods are supported?",
     summary: "Available ways to pay for rides",
-    content: "ZIBA currently supports the following payment methods:\n\n\u2022 Cash: Pay your driver directly at the end of the trip.\n\u2022 Wallet: Use your ZIBA wallet balance to pay for rides seamlessly in the app.\n\nCard payments will be available soon. You can switch between payment methods at any time from the Payments screen before requesting a ride.",
+    content: "ZIBA supports two ways to pay for rides:\n\n\u2022 Cash: Pay your driver directly at the end of the trip.\n\u2022 Wallet: Use your ZIBA wallet balance to pay for rides seamlessly in the app.\n\nYou can add money to your wallet using a debit or credit card through our secure payment partner. Cards are used to fund your wallet — trip payments are made from your wallet balance or with cash.\n\nYou can switch between payment methods at any time from the Payments screen before requesting a ride.",
     keywords: ["payment", "method", "pay", "options", "supported", "types", "card", "cash", "wallet", "money"],
   },
   {
@@ -109,13 +109,19 @@ const ARTICLES: HelpArticle[] = [
   {
     id: "pw-3", categoryId: "payments", title: "Why is my wallet balance zero?",
     summary: "Understanding your wallet balance",
-    content: "If your wallet balance shows zero, it may be because:\n\n\u2022 You haven't added funds to your wallet yet.\n\u2022 You recently used your balance for a ride.\n\nDon't worry \u2014 you can still take rides using cash as your payment method. Simply select \"Cash\" on the payment method screen and pay your driver directly at the end of the trip.",
+    content: "If your wallet balance shows zero, it may be because:\n\n\u2022 You haven't added funds to your wallet yet.\n\u2022 You recently used your balance for a ride.\n\nTo add funds, go to the Payments screen and tap \"Fund Wallet\". You can use your debit or credit card to add money instantly. Quick-amount buttons (like 500, 1000, 2000, 5000) make it easy to top up.\n\nYou can also take rides using cash — just select \"Cash\" as your payment method before requesting a ride.",
     keywords: ["wallet", "balance", "zero", "empty", "no money", "0", "funds", "low"],
   },
   {
-    id: "pw-4", categoryId: "payments", title: "Is card payment secure?",
-    summary: "Card payment security information",
-    content: "When card payments become available, all transactions will be processed through secure, encrypted payment gateways. Your card details are never stored on our servers and all payment data is handled according to industry-standard security practices.\n\nIn the meantime, you can use cash or your ZIBA wallet to pay for rides.",
+    id: "pw-4", categoryId: "payments", title: "How do I add money to my wallet?",
+    summary: "Fund your wallet with a card",
+    content: "Adding money to your ZIBA wallet is quick and easy:\n\n1. Go to the Payments screen from the bottom navigation.\n2. Tap \"Fund Wallet\".\n3. Enter the amount you'd like to add, or tap a quick-amount button.\n4. Complete the payment through our secure payment partner.\n\nYour wallet balance will be updated once the payment is confirmed. Cards are used only to fund your wallet — they are not charged directly for trips.",
+    keywords: ["add", "fund", "wallet", "money", "card", "top", "up", "topup", "credit", "debit", "deposit"],
+  },
+  {
+    id: "pw-5", categoryId: "payments", title: "Is my card information secure?",
+    summary: "Card and payment security",
+    content: "Yes. All card transactions are processed through our trusted, encrypted payment partner. Your card details are never stored on ZIBA's servers. All payment data is handled according to industry-standard security practices.\n\nCards are used only to fund your wallet balance — no card details are used during individual trips.",
     keywords: ["card", "secure", "security", "safe", "encrypted", "payment", "credit", "debit"],
   },
   {
@@ -137,16 +143,16 @@ const ARTICLES: HelpArticle[] = [
     keywords: ["exact", "change", "cash", "bills", "small", "money", "denomination"],
   },
   {
-    id: "cs-4", categoryId: "cash", title: "Can I switch from cash to card?",
+    id: "cs-4", categoryId: "cash", title: "Can I switch from cash to wallet?",
     summary: "Changing from cash to another payment method",
-    content: "You can switch between payment methods before requesting a ride. Simply go to the Home screen, tap the payment method button, and select a different option.\n\nPlease note that once a ride is in progress with cash selected, you cannot switch to another payment method for that trip. Make sure to choose your preferred method before requesting your ride.",
-    keywords: ["switch", "cash", "card", "change", "before", "during", "payment"],
+    content: "You can switch between cash and wallet before requesting a ride. Simply go to the Home screen, tap the payment method button, and select a different option.\n\nPlease note that once a ride is in progress with cash selected, you cannot switch to another payment method for that trip. Make sure to choose your preferred method before requesting your ride.\n\nIf you'd like to use your wallet, make sure it has enough balance. You can top up anytime using a card via the \"Fund Wallet\" button on the Payments screen.",
+    keywords: ["switch", "cash", "wallet", "change", "before", "during", "payment", "fund"],
   },
   {
     id: "tc-1", categoryId: "trips", title: "Can I cancel a ride?",
     summary: "How to cancel a ride request",
-    content: "Yes, you can cancel a ride after requesting it. If the ride hasn't been accepted by a driver yet, cancellation is free.\n\nIf a driver has already accepted and is on the way, please be considerate of their time. Frequent cancellations may affect your account standing.\n\nTo cancel, open the active trip screen and look for the cancel option.",
-    keywords: ["cancel", "ride", "trip", "stop", "abort", "end", "quit"],
+    content: "Yes, you can cancel a ride after requesting it.\n\n\u2022 Before a driver accepts: Cancellation is always free.\n\u2022 Within 3 minutes after a driver accepts: Cancellation is free — this is your grace period to change your mind.\n\u2022 After the 3-minute grace period: A cancellation fee may apply, especially if the driver has already started heading to your pickup location.\n\nTo cancel, open the active trip screen and look for the cancel option. The app will let you know if any fees apply before you confirm.",
+    keywords: ["cancel", "ride", "trip", "stop", "abort", "end", "quit", "fee", "free", "grace", "3 minutes"],
   },
   {
     id: "tc-2", categoryId: "trips", title: "What happens if a driver cancels?",
@@ -157,8 +163,8 @@ const ARTICLES: HelpArticle[] = [
   {
     id: "tc-3", categoryId: "trips", title: "Why was my ride canceled?",
     summary: "Understanding ride cancellations",
-    content: "Rides may be canceled for several reasons:\n\n\u2022 You canceled the ride yourself.\n\u2022 The driver canceled due to being unable to reach your pickup location.\n\u2022 No drivers were available in your area at the time.\n\u2022 There was a safety concern flagged by our system.\n\nIf you believe your ride was canceled in error, please contact our support team and we'll be happy to look into it.",
-    keywords: ["why", "canceled", "cancelled", "reason", "explanation"],
+    content: "Rides may be canceled for several reasons:\n\n\u2022 You canceled the ride yourself.\n\u2022 The driver canceled due to being unable to reach your pickup location.\n\u2022 No drivers were available in your area at the time.\n\u2022 There was a safety concern flagged by our system.\n\nRemember: If a driver has already accepted your ride, you have a 3-minute grace period to cancel for free. After that, a cancellation fee may apply.\n\nIf you believe your ride was canceled in error, please contact our support team and we'll be happy to look into it.",
+    keywords: ["why", "canceled", "cancelled", "reason", "explanation", "fee", "grace"],
   },
   {
     id: "tc-4", categoryId: "trips", title: "What if my driver doesn't arrive?",

@@ -216,8 +216,8 @@ const ARTICLES: DriverHelpArticle[] = [
   {
     id: "cn-3", categoryId: "cancellations", title: "What happens if a rider cancels?",
     summary: "When riders cancel their request",
-    content: "If a rider cancels a trip you've already accepted:\n\n\u2022 You'll be notified immediately.\n\u2022 The trip is removed from your queue.\n\u2022 You'll be available to receive new trip requests.\n\nRider cancellations do not affect your driver performance. You won't be penalized for cancellations made by riders.",
-    keywords: ["rider", "cancels", "cancelled", "canceled", "what happens", "penalty"],
+    content: "If a rider cancels a trip you've already accepted:\n\n\u2022 You'll be notified immediately.\n\u2022 The trip is removed from your queue.\n\u2022 You'll be available to receive new trip requests.\n\nRiders have a 3-minute grace period after you accept to cancel for free. After 3 minutes, if you've already started heading to the pickup, the rider may be charged a cancellation fee and you may receive compensation for your time and fuel.\n\nRider cancellations do not affect your driver performance. You won't be penalized for cancellations made by riders.",
+    keywords: ["rider", "cancels", "cancelled", "canceled", "what happens", "penalty", "grace", "3 minutes", "compensation"],
   },
   {
     id: "cn-4", categoryId: "cancellations", title: "Will cancellations affect my account?",
