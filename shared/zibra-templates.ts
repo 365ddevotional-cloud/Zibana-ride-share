@@ -1208,7 +1208,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     id: "d-drivers-suspend",
     role: "director",
     category: "director_drivers",
-    keywords: ["suspend driver", "remove driver", "discipline", "deactivate driver"],
+    keywords: ["suspend driver", "remove driver", "discipline", "deactivate driver", "deactivate"],
     response: "Contract directors can suspend drivers under their cell for performance or disciplinary reasons. Go to your 'My Drivers' tab and use the Suspend action. Note: Only administrators can permanently deactivate drivers."
   },
   {
@@ -1277,7 +1277,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     id: "d-emotional-frustrated",
     role: "director",
     category: "emotional",
-    keywords: ["unfair", "frustrated", "angry", "not right", "cheated", "scam"],
+    keywords: ["unfair", "frustrated", "angry", "not right", "cheated", "cheating", "scam"],
     response: "I understand this can be challenging. Commission eligibility is designed to be fair and transparent, calculated daily based on clear criteria. I recommend focusing on growing your active driver count, which directly impacts your eligibility. If you have specific concerns, please contact support for assistance."
   },
   {

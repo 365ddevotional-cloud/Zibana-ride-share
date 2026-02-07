@@ -3742,6 +3742,15 @@ export async function registerRoutes(
       const { driverUserId } = req.params;
       const { reason } = req.body;
 
+      const directorProfile = await storage.getDirectorProfile(directorUserId);
+      if (!directorProfile || directorProfile.directorType !== "contract") {
+        return res.status(403).json({ message: "Only contract directors can suspend drivers. Employed directors have read-only access." });
+      }
+
+      if (directorProfile.status !== "active") {
+        return res.status(403).json({ message: "Your director account is not active" });
+      }
+
       const assignment = await storage.getDirectorForDriver(driverUserId);
       if (!assignment || assignment.directorUserId !== directorUserId) {
         return res.status(403).json({ message: "This driver is not under your management" });
@@ -3770,12 +3779,20 @@ export async function registerRoutes(
       const directorUserId = req.user.claims.sub;
       const { driverUserId } = req.params;
 
+      const profile = await storage.getDirectorProfile(directorUserId);
+      if (!profile || profile.directorType !== "contract") {
+        return res.status(403).json({ message: "Only contract directors can activate drivers. Employed directors have read-only access." });
+      }
+
+      if (profile.status !== "active") {
+        return res.status(403).json({ message: "Your director account is not active" });
+      }
+
       const assignment = await storage.getDirectorForDriver(driverUserId);
       if (!assignment || assignment.directorUserId !== directorUserId) {
         return res.status(403).json({ message: "This driver is not under your management" });
       }
 
-      const profile = await storage.getDirectorProfile(directorUserId);
       const maxCell = profile?.maxCellSize || 1300;
       const currentCount = await storage.getDriverCountUnderDirector(directorUserId);
 

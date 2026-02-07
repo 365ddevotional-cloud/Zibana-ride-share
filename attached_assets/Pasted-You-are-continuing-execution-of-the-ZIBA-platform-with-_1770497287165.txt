@@ -1,0 +1,135 @@
+You are continuing execution of the ZIBA platform with FINALIZED Director Logic, ZIBRA Support, and Daily Commission Rules.
+
+STATUS:
+- Director economics locked
+- ZIBRA Director explanations safe
+- Simulations passed
+- Permissions validated
+
+OBJECTIVE:
+Finalize Director onboarding UX, lifecycle (suspension/termination), appeals, and ZIBRA handling — WITHOUT changing commission logic or exposing revenue.
+
+DO NOT:
+- Modify commission formulas
+- Expose platform earnings
+- Create guarantees
+- Break existing Director logic
+
+====================================================
+PHASE 16 — DIRECTOR ONBOARDING UX (FINAL)
+====================================================
+
+Design Director onboarding flows for BOTH Director types.
+
+A) CONTRACT DIRECTOR ONBOARDING
+Steps:
+1. Intro screen:
+   - Explain role as “Driver Network Manager”
+   - Explain responsibility (performance, discipline)
+   - State that earnings are variable and not guaranteed
+2. Referral Code screen:
+   - Show unique referral code
+   - Explain drivers signed up via code are auto-assigned
+3. Activation rules screen:
+   - Minimum 10 drivers required
+   - Commission eligibility is daily and capped
+4. Agreement screen:
+   - Terms acceptance
+   - Performance & conduct obligations
+5. Dashboard entry:
+   - Show counts only (no money)
+
+B) EMPLOYED DIRECTOR ONBOARDING
+Steps:
+1. Role explanation
+2. Assigned drivers overview
+3. Authority limits
+4. Compliance & performance expectations
+5. Dashboard entry
+
+====================================================
+PHASE 17 — DIRECTOR LIFECYCLE STATES
+====================================================
+
+Define Director states:
+- pending
+- active
+- suspended
+- terminated
+
+Rules:
+- suspended → no commissions, no driver actions
+- terminated → drivers reassigned automatically
+- status changes only by Admin or Super Admin
+- all state changes logged
+
+ZIBRA must:
+- Explain status clearly
+- Never argue
+- Never promise reinstatement
+
+====================================================
+PHASE 18 — DIRECTOR APPEALS & DISPUTES
+====================================================
+
+When Director is suspended or terminated:
+- Allow “Submit Appeal” button
+- Appeal includes:
+  - reason
+  - optional explanation
+- Appeal visible to Admin/Super Admin
+- ZIBRA explains appeal process neutrally:
+  “Your appeal will be reviewed. Outcomes depend on policy.”
+
+NO SLA promises.
+
+====================================================
+PHASE 19 — ZIBRA CONFLICT & DE-ESCALATION RULES
+====================================================
+
+ZIBRA must handle:
+- Angry Directors
+- Accusations of cheating
+- Threats to quit
+- Requests for internal data
+
+ZIBRA response rules:
+- Acknowledge emotion
+- Restate policy
+- Redirect to actions Director controls
+- Offer appeal or admin review
+- Never escalate emotionally
+
+====================================================
+PHASE 20 — DIRECTOR TERMINATION SAFETY
+====================================================
+
+On termination:
+- Freeze commissions immediately
+- Reassign drivers automatically
+- Notify Director via Inbox
+- ZIBRA explains:
+  “Your Director role has been ended based on review. Driver assignments have been updated.”
+
+No blame language.
+
+====================================================
+PHASE 21 — FINAL QA CHECKLIST
+====================================================
+
+Confirm:
+✔ Directors onboard smoothly
+✔ Activation rules enforced
+✔ Suspension/termination safe
+✔ Appeals routed correctly
+✔ ZIBRA calm and consistent
+✔ No revenue exposure
+✔ Admin/Super Admin control intact
+
+Output:
+1) Onboarding screens created
+2) Lifecycle logic verified
+3) ZIBRA Director handling confirmed
+4) Ready-for-launch confirmation
+
+Proceed carefully and confirm completion.
