@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useSimulation } from "@/context/SimulationContext";
 
 interface DriverAppGuardProps {
   children: React.ReactNode;
@@ -12,10 +13,11 @@ export function DriverAppGuard({ children }: DriverAppGuardProps) {
   const { user, logout } = useAuth();
   const [location, setLocation] = useLocation();
   const { toast } = useToast();
+  const { isSimulating } = useSimulation();
 
   const isDriverRoute = location.startsWith("/driver");
 
-  const { data: userRole, error: roleError, isError } = useQuery<{ role: string } | null>({
+  const { data: userRole, error: roleError, isError } = useQuery<{ role: string; simulating?: boolean } | null>({
     queryKey: ["/api/user/role"],
     enabled: !!user && isDriverRoute,
     retry: false,
@@ -23,6 +25,8 @@ export function DriverAppGuard({ children }: DriverAppGuardProps) {
 
   useEffect(() => {
     if (!isDriverRoute) return;
+    if (isSimulating) return;
+    if (userRole?.simulating) return;
     
     if (isError && roleError) {
       const errorMessage = (roleError as any)?.message || "";
@@ -37,10 +41,12 @@ export function DriverAppGuard({ children }: DriverAppGuardProps) {
         setLocation("/driver/welcome");
       }
     }
-  }, [isError, roleError, logout, setLocation, toast, isDriverRoute]);
+  }, [isError, roleError, logout, setLocation, toast, isDriverRoute, isSimulating, userRole]);
 
   useEffect(() => {
     if (!isDriverRoute) return;
+    if (isSimulating) return;
+    if (userRole?.simulating) return;
     
     if (user && userRole?.role && userRole.role !== "driver") {
       console.warn(`[DRIVER APP GUARD] Non-driver blocked: role=${userRole.role}`);
@@ -53,7 +59,7 @@ export function DriverAppGuard({ children }: DriverAppGuardProps) {
       logout?.();
       setLocation("/driver/welcome");
     }
-  }, [user, userRole, logout, setLocation, toast, isDriverRoute]);
+  }, [user, userRole, logout, setLocation, toast, isDriverRoute, isSimulating]);
 
   return <>{children}</>;
 }

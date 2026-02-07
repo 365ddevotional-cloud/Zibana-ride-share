@@ -135,6 +135,20 @@ export async function registerRoutes(
     try {
       const userId = req.user.claims.sub;
       const userEmail = req.user.claims.email;
+
+      // SIMULATION MODE OVERRIDE: If user has an active simulation session, return the simulated role
+      const { enabled: simEnabled } = getSimulationConfig();
+      if (simEnabled) {
+        const simSession = await storage.getActiveSimulationSession(userId);
+        if (simSession && new Date(simSession.expiresAt) > new Date()) {
+          return res.json({
+            role: simSession.role,
+            roles: [simSession.role],
+            roleCount: 1,
+            simulating: true,
+          });
+        }
+      }
       
       // SERVER-SIDE SUPER_ADMIN ENFORCEMENT: If email matches, ensure super_admin role
       if (isSuperAdminEmail(userEmail)) {
@@ -927,6 +941,53 @@ export async function registerRoutes(
   app.get("/api/driver/profile", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+
+      // SIMULATION MODE: Return a virtual driver profile if simulating as driver
+      const { enabled: simEnabled } = getSimulationConfig();
+      if (simEnabled) {
+        const simSession = await storage.getActiveSimulationSession(userId);
+        if (simSession && simSession.role === "driver" && new Date(simSession.expiresAt) > new Date()) {
+          const config = JSON.parse(simSession.config || "{}");
+          const userEmail = req.user.claims.email || "sim-driver@ziba.com";
+          const firstName = req.user.claims.first_name || "Simulation";
+          const lastName = req.user.claims.last_name || "Driver";
+          return res.json({
+            id: `sim-driver-${simSession.id}`,
+            userId,
+            fullName: `${firstName} ${lastName}`,
+            phone: "+234 000 000 0000",
+            vehicleMake: "Toyota",
+            vehicleModel: "Camry",
+            licensePlate: "SIM-0000",
+            status: "approved",
+            isOnline: true,
+            walletBalance: config.walletBalance || "10000.00",
+            averageRating: config.ratingState ? parseFloat(config.ratingState) : 4.5,
+            totalRatings: 25,
+            profilePhoto: null,
+            verificationPhoto: null,
+            verificationStatus: "verified",
+            verificationTimestamp: new Date().toISOString(),
+            verificationSessionId: null,
+            navigationProvider: "google_maps",
+            navigationVerified: true,
+            locationPermissionStatus: "granted",
+            lastGpsHeartbeat: new Date().toISOString(),
+            withdrawalVerificationStatus: "verified",
+            isNINVerified: true,
+            isDriversLicenseVerified: true,
+            isAddressVerified: true,
+            isIdentityVerified: true,
+            ninHash: null,
+            driversLicenseHash: null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            email: userEmail,
+            _simulation: true,
+          });
+        }
+      }
+
       const profile = await storage.getDriverProfile(userId);
       if (!profile) {
         return res.json(null);
@@ -1078,6 +1139,23 @@ export async function registerRoutes(
   app.get("/api/driver/setup-status", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+
+      // SIMULATION MODE: Return completed setup status
+      const { enabled: simEnabled } = getSimulationConfig();
+      if (simEnabled) {
+        const simSession = await storage.getActiveSimulationSession(userId);
+        if (simSession && simSession.role === "driver" && new Date(simSession.expiresAt) > new Date()) {
+          return res.json({
+            setupCompleted: true,
+            locationPermissionStatus: "granted",
+            navigationProvider: "google_maps",
+            navigationVerified: true,
+            lastGpsHeartbeat: new Date().toISOString(),
+            missingFields: [],
+          });
+        }
+      }
+
       const profile = await storage.getDriverProfile(userId);
       
       if (!profile) {

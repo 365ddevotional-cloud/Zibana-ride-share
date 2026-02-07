@@ -33,7 +33,7 @@ const SimulationContext = createContext<SimulationContextType>({
 });
 
 function getRoleDashboardPath(role: string): string {
-  if (role === "driver") return "/driver";
+  if (role === "driver") return "/driver/dashboard";
   if (role === "admin" || role === "director" || role === "super_admin") return "/admin";
   return "/";
 }
