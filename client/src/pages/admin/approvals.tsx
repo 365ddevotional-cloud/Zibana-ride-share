@@ -8,11 +8,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, UserCheck, XCircle, Car, Users, Clock } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ArrowLeft, UserCheck, XCircle, Car, Users, Clock, GraduationCap, Filter } from "lucide-react";
 
 interface PendingDriver {
-  id: number;
-  userId: number;
+  id: string;
+  userId: string;
   fullName: string;
   email: string;
   phone: string;
@@ -21,6 +22,8 @@ interface PendingDriver {
   licensePlate: string;
   status: string;
   createdAt: string;
+  isTrainee?: boolean;
+  verificationStatus?: string;
 }
 
 function EmptyState({ icon: Icon, title, description }: { icon: any; title: string; description: string }) {
@@ -44,22 +47,54 @@ function formatDate(dateString: string) {
   });
 }
 
+function StatusBadge({ status }: { status: string }) {
+  switch (status) {
+    case "pending":
+      return (
+        <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800">
+          Pending
+        </Badge>
+      );
+    case "approved":
+      return (
+        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800">
+          Approved
+        </Badge>
+      );
+    case "suspended":
+      return (
+        <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800">
+          Suspended
+        </Badge>
+      );
+    default:
+      return <Badge variant="outline">{status}</Badge>;
+  }
+}
+
 export default function ApprovalsPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("drivers");
+  const [statusFilter, setStatusFilter] = useState("pending");
 
-  const { data: pendingDrivers = [], isLoading: driversLoading } = useQuery<PendingDriver[]>({
-    queryKey: ["/api/admin/approvals", "drivers"],
+  const { data: allDrivers = [], isLoading: driversLoading } = useQuery<PendingDriver[]>({
+    queryKey: ["/api/admin/approvals", "drivers", statusFilter],
     queryFn: async () => {
-      const res = await fetch("/api/admin/approvals?type=driver&status=pending");
-      if (!res.ok) throw new Error("Failed to fetch pending drivers");
+      const res = await fetch(`/api/admin/approvals?type=driver&status=${statusFilter}`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to fetch drivers");
       return res.json();
     },
   });
 
+  const traineeDrivers = allDrivers.filter(
+    (d) => d.verificationStatus === "unverified" || d.verificationStatus === "pending"
+  );
+
   const approveMutation = useMutation({
-    mutationFn: async ({ type, id }: { type: string; id: number }) => {
+    mutationFn: async ({ type, id }: { type: string; id: string }) => {
       return apiRequest("POST", "/api/admin/approvals/approve", { type, id });
     },
     onSuccess: (_, variables) => {
@@ -81,7 +116,7 @@ export default function ApprovalsPage() {
   });
 
   const rejectMutation = useMutation({
-    mutationFn: async ({ type, id, reason }: { type: string; id: number; reason?: string }) => {
+    mutationFn: async ({ type, id, reason }: { type: string; id: string; reason?: string }) => {
       return apiRequest("POST", "/api/admin/approvals/reject", { type, id, reason });
     },
     onSuccess: (_, variables) => {
@@ -101,6 +136,104 @@ export default function ApprovalsPage() {
       });
     },
   });
+
+  function renderDriverTable(drivers: PendingDriver[], showActions: boolean) {
+    if (drivers.length === 0) {
+      return (
+        <EmptyState
+          icon={UserCheck}
+          title="No drivers found"
+          description="No driver applications match the current filter."
+        />
+      );
+    }
+
+    return (
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Phone</TableHead>
+              <TableHead>Vehicle</TableHead>
+              <TableHead>Applied</TableHead>
+              <TableHead>Status</TableHead>
+              {showActions && <TableHead className="text-right">Actions</TableHead>}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {drivers.map((driver) => (
+              <TableRow key={driver.id} data-testid={`row-driver-${driver.id}`}>
+                <TableCell className="font-medium">{driver.fullName}</TableCell>
+                <TableCell className="text-muted-foreground">{driver.email || "—"}</TableCell>
+                <TableCell>{driver.phone}</TableCell>
+                <TableCell>{driver.vehicleMake} {driver.vehicleModel}</TableCell>
+                <TableCell className="text-muted-foreground">
+                  {driver.createdAt ? formatDate(driver.createdAt) : "—"}
+                </TableCell>
+                <TableCell>
+                  <StatusBadge status={driver.status} />
+                </TableCell>
+                {showActions && (
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      {driver.status === "pending" && (
+                        <>
+                          <Button
+                            size="sm"
+                            onClick={() => approveMutation.mutate({ type: "driver", id: driver.userId })}
+                            disabled={approveMutation.isPending || rejectMutation.isPending}
+                            data-testid={`button-approve-driver-${driver.id}`}
+                          >
+                            <UserCheck className="h-4 w-4 mr-1" />
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => rejectMutation.mutate({ type: "driver", id: driver.userId })}
+                            disabled={approveMutation.isPending || rejectMutation.isPending}
+                            data-testid={`button-reject-driver-${driver.id}`}
+                          >
+                            <XCircle className="h-4 w-4 mr-1" />
+                            Reject
+                          </Button>
+                        </>
+                      )}
+                      {driver.status === "approved" && (
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => rejectMutation.mutate({ type: "driver", id: driver.userId, reason: "Suspended by admin" })}
+                          disabled={approveMutation.isPending || rejectMutation.isPending}
+                          data-testid={`button-suspend-driver-${driver.id}`}
+                        >
+                          <XCircle className="h-4 w-4 mr-1" />
+                          Suspend
+                        </Button>
+                      )}
+                      {driver.status === "suspended" && (
+                        <Button
+                          size="sm"
+                          onClick={() => approveMutation.mutate({ type: "driver", id: driver.userId })}
+                          disabled={approveMutation.isPending || rejectMutation.isPending}
+                          data-testid={`button-reinstate-driver-${driver.id}`}
+                        >
+                          <UserCheck className="h-4 w-4 mr-1" />
+                          Reinstate
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                )}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -126,98 +259,91 @@ export default function ApprovalsPage() {
       <div className="container mx-auto px-4 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-6">
-            <TabsTrigger value="drivers" className="gap-2" data-testid="tab-drivers-pending">
+            <TabsTrigger value="drivers" className="gap-2" data-testid="tab-drivers">
               <Car className="h-4 w-4" />
-              Drivers Pending
-              {pendingDrivers.length > 0 && (
-                <Badge variant="secondary" className="ml-1">{pendingDrivers.length}</Badge>
+              Drivers
+              {statusFilter === "pending" && allDrivers.length > 0 && (
+                <Badge variant="secondary" className="ml-1">{allDrivers.length}</Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="trainees" className="gap-2" data-testid="tab-trainees">
+              <GraduationCap className="h-4 w-4" />
+              Trainees
+              {traineeDrivers.length > 0 && (
+                <Badge variant="secondary" className="ml-1">{traineeDrivers.length}</Badge>
               )}
             </TabsTrigger>
             <TabsTrigger value="riders" className="gap-2" data-testid="tab-riders-pending">
               <Users className="h-4 w-4" />
-              Riders Pending
+              Riders
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="drivers">
             <Card>
               <CardHeader>
+                <div className="flex items-center justify-between gap-4 flex-wrap">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Clock className="h-5 w-5 text-yellow-500" />
+                      Driver Management
+                    </CardTitle>
+                    <CardDescription>
+                      Review driver registrations and manage their status
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Filter className="h-4 w-4 text-muted-foreground" />
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                      <SelectTrigger className="w-[140px]" data-testid="select-status-filter">
+                        <SelectValue placeholder="Filter status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending" data-testid="option-pending">Pending</SelectItem>
+                        <SelectItem value="approved" data-testid="option-approved">Approved</SelectItem>
+                        <SelectItem value="suspended" data-testid="option-suspended">Suspended</SelectItem>
+                        <SelectItem value="all" data-testid="option-all">All</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {driversLoading ? (
+                  <div className="py-8 text-center text-muted-foreground">
+                    Loading drivers...
+                  </div>
+                ) : (
+                  renderDriverTable(allDrivers, true)
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="trainees">
+            <Card>
+              <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Clock className="h-5 w-5 text-yellow-500" />
-                  Pending Driver Approvals
+                  <GraduationCap className="h-5 w-5 text-blue-500" />
+                  Trainee Drivers
                 </CardTitle>
                 <CardDescription>
-                  Review driver registrations and approve or reject their applications
+                  Drivers who have not completed verification or are in training
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {driversLoading ? (
                   <div className="py-8 text-center text-muted-foreground">
-                    Loading pending drivers...
+                    Loading trainee drivers...
                   </div>
-                ) : pendingDrivers.length === 0 ? (
+                ) : traineeDrivers.length === 0 ? (
                   <EmptyState
-                    icon={UserCheck}
-                    title="No pending approvals"
-                    description="All driver applications have been reviewed. New applications will appear here."
+                    icon={GraduationCap}
+                    title="No trainee drivers"
+                    description="All drivers have completed their verification process."
                   />
                 ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Email</TableHead>
-                          <TableHead>Phone</TableHead>
-                          <TableHead>Vehicle</TableHead>
-                          <TableHead>Applied</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {pendingDrivers.map((driver) => (
-                          <TableRow key={driver.id} data-testid={`row-pending-driver-${driver.id}`}>
-                            <TableCell className="font-medium">{driver.fullName}</TableCell>
-                            <TableCell className="text-muted-foreground">{driver.email || "—"}</TableCell>
-                            <TableCell>{driver.phone}</TableCell>
-                            <TableCell>{driver.vehicleMake} {driver.vehicleModel}</TableCell>
-                            <TableCell className="text-muted-foreground">
-                              {driver.createdAt ? formatDate(driver.createdAt) : "—"}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800">
-                                Pending
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex justify-end gap-2">
-                                <Button
-                                  size="sm"
-                                  onClick={() => approveMutation.mutate({ type: "driver", id: driver.userId })}
-                                  disabled={approveMutation.isPending || rejectMutation.isPending}
-                                  data-testid={`button-approve-driver-${driver.id}`}
-                                >
-                                  <UserCheck className="h-4 w-4 mr-1" />
-                                  Approve
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  onClick={() => rejectMutation.mutate({ type: "driver", id: driver.userId })}
-                                  disabled={approveMutation.isPending || rejectMutation.isPending}
-                                  data-testid={`button-reject-driver-${driver.id}`}
-                                >
-                                  <XCircle className="h-4 w-4 mr-1" />
-                                  Reject
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                  renderDriverTable(traineeDrivers, true)
                 )}
               </CardContent>
             </Card>

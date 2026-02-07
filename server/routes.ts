@@ -82,19 +82,19 @@ const requireRole = (allowedRoles: string[]): RequestHandler => {
         }
       }
 
-      const userRole = await storage.getUserRole(userId);
-      if (!userRole) {
+      const allRoles = await storage.getAllUserRoles(userId);
+      if (!allRoles || allRoles.length === 0) {
         console.warn(`[SECURITY AUDIT] User ${userId} has no role, denied access to ${req.path}`);
         return res.status(403).json({ message: "Access denied" });
       }
       
-      const hasAccess = userRole.role === "super_admin" || allowedRoles.includes(userRole.role);
-      if (!hasAccess) {
-        console.warn(`[SECURITY AUDIT] Unauthorized access attempt: User ${userId} (role: ${userRole.role}) tried to access ${req.path} - Required roles: ${allowedRoles.join(", ")}`);
+      const matchedRole = allRoles.find(r => r.role === "super_admin") || allRoles.find(r => allowedRoles.includes(r.role));
+      if (!matchedRole) {
+        console.warn(`[SECURITY AUDIT] Unauthorized access attempt: User ${userId} (roles: ${allRoles.map(r => r.role).join(", ")}) tried to access ${req.path} - Required roles: ${allowedRoles.join(", ")}`);
         return res.status(403).json({ message: "Access denied" });
       }
       
-      if (userRole.role === "admin") {
+      if (matchedRole.role === "admin") {
         const { valid, reason } = await storage.isAdminValid(userId);
         if (!valid) {
           console.warn(`[SECURITY AUDIT] Admin ${userId} access expired: ${reason}`);
@@ -102,8 +102,8 @@ const requireRole = (allowedRoles: string[]): RequestHandler => {
         }
       }
       
-      req.userRole = userRole.role;
-      req.userRoleData = userRole;
+      req.userRole = matchedRole.role;
+      req.userRoleData = matchedRole;
       next();
     } catch (error) {
       console.error("Error checking role:", error);
@@ -3338,7 +3338,7 @@ export async function registerRoutes(
       
       if (type === "driver") {
         const drivers = await storage.getAllDriversWithDetails();
-        const filtered = status ? drivers.filter((d: any) => d.status === status) : drivers;
+        const filtered = (status && status !== "all") ? drivers.filter((d: any) => d.status === status) : drivers;
         return res.json(filtered);
       }
       
@@ -12176,8 +12176,21 @@ export async function registerRoutes(
 
       let existingWallet = await storage.getRiderWallet(userId);
       if (!existingWallet) {
-        const currency = await getUserCurrency(userId);
-        existingWallet = await storage.createRiderWallet({ userId, currency });
+        let currency = "NGN";
+        try {
+          currency = await getUserCurrency(userId);
+        } catch (e) {
+          console.warn(`[AUTO_TOPUP] Failed to get currency for user ${userId}, defaulting to NGN`);
+        }
+        try {
+          existingWallet = await storage.createRiderWallet({ userId, currency });
+        } catch (e: any) {
+          if (e?.code === "23505" || e?.message?.includes("duplicate")) {
+            existingWallet = await storage.getRiderWallet(userId);
+          } else {
+            throw e;
+          }
+        }
       }
 
       const wallet = await storage.updateAutoTopUpSettings(userId, {

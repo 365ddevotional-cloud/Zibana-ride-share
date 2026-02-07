@@ -46,10 +46,11 @@ export default function SavedPlaceForm() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("PUT", `/api/rider/saved-places/${placeType}`, {
-        address,
-        notes: notes || null,
+      const res = await apiRequest("PUT", `/api/rider/saved-places/${placeType}`, {
+        address: address.trim(),
+        notes: notes.trim() || null,
       });
+      return await res.json();
     },
     onSuccess: () => {
       toast({ title: `${placeType === "home" ? "Home" : "Work"} address saved` });
@@ -57,7 +58,8 @@ export default function SavedPlaceForm() {
       setLocation("/rider/home");
     },
     onError: (error: Error) => {
-      toast({ title: error.message || "Failed to save address", variant: "destructive" });
+      const msg = error.message?.replace(/^\d+:\s*/, "") || "Failed to save address";
+      toast({ title: msg, variant: "destructive" });
     },
   });
 
