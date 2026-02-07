@@ -1,6 +1,5 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
 import { Banknote, CreditCard, ChevronRight, X } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
@@ -21,39 +20,73 @@ export function PaymentOnboardingModal() {
     },
   });
 
-  if (isLoading || !onboardingStatus || onboardingStatus.seen) return null;
-
-  const handleDismiss = () => {
+  const handleDismiss = useCallback(() => {
     markSeenMutation.mutate();
-  };
+  }, [markSeenMutation]);
 
-  const handleDetailGotIt = () => {
+  const handleDetailGotIt = useCallback(() => {
     setStep("intro");
-  };
+  }, []);
+
+  if (isLoading || !onboardingStatus || onboardingStatus.seen) return null;
 
   return (
     <div
-      className="fixed inset-0 z-[9998]"
-      style={{ pointerEvents: "auto" }}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 99999,
+        pointerEvents: "auto",
+      }}
       data-testid="overlay-payment-onboarding"
     >
       <div
-        className="absolute inset-0 bg-black/80"
+        style={{
+          position: "absolute",
+          inset: 0,
+          backgroundColor: "rgba(0,0,0,0.8)",
+          pointerEvents: "auto",
+          touchAction: "manipulation",
+          WebkitTapHighlightColor: "transparent",
+        }}
         onClick={handleDismiss}
-        style={{ pointerEvents: "auto", touchAction: "manipulation" }}
+        onTouchEnd={(e) => { e.preventDefault(); handleDismiss(); }}
         data-testid="backdrop-payment-onboarding"
       />
 
       <div
-        className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[9999] w-full max-w-sm border bg-background p-6 shadow-lg sm:rounded-lg"
-        style={{ pointerEvents: "auto" }}
+        style={{
+          position: "fixed",
+          left: "50%",
+          top: "50%",
+          transform: "translate(-50%, -50%)",
+          zIndex: 100000,
+          width: "calc(100% - 2rem)",
+          maxWidth: "24rem",
+          pointerEvents: "auto",
+        }}
+        className="border bg-background p-6 shadow-lg rounded-lg"
+        onClick={(e) => e.stopPropagation()}
         data-testid="dialog-payment-onboarding"
       >
         <button
           type="button"
-          className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
           onClick={handleDismiss}
-          style={{ pointerEvents: "auto", touchAction: "manipulation", zIndex: 10 }}
+          onTouchEnd={(e) => { e.preventDefault(); handleDismiss(); }}
+          style={{
+            position: "absolute",
+            right: "1rem",
+            top: "1rem",
+            zIndex: 100001,
+            pointerEvents: "auto",
+            touchAction: "manipulation",
+            WebkitTapHighlightColor: "transparent",
+            background: "none",
+            border: "none",
+            padding: "0.25rem",
+            cursor: "pointer",
+            opacity: 0.7,
+          }}
           data-testid="button-close-payment-modal"
         >
           <X className="h-4 w-4" />
@@ -74,7 +107,7 @@ export function PaymentOnboardingModal() {
                 type="button"
                 className="w-full flex items-center gap-3 p-3 rounded-md text-left border border-transparent hover:border-border"
                 onClick={() => setStep("cash")}
-                style={{ pointerEvents: "auto", touchAction: "manipulation" }}
+                style={{ pointerEvents: "auto", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
                 data-testid="button-learn-cash"
               >
                 <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
@@ -90,7 +123,7 @@ export function PaymentOnboardingModal() {
                 type="button"
                 className="w-full flex items-center gap-3 p-3 rounded-md text-left border border-transparent hover:border-border"
                 onClick={() => setStep("card")}
-                style={{ pointerEvents: "auto", touchAction: "manipulation" }}
+                style={{ pointerEvents: "auto", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
                 data-testid="button-learn-card"
               >
                 <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
@@ -104,15 +137,16 @@ export function PaymentOnboardingModal() {
               </button>
             </div>
             <div className="pt-2">
-              <Button
+              <button
                 type="button"
-                className="w-full"
+                className="w-full inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium min-h-9 px-4 py-2 bg-primary text-primary-foreground border border-primary-border cursor-pointer"
                 onClick={handleDismiss}
-                style={{ pointerEvents: "auto", touchAction: "manipulation", position: "relative", zIndex: 10 }}
+                onTouchEnd={(e) => { e.preventDefault(); handleDismiss(); }}
+                style={{ pointerEvents: "auto", touchAction: "manipulation", WebkitTapHighlightColor: "transparent", position: "relative", zIndex: 10 }}
                 data-testid="button-got-it"
               >
                 Got it
-              </Button>
+              </button>
             </div>
           </>
         )}
@@ -132,24 +166,26 @@ export function PaymentOnboardingModal() {
               </div>
             </div>
             <div className="flex gap-2 pt-2">
-              <Button
+              <button
                 type="button"
-                variant="outline"
+                className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium min-h-9 px-4 py-2 border shadow-xs cursor-pointer"
                 onClick={() => setStep("intro")}
-                style={{ pointerEvents: "auto", touchAction: "manipulation" }}
+                onTouchEnd={(e) => { e.preventDefault(); setStep("intro"); }}
+                style={{ pointerEvents: "auto", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
                 data-testid="button-back"
               >
                 Back
-              </Button>
-              <Button
+              </button>
+              <button
                 type="button"
-                className="flex-1"
+                className="flex-1 inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium min-h-9 px-4 py-2 bg-primary text-primary-foreground border border-primary-border cursor-pointer"
                 onClick={handleDetailGotIt}
-                style={{ pointerEvents: "auto", touchAction: "manipulation", position: "relative", zIndex: 10 }}
+                onTouchEnd={(e) => { e.preventDefault(); handleDetailGotIt(); }}
+                style={{ pointerEvents: "auto", touchAction: "manipulation", WebkitTapHighlightColor: "transparent", position: "relative", zIndex: 10 }}
                 data-testid="button-got-it-cash"
               >
                 Got it
-              </Button>
+              </button>
             </div>
           </>
         )}
@@ -169,24 +205,26 @@ export function PaymentOnboardingModal() {
               </div>
             </div>
             <div className="flex gap-2 pt-2">
-              <Button
+              <button
                 type="button"
-                variant="outline"
+                className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium min-h-9 px-4 py-2 border shadow-xs cursor-pointer"
                 onClick={() => setStep("intro")}
-                style={{ pointerEvents: "auto", touchAction: "manipulation" }}
+                onTouchEnd={(e) => { e.preventDefault(); setStep("intro"); }}
+                style={{ pointerEvents: "auto", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
                 data-testid="button-back-card"
               >
                 Back
-              </Button>
-              <Button
+              </button>
+              <button
                 type="button"
-                className="flex-1"
+                className="flex-1 inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium min-h-9 px-4 py-2 bg-primary text-primary-foreground border border-primary-border cursor-pointer"
                 onClick={handleDetailGotIt}
-                style={{ pointerEvents: "auto", touchAction: "manipulation", position: "relative", zIndex: 10 }}
+                onTouchEnd={(e) => { e.preventDefault(); handleDetailGotIt(); }}
+                style={{ pointerEvents: "auto", touchAction: "manipulation", WebkitTapHighlightColor: "transparent", position: "relative", zIndex: 10 }}
                 data-testid="button-got-it-card"
               >
                 Got it
-              </Button>
+              </button>
             </div>
           </>
         )}
