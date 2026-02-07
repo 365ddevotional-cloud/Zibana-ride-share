@@ -488,6 +488,7 @@ export interface IStorage {
   updateTripStatus(tripId: string, driverId: string, status: string): Promise<Trip | null>;
   cancelTrip(tripId: string, riderId: string, reason?: string): Promise<Trip | null>;
   adminCancelTrip(tripId: string, reason?: string): Promise<Trip | null>;
+  updateTrip(tripId: string, updates: Partial<Trip>): Promise<Trip | null>;
   getAllTrips(): Promise<any[]>;
   getAllTripsWithDetails(): Promise<any[]>;
 
@@ -2013,6 +2014,15 @@ export class DatabaseStorage implements IStorage {
           )
         )
       )
+      .returning();
+    return trip || null;
+  }
+
+  async updateTrip(tripId: string, updates: Partial<Trip>): Promise<Trip | null> {
+    const [trip] = await db
+      .update(trips)
+      .set(updates)
+      .where(eq(trips.id, tripId))
       .returning();
     return trip || null;
   }

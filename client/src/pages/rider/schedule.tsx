@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MapPin, Navigation, Calendar, Clock, Wallet, Banknote, CheckCircle, ArrowLeft } from "lucide-react";
+import { MapPin, Navigation, Calendar, Clock, Wallet, Banknote, CheckCircle, ArrowLeft, AlertCircle } from "lucide-react";
 import { useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -30,6 +30,7 @@ export default function ScheduleRide() {
   const [time, setTime] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("wallet");
   const [confirmed, setConfirmed] = useState(false);
+  const [attempted, setAttempted] = useState(false);
 
   const { data: walletInfo } = useQuery<WalletInfo>({
     queryKey: ["/api/rider/wallet-info"],
@@ -75,9 +76,15 @@ export default function ScheduleRide() {
     return selected <= new Date();
   };
 
-  const canSubmit = pickup.trim() && dropoff.trim() && date && time && !isInThePast();
+  const pickupValid = pickup.trim().length > 0;
+  const dropoffValid = dropoff.trim().length > 0;
+  const dateValid = date.length > 0;
+  const timeValid = time.length > 0;
+  const notPast = !isInThePast();
+  const canSubmit = pickupValid && dropoffValid && dateValid && timeValid && notPast;
 
   const handleSchedule = () => {
+    setAttempted(true);
     if (!canSubmit) return;
     const scheduledPickupAt = new Date(`${date}T${time}`).toISOString();
     scheduleMutation.mutate({
@@ -148,10 +155,16 @@ export default function ScheduleRide() {
                     placeholder="Enter pickup location"
                     value={pickup}
                     onChange={(e) => setPickup(e.target.value)}
-                    className="pl-10 h-12"
+                    className={`pl-10 h-12 ${attempted && !pickupValid ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                     data-testid="input-schedule-pickup"
                   />
                 </div>
+                {attempted && !pickupValid && (
+                  <p className="text-sm text-destructive flex items-center gap-1" data-testid="error-pickup">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                    Please enter a pickup location
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -163,10 +176,16 @@ export default function ScheduleRide() {
                     placeholder="Where are you going?"
                     value={dropoff}
                     onChange={(e) => setDropoff(e.target.value)}
-                    className="pl-10 h-12"
+                    className={`pl-10 h-12 ${attempted && !dropoffValid ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                     data-testid="input-schedule-dropoff"
                   />
                 </div>
+                {attempted && !dropoffValid && (
+                  <p className="text-sm text-destructive flex items-center gap-1" data-testid="error-dropoff">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                    Please enter a drop-off location
+                  </p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -180,10 +199,16 @@ export default function ScheduleRide() {
                       min={getMinDate()}
                       value={date}
                       onChange={(e) => setDate(e.target.value)}
-                      className="pl-10 h-12"
+                      className={`pl-10 h-12 ${attempted && !dateValid ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                       data-testid="input-schedule-date"
                     />
                   </div>
+                  {attempted && !dateValid && (
+                    <p className="text-sm text-destructive flex items-center gap-1" data-testid="error-date">
+                      <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                      Please select a date
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="time" className="text-sm font-medium">Time</Label>
@@ -194,15 +219,22 @@ export default function ScheduleRide() {
                       type="time"
                       value={time}
                       onChange={(e) => setTime(e.target.value)}
-                      className="pl-10 h-12"
+                      className={`pl-10 h-12 ${attempted && !timeValid ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                       data-testid="input-schedule-time"
                     />
                   </div>
+                  {attempted && !timeValid && (
+                    <p className="text-sm text-destructive flex items-center gap-1" data-testid="error-time">
+                      <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                      Please select a time
+                    </p>
+                  )}
                 </div>
               </div>
 
-              {isInThePast() && date && time && (
-                <p className="text-sm text-destructive" data-testid="text-past-error">
+              {date && time && !notPast && (
+                <p className="text-sm text-destructive flex items-center gap-1" data-testid="text-past-error">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
                   The selected date and time is in the past. Please pick a future time.
                 </p>
               )}
@@ -239,7 +271,7 @@ export default function ScheduleRide() {
               <Button
                 className="w-full h-12 text-base font-medium"
                 onClick={handleSchedule}
-                disabled={!canSubmit || scheduleMutation.isPending}
+                disabled={scheduleMutation.isPending}
                 data-testid="button-confirm-schedule"
               >
                 {scheduleMutation.isPending ? "Scheduling..." : "Schedule Ride"}

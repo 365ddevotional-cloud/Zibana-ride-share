@@ -2615,6 +2615,128 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/admin/scheduled-trips", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const allTrips = await storage.getAllTrips();
+      const scheduledTrips = allTrips.filter((t: any) => t.isReserved === true);
+      return res.json(scheduledTrips);
+    } catch (error) {
+      console.error("Error fetching scheduled trips:", error);
+      return res.status(500).json({ message: "Failed to fetch scheduled trips" });
+    }
+  });
+
+  app.post("/api/admin/scheduled-trips/:tripId/assign-driver", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { tripId } = req.params;
+      const { driverId } = req.body;
+      if (!driverId) {
+        return res.status(400).json({ message: "Driver ID is required" });
+      }
+      const trip = await storage.getTripById(tripId);
+      if (!trip || !trip.isReserved) {
+        return res.status(404).json({ message: "Scheduled trip not found" });
+      }
+      const updated = await storage.updateTrip(tripId, {
+        driverId,
+        reservationStatus: "driver_assigned",
+        status: "accepted",
+        acceptedAt: new Date(),
+      });
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error assigning driver:", error);
+      return res.status(500).json({ message: "Failed to assign driver" });
+    }
+  });
+
+  app.post("/api/admin/scheduled-trips/:tripId/cancel", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { tripId } = req.params;
+      const { reason } = req.body;
+      const trip = await storage.getTripById(tripId);
+      if (!trip || !trip.isReserved) {
+        return res.status(404).json({ message: "Scheduled trip not found" });
+      }
+      const cancelled = await storage.adminCancelTrip(tripId, reason || "Cancelled by admin");
+      return res.json(cancelled);
+    } catch (error) {
+      console.error("Error cancelling scheduled trip:", error);
+      return res.status(500).json({ message: "Failed to cancel scheduled trip" });
+    }
+  });
+
+  app.get("/api/driver/scheduled-trips", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const allTrips = await storage.getAllTrips();
+      const driverScheduled = allTrips.filter((t: any) =>
+        t.isReserved === true &&
+        t.driverId === userId &&
+        ["scheduled", "driver_assigned", "accepted"].includes(t.status)
+      );
+      return res.json(driverScheduled);
+    } catch (error) {
+      console.error("Error fetching driver scheduled trips:", error);
+      return res.status(500).json({ message: "Failed to fetch scheduled trips" });
+    }
+  });
+
+  app.post("/api/driver/scheduled-trips/:tripId/accept", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { tripId } = req.params;
+      const trip = await storage.getTripById(tripId);
+      if (!trip || !trip.isReserved) {
+        return res.status(404).json({ message: "Scheduled trip not found" });
+      }
+      if (trip.driverId && trip.driverId !== userId) {
+        return res.status(400).json({ message: "This trip has already been assigned to another driver" });
+      }
+      const updated = await storage.updateTrip(tripId, {
+        driverId: userId,
+        reservationStatus: "driver_assigned",
+        status: "accepted",
+        acceptedAt: new Date(),
+      });
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error accepting scheduled trip:", error);
+      return res.status(500).json({ message: "Failed to accept trip" });
+    }
+  });
+
+  app.post("/api/driver/scheduled-trips/:tripId/start", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { tripId } = req.params;
+      const trip = await storage.getTripById(tripId);
+      if (!trip || !trip.isReserved) {
+        return res.status(404).json({ message: "Scheduled trip not found" });
+      }
+      if (trip.driverId !== userId) {
+        return res.status(403).json({ message: "This trip is not assigned to you" });
+      }
+      if (trip.scheduledPickupAt) {
+        const scheduledTime = new Date(trip.scheduledPickupAt).getTime();
+        const now = Date.now();
+        const fifteenMinMs = 15 * 60 * 1000;
+        if (scheduledTime - now > fifteenMinMs) {
+          const minutesUntil = Math.ceil((scheduledTime - now) / 60000);
+          return res.status(400).json({ message: `Too early to start. Trip is scheduled in ${minutesUntil} minutes. You can start within 15 minutes of the scheduled time.` });
+        }
+      }
+      const updated = await storage.updateTrip(tripId, {
+        status: "in_progress",
+        reservationStatus: "active",
+      });
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error starting scheduled trip:", error);
+      return res.status(500).json({ message: "Failed to start trip" });
+    }
+  });
+
   app.get("/api/rider/cancellation-metrics", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
