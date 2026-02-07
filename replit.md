@@ -53,7 +53,8 @@ Preferred communication style: Simple, everyday language.
 - **Universal Identity Framework**: Country-aware identity verification.
 - **Driver GPS & Navigation Enforcement**: Mandates GPS permissions and background execution consent.
 - **Ratings, Behavior Signals & Trust Scoring**: Bidirectional rating system, passive behavior signal capture, and trust score calculation with anti-manipulation guards.
-- **Safety & Incident Intelligence**: SOS trigger system, incident reporting, auto-escalation rules, and suspension management.
+- **Safety & Incident Intelligence**: SOS trigger system, incident reporting, auto-escalation rules, and suspension management. Includes Accident Report Protocol with safety checks, evidence collection, and admin review workflow.
+- **Lost Item Protocol**: Full lost item reporting system with rider reporting, driver confirmation/denial, return fee management (country-specific), status tracking, and admin oversight.
 - **Disputes, Refunds & Legal Resolution**: Formal dispute filing, refund engine, chargeback tracking, and immutable audit trail.
 - **Pre-Launch Compliance & Store Readiness**: Versioned legal documents, user consent tracking, kill switch system, and test mode isolation.
 - **Admin Override Control & Support Safety**: Authorized admin/super_admin users can perform controlled overrides with audit logging.
