@@ -3675,6 +3675,397 @@ export async function registerRoutes(
     }
   });
 
+  // =============================================
+  // DIRECTOR COMMISSION & CELL MANAGEMENT
+  // =============================================
+
+  app.get("/api/director/dashboard", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const profile = await storage.getDirectorProfile(userId);
+      if (!profile) {
+        return res.status(404).json({ message: "Director profile not found" });
+      }
+
+      const metrics = await storage.getDirectorDailyMetrics(userId);
+      const driverCount = await storage.getDriverCountUnderDirector(userId);
+      const settings = await storage.getDirectorCommissionSettings();
+
+      const isActivated = driverCount >= (profile.activationThreshold || 10);
+
+      return res.json({
+        directorType: profile.directorType,
+        status: profile.status,
+        commissionFrozen: profile.commissionFrozen,
+        activationThreshold: profile.activationThreshold,
+        isActivated,
+        maxCellSize: profile.maxCellSize || settings?.maxCellSize || 1300,
+        totalDrivers: metrics.totalDrivers,
+        activeDriversToday: metrics.activeDriversToday,
+        commissionableDrivers: metrics.commissionableDrivers,
+        suspendedDrivers: metrics.suspendedDrivers,
+      });
+    } catch (error) {
+      console.error("Error getting director dashboard:", error);
+      return res.status(500).json({ message: "Failed to get director dashboard" });
+    }
+  });
+
+  app.get("/api/director/drivers", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const assignments = await storage.getDriversUnderDirector(userId);
+
+      const driversWithDetails = await Promise.all(
+        assignments.map(async (a) => {
+          const driver = await storage.getDriverProfile(a.driverUserId);
+          return {
+            driverUserId: a.driverUserId,
+            assignmentType: a.assignmentType,
+            assignedAt: a.assignedAt,
+            fullName: driver?.fullName || "Unknown",
+            status: driver?.status || "unknown",
+          };
+        })
+      );
+
+      return res.json(driversWithDetails);
+    } catch (error) {
+      console.error("Error getting director drivers:", error);
+      return res.status(500).json({ message: "Failed to get director drivers" });
+    }
+  });
+
+  app.post("/api/director/drivers/:driverUserId/suspend", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const directorUserId = req.user.claims.sub;
+      const { driverUserId } = req.params;
+      const { reason } = req.body;
+
+      const assignment = await storage.getDirectorForDriver(driverUserId);
+      if (!assignment || assignment.directorUserId !== directorUserId) {
+        return res.status(403).json({ message: "This driver is not under your management" });
+      }
+
+      await storage.updateDriverStatus(driverUserId, "suspended");
+
+      await storage.createAuditLog({
+        action: "director_suspend_driver",
+        entityType: "driver",
+        entityId: driverUserId,
+        performedByUserId: directorUserId,
+        performedByRole: "director",
+        metadata: JSON.stringify({ reason: reason || "Director action" }),
+      });
+
+      return res.json({ message: "Driver suspended" });
+    } catch (error) {
+      console.error("Error suspending driver:", error);
+      return res.status(500).json({ message: "Failed to suspend driver" });
+    }
+  });
+
+  app.post("/api/director/drivers/:driverUserId/activate", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const directorUserId = req.user.claims.sub;
+      const { driverUserId } = req.params;
+
+      const assignment = await storage.getDirectorForDriver(driverUserId);
+      if (!assignment || assignment.directorUserId !== directorUserId) {
+        return res.status(403).json({ message: "This driver is not under your management" });
+      }
+
+      const profile = await storage.getDirectorProfile(directorUserId);
+      const maxCell = profile?.maxCellSize || 1300;
+      const currentCount = await storage.getDriverCountUnderDirector(directorUserId);
+
+      if (currentCount >= maxCell) {
+        return res.status(400).json({ message: "Cell size limit reached" });
+      }
+
+      await storage.updateDriverStatus(driverUserId, "approved");
+
+      await storage.createAuditLog({
+        action: "director_activate_driver",
+        entityType: "driver",
+        entityId: driverUserId,
+        performedByUserId: directorUserId,
+        performedByRole: "director",
+        metadata: JSON.stringify({}),
+      });
+
+      return res.json({ message: "Driver activated" });
+    } catch (error) {
+      console.error("Error activating driver:", error);
+      return res.status(500).json({ message: "Failed to activate driver" });
+    }
+  });
+
+  app.get("/api/admin/director-settings", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      let settings = await storage.getDirectorCommissionSettings();
+      if (!settings) {
+        settings = await storage.upsertDirectorCommissionSettings({ updatedBy: "system" });
+      }
+      return res.json(settings);
+    } catch (error) {
+      console.error("Error getting director settings:", error);
+      return res.status(500).json({ message: "Failed to get director settings" });
+    }
+  });
+
+  app.post("/api/admin/director-settings", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const { commissionRate, activeRatio, maxCommissionableDrivers, maxCellSize, reason } = req.body;
+
+      if (!reason) {
+        return res.status(400).json({ message: "Reason is required for settings changes" });
+      }
+
+      const oldSettings = await storage.getDirectorCommissionSettings();
+      const updates: any = { updatedBy: adminUserId };
+
+      if (commissionRate !== undefined) {
+        await storage.logDirectorSettingsChange({
+          settingKey: "commission_rate",
+          oldValue: oldSettings?.commissionRate || "0.12",
+          newValue: String(commissionRate),
+          changedBy: adminUserId,
+          reason,
+        });
+        updates.commissionRate = String(commissionRate);
+      }
+      if (activeRatio !== undefined) {
+        await storage.logDirectorSettingsChange({
+          settingKey: "active_ratio",
+          oldValue: oldSettings?.activeRatio || "0.77",
+          newValue: String(activeRatio),
+          changedBy: adminUserId,
+          reason,
+        });
+        updates.activeRatio = String(activeRatio);
+      }
+      if (maxCommissionableDrivers !== undefined) {
+        await storage.logDirectorSettingsChange({
+          settingKey: "max_commissionable_drivers",
+          oldValue: String(oldSettings?.maxCommissionableDrivers || 1000),
+          newValue: String(maxCommissionableDrivers),
+          changedBy: adminUserId,
+          reason,
+        });
+        updates.maxCommissionableDrivers = maxCommissionableDrivers;
+      }
+      if (maxCellSize !== undefined) {
+        await storage.logDirectorSettingsChange({
+          settingKey: "max_cell_size",
+          oldValue: String(oldSettings?.maxCellSize || 1300),
+          newValue: String(maxCellSize),
+          changedBy: adminUserId,
+          reason,
+        });
+        updates.maxCellSize = maxCellSize;
+      }
+
+      const updated = await storage.upsertDirectorCommissionSettings(updates);
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error updating director settings:", error);
+      return res.status(500).json({ message: "Failed to update director settings" });
+    }
+  });
+
+  app.get("/api/admin/director-settings/audit", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const logs = await storage.getDirectorSettingsAuditLogs();
+      return res.json(logs);
+    } catch (error) {
+      console.error("Error getting audit logs:", error);
+      return res.status(500).json({ message: "Failed to get audit logs" });
+    }
+  });
+
+  app.post("/api/admin/directors/:directorUserId/freeze", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const { directorUserId } = req.params;
+      const { frozen, reason } = req.body;
+
+      if (!reason) {
+        return res.status(400).json({ message: "Reason required" });
+      }
+
+      await storage.updateDirectorProfile(directorUserId, { commissionFrozen: frozen });
+
+      await storage.logDirectorSettingsChange({
+        settingKey: `director_${directorUserId}_commission_frozen`,
+        oldValue: String(!frozen),
+        newValue: String(frozen),
+        changedBy: adminUserId,
+        reason,
+      });
+
+      await storage.createAuditLog({
+        action: frozen ? "freeze_director_commission" : "resume_director_commission",
+        entityType: "director",
+        entityId: directorUserId,
+        performedByUserId: adminUserId,
+        performedByRole: "super_admin",
+        metadata: JSON.stringify({ reason }),
+      });
+
+      return res.json({ message: frozen ? "Director commissions frozen" : "Director commissions resumed" });
+    } catch (error) {
+      console.error("Error freezing director:", error);
+      return res.status(500).json({ message: "Failed to update director" });
+    }
+  });
+
+  app.post("/api/admin/directors/:directorUserId/suspend", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const { directorUserId } = req.params;
+      const { reason } = req.body;
+
+      if (!reason) {
+        return res.status(400).json({ message: "Reason required" });
+      }
+
+      await storage.updateDirectorProfile(directorUserId, {
+        status: "inactive",
+        suspendedAt: new Date(),
+        suspendedBy: adminUserId,
+      });
+
+      await storage.logDirectorSettingsChange({
+        settingKey: `director_${directorUserId}_status`,
+        oldValue: "active",
+        newValue: "inactive",
+        changedBy: adminUserId,
+        reason,
+      });
+
+      await storage.createAuditLog({
+        action: "suspend_director",
+        entityType: "director",
+        entityId: directorUserId,
+        performedByUserId: adminUserId,
+        performedByRole: "admin",
+        metadata: JSON.stringify({ reason }),
+      });
+
+      return res.json({ message: "Director suspended" });
+    } catch (error) {
+      console.error("Error suspending director:", error);
+      return res.status(500).json({ message: "Failed to suspend director" });
+    }
+  });
+
+  app.post("/api/admin/directors/:directorUserId/reactivate", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const { directorUserId } = req.params;
+
+      await storage.updateDirectorProfile(directorUserId, {
+        status: "active",
+        suspendedAt: null,
+        suspendedBy: null,
+      });
+
+      await storage.createAuditLog({
+        action: "reactivate_director",
+        entityType: "director",
+        entityId: directorUserId,
+        performedByUserId: adminUserId,
+        performedByRole: "admin",
+        metadata: JSON.stringify({}),
+      });
+
+      return res.json({ message: "Director reactivated" });
+    } catch (error) {
+      console.error("Error reactivating director:", error);
+      return res.status(500).json({ message: "Failed to reactivate director" });
+    }
+  });
+
+  app.post("/api/admin/drivers/:driverUserId/reassign", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const { driverUserId } = req.params;
+      const { newDirectorUserId } = req.body;
+
+      if (!newDirectorUserId) {
+        return res.status(400).json({ message: "New director user ID required" });
+      }
+
+      const newDirectorProfile = await storage.getDirectorProfile(newDirectorUserId);
+      const maxCell = newDirectorProfile?.maxCellSize || 1300;
+      const currentCount = await storage.getDriverCountUnderDirector(newDirectorUserId);
+
+      if (currentCount >= maxCell) {
+        return res.status(400).json({ message: "Target director's cell is at capacity" });
+      }
+
+      await storage.removeDriverFromDirector(driverUserId);
+      await storage.assignDriverToDirector(newDirectorUserId, driverUserId, "admin_assigned", adminUserId);
+
+      await storage.createAuditLog({
+        action: "reassign_driver",
+        entityType: "driver",
+        entityId: driverUserId,
+        performedByUserId: adminUserId,
+        performedByRole: "admin",
+        metadata: JSON.stringify({ newDirectorUserId }),
+      });
+
+      return res.json({ message: "Driver reassigned" });
+    } catch (error) {
+      console.error("Error reassigning driver:", error);
+      return res.status(500).json({ message: "Failed to reassign driver" });
+    }
+  });
+
+  app.post("/api/admin/directors/:directorUserId/assign-driver", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const { directorUserId } = req.params;
+      const { driverUserId } = req.body;
+
+      if (!driverUserId) {
+        return res.status(400).json({ message: "Driver user ID required" });
+      }
+
+      const existing = await storage.getDirectorForDriver(driverUserId);
+      if (existing) {
+        return res.status(400).json({ message: "Driver already assigned to a director" });
+      }
+
+      const directorProfile = await storage.getDirectorProfile(directorUserId);
+      const maxCell = directorProfile?.maxCellSize || 1300;
+      const currentCount = await storage.getDriverCountUnderDirector(directorUserId);
+
+      if (currentCount >= maxCell) {
+        return res.status(400).json({ message: "Director's cell is at capacity" });
+      }
+
+      await storage.assignDriverToDirector(directorUserId, driverUserId, "admin_assigned", adminUserId);
+
+      await storage.createAuditLog({
+        action: "assign_driver_to_director",
+        entityType: "driver",
+        entityId: driverUserId,
+        performedByUserId: adminUserId,
+        performedByRole: "admin",
+        metadata: JSON.stringify({ directorUserId }),
+      });
+
+      return res.json({ message: "Driver assigned to director" });
+    } catch (error) {
+      console.error("Error assigning driver:", error);
+      return res.status(500).json({ message: "Failed to assign driver" });
+    }
+  });
+
   // Admin Bank Account Management
   app.get("/api/admin/bank-accounts", isAuthenticated, requireRole(["admin", "super_admin", "finance"]), async (req: any, res) => {
     try {

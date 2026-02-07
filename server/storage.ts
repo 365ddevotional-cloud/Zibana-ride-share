@@ -488,6 +488,14 @@ import {
   type InsertZibraConfig,
   type ZibraConfigAuditLog,
   type InsertZibraConfigAuditLog,
+  directorCommissionSettings,
+  directorCommissionLogs,
+  directorDriverAssignments,
+  directorSettingsAuditLogs,
+  type DirectorCommissionSettings,
+  type DirectorCommissionLog,
+  type DirectorDriverAssignment,
+  type DirectorSettingsAuditLog,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull } from "drizzle-orm";
@@ -794,6 +802,21 @@ export interface IStorage {
   createDirectorProfile(data: InsertDirectorProfile): Promise<DirectorProfile>;
   getAllDirectorsWithDetails(): Promise<any[]>;
   getDirectorCount(): Promise<number>;
+
+  // Director Commission & Cell Management
+  getDirectorCommissionSettings(): Promise<DirectorCommissionSettings | undefined>;
+  upsertDirectorCommissionSettings(data: Partial<DirectorCommissionSettings> & { updatedBy: string }): Promise<DirectorCommissionSettings>;
+  getDriversUnderDirector(directorUserId: string): Promise<DirectorDriverAssignment[]>;
+  getDriverCountUnderDirector(directorUserId: string): Promise<number>;
+  assignDriverToDirector(directorUserId: string, driverUserId: string, assignmentType: string, assignedBy?: string): Promise<DirectorDriverAssignment>;
+  removeDriverFromDirector(driverUserId: string): Promise<void>;
+  getDirectorForDriver(driverUserId: string): Promise<DirectorDriverAssignment | undefined>;
+  getDirectorDailyMetrics(directorUserId: string): Promise<{ totalDrivers: number; activeDriversToday: number; commissionableDrivers: number; suspendedDrivers: number }>;
+  logDirectorDailyCommission(data: { directorUserId: string; date: string; totalDrivers: number; activeDriversToday: number; commissionableDrivers: number; commissionRate: string; activeRatio: string }): Promise<DirectorCommissionLog>;
+  getDirectorCommissionLogs(directorUserId: string, limit?: number): Promise<DirectorCommissionLog[]>;
+  updateDirectorProfile(userId: string, updates: Partial<{ directorType: string; commissionFrozen: boolean; maxCellSize: number; activationThreshold: number; status: string; suspendedAt: Date | null; suspendedBy: string | null }>): Promise<DirectorProfile | undefined>;
+  logDirectorSettingsChange(data: { settingKey: string; oldValue: string | null; newValue: string; changedBy: string; reason: string }): Promise<DirectorSettingsAuditLog>;
+  getDirectorSettingsAuditLogs(limit?: number): Promise<DirectorSettingsAuditLog[]>;
 
   // Phase 14.5 - Trip Coordinator
   getTripCoordinatorProfile(userId: string): Promise<TripCoordinatorProfile | undefined>;
@@ -1982,7 +2005,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getDriversByStatus(status: string): Promise<any[]> {
-    return db.select().from(driverProfiles).where(eq(driverProfiles.status, status));
+    return db.select().from(driverProfiles).where(eq(driverProfiles.status, status as any));
   }
 
   async getAllDriversWithDetails(): Promise<any[]> {
@@ -2613,6 +2636,7 @@ export class DatabaseStorage implements IStorage {
       directorRoles.map(async (role) => {
         const [user] = await db.select().from(users).where(eq(users.id, role.userId));
         const [profile] = await db.select().from(directorProfiles).where(eq(directorProfiles.userId, role.userId));
+        const [driverCountResult] = await db.select({ count: count() }).from(directorDriverAssignments).where(eq(directorDriverAssignments.directorUserId, role.userId));
         return {
           id: role.userId,
           email: user?.email,
@@ -2620,6 +2644,9 @@ export class DatabaseStorage implements IStorage {
           lastName: user?.lastName,
           fullName: profile?.fullName || (user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user?.email),
           status: profile?.status || "active",
+          directorType: profile?.directorType || null,
+          referralCodeId: profile?.referralCodeId || null,
+          driverCount: driverCountResult?.count || 0,
           createdAt: role.createdAt,
         };
       })
@@ -2634,6 +2661,126 @@ export class DatabaseStorage implements IStorage {
       .from(userRoles)
       .where(eq(userRoles.role, "director"));
     return result?.count || 0;
+  }
+
+  async getDirectorCommissionSettings(): Promise<DirectorCommissionSettings | undefined> {
+    const [settings] = await db.select().from(directorCommissionSettings).limit(1);
+    return settings;
+  }
+
+  async upsertDirectorCommissionSettings(data: Partial<DirectorCommissionSettings> & { updatedBy: string }): Promise<DirectorCommissionSettings> {
+    const existing = await this.getDirectorCommissionSettings();
+    if (existing) {
+      const [updated] = await db.update(directorCommissionSettings)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(directorCommissionSettings.id, existing.id))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(directorCommissionSettings).values({
+      commissionRate: data.commissionRate || "0.12",
+      activeRatio: data.activeRatio || "0.77",
+      maxCommissionableDrivers: data.maxCommissionableDrivers || 1000,
+      maxCellSize: data.maxCellSize || 1300,
+      updatedBy: data.updatedBy,
+    }).returning();
+    return created;
+  }
+
+  async getDriversUnderDirector(directorUserId: string): Promise<DirectorDriverAssignment[]> {
+    return db.select().from(directorDriverAssignments).where(eq(directorDriverAssignments.directorUserId, directorUserId));
+  }
+
+  async getDriverCountUnderDirector(directorUserId: string): Promise<number> {
+    const [result] = await db.select({ count: count() }).from(directorDriverAssignments).where(eq(directorDriverAssignments.directorUserId, directorUserId));
+    return result?.count || 0;
+  }
+
+  async assignDriverToDirector(directorUserId: string, driverUserId: string, assignmentType: string, assignedBy?: string): Promise<DirectorDriverAssignment> {
+    const [assignment] = await db.insert(directorDriverAssignments).values({
+      directorUserId,
+      driverUserId,
+      assignmentType,
+      assignedBy: assignedBy || directorUserId,
+    }).returning();
+    return assignment;
+  }
+
+  async removeDriverFromDirector(driverUserId: string): Promise<void> {
+    await db.delete(directorDriverAssignments).where(eq(directorDriverAssignments.driverUserId, driverUserId));
+  }
+
+  async getDirectorForDriver(driverUserId: string): Promise<DirectorDriverAssignment | undefined> {
+    const [assignment] = await db.select().from(directorDriverAssignments).where(eq(directorDriverAssignments.driverUserId, driverUserId));
+    return assignment;
+  }
+
+  async getDirectorDailyMetrics(directorUserId: string): Promise<{ totalDrivers: number; activeDriversToday: number; commissionableDrivers: number; suspendedDrivers: number }> {
+    const assignments = await this.getDriversUnderDirector(directorUserId);
+    const driverUserIds = assignments.map(a => a.driverUserId);
+    
+    if (driverUserIds.length === 0) {
+      return { totalDrivers: 0, activeDriversToday: 0, commissionableDrivers: 0, suspendedDrivers: 0 };
+    }
+
+    const totalDrivers = driverUserIds.length;
+
+    let suspendedDrivers = 0;
+    for (const driverId of driverUserIds) {
+      const [driver] = await db.select().from(driverProfiles).where(eq(driverProfiles.userId, driverId));
+      if (driver?.status === "suspended") {
+        suspendedDrivers++;
+      }
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    let activeDriversToday = 0;
+    for (const driverId of driverUserIds) {
+      const [tripToday] = await db.select({ count: count() }).from(trips)
+        .where(and(eq(trips.driverId, driverId), eq(trips.status, "completed"), gte(trips.completedAt, today)));
+      if (tripToday && tripToday.count > 0) {
+        activeDriversToday++;
+      }
+    }
+
+    const settings = await this.getDirectorCommissionSettings();
+    const activeRatio = parseFloat(settings?.activeRatio || "0.77");
+    const maxCommissionable = settings?.maxCommissionableDrivers || 1000;
+    const commissionableDrivers = Math.min(Math.floor(activeDriversToday * activeRatio), maxCommissionable);
+
+    return { totalDrivers, activeDriversToday, commissionableDrivers, suspendedDrivers };
+  }
+
+  async logDirectorDailyCommission(data: { directorUserId: string; date: string; totalDrivers: number; activeDriversToday: number; commissionableDrivers: number; commissionRate: string; activeRatio: string }): Promise<DirectorCommissionLog> {
+    const [log] = await db.insert(directorCommissionLogs).values(data).returning();
+    return log;
+  }
+
+  async getDirectorCommissionLogs(directorUserId: string, limit: number = 30): Promise<DirectorCommissionLog[]> {
+    return db.select().from(directorCommissionLogs)
+      .where(eq(directorCommissionLogs.directorUserId, directorUserId))
+      .orderBy(desc(directorCommissionLogs.createdAt))
+      .limit(limit);
+  }
+
+  async updateDirectorProfile(userId: string, updates: Partial<{ directorType: string; commissionFrozen: boolean; maxCellSize: number; activationThreshold: number; status: string; suspendedAt: Date | null; suspendedBy: string | null }>): Promise<DirectorProfile | undefined> {
+    const [updated] = await db.update(directorProfiles)
+      .set(updates as any)
+      .where(eq(directorProfiles.userId, userId))
+      .returning();
+    return updated;
+  }
+
+  async logDirectorSettingsChange(data: { settingKey: string; oldValue: string | null; newValue: string; changedBy: string; reason: string }): Promise<DirectorSettingsAuditLog> {
+    const [log] = await db.insert(directorSettingsAuditLogs).values(data).returning();
+    return log;
+  }
+
+  async getDirectorSettingsAuditLogs(limit: number = 50): Promise<DirectorSettingsAuditLog[]> {
+    return db.select().from(directorSettingsAuditLogs)
+      .orderBy(desc(directorSettingsAuditLogs.createdAt))
+      .limit(limit);
   }
 
   // Phase 14.5 - Trip Coordinator methods
