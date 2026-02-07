@@ -462,8 +462,8 @@ export function SimulationCenter() {
                 <TableBody>
                   {sessions.map((session) => (
                     <TableRow key={session.id} data-testid={`row-session-${session.id}`}>
-                      <TableCell className="font-mono text-sm">{session.id.slice(0, 8)}...</TableCell>
-                      <TableCell className="font-mono text-sm">{session.userId.slice(0, 8)}...</TableCell>
+                      <TableCell className="font-mono text-sm">{String(session.id)}</TableCell>
+                      <TableCell className="font-mono text-sm">{String(session.userId).slice(0, 8)}...</TableCell>
                       <TableCell className="capitalize">{session.role}</TableCell>
                       <TableCell>{session.country}</TableCell>
                       <TableCell>
