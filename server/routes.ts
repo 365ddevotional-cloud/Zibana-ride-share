@@ -7625,7 +7625,7 @@ export async function registerRoutes(
         return res.status(429).json({ message: "Rate limit exceeded. Please wait before submitting again." });
       }
       
-      const { subject, description, tripId, priority } = req.body;
+      const { subject, description, tripId, priority, supportContext } = req.body;
       
       if (!subject || !description) {
         return res.status(400).json({ message: "Subject and description are required" });
@@ -7671,13 +7671,25 @@ export async function registerRoutes(
         status: "open"
       });
       
+      const contextMetadata: Record<string, any> = { subject: ticket.subject, tripId };
+      if (supportContext && typeof supportContext === "object") {
+        const safeContext: Record<string, string> = {};
+        const allowedKeys = ["appType", "userId", "role", "country", "appVersion", "deviceType", "os", "language", "networkStatus", "timestamp", "currentScreen"];
+        for (const key of allowedKeys) {
+          if (supportContext[key] && typeof supportContext[key] === "string") {
+            safeContext[key] = supportContext[key].substring(0, 255);
+          }
+        }
+        contextMetadata.supportContext = safeContext;
+      }
+
       await storage.createAuditLog({
         action: "support_ticket_created",
         entityType: "support_ticket",
         entityId: ticket.id,
         performedByUserId: userId,
         performedByRole: createdByRole,
-        metadata: JSON.stringify({ subject: ticket.subject, tripId })
+        metadata: JSON.stringify(contextMetadata)
       });
       
       return res.json(ticket);
@@ -7725,7 +7737,21 @@ export async function registerRoutes(
       const includeInternal = isSupportAgent || isAdmin;
       const messages = await storage.getSupportMessages(ticketId, includeInternal);
       
-      return res.json({ ticket, messages });
+      let supportContext = null;
+      if (isSupportAgent || isAdmin) {
+        try {
+          const auditLogs = await storage.getAuditLogsByEntity("support_ticket", ticketId);
+          const creationLog = auditLogs?.find((log: any) => log.action === "support_ticket_created");
+          if (creationLog?.metadata) {
+            const meta = typeof creationLog.metadata === "string" ? JSON.parse(creationLog.metadata) : creationLog.metadata;
+            supportContext = meta.supportContext || null;
+          }
+        } catch (e) {
+          // Context retrieval is optional, don't fail the request
+        }
+      }
+      
+      return res.json({ ticket, messages, supportContext });
     } catch (error) {
       console.error("Error fetching ticket details:", error);
       return res.status(500).json({ message: "Failed to fetch ticket details" });

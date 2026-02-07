@@ -1,0 +1,193 @@
+TASK: Implement Support Context Sync + Populate Driver Help Center for ZIBA.
+
+GOALS:
+1) Ensure Support Team automatically receives rich app context from Rider, Driver, and Director apps.
+2) Build a complete Driver Help Center with proactive answers.
+3) Never expose internal revenue splits, commissions, or platform percentages.
+4) Prepare UX for Google Play Store and Apple App Store review.
+
+================================================
+PART A — SUPPORT CONTEXT SHARING (CRITICAL)
+================================================
+
+Implement automatic support-context payloads for ALL support interactions.
+
+Whenever a user (rider, driver, or director) opens Help Center, searches, or contacts support, attach the following metadata invisibly:
+
+COMMON CONTEXT (ALL ROLES):
+- App type (Rider / Driver / Director / Admin)
+- User ID
+- Role
+- Country
+- City
+- App version
+- Device type (mobile / web)
+- OS (Android / iOS / Web)
+- Language
+- Network status
+- Timestamp
+
+RIDER-SPECIFIC CONTEXT:
+- Current payment method (cash / wallet / card)
+- Last trip status (if any)
+- Wallet balance (masked)
+- Current screen
+
+DRIVER-SPECIFIC CONTEXT:
+- Driver tier (new / active / trusted)
+- Verification status
+- Online / offline status
+- Current trip state (idle / en route / on trip)
+- Cash enabled (yes/no)
+- Last payout status
+
+DIRECTOR / ADMIN CONTEXT:
+- Organization / fleet (if applicable)
+- Active permissions
+- Current dashboard section
+
+RULES:
+- Context is READ-ONLY for support
+- No sensitive financial splits exposed
+- No manual data entry required by users
+- Context auto-refreshes per session
+
+RESULT:
+Support agents immediately see “what the user sees” and can answer faster.
+
+================================================
+PART B — DRIVER HELP CENTER (DRIVER APP CENTER)
+================================================
+
+Create a dedicated Driver Help Center inside the Driver app.
+
+REMOVE:
+- Empty states
+- “No articles found”
+- “No categories available”
+
+------------------------------------------------
+DRIVER HELP CENTER CATEGORIES
+------------------------------------------------
+
+A. Getting Started as a Driver
+B. Driver Account & Verification
+C. Going Online & Accepting Trips
+D. Navigation & Maps
+E. Payments & Earnings
+F. Cash Trips
+G. Cancellations & No-Shows
+H. Ratings & Feedback
+I. Safety & Support
+J. Technical Issues
+
+------------------------------------------------
+PRELOAD DRIVER FAQ CONTENT
+------------------------------------------------
+
+GETTING STARTED AS A DRIVER
+- How do I start driving with ZIBA?
+- What do I need to complete registration?
+- How long does verification take?
+- Can I drive in multiple cities?
+
+DRIVER ACCOUNT & VERIFICATION
+- Why is my account under review?
+- How do I update my vehicle details?
+- What documents are required?
+- How do I change my phone number?
+
+GOING ONLINE & ACCEPTING TRIPS
+- How do I go online?
+- Why am I not receiving trip requests?
+- How do I accept or reject a trip?
+- What happens after I accept a ride?
+
+NAVIGATION & MAPS
+- How does navigation work?
+- Can I use my own map app?
+- What if GPS is inaccurate?
+- What if the rider location is wrong?
+
+PAYMENTS & EARNINGS
+- How do I receive payments?
+- When are payouts processed?
+- Where can I see my earnings?
+- Why does my balance look different?
+
+IMPORTANT RULE:
+Do NOT mention:
+- Platform percentage
+- Commission
+- Revenue split
+- “ZIBA takes X%”
+
+CASH TRIPS
+- How do cash trips work?
+- When do I collect cash?
+- What if the rider doesn’t pay?
+- Can I disable cash trips?
+
+CANCELLATIONS & NO-SHOWS
+- When can I cancel a trip?
+- What is a rider no-show?
+- What happens if a rider cancels?
+- Will cancellations affect my account?
+
+RATINGS & FEEDBACK
+- How do ratings work?
+- Can I rate riders?
+- Why did my rating change?
+- How can I improve my rating?
+
+SAFETY & SUPPORT
+- What if I feel unsafe?
+- How do I report an issue?
+- Can I block a rider?
+- What happens after I report a problem?
+
+TECHNICAL ISSUES
+- App is not loading
+- GPS not working
+- Trip ended incorrectly
+- App crashed during a ride
+
+------------------------------------------------
+SEARCH BEHAVIOR (DRIVER HELP CENTER)
+------------------------------------------------
+
+Implement intelligent search:
+
+- Fuzzy matching
+- Synonyms (e.g. “money”, “earnings”, “cash”, “payment”)
+- Closest-article fallback
+
+NEVER show:
+- “No results found”
+
+Instead show:
+“Here’s something that may help.”
+
+------------------------------------------------
+UX REQUIREMENTS
+------------------------------------------------
+
+- Fast loading
+- Mobile-first layout
+- All buttons clickable
+- Back button always works
+- Clear, calm language
+- No dead ends
+
+------------------------------------------------
+FINAL VERIFICATION
+------------------------------------------------
+
+Confirm before completing:
+- Driver Help Center fully populated
+- Support receives automatic context from all apps
+- Search always returns helpful results
+- No revenue or commission details exposed
+- App is Play Store & App Store ready
+
+Then mark task complete.

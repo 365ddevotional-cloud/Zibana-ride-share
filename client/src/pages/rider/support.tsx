@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useSupportContext } from "@/hooks/use-support-context";
 import { 
   HelpCircle, Shield, Phone, MessageSquare, Plus, 
   ChevronRight, ChevronDown, ChevronUp, FileText, AlertTriangle, AlertOctagon, Banknote
@@ -26,6 +27,7 @@ interface SupportTicket {
 
 export default function RiderSupport() {
   const { toast } = useToast();
+  const { getSupportContext } = useSupportContext();
   const [showNewTicket, setShowNewTicket] = useState(false);
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
@@ -37,7 +39,8 @@ export default function RiderSupport() {
 
   const createTicket = useMutation({
     mutationFn: async (data: { subject: string; description: string }) => {
-      return apiRequest("POST", "/api/support/tickets", data);
+      const supportContext = getSupportContext();
+      return apiRequest("POST", "/api/support/tickets/create", { ...data, supportContext });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/support/tickets/my"] });
