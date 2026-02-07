@@ -23,6 +23,7 @@ import { FullPageLoading } from "@/components/loading-spinner";
 import { TripFilterBar } from "@/components/trip-filter-bar";
 import { TripDetailModal } from "@/components/trip-detail-modal";
 import { AdminReservationsPanel } from "@/components/admin/reservations-panel";
+import { AdminScheduledTripsPanel } from "@/components/admin/scheduled-trips-panel";
 import { AdminOverridePanel } from "@/components/admin/override-panel";
 import { UserGrowthPanel } from "@/components/admin/user-growth-panel";
 import { IncentivesPanel } from "@/components/admin/incentives-panel";
@@ -2873,7 +2874,10 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
           </TabsContent>
 
           <TabsContent value="reservations">
-            <AdminReservationsPanel />
+            <div className="space-y-6">
+              <AdminScheduledTripsPanel />
+              <AdminReservationsPanel />
+            </div>
           </TabsContent>
 
           <TabsContent value="payouts">

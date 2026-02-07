@@ -5,8 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useQuery } from "@tanstack/react-query";
-import { MapPin, Navigation, Clock, ChevronRight, Calendar, History } from "lucide-react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { MapPin, Navigation, Clock, ChevronRight, Calendar, History, XCircle } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 
 interface Trip {
@@ -26,9 +28,24 @@ interface Trip {
 }
 
 export default function RiderTrips() {
+  const { toast } = useToast();
   const params = new URLSearchParams(window.location.search);
   const initialTab = params.get("tab") === "scheduled" ? "scheduled" : "history";
   const [activeTab, setActiveTab] = useState<"scheduled" | "history">(initialTab);
+
+  const cancelMutation = useMutation({
+    mutationFn: async (tripId: string) => {
+      const res = await apiRequest("POST", `/api/rider/cancel-ride/${tripId}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/rider/trip-history"] });
+      toast({ title: "Scheduled ride cancelled", description: "Your scheduled ride has been cancelled." });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Could not cancel", description: error.message || "Please try again.", variant: "destructive" });
+    },
+  });
 
   useEffect(() => {
     const tabParam = new URLSearchParams(window.location.search).get("tab");
@@ -185,10 +202,20 @@ export default function RiderTrips() {
                               </p>
                             </div>
                           </div>
-                          <div className="mt-3 pt-2 border-t">
+                          <div className="mt-3 pt-2 border-t flex items-center justify-between gap-2 flex-wrap">
                             <p className="text-xs text-muted-foreground">
                               {trip.paymentSource === "CASH" ? "Cash payment" : "Wallet payment"} &middot; Fare confirmed closer to pickup
                             </p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => cancelMutation.mutate(trip.id)}
+                              disabled={cancelMutation.isPending}
+                              data-testid={`button-cancel-scheduled-${trip.id}`}
+                            >
+                              <XCircle className="h-3.5 w-3.5 mr-1" />
+                              Cancel
+                            </Button>
                           </div>
                         </CardContent>
                       </Card>

@@ -2670,11 +2670,13 @@ export async function registerRoutes(
     try {
       const userId = req.user.claims.sub;
       const allTrips = await storage.getAllTrips();
-      const driverScheduled = allTrips.filter((t: any) =>
-        t.isReserved === true &&
-        t.driverId === userId &&
-        ["scheduled", "driver_assigned", "accepted"].includes(t.status)
-      );
+      const driverScheduled = allTrips.filter((t: any) => {
+        if (!t.isReserved) return false;
+        if (t.status === "cancelled" || t.status === "completed") return false;
+        const isAssignedToMe = t.driverId === userId;
+        const isUnassigned = !t.driverId && t.reservationStatus === "scheduled";
+        return isAssignedToMe || isUnassigned;
+      });
       return res.json(driverScheduled);
     } catch (error) {
       console.error("Error fetching driver scheduled trips:", error);

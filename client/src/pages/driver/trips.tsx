@@ -11,6 +11,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { TripDetailModal } from "@/components/trip-detail-modal";
 import { IncidentReportModal } from "@/components/ride/incident-report-modal";
+import { DriverScheduledTripsSection } from "@/components/driver/scheduled-trips-section";
 import type { Trip } from "@shared/schema";
 
 export default function DriverTrips() {
@@ -203,6 +204,8 @@ export default function DriverTrips() {
             </CardContent>
           </Card>
         )}
+
+        <DriverScheduledTripsSection />
 
         <Tabs defaultValue="completed" className="w-full">
           <TabsList className="grid w-full grid-cols-3">
