@@ -1,0 +1,146 @@
+TASK: Populate and activate the ZIBA Rider Help Center with proactive content and smart search behavior.
+
+GOAL:
+Create a fully populated Help Center for riders that:
+1) Shows helpful categories and articles immediately
+2) Answers common rider questions clearly
+3) Uses intelligent fallback search (closest-match answers)
+4) NEVER mentions platform commission, revenue split, or percentage cuts
+5) Feels production-ready for Play Store and App Store launch
+
+SCOPE:
+RIDER APP ONLY (not simulation mode)
+
+–––––––––––––––––
+1. HELP CENTER STRUCTURE
+–––––––––––––––––
+
+Create these categories (visible immediately, no empty states):
+
+A. Getting Started
+B. Booking a Ride
+C. Payments & Wallet
+D. Cash Trips
+E. Trips & Cancellations
+F. Safety & Trust
+G. Account & Profile
+H. Problems & Support
+
+Remove:
+- “No categories available”
+- “No featured articles yet”
+
+–––––––––––––––––
+2. PRELOAD FAQ ARTICLES (WRITE CONTENT)
+–––––––––––––––––
+
+Populate each category with multiple short, clear articles.
+
+EXAMPLES (not exhaustive — add more where reasonable):
+
+GETTING STARTED
+- What is ZIBA?
+- How do I book my first ride?
+- Is ZIBA available in my city?
+- How do I create an account?
+
+BOOKING A RIDE
+- How do I request a ride?
+- How do I change my pickup or drop-off?
+- Can I schedule a ride?
+- What happens after I request a ride?
+
+PAYMENTS & WALLET
+- What payment methods are supported?
+- How do I switch payment methods?
+- Why is my wallet balance ₦0.00?
+- Is card payment secure?
+
+CASH TRIPS
+- How does paying with cash work?
+- When do I pay the driver?
+- What if I don’t have exact cash?
+- Can I switch from cash to card?
+
+IMPORTANT:
+Never mention:
+- Platform fees
+- Revenue split
+- Percentages taken by ZIBA
+
+TRIPS & CANCELLATIONS
+- Can I cancel a ride?
+- What happens if a driver cancels?
+- Why was my ride canceled?
+- What if my driver doesn’t arrive?
+
+SAFETY & TRUST
+- How does ZIBA keep riders safe?
+- Can I share my trip?
+- What should I do in an emergency?
+- How are drivers verified?
+
+ACCOUNT & PROFILE
+- How do I update my profile?
+- How do I change my phone number?
+- How do I log out?
+- I forgot my password
+
+PROBLEMS & SUPPORT
+- I was charged incorrectly
+- I lost an item
+- My app is not working
+- How do I contact support?
+
+–––––––––––––––––
+3. SEARCH BEHAVIOR (VERY IMPORTANT)
+–––––––––––––––––
+
+Replace “No results found” behavior.
+
+Implement:
+- Fuzzy search / keyword matching
+- Synonym matching (e.g., “money”, “pay”, “cash”, “wallet”)
+- Closest-article fallback
+
+RULE:
+If no exact match exists:
+→ Show the MOST RELEVANT article(s)
+→ Show a friendly message like:
+  “Here’s something that might help.”
+
+NEVER show:
+- Empty search results
+- Dead-end screens
+
+–––––––––––––––––
+4. UX RULES
+–––––––––––––––––
+
+- Articles open instantly
+- Back button always works
+- No blocked buttons
+- Mobile-friendly scrolling
+- Clear, calm language (non-technical)
+
+–––––––––––––––––
+5. ADMIN / CONTENT RULE
+–––––––––––––––––
+
+- Content is static for now (no CMS needed yet)
+- Future updates can be added later
+- No simulation references
+- No internal business logic exposed
+
+–––––––––––––––––
+6. FINAL CHECK
+–––––––––––––––––
+
+Confirm before finishing:
+- Categories display correctly
+- Articles open and read well
+- Search never returns “no results”
+- No mention of platform cut or commission
+- Suitable for Play Store & App Store review
+
+Then mark task complete.
