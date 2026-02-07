@@ -78,7 +78,7 @@ export default function SavedPlaceForm() {
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <h1 className="text-xl font-bold" data-testid="text-page-title">
+            <h1 className="text-2xl font-bold" data-testid="text-page-title">
               {existing ? `Edit ${label} Address` : `Add ${label} Address`}
             </h1>
           </div>

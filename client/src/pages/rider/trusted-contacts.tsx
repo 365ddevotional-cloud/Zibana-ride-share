@@ -154,7 +154,7 @@ export default function TrustedContactsPage() {
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2">
           <Shield className="h-6 w-6 text-muted-foreground" />
-          <h1 className="text-xl font-semibold" data-testid="text-page-title">Trusted Contacts</h1>
+          <h1 className="text-2xl font-bold" data-testid="text-page-title">Trusted Contacts</h1>
         </div>
         <Button
           onClick={openAddDialog}
