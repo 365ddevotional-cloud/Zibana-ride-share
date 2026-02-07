@@ -66,56 +66,56 @@ const SUPER_ADMIN_TOPICS: QuickTopic[] = [
 ];
 
 const RIDER_RESPONSES: Record<string, string> = {
-  "book-ride": "To book a ride, go to the Home tab and enter your pickup and drop-off locations. ZIBA helps connect you with available drivers in your area. You can choose your preferred ride type and confirm the booking.",
-  "lost-item": "If you've lost an item during a trip, go to Activity, find the trip, and tap 'Report Lost Item'. ZIBA helps facilitate communication between you and the driver. Please note that item recovery depends on driver cooperation and is not guaranteed.",
-  "payment": "You can manage your payment methods in the Wallet section. ZIBA supports wallet credits, cash payments, and card payments. For payment concerns, we recommend submitting a support ticket for review by our team.",
-  "safety": "Your safety is important. Use the SOS button during active trips for emergencies. You can also report incidents through the Safety Hub. ZIBA facilitates safety tools designed to assist you during trips.",
-  "account": "You can update your profile, notification preferences, and privacy settings from the Account tab. For account-related concerns, our support team can assist through the Help Center.",
-  "cancel": "You can cancel a ride before the driver arrives. Please note that cancellation fees may apply depending on timing. Check our policies in the Legal section for details.",
-  "schedule": "To schedule a ride in advance, go to Services and select 'Scheduled Rides'. You can set your pickup time up to 7 days ahead. ZIBA will help match you with an available driver at the scheduled time.",
-  "escalate": "We recommend submitting a support ticket for personalized assistance. Go to Help Center and tap 'Submit a Ticket'. Our support team will review your case and respond as soon as possible. For urgent safety matters, please use the SOS button during an active trip.",
+  "book-ride": "To book a ride:\n1. Go to the Home tab.\n2. Enter your pickup and drop-off locations.\n3. Choose your preferred ride type and confirm.\n\nZIBA helps connect you with available drivers in your area. Let me know if you'd like help with the next step.",
+  "lost-item": "ZIBA can help connect you with the driver to coordinate next steps.\n1. Go to Activity and find the trip.\n2. Tap 'Report Lost Item' and provide details.\n\nDrivers are not required to return items, but many choose to. You may also arrange pickup at a Safe Return Hub if available. Let me know if you need further guidance.",
+  "payment": "You can manage your payment methods in the Wallet section. ZIBA supports wallet credits, cash payments, and card payments. Your charges are shown in your trip summary. For payment concerns, we recommend submitting a support ticket for review. I can guide you through this if you want.",
+  "safety": "If there's an emergency, please contact local emergency services first. During an active trip, you can use the SOS button for immediate assistance. You can also report incidents through the Safety Hub. ZIBA facilitates safety tools designed to assist you. Let me know if you'd like help with the next step.",
+  "account": "You can update your profile, notification preferences, and privacy settings from the Account tab. I can guide you through this if you want.",
+  "cancel": "You can cancel a ride before the driver arrives. Cancellation fees may apply depending on timing. You may choose to review our policies in the Legal section for details. Let me know if you need further guidance.",
+  "schedule": "To schedule a ride in advance:\n1. Go to Services.\n2. Select 'Scheduled Rides'.\n3. Set your pickup time (up to 7 days ahead).\n\nZIBA will help match you with an available driver at the scheduled time. Let me know if you'd like help with the next step.",
+  "escalate": "I can forward this to our support team for review. Go to Help Center and tap 'Submit a Ticket'. A support agent will look into this. For urgent safety matters, please use the SOS button during an active trip.",
 };
 
 const DRIVER_RESPONSES: Record<string, string> = {
-  "go-online": "To start accepting rides, go to your Driver Home and toggle the 'Go Online' switch. Make sure your GPS is enabled and you have an active internet connection. ZIBA connects you with riders based on proximity and availability.",
-  "earnings": "View your earnings in the Earnings tab. This shows trip income, bonuses, and incentives. Payouts are processed through your configured payment method in the Wallet section. ZIBA facilitates payment processing for completed trips.",
-  "lost-item-driver": "If a rider reports a lost item from your trip, you'll receive a notification. You can confirm or deny finding the item. If found, you may return it directly or through a Safe Return Hub. Participation is voluntary, and hub drop-offs may earn a bonus reward.",
-  "accident": "In case of an accident during a trip, use the Accident Report feature in your Safety Hub. Document the incident with photos and details. ZIBA facilitates documentation and may connect you with relief fund resources based on eligibility.",
-  "trust-score": "Your trust score reflects your overall reliability on the platform. It considers ratings, trip completion, behavior signals, and safety record. Maintaining consistent, professional service helps build your trust score over time.",
-  "wallet-driver": "Manage your wallet and withdrawal methods in the Wallet tab. You can set up bank or mobile money details for payouts. Identity verification may be required for withdrawals based on your country's requirements.",
-  "training": "Access training modules from the Help tab. These cover lost item protocol, Safe Return Hubs, accident reporting, and trust score management. Completing training helps you understand platform features and best practices.",
-  "escalate": "We recommend submitting a support ticket for personalized assistance. Go to Help and tap 'Submit a Ticket'. Our support team will review your case. For urgent safety matters during a trip, use the SOS button.",
+  "go-online": "To start accepting rides:\n1. Go to your Driver Home.\n2. Toggle the 'Go Online' switch.\n3. Make sure your GPS is enabled and you have an active internet connection.\n\nZIBA connects you with riders based on proximity and availability. Let me know if you'd like help with the next step.",
+  "earnings": "Your earnings and charges are shown in your trip summary. View details in the Earnings tab, including trip income, bonuses, and incentives. Payouts are processed through your configured payment method in the Wallet section. I can guide you through this if you want.",
+  "lost-item-driver": "If a rider reports a lost item from your trip, you'll receive a notification. You can confirm or deny finding the item. If found, you may choose to return it directly or through a Safe Return Hub. Drivers are not required to return items, but many choose to. Hub drop-offs may earn a bonus reward.",
+  "accident": "If there's an emergency, please contact local emergency services first. You can submit a report so the incident is documented:\n1. Open the Accident Report feature in your Safety Hub.\n2. Document the incident with photos and details.\n\nZIBA facilitates documentation and may connect you with relief fund resources based on eligibility.",
+  "trust-score": "Your trust score reflects your overall reliability on the platform. It considers ratings, trip completion, behavior signals, and safety record. Maintaining consistent, professional service helps build your trust score over time. Let me know if you'd like more details.",
+  "wallet-driver": "Manage your wallet and withdrawal methods in the Wallet tab. You can set up bank or mobile money details for payouts. Identity verification may be required for withdrawals based on your country's requirements. I can guide you through this if you want.",
+  "training": "Access training modules from the Help tab. These cover lost item protocol, Safe Return Hubs, accident reporting, and trust score management. Completing training helps you understand platform features and best practices. Let me know if you'd like help with the next step.",
+  "escalate": "I can forward this to our support team for review. Go to Help and tap 'Submit a Ticket'. A support agent will look into this. For urgent safety matters during a trip, use the SOS button.",
 };
 
 const ADMIN_RESPONSES: Record<string, string> = {
-  "admin-dashboard": "The Admin Dashboard provides an overview of platform operations. The tabs at the top organize management areas: Drivers, Riders, Trips, Payouts, Disputes, and more. Use the tab navigation to access specific management functions.",
-  "admin-approvals": "Driver approvals are managed in the Drivers tab. Review pending applications, verify submitted documents, and approve or reject registrations. Each driver profile shows their submitted identity documents, vehicle information, and verification status.",
+  "admin-dashboard": "The Admin Dashboard provides an overview of platform operations. The tabs at the top organize management areas: Drivers, Riders, Trips, Payouts, Disputes, and more. Use the tab navigation to access specific management functions. Let me know if you need guidance on a specific section.",
+  "admin-approvals": "Driver approvals are managed in the Drivers tab.\n1. Filter by 'Pending Approval' to see new applications.\n2. Review submitted documents and vehicle information.\n3. Approve or reject based on verification status.\n\nAll actions are logged for audit purposes.",
   "admin-disputes": "Dispute management is in the Disputes tab. Review filed disputes, examine evidence from both parties, and make resolution decisions. You can issue refunds, apply penalties, or escalate to senior review. All actions are logged for audit purposes.",
   "admin-fraud": "Fraud detection flags appear in the Fraud tab. The system generates signals based on behavioral patterns like unusual trip frequency, GPS mismatches, or suspicious financial activity. Review flagged items, adjust risk scores, and take appropriate action.",
   "admin-trust": "Trust scores are calculated from multiple signals: ratings, trip completion rates, incident history, and behavior patterns. The system applies anti-manipulation guards to prevent gaming. You can view detailed breakdowns in user profiles.",
   "admin-users": "User management allows you to search, view, and manage all platform users. You can view profiles, trip history, wallet status, and compliance records. Administrative actions include role assignment, status changes, and account restrictions.",
-  "admin-finance": "Financial reports cover trip revenue, commission breakdown, driver payouts, wallet balances, and settlement records. The Payouts tab manages pending and completed driver payments. The Cash Settlement section handles cash trip reconciliation.",
+  "admin-finance": "Financial reports cover trip revenue, driver payouts, wallet balances, and settlement records. The Payouts tab manages pending and completed driver payments. The Cash Settlement section handles cash trip reconciliation.",
   "admin-safety": "Safety management includes incident reports, SOS events, accident records, and the relief fund. Review reported incidents, process insurance referrals, and manage safety-related escalations. All safety actions maintain an audit trail.",
 };
 
 const SUPER_ADMIN_RESPONSES: Record<string, string> = {
-  "sa-config": "System configuration controls platform-wide settings. This includes production switches, test mode, simulation settings, and feature flags. Changes here affect all users — review dependencies before modifying critical settings.",
-  "sa-countries": "Country management controls operational regions. Each country has its own currency, tax rules, identity requirements, and compliance settings. Use Launch Readiness to verify all configurations before enabling a new market.",
-  "sa-killswitch": "Kill switches allow immediate feature disabling per country. These are safety controls for emergencies — disabling a feature is instant but re-enabling should be done with verification. Always check dependent features before toggling.",
-  "sa-compliance": "Compliance audits track legal acknowledgements, user consents, and regulatory adherence. The Compliance Logs panel shows timestamped acceptance records. Review these regularly to ensure platform-wide compliance coverage.",
+  "sa-config": "System configuration controls platform-wide settings, including production switches, test mode, simulation settings, and feature flags. Changes here affect all users. We recommend reviewing dependencies before modifying critical settings.",
+  "sa-countries": "Country management controls operational regions. Each country has its own currency, tax rules, identity requirements, and compliance settings. We recommend using Launch Readiness to verify all configurations before enabling a new market.",
+  "sa-killswitch": "Kill switches allow immediate feature disabling per country. These are safety controls for emergencies. Disabling a feature is instant, but re-enabling should be done with verification. We recommend checking dependent features before toggling.",
+  "sa-compliance": "Compliance audits track legal acknowledgements, user consents, and regulatory adherence. The Compliance Logs panel shows timestamped acceptance records. We recommend reviewing these regularly to ensure platform-wide compliance coverage.",
   "sa-abuse": "Abuse patterns are detected through the fraud engine. Look for recurring signals: frequent reporters, GPS mismatches, unusual financial patterns, and coordinated behavior. The system aggregates signals into risk profiles for investigation.",
-  "sa-flags": "Feature flags control which capabilities are active per country. Flags allow gradual rollout and quick rollback. Review the monitoring dashboard for flag impact metrics before making changes to production flags.",
-  "sa-legal": "Legal considerations include country-specific arbitration requirements, class action waivers, consumer protection compliance, and platform liability positioning. ZIBA operates as a technology marketplace — all communications should reinforce this positioning.",
+  "sa-flags": "Feature flags control which capabilities are active per country. Flags allow gradual rollout and quick rollback. We recommend reviewing the monitoring dashboard for flag impact metrics before making changes to production flags.",
+  "sa-legal": "Legal considerations include country-specific arbitration requirements, class action waivers, consumer protection compliance, and platform liability positioning. ZIBA operates as a technology marketplace. All communications should reinforce this positioning.",
   "sa-risk": "Risk assessment involves reviewing fraud profiles, dispute trends, financial anomalies, and safety incident patterns. Use the monitoring dashboard to track KPIs and set up alerts for significant deviations from baselines.",
 };
 
 const COMMON_RESPONSES: Record<string, string> = {
-  "default": "Based on your question, we recommend checking the Help Center for detailed guidance. If you need further assistance, you can submit a support ticket and our team will review your case.",
-  "greeting-rider": "Hi, I'm ZIBA Support. I'm here to help you navigate the platform. Select a topic below or type your question.",
-  "greeting-driver": "Hi, I'm ZIBA Support. I'm here to help you with your driver experience. Select a topic below or type your question.",
-  "greeting-admin": "ZIBA Support — Internal Assistant. I can help you navigate dashboard functions, review processes, and administrative actions. Select a topic or ask a question.",
-  "greeting-super_admin": "ZIBA Support — System Assistant. I can assist with configuration, compliance, risk assessment, and operational oversight. Select a topic or ask a question.",
-  "greeting-general": "Hi, I'm ZIBA Support. I'm here to help you navigate the platform. Select a topic below or type your question.",
+  "default": "Based on your question, we recommend checking the Help Center for detailed guidance. If you need further assistance, you can submit a support ticket and our team will review your case. Let me know if you'd like help with the next step.",
+  "greeting-rider": "Hi, I'm ZIBA Support. I'm here to help. Select a topic below or type your question.",
+  "greeting-driver": "Hi, I'm ZIBA Support. I'm here to help. Select a topic below or type your question.",
+  "greeting-admin": "ZIBA Support. I can help you navigate dashboard functions, review processes, and administrative actions. Select a topic or ask a question.",
+  "greeting-super_admin": "ZIBA Support. I can assist with configuration, compliance, risk assessment, and operational oversight. Select a topic or ask a question.",
+  "greeting-general": "Hi, I'm ZIBA Support. I'm here to help. Select a topic below or type your question.",
 };
 
 function detectRole(pathname: string, userRoles?: string[]): UserRole {
@@ -164,15 +164,15 @@ function getScreenContext(pathname: string): string {
 
 function getContextHint(screen: string, role: UserRole): string | null {
   if (role === "rider") {
-    if (screen === "wallet") return "I see you're in your Wallet. I can help with payments, top-ups, or balance questions.";
-    if (screen === "safety") return "I see you're in the Safety Hub. I can help with incident reporting, SOS, or lost items.";
-    if (screen === "trips") return "I see you're viewing your trip activity. I can help with trip details, cancellations, or reports.";
+    if (screen === "wallet") return "I see you're in your Wallet. I can help with payments, top-ups, or balance questions. Let me know what you need.";
+    if (screen === "safety") return "I see you're in the Safety Hub. I can help with incident reporting, SOS, or lost items. Let me know what you need.";
+    if (screen === "trips") return "I see you're viewing your trip activity. I can help with trip details, cancellations, or reports. Let me know what you need.";
   }
   if (role === "driver") {
-    if (screen === "wallet") return "I see you're in your Wallet. I can help with withdrawals, payout methods, or balance inquiries.";
-    if (screen === "earnings") return "I see you're viewing Earnings. I can help explain your trip income, bonuses, or incentives.";
-    if (screen === "training") return "I see you're in Training. I can help explain any training module or platform procedure.";
-    if (screen === "safety") return "I see you're in the Safety Hub. I can help with accident reporting, incident documentation, or emergency features.";
+    if (screen === "wallet") return "I see you're in your Wallet. I can help with withdrawals, payout methods, or balance inquiries. Let me know what you need.";
+    if (screen === "earnings") return "I see you're viewing Earnings. I can help with trip income, bonuses, or incentives. Let me know what you need.";
+    if (screen === "training") return "I see you're in Training. I can help with any training module or platform procedure. Let me know what you need.";
+    if (screen === "safety") return "I see you're in the Safety Hub. I can help with accident reporting, incident documentation, or emergency features. Let me know what you need.";
   }
   return null;
 }
@@ -183,6 +183,18 @@ function getResponse(input: string, role: UserRole): string {
 
   if (lower.includes("are you ai") || lower.includes("are you a bot") || lower.includes("are you real") || lower.includes("are you human") || lower.includes("what are you")) {
     return "I'm ZIBA Support. I'm here to help you navigate ZIBA.";
+  }
+
+  if (lower.includes("angry") || lower.includes("frustrat") || lower.includes("furious") || lower.includes("upset") || lower.includes("terrible") || lower.includes("worst") || lower.includes("horrible") || lower.includes("hate") || lower.includes("unacceptable") || lower.includes("disgusting") || lower.includes("ridiculous")) {
+    return "I understand this is frustrating. I can help explain the options available. Based on your situation, would you like me to guide you through the next steps, or would you prefer to submit a support ticket for a detailed review?";
+  }
+
+  if (lower.includes("sorry") && (lower.includes("fault") || lower.includes("blame") || lower.includes("responsible"))) {
+    return "I understand your concern. I can help explain the options available to you. Would you like me to walk you through the relevant steps, or would you prefer to connect with our support team?";
+  }
+
+  if (lower.includes("thank") || lower.includes("thanks")) {
+    return "Thanks for reaching out. Let me know if you'd like help with anything else.";
   }
 
   if (role === "rider" || role === "general") {
@@ -240,7 +252,7 @@ function getResponse(input: string, role: UserRole): string {
     return role === "driver" ? DRIVER_RESPONSES["escalate"] : RIDER_RESPONSES["escalate"];
   }
 
-  return COMMON_RESPONSES["default"];
+  return "Based on your question, we recommend checking the Help Center for detailed guidance. I can guide you through this if you want, or you can submit a support ticket for a detailed review.";
 }
 
 function logSupportInteraction(userMessage: string, supportResponse: string, role: UserRole, screen: string) {

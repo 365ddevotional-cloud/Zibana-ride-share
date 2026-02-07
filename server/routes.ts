@@ -48,56 +48,68 @@ function generateSupportResponse(input: string, role: string, isPrivileged: bool
     return "I'm ZIBA Support. I'm here to help you navigate ZIBA.";
   }
 
+  if (lower.includes("angry") || lower.includes("frustrat") || lower.includes("furious") || lower.includes("upset") || lower.includes("terrible") || lower.includes("worst") || lower.includes("horrible") || lower.includes("hate") || lower.includes("unacceptable") || lower.includes("disgusting") || lower.includes("ridiculous")) {
+    return "I understand this is frustrating. I can help explain the options available. Based on your situation, would you like me to guide you through the next steps, or would you prefer to submit a support ticket for a detailed review?";
+  }
+
+  if (lower.includes("sorry") && (lower.includes("fault") || lower.includes("blame") || lower.includes("responsible"))) {
+    return "I understand your concern. I can help explain the options available to you. Would you like me to walk you through the relevant steps, or would you prefer to connect with our support team?";
+  }
+
+  if (lower.includes("thank") || lower.includes("thanks")) {
+    return "Thanks for reaching out. Let me know if you'd like help with anything else.";
+  }
+
   if (lower.includes("human") || lower.includes("agent") || lower.includes("escalat") || lower.includes("talk to") || lower.includes("real person")) {
     if (isPrivileged) {
       return "For complex operational issues, check the relevant dashboard tab or escalate through internal channels. The compliance logs and audit trails provide detailed records for investigation.";
     }
-    return "We recommend submitting a support ticket for personalized assistance. Go to Help Center and tap 'Submit a Ticket'. Our support team will review your case and respond as soon as possible.";
+    return "I can forward this to our support team for review. Go to Help Center and tap 'Submit a Ticket'. A support agent will look into this.";
   }
 
   if (role === "rider") {
-    if (lower.includes("book") || lower.includes("ride") || lower.includes("request")) return "To book a ride, go to the Home tab and enter your pickup and drop-off locations. ZIBA helps connect you with available drivers in your area.";
-    if (lower.includes("lost") || lower.includes("item") || lower.includes("found")) return "If you've lost an item during a trip, go to Activity, find the trip, and tap 'Report Lost Item'. ZIBA helps facilitate communication between you and the driver. Item recovery depends on driver cooperation and is not guaranteed.";
-    if (lower.includes("pay") || lower.includes("wallet") || lower.includes("charge") || lower.includes("refund")) return "You can manage your payment methods in the Wallet section. ZIBA supports wallet credits, cash payments, and card payments. For payment concerns, submit a support ticket for review.";
-    if (lower.includes("safe") || lower.includes("sos") || lower.includes("emergency")) return "Your safety is important. Use the SOS button during active trips for emergencies. You can also report incidents through the Safety Hub.";
-    if (lower.includes("cancel")) return "You can cancel a ride before the driver arrives. Cancellation fees may apply depending on timing. Check our policies in the Legal section for details.";
-    if (lower.includes("schedule") || lower.includes("advance") || lower.includes("later")) return "To schedule a ride in advance, go to Services and select 'Scheduled Rides'. You can set your pickup time up to 7 days ahead.";
-    if (lower.includes("saved") || lower.includes("home") || lower.includes("work") || lower.includes("place")) return "You can save your Home and Work addresses from the Account tab under Saved Places. These addresses will appear as quick options when booking a ride.";
-    if (lower.includes("account") || lower.includes("profile") || lower.includes("settings")) return "You can update your profile, notification preferences, and privacy settings from the Account tab.";
+    if (lower.includes("book") || lower.includes("ride") || lower.includes("request")) return "To book a ride, go to the Home tab and enter your pickup and drop-off locations. ZIBA helps connect you with available drivers in your area. Let me know if you'd like help with the next step.";
+    if (lower.includes("lost") || lower.includes("item") || lower.includes("found")) return "ZIBA can help connect you with the driver to coordinate next steps. Go to Activity, find the trip, and tap 'Report Lost Item'. Drivers are not required to return items, but many choose to. You may also arrange pickup at a Safe Return Hub if available.";
+    if (lower.includes("pay") || lower.includes("wallet") || lower.includes("charge") || lower.includes("refund")) return "You can manage your payment methods in the Wallet section. ZIBA supports wallet credits, cash payments, and card payments. Your charges are shown in your trip summary. For payment concerns, we recommend submitting a support ticket for review.";
+    if (lower.includes("safe") || lower.includes("sos") || lower.includes("emergency")) return "If there's an emergency, please contact local emergency services first. During an active trip, you can use the SOS button for immediate assistance. You can also report incidents through the Safety Hub.";
+    if (lower.includes("cancel")) return "You can cancel a ride before the driver arrives. Cancellation fees may apply depending on timing. You may choose to review our policies in the Legal section for details.";
+    if (lower.includes("schedule") || lower.includes("advance") || lower.includes("later")) return "To schedule a ride in advance, go to Services and select 'Scheduled Rides'. You can set your pickup time up to 7 days ahead. Let me know if you'd like help with the next step.";
+    if (lower.includes("saved") || lower.includes("home") || lower.includes("work") || lower.includes("place")) return "You can save your Home and Work addresses from the Account tab under Saved Places. These addresses will appear as quick options when booking a ride. I can guide you through this if you want.";
+    if (lower.includes("account") || lower.includes("profile") || lower.includes("settings")) return "You can update your profile, notification preferences, and privacy settings from the Account tab. I can guide you through this if you want.";
   }
 
   if (role === "driver") {
-    if (lower.includes("online") || lower.includes("start driving") || lower.includes("accept")) return "To start accepting rides, go to your Driver Home and toggle the 'Go Online' switch. Make sure your GPS is enabled and your account is approved.";
-    if (lower.includes("earn") || lower.includes("income") || lower.includes("payout") || lower.includes("commission")) return "View your earnings in the Earnings tab. Payouts are processed based on your country's payout schedule. You can manage your payout details in the Wallet section.";
-    if (lower.includes("lost") || lower.includes("item") || lower.includes("found") || lower.includes("hub")) return "If a rider reports a lost item, you'll receive a notification. If you find the item, confirm it in the app. You can return it directly or drop it at a Safe Return Hub.";
-    if (lower.includes("accident") || lower.includes("crash")) return "If you're involved in an accident, ensure everyone's safety first. Then report the incident through the app. ZIBA facilitates accident documentation for your records.";
-    if (lower.includes("trust") || lower.includes("score") || lower.includes("rating")) return "Your trust score is based on your driving record, rider ratings, and overall behavior. Maintain good performance to keep your score high.";
-    if (lower.includes("wallet") || lower.includes("withdraw") || lower.includes("bank")) return "Manage your payouts from the Wallet tab. Add your bank details or mobile money information to receive your earnings.";
-    if (lower.includes("training") || lower.includes("module") || lower.includes("learn")) return "Access training modules from the Help tab. Complete all required modules to stay up to date with ZIBA policies and best practices.";
+    if (lower.includes("online") || lower.includes("start driving") || lower.includes("accept")) return "To start accepting rides, go to your Driver Home and toggle the 'Go Online' switch. Make sure your GPS is enabled and your account is approved. Let me know if you'd like help with the next step.";
+    if (lower.includes("earn") || lower.includes("income") || lower.includes("payout") || lower.includes("commission")) return "Your earnings and charges are shown in your trip summary. View details in the Earnings tab. Payouts are processed through your configured payment method in the Wallet section. I can guide you through this if you want.";
+    if (lower.includes("lost") || lower.includes("item") || lower.includes("found") || lower.includes("hub")) return "If a rider reports a lost item, you'll receive a notification. You can confirm or deny finding the item. If found, you may choose to return it directly or through a Safe Return Hub. Drivers are not required to return items, but many choose to.";
+    if (lower.includes("accident") || lower.includes("crash")) return "If there's an emergency, please contact local emergency services first. You can submit a report so the incident is documented through your Safety Hub. ZIBA facilitates documentation and may connect you with relief fund resources based on eligibility.";
+    if (lower.includes("trust") || lower.includes("score") || lower.includes("rating")) return "Your trust score reflects your overall reliability on the platform. It considers ratings, trip completion, behavior signals, and safety record. Maintaining consistent, professional service helps build your trust score over time.";
+    if (lower.includes("wallet") || lower.includes("withdraw") || lower.includes("bank")) return "Manage your payouts from the Wallet tab. You can set up bank or mobile money details for payouts. Identity verification may be required for withdrawals based on your country's requirements. I can guide you through this if you want.";
+    if (lower.includes("training") || lower.includes("module") || lower.includes("learn")) return "Access training modules from the Help tab. These cover lost item protocol, Safe Return Hubs, accident reporting, and trust score management. Let me know if you'd like help with the next step.";
   }
 
   if (isPrivileged) {
-    if (lower.includes("dashboard") || lower.includes("overview")) return "The Admin Dashboard shows key metrics including active trips, pending approvals, revenue, and safety incidents. Use the tabs to navigate between different management areas.";
-    if (lower.includes("approv") || lower.includes("pending") || lower.includes("driver registration")) return "Go to the Drivers tab and filter by 'Pending Approval' to see new driver applications. Review their documents and approve or reject them.";
-    if (lower.includes("dispute") || lower.includes("resolution") || lower.includes("complain")) return "Manage disputes in the Disputes tab. Review rider and driver claims, check trip details, and resolve based on evidence. All actions are logged for compliance.";
-    if (lower.includes("fraud") || lower.includes("suspicious") || lower.includes("flag")) return "Check the Fraud tab for flagged users and suspicious patterns. Review fraud signals, risk scores, and take appropriate action.";
-    if (lower.includes("user") || lower.includes("manage") || lower.includes("account")) return "The Users tab allows you to search, view, and manage user accounts. You can update roles, review profiles, and manage suspensions.";
-    if (lower.includes("financ") || lower.includes("revenue") || lower.includes("money")) return "Financial reports are available in the Finance tab. View revenue breakdown, commission reports, payout summaries, and wallet transactions.";
-    if (lower.includes("safe") || lower.includes("incident") || lower.includes("sos")) return "Safety incidents appear in the Safety tab. Review SOS triggers, accident reports, and incident escalations. Take action and document outcomes.";
+    if (lower.includes("dashboard") || lower.includes("overview")) return "The Admin Dashboard provides an overview of platform operations. The tabs organize management areas: Drivers, Riders, Trips, Payouts, Disputes, and more. Let me know if you need guidance on a specific section.";
+    if (lower.includes("approv") || lower.includes("pending") || lower.includes("driver registration")) return "Driver approvals are managed in the Drivers tab. Filter by 'Pending Approval' to see new applications. Review their documents and approve or reject them. All actions are logged for audit purposes.";
+    if (lower.includes("dispute") || lower.includes("resolution") || lower.includes("complain")) return "Dispute management is in the Disputes tab. Review filed disputes, examine evidence from both parties, and make resolution decisions. All actions are logged for audit purposes.";
+    if (lower.includes("fraud") || lower.includes("suspicious") || lower.includes("flag")) return "Fraud detection flags appear in the Fraud tab. Review fraud signals, risk scores, and take appropriate action.";
+    if (lower.includes("user") || lower.includes("manage") || lower.includes("account")) return "User management allows you to search, view, and manage all platform users. You can view profiles, trip history, wallet status, and compliance records.";
+    if (lower.includes("financ") || lower.includes("revenue") || lower.includes("money")) return "Financial reports cover trip revenue, driver payouts, wallet balances, and settlement records. The Payouts tab manages pending and completed driver payments.";
+    if (lower.includes("safe") || lower.includes("incident") || lower.includes("sos")) return "Safety incidents appear in the Safety tab. Review SOS triggers, accident reports, and incident escalations. All safety actions maintain an audit trail.";
 
     if (role === "super_admin") {
-      if (lower.includes("config") || lower.includes("setting") || lower.includes("system")) return "System configuration is available in the Settings tab. Manage production switches, country-specific settings, and global parameters.";
-      if (lower.includes("country") || lower.includes("market") || lower.includes("launch")) return "Country management lets you configure market-specific settings including pricing, tax rules, compliance requirements, and launch status.";
-      if (lower.includes("kill") || lower.includes("switch") || lower.includes("disable")) return "Kill switches allow you to disable specific features per country in emergencies. Use with caution as they affect all users in that market.";
-      if (lower.includes("compliance") || lower.includes("audit") || lower.includes("log")) return "Compliance tools include consent tracking, legal acknowledgement logs, and audit trails. All admin actions are logged for accountability.";
-      if (lower.includes("abuse") || lower.includes("pattern") || lower.includes("manipulation")) return "Review abuse patterns in the Fraud and Safety tabs. Look for repeat offenders, coordinated behavior, and trust score manipulation attempts.";
-      if (lower.includes("flag") || lower.includes("feature") || lower.includes("rollout")) return "Feature flags control the gradual rollout of new features. Manage them in the Feature Flags section of the Settings tab.";
-      if (lower.includes("legal") || lower.includes("liability")) return "Legal documentation and compliance settings are managed through the Legal section. Ensure all country-specific terms are current.";
-      if (lower.includes("risk") || lower.includes("assess") || lower.includes("anomal")) return "Risk assessment involves reviewing trust scores, fraud patterns, safety incidents, and financial anomalies across the platform.";
+      if (lower.includes("config") || lower.includes("setting") || lower.includes("system")) return "System configuration controls platform-wide settings. Changes here affect all users. We recommend reviewing dependencies before modifying critical settings.";
+      if (lower.includes("country") || lower.includes("market") || lower.includes("launch")) return "Country management controls operational regions. Each country has its own currency, tax rules, identity requirements, and compliance settings. We recommend using Launch Readiness to verify all configurations before enabling a new market.";
+      if (lower.includes("kill") || lower.includes("switch") || lower.includes("disable")) return "Kill switches allow immediate feature disabling per country. These are safety controls for emergencies. We recommend checking dependent features before toggling.";
+      if (lower.includes("compliance") || lower.includes("audit") || lower.includes("log")) return "Compliance audits track legal acknowledgements, user consents, and regulatory adherence. We recommend reviewing these regularly to ensure platform-wide compliance coverage.";
+      if (lower.includes("abuse") || lower.includes("pattern") || lower.includes("manipulation")) return "Abuse patterns are detected through the fraud engine. Look for recurring signals: frequent reporters, GPS mismatches, unusual financial patterns, and coordinated behavior.";
+      if (lower.includes("flag") || lower.includes("feature") || lower.includes("rollout")) return "Feature flags control which capabilities are active per country. We recommend reviewing the monitoring dashboard for flag impact metrics before making changes.";
+      if (lower.includes("legal") || lower.includes("liability")) return "Legal considerations include country-specific arbitration requirements, class action waivers, and consumer protection compliance. ZIBA operates as a technology marketplace. All communications should reinforce this positioning.";
+      if (lower.includes("risk") || lower.includes("assess") || lower.includes("anomal")) return "Risk assessment involves reviewing fraud profiles, dispute trends, financial anomalies, and safety incident patterns. Use the monitoring dashboard to track KPIs.";
     }
   }
 
-  return "I'm here to help you navigate ZIBA. Could you tell me more about what you need help with? You can ask about rides, payments, safety, your account, or any other ZIBA feature.";
+  return "Based on your question, we recommend checking the Help Center for detailed guidance. I can guide you through this if you want, or you can submit a support ticket for a detailed review.";
 }
 
 // Helper function to get user's currency based on their country
