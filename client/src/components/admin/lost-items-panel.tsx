@@ -28,7 +28,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Package, Search, Settings } from "lucide-react";
+import { Package, Search, Settings, MessageCircle, Lock, Unlock, Phone, PhoneOff, CheckCircle } from "lucide-react";
 
 interface LostItem {
   id: string;
@@ -45,6 +45,9 @@ interface LostItem {
   platformFee?: string;
   pickupLocation?: string;
   returnLocation?: string;
+  communicationUnlocked?: boolean;
+  riderPhoneVisible?: boolean;
+  driverPhoneVisible?: boolean;
   createdAt: string;
   updatedAt?: string;
 }
@@ -59,6 +62,17 @@ interface LostItemFeeConfig {
   currency: string;
 }
 
+interface ChatMessage {
+  id: string;
+  lostItemReportId: string;
+  senderId: string;
+  senderRole: string;
+  message: string;
+  isSystemMessage: boolean;
+  readAt: string | null;
+  createdAt: string;
+}
+
 const STATUS_OPTIONS = [
   { value: "all", label: "All Statuses" },
   { value: "reported", label: "Reported" },
@@ -68,6 +82,8 @@ const STATUS_OPTIONS = [
   { value: "returned", label: "Returned" },
   { value: "closed", label: "Closed" },
   { value: "disputed", label: "Disputed" },
+  { value: "found", label: "Found" },
+  { value: "resolved_by_admin", label: "Resolved By Admin" },
 ];
 
 function statusBadgeClass(status: string): string {
@@ -85,7 +101,11 @@ function statusBadgeClass(status: string): string {
     case "closed":
       return "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300";
     case "disputed":
-      return "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300";
+      return "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300";
+    case "found":
+      return "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300";
+    case "resolved_by_admin":
+      return "bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300";
     default:
       return "";
   }
@@ -100,6 +120,7 @@ export function LostItemsPanel() {
   const [returnFee, setReturnFee] = useState("");
   const [driverShare, setDriverShare] = useState("");
   const [platformFee, setPlatformFee] = useState("");
+  const [chatDialogItem, setChatDialogItem] = useState<LostItem | null>(null);
 
   const [feeCountryCode, setFeeCountryCode] = useState("NG");
   const [feeBaseFee, setFeeBaseFee] = useState("");
@@ -116,6 +137,11 @@ export function LostItemsPanel() {
     queryKey: ["/api/admin/lost-item-fees"],
   });
 
+  const { data: chatMessages, isLoading: chatLoading } = useQuery<ChatMessage[]>({
+    queryKey: ["/api/lost-items", chatDialogItem?.id, "messages"],
+    enabled: !!chatDialogItem,
+  });
+
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, ...body }: { id: string; status: string; returnFee?: string; driverShare?: string; platformFee?: string }) =>
       apiRequest("PATCH", `/api/lost-items/${id}/status`, body),
@@ -123,6 +149,28 @@ export function LostItemsPanel() {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/lost-items"] });
       setSelectedItem(null);
       toast({ title: "Status updated successfully" });
+    },
+    onError: (err: Error) =>
+      toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const communicationMutation = useMutation({
+    mutationFn: ({ id, ...body }: { id: string; unlock?: boolean; riderPhoneVisible?: boolean; driverPhoneVisible?: boolean }) =>
+      apiRequest("PATCH", `/api/admin/lost-items/${id}/communication`, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/lost-items"] });
+      toast({ title: "Communication settings updated" });
+    },
+    onError: (err: Error) =>
+      toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const resolveDisputeMutation = useMutation({
+    mutationFn: (id: string) =>
+      apiRequest("PATCH", `/api/lost-items/${id}/status`, { status: "resolved_by_admin" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/lost-items"] });
+      toast({ title: "Dispute resolved successfully" });
     },
     onError: (err: Error) =>
       toast({ title: "Error", description: err.message, variant: "destructive" }),
@@ -289,14 +337,37 @@ export function LostItemsPanel() {
                       {new Date(item.createdAt).toLocaleDateString()}
                     </TableCell>
                     <TableCell>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openDetailDialog(item)}
-                        data-testid={`button-view-lost-item-${item.id}`}
-                      >
-                        View
-                      </Button>
+                      <div className="flex items-center gap-1 flex-wrap">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openDetailDialog(item)}
+                          data-testid={`button-view-lost-item-${item.id}`}
+                        >
+                          View
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setChatDialogItem(item)}
+                          data-testid={`button-view-chat-${item.id}`}
+                        >
+                          <MessageCircle className="h-3 w-3 mr-1" />
+                          Chat
+                        </Button>
+                        {item.status === "disputed" && (
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() => resolveDisputeMutation.mutate(item.id)}
+                            disabled={resolveDisputeMutation.isPending}
+                            data-testid={`button-resolve-dispute-${item.id}`}
+                          >
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Resolve
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -365,6 +436,60 @@ export function LostItemsPanel() {
               </div>
 
               <div className="border-t pt-4 space-y-3">
+                <h4 className="font-medium text-sm">Communication Controls</h4>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Button
+                    size="sm"
+                    variant={selectedItem.communicationUnlocked ? "default" : "outline"}
+                    onClick={() => communicationMutation.mutate({
+                      id: selectedItem.id,
+                      unlock: !selectedItem.communicationUnlocked,
+                    })}
+                    disabled={communicationMutation.isPending}
+                    data-testid={`button-toggle-communication-${selectedItem.id}`}
+                  >
+                    {selectedItem.communicationUnlocked ? (
+                      <><Unlock className="h-3 w-3 mr-1" />Unlocked</>
+                    ) : (
+                      <><Lock className="h-3 w-3 mr-1" />Locked</>
+                    )}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={selectedItem.riderPhoneVisible ? "default" : "outline"}
+                    onClick={() => communicationMutation.mutate({
+                      id: selectedItem.id,
+                      riderPhoneVisible: !selectedItem.riderPhoneVisible,
+                    })}
+                    disabled={communicationMutation.isPending}
+                    data-testid={`button-toggle-rider-phone-${selectedItem.id}`}
+                  >
+                    {selectedItem.riderPhoneVisible ? (
+                      <><Phone className="h-3 w-3 mr-1" />Rider Phone On</>
+                    ) : (
+                      <><PhoneOff className="h-3 w-3 mr-1" />Rider Phone Off</>
+                    )}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={selectedItem.driverPhoneVisible ? "default" : "outline"}
+                    onClick={() => communicationMutation.mutate({
+                      id: selectedItem.id,
+                      driverPhoneVisible: !selectedItem.driverPhoneVisible,
+                    })}
+                    disabled={communicationMutation.isPending}
+                    data-testid={`button-toggle-driver-phone-${selectedItem.id}`}
+                  >
+                    {selectedItem.driverPhoneVisible ? (
+                      <><Phone className="h-3 w-3 mr-1" />Driver Phone On</>
+                    ) : (
+                      <><PhoneOff className="h-3 w-3 mr-1" />Driver Phone Off</>
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="border-t pt-4 space-y-3">
                 <h4 className="font-medium text-sm">Update Status</h4>
                 <Select value={updateStatus} onValueChange={setUpdateStatus}>
                   <SelectTrigger data-testid="select-update-status">
@@ -417,6 +542,57 @@ export function LostItemsPanel() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!chatDialogItem} onOpenChange={(open) => !open && setChatDialogItem(null)}>
+        <DialogContent className="max-w-lg" data-testid="dialog-view-chat">
+          <DialogHeader>
+            <DialogTitle data-testid="text-chat-dialog-title">
+              Chat Messages - {chatDialogItem?.itemDescription || "Lost Item"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            {chatLoading ? (
+              <div className="space-y-3 p-3">
+                <Skeleton className="h-8 w-2/3" />
+                <Skeleton className="h-8 w-1/2 ml-auto" />
+                <Skeleton className="h-8 w-3/5" />
+              </div>
+            ) : !chatMessages || chatMessages.length === 0 ? (
+              <div className="text-center py-8" data-testid="text-no-chat-messages">
+                <MessageCircle className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
+                <p className="text-sm text-muted-foreground">No messages in this conversation</p>
+              </div>
+            ) : (
+              <div className="max-h-[400px] overflow-y-auto bg-muted/30 rounded-md p-3 space-y-2" data-testid="container-admin-chat-messages">
+                {chatMessages.map((msg) => {
+                  if (msg.isSystemMessage) {
+                    return (
+                      <div key={msg.id} className="text-center py-1" data-testid={`admin-message-system-${msg.id}`}>
+                        <span className="text-muted-foreground text-xs italic">{msg.message}</span>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div key={msg.id} className="space-y-1" data-testid={`admin-message-${msg.id}`}>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-xs">
+                          {msg.senderRole}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(msg.createdAt).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="bg-muted rounded-md px-3 py-2">
+                        <p className="text-sm break-words" data-testid={`text-admin-message-content-${msg.id}`}>{msg.message}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 

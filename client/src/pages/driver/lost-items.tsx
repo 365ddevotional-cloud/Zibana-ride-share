@@ -7,21 +7,29 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { EmptyState } from "@/components/empty-state";
+import { LostItemChat } from "@/components/lost-item-chat";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { ChevronLeft, Package, Phone, Calendar, Tag, CheckCircle, XCircle, RotateCcw, AlertTriangle } from "lucide-react";
+import { ChevronLeft, Package, Phone, Calendar, Tag, CheckCircle, XCircle, RotateCcw, AlertTriangle, DollarSign } from "lucide-react";
 
 interface LostItemReport {
   id: string;
   tripId: string;
+  riderId: string;
+  driverId: string;
   itemDescription: string;
   category: string;
   status: string;
   riderContactPhone?: string;
   driverNotes?: string;
+  communicationUnlocked: boolean;
+  riderPhoneVisible: boolean;
+  driverPhoneVisible: boolean;
+  returnFee?: string;
+  driverPayout?: string;
   createdAt: string;
 }
 
@@ -32,6 +40,9 @@ const STATUS_COLORS: Record<string, string> = {
   return_in_progress: "bg-orange-500/15 text-orange-700 dark:text-orange-400",
   returned: "bg-green-500/15 text-green-700 dark:text-green-400",
   closed: "bg-gray-500/15 text-gray-700 dark:text-gray-400",
+  found: "bg-blue-500/15 text-blue-700 dark:text-blue-400",
+  disputed: "bg-purple-500/15 text-purple-700 dark:text-purple-400",
+  resolved_by_admin: "bg-indigo-500/15 text-indigo-700 dark:text-indigo-400",
 };
 
 function formatStatus(status: string) {
@@ -96,6 +107,9 @@ export default function DriverLostItems() {
       driverNotes,
     });
   };
+
+  const showChat = (status: string) =>
+    ["driver_confirmed", "return_in_progress", "found", "returned"].includes(status);
 
   return (
     <DriverLayout>
@@ -198,6 +212,16 @@ export default function DriverLostItems() {
                     </p>
                   </div>
 
+                  {report.status === "returned" && report.driverPayout && (
+                    <Badge
+                      className="bg-green-500/15 text-green-700 dark:text-green-400"
+                      data-testid={`badge-payout-${report.id}`}
+                    >
+                      <DollarSign className="h-3 w-3 mr-1" />
+                      Payout: {report.driverPayout}
+                    </Badge>
+                  )}
+
                   {report.status === "reported" && (
                     <div className="flex gap-2 flex-wrap">
                       <Button
@@ -234,6 +258,15 @@ export default function DriverLostItems() {
                       <RotateCcw className="h-4 w-4 mr-1" />
                       Mark as Returned
                     </Button>
+                  )}
+
+                  {showChat(report.status) && report.communicationUnlocked && (
+                    <LostItemChat
+                      reportId={report.id}
+                      currentUserId={user?.id || ""}
+                      communicationUnlocked={report.communicationUnlocked}
+                      userRole="driver"
+                    />
                   )}
                 </CardContent>
               </Card>
