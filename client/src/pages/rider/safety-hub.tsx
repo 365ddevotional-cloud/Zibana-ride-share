@@ -2,9 +2,11 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
 import { RiderLayout } from "@/components/rider/RiderLayout";
 import { RiderRouteGuard } from "@/components/rider/RiderRouteGuard";
+import { LostItemChat } from "@/components/lost-item-chat";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +20,7 @@ import { Switch } from "@/components/ui/switch";
 import { EmptyState } from "@/components/empty-state";
 import {
   ArrowLeft, Shield, Package, AlertTriangle, FileText, Users,
-  ChevronRight, Clock, Phone, MapPin, ShieldCheck, ExternalLink,
+  ChevronRight, Clock, Phone, MapPin, ShieldCheck, ExternalLink, MessageCircle,
 } from "lucide-react";
 
 interface Trip {
@@ -30,13 +32,19 @@ interface Trip {
 }
 
 interface LostItemReport {
-  id: number;
-  tripId: number;
+  id: string;
+  tripId: string;
+  riderId: string;
+  driverId: string;
   itemDescription: string;
   itemCategory: string;
   lastSeenLocation: string;
   contactPhone: string;
   status: string;
+  communicationUnlocked: boolean;
+  riderPhoneVisible: boolean;
+  driverPhoneVisible: boolean;
+  returnFee?: string;
   createdAt: string;
 }
 
@@ -105,9 +113,11 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export default function SafetyHubPage() {
+  const { user } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState<"report" | "my-reports">("report");
+  const [expandedChat, setExpandedChat] = useState<string | null>(null);
   const [lostItemDialogOpen, setLostItemDialogOpen] = useState(false);
   const [accidentDialogOpen, setAccidentDialogOpen] = useState(false);
   const [insuranceDialogOpen, setInsuranceDialogOpen] = useState(false);
@@ -160,7 +170,7 @@ export default function SafetyHubPage() {
     mutationFn: async (data: typeof lostItemForm) => {
       const res = await apiRequest("POST", "/api/lost-items", {
         ...data,
-        tripId: parseInt(data.tripId),
+        tripId: data.tripId,
       });
       return res.json();
     },
@@ -401,6 +411,27 @@ export default function SafetyHubPage() {
                               </div>
                               <StatusBadge status={item.status} />
                             </div>
+                            {item.communicationUnlocked && (
+                              <div className="mt-3 space-y-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setExpandedChat(expandedChat === item.id ? null : item.id)}
+                                  data-testid={`button-chat-toggle-${item.id}`}
+                                >
+                                  <MessageCircle className="h-4 w-4 mr-1" />
+                                  {expandedChat === item.id ? "Hide Chat" : "Open Chat"}
+                                </Button>
+                                {expandedChat === item.id && user && (
+                                  <LostItemChat
+                                    reportId={item.id}
+                                    currentUserId={user.id}
+                                    communicationUnlocked={item.communicationUnlocked}
+                                    userRole="rider"
+                                  />
+                                )}
+                              </div>
+                            )}
                           </CardContent>
                         </Card>
                       ))}
