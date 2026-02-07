@@ -1,0 +1,223 @@
+You are working on the ZIBA Ride Share Platform (Rider App, Driver App, Admin Dashboard).
+
+MISSION:
+Implement a complete Accident Report Protocol and Lost Item Protocol that:
+- Protects riders and drivers
+- Creates fair incentives
+- Generates revenue for ZIBA
+- Reduces disputes
+- Matches production-grade ride-hailing standards
+
+Do NOT change existing pricing splits, commissions, or wallet logic unless explicitly stated.
+
+====================================================
+1️⃣ ACCIDENT REPORT PROTOCOL (SYSTEM-WIDE)
+====================================================
+
+GOALS:
+- Prioritize safety
+- Prevent false claims
+- Protect ZIBA legally
+- Encourage honest reporting
+
+IMPLEMENT:
+
+A. Incident Trigger Methods
+- Manual: Rider or Driver taps "Report an Incident"
+- Automatic flags:
+  - Sudden trip stop + inactivity
+  - GPS deviation
+  - Emergency button tap
+
+B. In-App Safety Flow (Rider & Driver)
+Step 1: Safety Check Screen
+- Question: “Are you safe right now?”
+- Options:
+  - Everyone is safe
+  - Emergency services needed
+
+If emergency selected:
+- Show local emergency numbers
+- Allow 1-tap call
+- Instantly notify ZIBA Safety Admin
+
+Step 2: Incident Details Form
+- Accident severity:
+  - Minor (no injury)
+  - Moderate
+  - Serious
+- Required:
+  - Photo uploads
+  - Short text or voice explanation
+- Optional:
+  - Witness contact
+
+RULE:
+- No blame language
+- ZIBA does NOT admit fault automatically
+
+C. Admin Safety Review Dashboard
+Admin can view:
+- GPS replay
+- Speed data
+- Timeline
+- Uploaded evidence
+- Rider & driver history
+
+Outcomes:
+- Minor → close trip normally
+- Moderate → temporary review
+- Serious → suspend matching pending investigation
+
+Driver Incentives:
+- Honest reporting = faster reinstatement
+- Safety badge
+- Priority rematching after clearance
+
+====================================================
+2️⃣ LOST ITEM PROTOCOL (PROFITABLE + FAIR)
+====================================================
+
+GOALS:
+- Encourage item return
+- Pay drivers fairly
+- Reduce disputes
+- Create a paid micro-service
+
+A. Rider Flow
+Trips → Select Ride → Report Lost Item
+Fields:
+- Item type
+- Urgency (standard / urgent)
+- Preferred return method:
+  - Meet driver
+  - ZIBA hub
+  - Courier delivery
+
+B. Driver Confirmation
+Driver receives inbox + push:
+“A rider reported a lost item. Do you have this item?”
+
+Options:
+- Yes, I have it
+- No, I do not have it
+
+If NO → case closed politely
+If YES → paid return flow begins
+
+C. Paid Return Fee (Mandatory)
+- Rider pays a Lost Item Return Fee via wallet
+- Fee tiers:
+  - Standard
+  - Urgent
+
+D. Revenue Split
+- Driver receives 70–80%
+- ZIBA receives 20–30%
+
+E. Return Options
+1. Meet-up (midpoint suggested)
+2. ZIBA Hub drop-off
+3. Courier arranged by ZIBA
+
+Protections:
+- Driver uploads item photo
+- Timestamped proof
+- False claims tracked
+- No penalties if item not found
+
+====================================================
+3️⃣ ADMIN DASHBOARD DESIGN
+====================================================
+
+A. Accident Management Screen
+- Filter by date, city, severity
+- View trip replay
+- Evidence gallery
+- Driver/rider history
+- Action buttons:
+  - Close case
+  - Suspend
+  - Escalate
+
+B. Lost Item Management Screen
+- Open / closed cases
+- Driver confirmation status
+- Return method
+- Fees collected
+- Revenue split visibility
+
+C. Configuration Panel
+Admin can set:
+- Lost item fee amounts
+- Urgent multipliers
+- Grace periods
+- Safety escalation rules
+
+====================================================
+4️⃣ TERMS & CONDITIONS (STORE-READY WORDING)
+====================================================
+
+Add the following clauses:
+
+• Accident Reporting:
+“ZIBA provides a neutral platform for incident reporting and does not automatically assume liability.”
+
+• Lost Items:
+“Returned items are handled as a paid service. Drivers are compensated for their time and effort. Fees are disclosed upfront.”
+
+• Safety:
+“ZIBA may suspend accounts temporarily during safety investigations to protect all users.”
+
+====================================================
+5️⃣ DRIVER ONBOARDING EXPLANATION
+====================================================
+
+Driver Education Screens:
+
+A. Accident Handling
+“If an incident occurs, report it immediately. Honest reporting protects your account and speeds resolution.”
+
+B. Lost Items
+“Returning lost items is a paid service. You are compensated automatically when you confirm possession and complete return.”
+
+C. Incentives
+- Safety badge
+- Priority trips
+- Higher trust score
+
+====================================================
+6️⃣ UX SCREENS (STEP-BY-STEP)
+====================================================
+
+RIDER:
+- Safety Hub
+- Report Incident
+- Report Lost Item
+- Track return status
+- Inbox notifications
+
+DRIVER:
+- Incident Report
+- Lost Item Confirmation
+- Earnings from returns
+- Safety score
+
+ADMIN:
+- Incident Review Panel
+- Lost Item Control Center
+- Fee configuration
+
+====================================================
+7️⃣ FINAL VALIDATION CHECKLIST
+====================================================
+
+✔ Accident reports logged correctly
+✔ Emergency triggers notify admin
+✔ Lost item flow generates payment
+✔ Drivers paid automatically
+✔ Admin can manage all cases
+✔ Legal protection preserved
+✔ UX is clear and friendly
+
+Proceed carefully. Implement and test each section end-to-end before marking complete.

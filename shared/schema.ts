@@ -4448,3 +4448,99 @@ export const insertSavedPlaceSchema = createInsertSchema(savedPlaces).omit({
 });
 export type InsertSavedPlace = z.infer<typeof insertSavedPlaceSchema>;
 export type SavedPlace = typeof savedPlaces.$inferSelect;
+
+// =============================================
+// LOST ITEM PROTOCOL TABLES
+// =============================================
+
+// Lost Item Reports table
+export const lostItemReports = pgTable("lost_item_reports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tripId: varchar("trip_id").notNull(),
+  riderId: varchar("rider_id").notNull(),
+  driverId: varchar("driver_id"),
+  itemType: varchar("item_type", { length: 50 }).notNull(),
+  itemDescription: text("item_description").notNull(),
+  urgency: varchar("urgency", { length: 20 }).notNull().default("standard"),
+  returnMethod: varchar("return_method", { length: 50 }),
+  status: varchar("status", { length: 30 }).notNull().default("reported"),
+  driverHasItem: boolean("driver_has_item"),
+  driverConfirmedAt: timestamp("driver_confirmed_at"),
+  itemPhotoUrl: text("item_photo_url"),
+  returnFeeAmount: decimal("return_fee_amount", { precision: 10, scale: 2 }),
+  driverPayout: decimal("driver_payout", { precision: 10, scale: 2 }),
+  platformFee: decimal("platform_fee", { precision: 10, scale: 2 }),
+  feeCollected: boolean("fee_collected").notNull().default(false),
+  meetupLocation: text("meetup_location"),
+  returnCompletedAt: timestamp("return_completed_at"),
+  adminNotes: text("admin_notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertLostItemReportSchema = createInsertSchema(lostItemReports).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertLostItemReport = z.infer<typeof insertLostItemReportSchema>;
+export type LostItemReport = typeof lostItemReports.$inferSelect;
+
+// Lost Item Fee Config table
+export const lostItemFeeConfig = pgTable("lost_item_fee_config", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  countryCode: varchar("country_code", { length: 2 }).notNull(),
+  standardFee: decimal("standard_fee", { precision: 10, scale: 2 }).notNull().default("500.00"),
+  urgentFee: decimal("urgent_fee", { precision: 10, scale: 2 }).notNull().default("1000.00"),
+  driverSharePercent: integer("driver_share_percent").notNull().default(75),
+  platformSharePercent: integer("platform_share_percent").notNull().default(25),
+  isActive: boolean("is_active").notNull().default(true),
+  updatedBy: varchar("updated_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertLostItemFeeConfigSchema = createInsertSchema(lostItemFeeConfig).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertLostItemFeeConfig = z.infer<typeof insertLostItemFeeConfigSchema>;
+export type LostItemFeeConfig = typeof lostItemFeeConfig.$inferSelect;
+
+// =============================================
+// ACCIDENT REPORT ENHANCEMENT TABLES
+// =============================================
+
+// Accident Reports table (extends incident system)
+export const accidentReports = pgTable("accident_reports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  incidentId: varchar("incident_id").notNull(),
+  tripId: varchar("trip_id").notNull(),
+  reporterId: varchar("reporter_id").notNull(),
+  reporterRole: varchar("reporter_role", { length: 20 }).notNull(),
+  isSafe: boolean("is_safe"),
+  emergencyServicesNeeded: boolean("emergency_services_needed").notNull().default(false),
+  emergencyServicesContacted: boolean("emergency_services_contacted").notNull().default(false),
+  accidentSeverity: varchar("accident_severity", { length: 20 }).notNull(),
+  photoEvidence: text("photo_evidence"),
+  voiceNoteUrl: text("voice_note_url"),
+  witnessContact: text("witness_contact"),
+  witnessName: varchar("witness_name"),
+  gpsLatitude: decimal("gps_latitude", { precision: 10, scale: 7 }),
+  gpsLongitude: decimal("gps_longitude", { precision: 10, scale: 7 }),
+  speedAtImpact: decimal("speed_at_impact", { precision: 6, scale: 2 }),
+  adminReviewStatus: varchar("admin_review_status", { length: 30 }).notNull().default("pending"),
+  adminReviewedBy: varchar("admin_reviewed_by"),
+  adminReviewNotes: text("admin_review_notes"),
+  driverReinstated: boolean("driver_reinstated").notNull().default(false),
+  driverSafetyBadge: boolean("driver_safety_badge").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertAccidentReportSchema = createInsertSchema(accidentReports).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertAccidentReport = z.infer<typeof insertAccidentReportSchema>;
+export type AccidentReport = typeof accidentReports.$inferSelect;
