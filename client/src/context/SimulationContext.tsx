@@ -32,6 +32,12 @@ const SimulationContext = createContext<SimulationContextType>({
   exitSimulation: async () => {},
 });
 
+function getRoleDashboardPath(role: string): string {
+  if (role === "driver") return "/driver";
+  if (role === "admin" || role === "director" || role === "super_admin") return "/admin";
+  return "/";
+}
+
 export function SimulationProvider({ children }: { children: React.ReactNode }) {
   const [activating, setActivating] = useState(false);
 
@@ -49,7 +55,9 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
 
     if (data && !data.active && !activating) {
       setActivating(true);
+      const savedRole = sessionStorage.getItem("ziba-sim-role") || "rider";
       sessionStorage.removeItem("ziba-sim-code");
+      sessionStorage.removeItem("ziba-sim-role");
       fetch("/api/simulation/enter", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -60,6 +68,8 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
           if (res.ok) {
             queryClient.invalidateQueries({ queryKey: ["/api/simulation/status"] });
             queryClient.invalidateQueries({ queryKey: ["/api/user/role"] });
+            const dashboardPath = getRoleDashboardPath(savedRole);
+            window.location.href = dashboardPath;
           }
         })
         .catch(() => {})

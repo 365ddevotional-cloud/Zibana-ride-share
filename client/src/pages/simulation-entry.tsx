@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -21,15 +22,29 @@ interface ValidateResponse {
   cashEnabled: boolean;
 }
 
+function getRoleDashboardPath(role: string): string {
+  if (role === "driver") return "/driver";
+  if (role === "admin" || role === "director" || role === "super_admin") return "/admin";
+  return "/";
+}
+
 export default function SimulationEntryPage() {
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [validated, setValidated] = useState(false);
+  const [activating, setActivating] = useState(false);
   const [, navigate] = useLocation();
 
   const { data: systemStatus, isLoading: statusLoading } = useQuery<SystemStatus>({
     queryKey: ["/api/simulation/system-status"],
   });
+
+  const { data: currentUser } = useQuery<any>({
+    queryKey: ["/api/auth/user"],
+    retry: false,
+  });
+
+  const isLoggedIn = !!currentUser?.id;
 
   const validateMutation = useMutation({
     mutationFn: async (simulationCode: string) => {
@@ -44,16 +59,48 @@ export default function SimulationEntryPage() {
       }
       return res.json() as Promise<ValidateResponse>;
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       setError(null);
       setValidated(true);
 
-      sessionStorage.setItem("ziba-sim-code", code.trim());
+      if (isLoggedIn) {
+        setActivating(true);
+        try {
+          const enterRes = await fetch("/api/simulation/enter", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ code: code.trim() }),
+          });
 
-      setTimeout(() => {
-        const loginRole = data.role === "admin" || data.role === "director" ? "admin" : data.role;
-        window.location.href = `/api/login?role=${loginRole}`;
-      }, 1200);
+          if (enterRes.ok) {
+            queryClient.invalidateQueries({ queryKey: ["/api/simulation/status"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/user/role"] });
+
+            setTimeout(() => {
+              const dashboardPath = getRoleDashboardPath(data.role);
+              window.location.href = dashboardPath;
+            }, 800);
+          } else {
+            const errData = await enterRes.json();
+            setError(errData.message || "Failed to activate simulation");
+            setValidated(false);
+            setActivating(false);
+          }
+        } catch {
+          setError("Failed to activate simulation. Please try again.");
+          setValidated(false);
+          setActivating(false);
+        }
+      } else {
+        sessionStorage.setItem("ziba-sim-code", code.trim());
+        sessionStorage.setItem("ziba-sim-role", data.role);
+
+        setTimeout(() => {
+          const loginRole = data.role === "admin" || data.role === "director" ? "admin" : data.role;
+          window.location.href = `/api/login?role=${loginRole}`;
+        }, 1200);
+      }
     },
     onError: (err: Error) => {
       setError(err.message);
@@ -113,7 +160,9 @@ export default function SimulationEntryPage() {
             <div className="text-center py-4" data-testid="text-simulation-validated">
               <CheckCircle className="h-10 w-10 mx-auto mb-3 text-green-600 dark:text-green-400" />
               <p className="text-sm font-medium">Code verified</p>
-              <p className="text-xs text-muted-foreground mt-1">Redirecting to login...</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {activating ? "Activating simulation..." : "Redirecting to login..."}
+              </p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
