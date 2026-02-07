@@ -76,7 +76,7 @@ export default function RiderInbox() {
   const { toast } = useToast();
   const [prefsOpen, setPrefsOpen] = useState(false);
 
-  const { data: messages, isLoading } = useQuery<InboxMessage[]>({
+  const { data: messages, isLoading, isError } = useQuery<InboxMessage[]>({
     queryKey: ["/api/rider/inbox"],
   });
 
@@ -223,6 +223,13 @@ export default function RiderInbox() {
               <Skeleton className="h-20 w-full" />
               <Skeleton className="h-20 w-full" />
             </div>
+          ) : isError ? (
+            <div className="text-center py-12 space-y-3">
+              <Mail className="h-10 w-10 mx-auto text-muted-foreground" />
+              <p className="text-sm text-muted-foreground" data-testid="text-inbox-error">
+                Unable to load your inbox right now. Please try again later.
+              </p>
+            </div>
           ) : !messages || messages.length === 0 ? (
             <Card data-testid="card-empty-inbox">
               <CardContent className="p-8 text-center">
@@ -235,7 +242,7 @@ export default function RiderInbox() {
             </Card>
           ) : (
             <div className="space-y-2">
-              {messages.map((msg) => {
+              {messages?.map((msg) => {
                 const Icon = messageIcons[msg.type] || Bell;
                 return (
                   <Card

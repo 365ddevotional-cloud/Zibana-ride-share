@@ -95,7 +95,8 @@ export default function RiderWallet() {
       toast({ title: "Auto top-up settings updated" });
     },
     onError: (error: Error) => {
-      toast({ title: error.message || "Failed to update auto top-up", variant: "destructive" });
+      const msg = error.message?.replace(/^\d+:\s*/, "") || "Failed to update auto top-up settings";
+      toast({ title: msg, variant: "destructive" });
     },
   });
 
@@ -360,7 +361,7 @@ export default function RiderWallet() {
 
               {!autoTopUp?.enabled && (
                 <p className="text-xs text-muted-foreground">
-                  Turn on auto top-up so you never run out of wallet balance during a trip.
+                  Turn on auto top-up so you never run out of wallet balance during a trip. A payment method is required for auto top-up to process.
                 </p>
               )}
             </CardContent>
