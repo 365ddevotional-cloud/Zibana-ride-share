@@ -1235,6 +1235,27 @@ export interface IStorage {
   getAllCountryCashConfigs(): Promise<CountryCashConfig[]>;
   upsertCountryCashConfig(data: InsertCountryCashConfig): Promise<CountryCashConfig>;
 
+  // Auto Top-Up Methods
+  getAutoTopUpSettings(userId: string): Promise<{
+    autoTopUpEnabled: boolean;
+    autoTopUpThreshold: string;
+    autoTopUpAmount: string;
+    autoTopUpPaymentMethodId: string | null;
+    autoTopUpLastAttemptAt: Date | null;
+    autoTopUpLastFailureAt: Date | null;
+    autoTopUpFailureCount: number;
+    autoTopUpCooldownUntil: Date | null;
+  } | null>;
+  updateAutoTopUpSettings(userId: string, settings: {
+    enabled: boolean;
+    threshold?: string;
+    amount?: string;
+    paymentMethodId?: string | null;
+  }): Promise<RiderWallet | null>;
+  recordAutoTopUpAttempt(userId: string, success: boolean): Promise<void>;
+  shouldTriggerAutoTopUp(userId: string): Promise<boolean>;
+  triggerAutoTopUp(userId: string): Promise<void>;
+
   // Simulation Center
   createSimulationCode(data: InsertSimulationCode): Promise<SimulationCode>;
   getSimulationCode(code: string): Promise<SimulationCode | null>;
@@ -5764,6 +5785,169 @@ export class DatabaseStorage implements IStorage {
       });
     }
     return wallet || null;
+  }
+
+  // Auto Top-Up Methods
+  async getAutoTopUpSettings(userId: string) {
+    const wallet = await this.getRiderWallet(userId);
+    if (!wallet) return null;
+    return {
+      autoTopUpEnabled: wallet.autoTopUpEnabled,
+      autoTopUpThreshold: String(wallet.autoTopUpThreshold),
+      autoTopUpAmount: String(wallet.autoTopUpAmount),
+      autoTopUpPaymentMethodId: wallet.autoTopUpPaymentMethodId,
+      autoTopUpLastAttemptAt: wallet.autoTopUpLastAttemptAt,
+      autoTopUpLastFailureAt: wallet.autoTopUpLastFailureAt,
+      autoTopUpFailureCount: wallet.autoTopUpFailureCount,
+      autoTopUpCooldownUntil: wallet.autoTopUpCooldownUntil,
+    };
+  }
+
+  async updateAutoTopUpSettings(userId: string, settings: {
+    enabled: boolean;
+    threshold?: string;
+    amount?: string;
+    paymentMethodId?: string | null;
+  }): Promise<RiderWallet | null> {
+    const updateData: any = {
+      autoTopUpEnabled: settings.enabled,
+      updatedAt: new Date(),
+    };
+    if (settings.threshold !== undefined) {
+      updateData.autoTopUpThreshold = settings.threshold;
+    }
+    if (settings.amount !== undefined) {
+      updateData.autoTopUpAmount = settings.amount;
+    }
+    if (settings.paymentMethodId !== undefined) {
+      updateData.autoTopUpPaymentMethodId = settings.paymentMethodId;
+    }
+    if (!settings.enabled) {
+      updateData.autoTopUpFailureCount = 0;
+      updateData.autoTopUpCooldownUntil = null;
+    }
+    const [wallet] = await db.update(riderWallets)
+      .set(updateData)
+      .where(eq(riderWallets.userId, userId))
+      .returning();
+    console.log(`[AUTO_TOPUP] Settings updated for user ${userId}: enabled=${settings.enabled}`);
+    return wallet || null;
+  }
+
+  async recordAutoTopUpAttempt(userId: string, success: boolean): Promise<void> {
+    if (success) {
+      await db.update(riderWallets)
+        .set({
+          autoTopUpLastAttemptAt: new Date(),
+          autoTopUpFailureCount: 0,
+          autoTopUpCooldownUntil: null,
+          autoTopUpLastFailureAt: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(riderWallets.userId, userId));
+      console.log(`[AUTO_TOPUP] Successful attempt recorded for user ${userId}`);
+    } else {
+      const wallet = await this.getRiderWallet(userId);
+      const newFailureCount = (wallet?.autoTopUpFailureCount || 0) + 1;
+      const cooldownMinutes = 5;
+      const cooldownUntil = new Date(Date.now() + cooldownMinutes * 60 * 1000);
+
+      const updateData: any = {
+        autoTopUpLastAttemptAt: new Date(),
+        autoTopUpLastFailureAt: new Date(),
+        autoTopUpFailureCount: newFailureCount,
+        autoTopUpCooldownUntil: cooldownUntil,
+        updatedAt: new Date(),
+      };
+
+      if (newFailureCount >= 3) {
+        updateData.autoTopUpEnabled = false;
+        console.log(`[AUTO_TOPUP] Auto top-up DISABLED for user ${userId} after ${newFailureCount} consecutive failures`);
+      }
+
+      await db.update(riderWallets)
+        .set(updateData)
+        .where(eq(riderWallets.userId, userId));
+      console.log(`[AUTO_TOPUP] Failed attempt recorded for user ${userId}, failureCount=${newFailureCount}`);
+    }
+  }
+
+  async shouldTriggerAutoTopUp(userId: string): Promise<boolean> {
+    const wallet = await this.getRiderWallet(userId);
+    if (!wallet) return false;
+    if (!wallet.autoTopUpEnabled) return false;
+    if (wallet.isFrozen) return false;
+    if (!wallet.autoTopUpPaymentMethodId) return false;
+
+    const now = new Date();
+    if (wallet.autoTopUpCooldownUntil && new Date(wallet.autoTopUpCooldownUntil) > now) {
+      console.log(`[AUTO_TOPUP] User ${userId} in cooldown until ${wallet.autoTopUpCooldownUntil}`);
+      return false;
+    }
+
+    const balance = parseFloat(String(wallet.balance || "0"));
+    const threshold = parseFloat(String(wallet.autoTopUpThreshold || "500"));
+
+    if (balance < threshold) {
+      console.log(`[AUTO_TOPUP] Balance ${balance} below threshold ${threshold} for user ${userId}`);
+      return true;
+    }
+    return false;
+  }
+
+  async triggerAutoTopUp(userId: string): Promise<void> {
+    console.log(`[AUTO_TOPUP] Triggering auto top-up for user ${userId}`);
+    const wallet = await this.getRiderWallet(userId);
+    if (!wallet || !wallet.autoTopUpEnabled || !wallet.autoTopUpPaymentMethodId) {
+      console.log(`[AUTO_TOPUP] Skipped - wallet not configured for user ${userId}`);
+      return;
+    }
+
+    const amount = parseFloat(String(wallet.autoTopUpAmount || "1000"));
+
+    try {
+      const { processPayment } = await import("./payment-provider");
+      const result = await processPayment("NG", {
+        amount,
+        currency: wallet.currency || "NGN",
+        userId,
+        description: "ZIBA Auto Top-Up",
+      });
+
+      if (result.success) {
+        await this.adjustRiderWalletBalance(userId, amount, "AUTO_TOPUP", "system");
+        await this.recordAutoTopUpAttempt(userId, true);
+        console.log(`[AUTO_TOPUP] Successfully topped up ${amount} for user ${userId}`);
+      } else {
+        await this.recordAutoTopUpAttempt(userId, false);
+        console.log(`[AUTO_TOPUP] Payment failed for user ${userId}: ${result.error || "Unknown error"}`);
+
+        const failureCount = (wallet.autoTopUpFailureCount || 0) + 1;
+        let notifMessage = `Your auto top-up of ${wallet.currency} ${amount.toFixed(2)} could not be processed. Please check your payment method.`;
+        if (failureCount >= 3) {
+          notifMessage = `Auto top-up has been disabled after multiple failed attempts. Please update your payment method and re-enable auto top-up.`;
+        }
+
+        await db.insert(notifications).values({
+          userId,
+          role: "rider",
+          title: "Auto Top-Up Failed",
+          type: "warning",
+          message: notifMessage,
+        });
+      }
+    } catch (error) {
+      await this.recordAutoTopUpAttempt(userId, false);
+      console.error(`[AUTO_TOPUP] Error processing auto top-up for user ${userId}:`, error);
+
+      await db.insert(notifications).values({
+        userId,
+        role: "rider",
+        title: "Auto Top-Up Failed",
+        type: "warning",
+        message: "Your auto top-up could not be processed. Please check your payment method.",
+      });
+    }
   }
 
   // Rider Payment Methods

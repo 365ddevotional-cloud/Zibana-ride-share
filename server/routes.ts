@@ -9875,6 +9875,14 @@ export async function registerRoutes(
         captureError = paymentError instanceof Error ? paymentError.message : "Payment capture failed";
       }
 
+      // Check auto top-up trigger after wallet debit
+      if (captureSucceeded && (paymentSource === "MAIN_WALLET" || paymentSource === "TEST_WALLET")) {
+        const shouldTopUp = await storage.shouldTriggerAutoTopUp(ride.riderId);
+        if (shouldTopUp) {
+          storage.triggerAutoTopUp(ride.riderId).catch(err => console.error("[AUTO_TOPUP] Error:", err));
+        }
+      }
+
       // If capture failed, move ride to PAYMENT_REVIEW instead of completed
       if (!captureSucceeded) {
         console.log(`[PAYMENT REVIEW] Ride ${rideId} moved to payment_review: ${captureError}`);
@@ -10093,6 +10101,14 @@ export async function registerRoutes(
           type: "ride_cancelled",
           message: `A cancellation fee of ₦${feeAmount.toFixed(2)} has been deducted from your wallet.`,
         });
+
+        // Check auto top-up trigger after cancellation fee debit
+        if (walletDebitSuccess) {
+          const shouldTopUp = await storage.shouldTriggerAutoTopUp(userId);
+          if (shouldTopUp) {
+            storage.triggerAutoTopUp(userId).catch(err => console.error("[AUTO_TOPUP] Error:", err));
+          }
+        }
       }
 
       await storage.createRideAuditLog({
@@ -11827,6 +11843,100 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error fetching escrow:", error);
       return res.status(500).json({ message: "Failed to fetch escrow" });
+    }
+  });
+
+  // ==========================================
+  // RIDER AUTO TOP-UP
+  // ==========================================
+
+  app.get("/api/rider/auto-topup", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const settings = await storage.getAutoTopUpSettings(userId);
+      if (!settings) {
+        return res.status(404).json({ message: "Wallet not found" });
+      }
+      return res.json(settings);
+    } catch (error) {
+      console.error("Error fetching auto top-up settings:", error);
+      return res.status(500).json({ message: "Failed to fetch auto top-up settings" });
+    }
+  });
+
+  app.post("/api/rider/auto-topup", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { enabled, threshold, amount, paymentMethodId } = req.body;
+
+      if (typeof enabled !== "boolean") {
+        return res.status(400).json({ message: "enabled must be a boolean" });
+      }
+
+      if (threshold !== undefined && threshold < 100) {
+        return res.status(400).json({ message: "Threshold must be at least 100" });
+      }
+
+      if (amount !== undefined && amount < 200) {
+        return res.status(400).json({ message: "Amount must be at least 200" });
+      }
+
+      if (enabled && !paymentMethodId) {
+        const existingSettings = await storage.getAutoTopUpSettings(userId);
+        if (!existingSettings?.autoTopUpPaymentMethodId) {
+          return res.status(400).json({ message: "A payment method is required to enable auto top-up" });
+        }
+      }
+
+      if (paymentMethodId) {
+        const method = await storage.getRiderPaymentMethod(paymentMethodId);
+        if (!method || method.userId !== userId) {
+          return res.status(400).json({ message: "Invalid payment method" });
+        }
+        if (!method.isActive) {
+          return res.status(400).json({ message: "Payment method is not active" });
+        }
+      }
+
+      const wallet = await storage.updateAutoTopUpSettings(userId, {
+        enabled,
+        threshold: threshold !== undefined ? threshold.toString() : undefined,
+        amount: amount !== undefined ? amount.toString() : undefined,
+        paymentMethodId: paymentMethodId !== undefined ? paymentMethodId : undefined,
+      });
+
+      if (!wallet) {
+        return res.status(404).json({ message: "Wallet not found" });
+      }
+
+      return res.json({
+        success: true,
+        message: enabled ? "Auto top-up enabled" : "Auto top-up disabled",
+        settings: {
+          autoTopUpEnabled: wallet.autoTopUpEnabled,
+          autoTopUpThreshold: wallet.autoTopUpThreshold,
+          autoTopUpAmount: wallet.autoTopUpAmount,
+          autoTopUpPaymentMethodId: wallet.autoTopUpPaymentMethodId,
+        },
+      });
+    } catch (error) {
+      console.error("Error updating auto top-up settings:", error);
+      return res.status(500).json({ message: "Failed to update auto top-up settings" });
+    }
+  });
+
+  app.post("/api/rider/auto-topup/trigger", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const shouldTopUp = await storage.shouldTriggerAutoTopUp(userId);
+      if (shouldTopUp) {
+        storage.triggerAutoTopUp(userId).catch(err => console.error("[AUTO_TOPUP] Error:", err));
+        return res.json({ triggered: true, message: "Auto top-up triggered" });
+      }
+      return res.json({ triggered: false, message: "Auto top-up not needed" });
+    } catch (error) {
+      console.error("Error triggering auto top-up:", error);
+      return res.status(500).json({ message: "Failed to trigger auto top-up" });
     }
   });
 

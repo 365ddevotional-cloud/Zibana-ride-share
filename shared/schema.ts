@@ -1385,6 +1385,14 @@ export const riderWallets = pgTable("rider_wallets", {
   frozenAt: timestamp("frozen_at"),
   frozenReason: text("frozen_reason"),
   frozenBy: varchar("frozen_by"),
+  autoTopUpEnabled: boolean("auto_top_up_enabled").notNull().default(false),
+  autoTopUpThreshold: decimal("auto_top_up_threshold", { precision: 10, scale: 2 }).notNull().default("500.00"),
+  autoTopUpAmount: decimal("auto_top_up_amount", { precision: 10, scale: 2 }).notNull().default("1000.00"),
+  autoTopUpPaymentMethodId: varchar("auto_top_up_payment_method_id"),
+  autoTopUpLastAttemptAt: timestamp("auto_top_up_last_attempt_at"),
+  autoTopUpLastFailureAt: timestamp("auto_top_up_last_failure_at"),
+  autoTopUpFailureCount: integer("auto_top_up_failure_count").notNull().default(0),
+  autoTopUpCooldownUntil: timestamp("auto_top_up_cooldown_until"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -2161,6 +2169,10 @@ export const insertRiderWalletSchema = createInsertSchema(riderWallets).omit({
   updatedAt: true,
   balance: true,
   lockedBalance: true,
+  autoTopUpLastAttemptAt: true,
+  autoTopUpLastFailureAt: true,
+  autoTopUpFailureCount: true,
+  autoTopUpCooldownUntil: true,
 });
 
 export const insertDriverWalletSchema = createInsertSchema(driverWallets).omit({

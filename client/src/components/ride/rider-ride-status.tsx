@@ -4,6 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { RideStatusTimeline } from "./ride-status-timeline";
 import { SafetyCheckModal } from "./safety-check-modal";
 import { WaitingTimer } from "./waiting-timer";
@@ -16,7 +26,8 @@ import {
   XCircle,
   Clock,
   Navigation,
-  Shield
+  Shield,
+  AlertTriangle
 } from "lucide-react";
 import type { RideWithDetails, RideStatus } from "@/hooks/use-ride-lifecycle";
 
@@ -36,6 +47,7 @@ export function RiderRideStatus({
   showSafetyCheck = false
 }: RiderRideStatusProps) {
   const [safetyModalOpen, setSafetyModalOpen] = useState(showSafetyCheck);
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
 
   const status = ride.status as RideStatus;
   
@@ -195,7 +207,14 @@ export function RiderRideStatus({
             <Button
               variant="outline"
               className="w-full"
-              onClick={() => onCancel(ride.id)}
+              onClick={() => {
+                const feeStatuses = ["driver_en_route", "arrived", "waiting"];
+                if (feeStatuses.includes(status)) {
+                  setCancelConfirmOpen(true);
+                } else {
+                  onCancel(ride.id);
+                }
+              }}
               disabled={isCancelling}
               data-testid="button-cancel-ride"
             >
@@ -215,6 +234,40 @@ export function RiderRideStatus({
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={cancelConfirmOpen} onOpenChange={setCancelConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Cancel this ride?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <span className="block">
+                {status === "arrived" || status === "waiting"
+                  ? "Your driver has already arrived. A cancellation fee will be charged to your wallet."
+                  : "Your driver is on the way. You may be charged a cancellation fee if you cancel now."}
+              </span>
+              <span className="block text-xs text-muted-foreground">
+                Cancellations within 3 minutes of driver acceptance are free.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-dismiss">Keep Ride</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setCancelConfirmOpen(false);
+                onCancel(ride.id);
+              }}
+              className="bg-destructive text-destructive-foreground hover-elevate"
+              data-testid="button-cancel-confirm"
+            >
+              Cancel Ride
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <SafetyCheckModal
         open={safetyModalOpen}
