@@ -427,7 +427,7 @@ export default function LegalPage() {
                     <section>
                       <h3 className="font-semibold text-lg mb-2">2. Safe Return Hubs</h3>
                       <p className="text-muted-foreground mb-2">
-                        ZIBA offers Safe Return Hubs as an optional, recommended method for item returns:
+                        ZIBA facilitates Safe Return Hubs as an optional method for item returns. Hubs are operated by independent partners:
                       </p>
                       <ul className="list-disc pl-6 text-muted-foreground space-y-1">
                         <li>Safe Return Hubs are designated partner locations (stores, fuel stations, service centers) where drivers can drop off found items</li>
@@ -435,6 +435,10 @@ export default function LegalPage() {
                         <li>Drivers may receive a bonus reward for using Safe Return Hubs</li>
                         <li>Hub service fees may apply and are disclosed before drop-off</li>
                         <li>ZIBA does not guarantee the security of items at hub locations</li>
+                        <li>Safe Return Hubs are independent partner entities, not owned or operated by ZIBA</li>
+                        <li>ZIBA does not take custody of, inspect, or verify items at any hub location</li>
+                        <li>ZIBA is not liable for loss, damage, theft, or mishandling of items at hub locations</li>
+                        <li>Hub operating hours and availability are managed by the hub partner and may change without notice</li>
                       </ul>
                     </section>
 

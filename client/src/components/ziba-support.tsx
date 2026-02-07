@@ -20,6 +20,8 @@ const QUICK_TOPICS = [
   { label: "Safety concerns", key: "safety" },
   { label: "Account settings", key: "account" },
   { label: "Cancel a ride", key: "cancel" },
+  { label: "Driver questions", key: "driver" },
+  { label: "Talk to Support", key: "escalate" },
 ];
 
 const SUPPORT_RESPONSES: Record<string, string> = {
@@ -30,7 +32,9 @@ const SUPPORT_RESPONSES: Record<string, string> = {
   "account": "You can update your profile, notification preferences, and privacy settings from the Account tab. For account-related issues, contact our support team through the Help Center.",
   "cancel": "You can cancel a ride before the driver arrives. Please note that cancellation fees may apply depending on timing. Check our Refund & Cancellation Policy in the Legal section for full details.",
   "default": "Thank you for reaching out to ZIBA Support. Based on your question, we recommend checking the Help Center articles for detailed guidance. If you need further assistance, you can submit a support ticket and our team will help you.",
-  "greeting": "Welcome to ZIBA Support. How can we help you today? Select a topic below or type your question.",
+  "greeting": "Hi, I'm ZIBA Support. I'm here to help you navigate the app. Select a topic below or type your question.",
+  "driver": "For driver-related questions: go to your Driver Dashboard for earnings, trips, and settings. You can manage your payout details in Wallet. For identity verification or document issues, check the Account section. ZIBA connects you with riders as an independent contractor - you control your own schedule and routes.",
+  "escalate": "We recommend submitting a support ticket for personalized assistance. Go to Help Center and tap 'Submit a Ticket'. Our support team will review your case and respond as soon as possible. For urgent safety matters, please use the SOS button during an active trip.",
 };
 
 function getResponse(input: string): string {
@@ -41,6 +45,8 @@ function getResponse(input: string): string {
   if (lower.includes("safe") || lower.includes("accident") || lower.includes("sos") || lower.includes("emergency")) return SUPPORT_RESPONSES["safety"];
   if (lower.includes("account") || lower.includes("profile") || lower.includes("settings") || lower.includes("password")) return SUPPORT_RESPONSES["account"];
   if (lower.includes("cancel")) return SUPPORT_RESPONSES["cancel"];
+  if (lower.includes("driver") || lower.includes("earning") || lower.includes("payout")) return SUPPORT_RESPONSES["driver"];
+  if (lower.includes("human") || lower.includes("agent") || lower.includes("support") || lower.includes("escalat") || lower.includes("talk") || lower.includes("ticket")) return SUPPORT_RESPONSES["escalate"];
   return SUPPORT_RESPONSES["default"];
 }
 
@@ -155,6 +161,17 @@ export function ZibaSupport({ onClose }: { onClose?: () => void }) {
             <Send className="h-4 w-4" />
           </Button>
         </form>
+
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full mt-2"
+          onClick={() => handleSend("Talk to Support")}
+          data-testid="button-escalate-support"
+        >
+          <Headphones className="h-3 w-3 mr-2" />
+          Talk to Support Team
+        </Button>
 
         <p className="text-[10px] text-muted-foreground text-center mt-2">
           ZIBA Support helps connect you with information and assistance.

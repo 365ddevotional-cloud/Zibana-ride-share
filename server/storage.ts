@@ -467,6 +467,9 @@ import {
   safeReturnHubs,
   type SafeReturnHub,
   type InsertSafeReturnHub,
+  legalAcknowledgements,
+  type LegalAcknowledgement,
+  type InsertLegalAcknowledgement,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull } from "drizzle-orm";
@@ -1436,6 +1439,10 @@ export interface IStorage {
   getActiveSafeReturnHubs(countryCode?: string): Promise<SafeReturnHub[]>;
   updateSafeReturnHub(id: string, data: Partial<SafeReturnHub>): Promise<SafeReturnHub | null>;
   deleteSafeReturnHub(id: string): Promise<boolean>;
+
+  // Legal acknowledgements
+  logLegalAcknowledgement(data: InsertLegalAcknowledgement): Promise<LegalAcknowledgement>;
+  getLegalAcknowledgements(userId?: string, type?: string): Promise<LegalAcknowledgement[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -10746,6 +10753,22 @@ export class DatabaseStorage implements IStorage {
   async deleteSafeReturnHub(id: string): Promise<boolean> {
     const result = await db.delete(safeReturnHubs).where(eq(safeReturnHubs.id, id)).returning();
     return result.length > 0;
+  }
+
+  async logLegalAcknowledgement(data: InsertLegalAcknowledgement): Promise<LegalAcknowledgement> {
+    const [result] = await db.insert(legalAcknowledgements).values(data).returning();
+    return result;
+  }
+
+  async getLegalAcknowledgements(userId?: string, type?: string): Promise<LegalAcknowledgement[]> {
+    let query = db.select().from(legalAcknowledgements);
+    const conditions = [];
+    if (userId) conditions.push(eq(legalAcknowledgements.userId, userId));
+    if (type) conditions.push(eq(legalAcknowledgements.acknowledgementType, type));
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+    return await query.orderBy(desc(legalAcknowledgements.createdAt)).limit(500);
   }
 }
 

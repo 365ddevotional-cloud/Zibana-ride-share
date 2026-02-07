@@ -15265,6 +15265,43 @@ export async function registerRoutes(
     }
   });
 
+  // Legal acknowledgement logging
+  app.post("/api/legal/acknowledge", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { acknowledgementType, countryCode, metadata } = req.body;
+      if (!acknowledgementType) return res.status(400).json({ message: "acknowledgementType is required" });
+
+      const result = await storage.logLegalAcknowledgement({
+        userId,
+        acknowledgementType,
+        countryCode: countryCode || null,
+        metadata: metadata ? JSON.stringify(metadata) : null,
+        ipAddress: req.ip || null,
+        userAgent: req.headers["user-agent"]?.substring(0, 500) || null,
+      });
+      res.json(result);
+    } catch (error) {
+      console.error("Error logging legal acknowledgement:", error);
+      return res.status(500).json({ message: "Failed to log legal acknowledgement" });
+    }
+  });
+
+  // Admin: view legal acknowledgements
+  app.get("/api/admin/legal-acknowledgements", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const { userId, type } = req.query;
+      const results = await storage.getLegalAcknowledgements(
+        userId as string | undefined,
+        type as string | undefined,
+      );
+      res.json(results);
+    } catch (error) {
+      console.error("Error fetching legal acknowledgements:", error);
+      return res.status(500).json({ message: "Failed to fetch legal acknowledgements" });
+    }
+  });
+
   // Check if user is a test user
   app.get("/api/compliance/test-mode", isAuthenticated, async (req, res) => {
     try {
