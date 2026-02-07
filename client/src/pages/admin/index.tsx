@@ -35,6 +35,7 @@ import { TaxComplianceConfig } from "@/components/admin/tax-compliance-config";
 import { CashSettlementPanel } from "@/components/admin/cash-settlement-panel";
 import { CashDisputesPanel } from "@/components/admin/cash-disputes-panel";
 import { SimulationCenter } from "@/components/admin/simulation-center";
+import { CorporateRidesPanel } from "@/components/admin/corporate-rides-panel";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -2346,6 +2347,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <TabsTrigger value="cash-disputes" className="admin-nav-trigger rounded-md" data-testid="tab-cash-disputes">
                 <ShieldAlert className="h-4 w-4 mr-2" />
                 Cash Disputes
+              </TabsTrigger>
+            )}
+            {(isSuperAdmin || userRole === "admin") && (
+              <TabsTrigger value="corporate" className="admin-nav-trigger rounded-md" data-testid="tab-corporate">
+                <Building className="h-4 w-4 mr-2" />
+                Corporate Rides
               </TabsTrigger>
             )}
             {isSuperAdmin && (
@@ -6668,6 +6675,11 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
           {(isSuperAdmin || userRole === "admin") && (
             <TabsContent value="cash-disputes">
               <CashDisputesPanel />
+            </TabsContent>
+          )}
+          {(isSuperAdmin || userRole === "admin") && (
+            <TabsContent value="corporate">
+              <CorporateRidesPanel />
             </TabsContent>
           )}
           {isSuperAdmin && (

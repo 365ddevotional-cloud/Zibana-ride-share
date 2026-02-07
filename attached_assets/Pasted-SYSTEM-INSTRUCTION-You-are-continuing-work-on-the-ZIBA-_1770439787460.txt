@@ -1,0 +1,146 @@
+SYSTEM INSTRUCTION:
+You are continuing work on the ZIBA Ride Share platform. Implement features carefully and incrementally. Do NOT remove existing logic. Do NOT expose platform commission, revenue splits, or internal pricing formulas in any UI, API, or Help Center content. Follow fintech, mobility, and app store compliance standards.
+
+---
+
+=================================================
+PHASE 5: ADMIN DASHBOARD – CORPORATE RIDES
+=================================================
+
+1. Create a dedicated Admin section: “Corporate & Scheduled Rides”.
+
+Admin capabilities:
+- View all corporate organizations.
+- See organization profile:
+  - Organization name
+  - Account status (Active / Suspended)
+  - Wallet balance
+  - Total rides
+  - Monthly usage
+- View list of members (riders linked to organization).
+- View trip history (filterable by date, member, status).
+
+2. Corporate wallet controls:
+- Admin can:
+  - View wallet balance
+  - View wallet transaction history
+  - Freeze wallet if suspicious activity detected
+- Admin CANNOT:
+  - Edit balances manually
+  - See payment gateway secrets
+
+3. Ride management:
+- View upcoming scheduled corporate rides.
+- View completed corporate rides.
+- See cancellation reasons and timestamps.
+- See cancellation fees applied (without revealing internal splits).
+
+4. Permissions:
+- Corporate admins can book rides.
+- Corporate members can only ride.
+- Admin can revoke or restore access.
+
+---
+
+=================================================
+PHASE 6: CANCELLATION FEE AMOUNTS (STRATEGIC)
+=================================================
+
+5. Set default cancellation fee values (configurable in Admin):
+
+Recommended Nigeria defaults:
+- Grace period after driver accepts: 3 minutes.
+- Cancellation fee after grace period (driver en route): ₦500.
+- Cancellation after driver arrives: ₦1,000.
+
+6. Rules:
+- Fee amounts stored in Admin Settings.
+- Fees may be adjusted per city/zone in future.
+- Never display fee breakdown or calculations to users.
+- UI text must say:
+  “A cancellation fee may apply.”
+
+7. Driver compensation:
+- Fee is credited to driver wallet or trip earnings.
+- Do NOT label as “commission” anywhere.
+
+---
+
+=================================================
+PHASE 7: BANK TRANSFER WALLET FUNDING
+=================================================
+
+8. Add Bank Transfer as a wallet funding option:
+
+Supported flow:
+- User selects “Add Funds” → “Bank Transfer”.
+- App generates:
+  - Unique virtual account number OR
+  - Bank instructions with reference code.
+- Transfer is matched automatically to wallet.
+
+9. Bank transfer rules:
+- Funds credited after confirmation.
+- Pending transfers shown as “Processing”.
+- Failed or unmatched transfers flagged for support review.
+- No direct bank-to-driver payments.
+
+10. Supported users:
+- Riders
+- Drivers
+- Corporate accounts
+
+11. Admin tools:
+- View pending bank transfers.
+- Approve or flag failed transfers.
+- Audit trail required.
+
+---
+
+=================================================
+PHASE 8: STORE TERMS & IN-APP WORDING
+=================================================
+
+12. Prepare compliant store-safe wording:
+
+PAYMENTS:
+“ZIBA allows riders to pay using cash or wallet balance. Wallets can be funded using cards or bank transfers. Payment options may vary by location.”
+
+CANCELLATIONS:
+“Riders may cancel a trip. If a driver has already started the trip or is on the way, a cancellation fee may apply.”
+
+SCHEDULED RIDES:
+“Scheduled rides allow users to request trips ahead of time. Availability depends on driver supply and location.”
+
+CORPORATE RIDES:
+“Organizations may book rides for members using a shared wallet. Usage is subject to account limits and availability.”
+
+DISCLAIMER:
+“Fees, availability, and features may vary by city and are subject to change.”
+
+13. Restrictions:
+- Do NOT mention:
+  - Commission percentages
+  - Revenue share
+  - Driver payout formulas
+- Keep language neutral and user-friendly.
+
+---
+
+=================================================
+PHASE 9: FINAL VALIDATION
+=================================================
+
+14. Verify:
+- Admin dashboards load correctly.
+- Corporate rides display correctly.
+- Bank transfer funding works end-to-end.
+- Cancellation fees trigger correctly.
+- Wallet auto-top-up remains functional.
+- Help Center content updated.
+
+15. Ensure:
+- No dead buttons
+- No broken navigation
+- Mobile-first UX
+- App Store & Play Store compliance

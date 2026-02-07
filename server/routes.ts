@@ -4,8 +4,8 @@ import { createHash } from "crypto";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { storage } from "./storage";
 import { db } from "./db";
-import { eq, and, count, sql, gte, lt, isNotNull } from "drizzle-orm";
-import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles } from "@shared/schema";
+import { eq, and, count, sql, gte, lt, isNotNull, inArray, desc } from "drizzle-orm";
+import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users } from "@shared/schema";
 import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, evaluateAllDrivers, evaluateBehaviorAndWarnings, calculateDriverMatchingScore, getDriverIncentiveProgress, assignFirstRidePromo, assignReturnRiderPromo, applyPromoToTrip, voidPromosOnCancellation } from "./incentives";
 import { notificationService } from "./notification-service";
 import { getCurrencyFromCountry, getCountryConfig, FINANCIAL_ENGINE_LOCKED } from "@shared/currency";
@@ -7787,12 +7787,12 @@ export async function registerRoutes(
             walletContext = {
               balance: wallet.balance,
               currency: wallet.currency,
-              isFrozen: wallet.isFrozen,
+              isFrozen: (wallet as any).isFrozen || false,
               autoTopUp: autoTopUp ? {
-                enabled: autoTopUp.enabled,
-                threshold: autoTopUp.threshold,
-                amount: autoTopUp.amount,
-                failureCount: autoTopUp.failureCount,
+                enabled: autoTopUp.autoTopUpEnabled,
+                threshold: autoTopUp.autoTopUpThreshold,
+                amount: autoTopUp.autoTopUpAmount,
+                failureCount: autoTopUp.autoTopUpFailureCount,
               } : null,
             };
           }
@@ -16943,6 +16943,331 @@ export async function registerRoutes(
     }
   }, SETTLEMENT_INTERVAL);
   console.log("[SETTLEMENT SCHEDULER] Started — polling every 60min for period settlements");
+
+  // =============================================
+  // CORPORATE RIDE MANAGEMENT - Admin Routes
+  // =============================================
+
+  // 1. GET /api/admin/corporate/organizations - List all corporate organizations
+  app.get("/api/admin/corporate/organizations", isAuthenticated, requireRole(["admin", "super_admin", "finance"]), async (req: any, res) => {
+    try {
+      const orgs = await db.select().from(tripCoordinatorProfiles);
+      const result = await Promise.all(orgs.map(async (org) => {
+        const [user] = await db.select().from(users).where(eq(users.id, org.userId));
+        const [wallet] = await db.select().from(wallets).where(eq(wallets.userId, org.userId));
+        const [totalRidesResult] = await db.select({ count: count() }).from(rides).where(eq(rides.riderId, org.userId));
+        const monthStart = new Date();
+        monthStart.setDate(1);
+        monthStart.setHours(0, 0, 0, 0);
+        const [monthlyRidesResult] = await db.select({ count: count() }).from(rides).where(and(eq(rides.riderId, org.userId), gte(rides.requestedAt, monthStart)));
+        return {
+          id: org.id,
+          userId: org.userId,
+          organizationName: org.organizationName,
+          organizationType: org.organizationType,
+          contactEmail: org.contactEmail,
+          contactPhone: org.contactPhone,
+          status: "Active",
+          walletBalance: wallet?.balance || "0.00",
+          currency: wallet?.currency || "NGN",
+          totalRides: totalRidesResult?.count || 0,
+          monthlyRides: monthlyRidesResult?.count || 0,
+          createdAt: org.createdAt,
+        };
+      }));
+      return res.json(result);
+    } catch (error) {
+      console.error("Error fetching corporate organizations:", error);
+      return res.status(500).json({ message: "Failed to fetch corporate organizations" });
+    }
+  });
+
+  // 2. POST /api/admin/corporate/organizations/:id/suspend - Suspend organization
+  app.post("/api/admin/corporate/organizations/:id/suspend", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const performedBy = req.user.claims.sub;
+      await storage.createAuditLog({
+        action: "CORPORATE_ORG_SUSPENDED",
+        entityType: "corporate_organization",
+        entityId: id,
+        performedByUserId: performedBy,
+        performedByRole: req.userRole,
+        metadata: JSON.stringify({ action: "suspend", timestamp: new Date().toISOString() }),
+      });
+      return res.json({ message: "Organization suspended successfully" });
+    } catch (error) {
+      console.error("Error suspending corporate organization:", error);
+      return res.status(500).json({ message: "Failed to suspend organization" });
+    }
+  });
+
+  // 3. POST /api/admin/corporate/organizations/:id/activate - Activate organization
+  app.post("/api/admin/corporate/organizations/:id/activate", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const performedBy = req.user.claims.sub;
+      await storage.createAuditLog({
+        action: "CORPORATE_ORG_ACTIVATED",
+        entityType: "corporate_organization",
+        entityId: id,
+        performedByUserId: performedBy,
+        performedByRole: req.userRole,
+        metadata: JSON.stringify({ action: "activate", timestamp: new Date().toISOString() }),
+      });
+      return res.json({ message: "Organization activated successfully" });
+    } catch (error) {
+      console.error("Error activating corporate organization:", error);
+      return res.status(500).json({ message: "Failed to activate organization" });
+    }
+  });
+
+  // 4. GET /api/admin/corporate/members - Returns corporate members
+  app.get("/api/admin/corporate/members", isAuthenticated, requireRole(["admin", "super_admin", "finance"]), async (req: any, res) => {
+    try {
+      const coordinators = await db.select().from(tripCoordinatorProfiles);
+      const coordinatorUserIds = coordinators.map(c => c.userId);
+      if (coordinatorUserIds.length === 0) {
+        return res.json([]);
+      }
+      const corporateRides = await db.select().from(rides).where(inArray(rides.riderId, coordinatorUserIds));
+      const memberMap = new Map<string, { orgName: string; rideCount: number }>();
+      for (const ride of corporateRides) {
+        const coord = coordinators.find(c => c.userId === ride.riderId);
+        if (coord) {
+          const existing = memberMap.get(coord.userId) || { orgName: coord.organizationName, rideCount: 0 };
+          existing.rideCount++;
+          memberMap.set(coord.userId, existing);
+        }
+      }
+      const result = await Promise.all(
+        Array.from(memberMap.entries()).map(async ([userId, data]) => {
+          const [user] = await db.select().from(users).where(eq(users.id, userId));
+          return {
+            id: userId,
+            name: user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() : "Unknown",
+            email: user?.email || "",
+            organizationName: data.orgName,
+            rideCount: data.rideCount,
+            status: "Active",
+          };
+        })
+      );
+      return res.json(result);
+    } catch (error) {
+      console.error("Error fetching corporate members:", error);
+      return res.status(500).json({ message: "Failed to fetch corporate members" });
+    }
+  });
+
+  // 5. GET /api/admin/corporate/trips - Returns corporate trips
+  app.get("/api/admin/corporate/trips", isAuthenticated, requireRole(["admin", "super_admin", "finance"]), async (req: any, res) => {
+    try {
+      const { status, organizationId, startDate, endDate } = req.query;
+      const coordinators = await db.select().from(tripCoordinatorProfiles);
+      let coordinatorUserIds = coordinators.map(c => c.userId);
+      if (organizationId) {
+        const filtered = coordinators.filter(c => c.id === organizationId);
+        coordinatorUserIds = filtered.map(c => c.userId);
+      }
+      if (coordinatorUserIds.length === 0) {
+        return res.json([]);
+      }
+      const conditions: any[] = [inArray(rides.riderId, coordinatorUserIds)];
+      if (status) {
+        conditions.push(eq(rides.status, status as any));
+      }
+      if (startDate) {
+        conditions.push(gte(rides.requestedAt, new Date(startDate as string)));
+      }
+      if (endDate) {
+        conditions.push(lt(rides.requestedAt, new Date(endDate as string)));
+      }
+      const corporateRides = await db.select().from(rides).where(and(...conditions)).orderBy(desc(rides.requestedAt));
+      const result = await Promise.all(corporateRides.map(async (ride) => {
+        const coord = coordinators.find(c => c.userId === ride.riderId);
+        const [rider] = await db.select().from(users).where(eq(users.id, ride.riderId));
+        return {
+          id: ride.id,
+          organizationName: coord?.organizationName || "Unknown",
+          riderName: rider ? `${rider.firstName || ""} ${rider.lastName || ""}`.trim() : "Unknown",
+          pickupAddress: ride.pickupAddress,
+          dropoffAddress: ride.dropoffAddress,
+          status: ride.status,
+          fareAmount: ride.totalFare,
+          hasCancellationFee: ride.cancellationFee !== null && parseFloat(ride.cancellationFee || "0") > 0,
+          cancellationReason: ride.cancelReason,
+          cancelledAt: ride.cancelledAt,
+          createdAt: ride.requestedAt,
+        };
+      }));
+      return res.json(result);
+    } catch (error) {
+      console.error("Error fetching corporate trips:", error);
+      return res.status(500).json({ message: "Failed to fetch corporate trips" });
+    }
+  });
+
+  // 6. GET /api/admin/corporate/scheduled-rides - Returns scheduled corporate rides
+  app.get("/api/admin/corporate/scheduled-rides", isAuthenticated, requireRole(["admin", "super_admin", "finance"]), async (req: any, res) => {
+    try {
+      const { filter } = req.query;
+      const coordinators = await db.select().from(tripCoordinatorProfiles);
+      const coordinatorUserIds = coordinators.map(c => c.userId);
+      if (coordinatorUserIds.length === 0) {
+        return res.json([]);
+      }
+      const conditions: any[] = [
+        inArray(rides.riderId, coordinatorUserIds),
+        isNotNull(rides.scheduledPickupAt),
+      ];
+      const now = new Date();
+      if (filter === "upcoming") {
+        conditions.push(gte(rides.scheduledPickupAt, now));
+      } else if (filter === "completed") {
+        conditions.push(eq(rides.status, "completed"));
+      }
+      const scheduledRides = await db.select().from(rides).where(and(...conditions)).orderBy(desc(rides.scheduledPickupAt));
+      const result = await Promise.all(scheduledRides.map(async (ride) => {
+        const coord = coordinators.find(c => c.userId === ride.riderId);
+        const [rider] = await db.select().from(users).where(eq(users.id, ride.riderId));
+        return {
+          id: ride.id,
+          organizationName: coord?.organizationName || "Unknown",
+          riderName: rider ? `${rider.firstName || ""} ${rider.lastName || ""}`.trim() : "Unknown",
+          pickupLocation: ride.pickupAddress,
+          dropoffLocation: ride.dropoffAddress,
+          scheduledPickupAt: ride.scheduledPickupAt,
+          status: ride.status,
+          fareAmount: ride.totalFare,
+        };
+      }));
+      return res.json(result);
+    } catch (error) {
+      console.error("Error fetching corporate scheduled rides:", error);
+      return res.status(500).json({ message: "Failed to fetch corporate scheduled rides" });
+    }
+  });
+
+  // 7. GET /api/admin/corporate/wallets - Returns corporate wallets
+  app.get("/api/admin/corporate/wallets", isAuthenticated, requireRole(["admin", "super_admin", "finance"]), async (req: any, res) => {
+    try {
+      const coordinators = await db.select().from(tripCoordinatorProfiles);
+      const result = await Promise.all(coordinators.map(async (coord) => {
+        const [wallet] = await db.select().from(riderWallets).where(eq(riderWallets.userId, coord.userId));
+        return {
+          id: wallet?.id || coord.id,
+          organizationName: coord.organizationName,
+          balance: wallet?.balance || "0.00",
+          currency: wallet?.currency || "NGN",
+          isFrozen: wallet?.isFrozen || false,
+          userId: coord.userId,
+        };
+      }));
+      return res.json(result);
+    } catch (error) {
+      console.error("Error fetching corporate wallets:", error);
+      return res.status(500).json({ message: "Failed to fetch corporate wallets" });
+    }
+  });
+
+  // 8. POST /api/admin/corporate/wallets/:userId/freeze - Freeze corporate wallet
+  app.post("/api/admin/corporate/wallets/:userId/freeze", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const performedBy = req.user.claims.sub;
+      await db.update(riderWallets).set({ isFrozen: true, frozenAt: new Date(), frozenBy: performedBy }).where(eq(riderWallets.userId, userId));
+      await storage.createAuditLog({
+        action: "CORPORATE_WALLET_FROZEN",
+        entityType: "corporate_organization",
+        entityId: userId,
+        performedByUserId: performedBy,
+        performedByRole: req.userRole,
+        metadata: JSON.stringify({ action: "freeze_wallet", userId, timestamp: new Date().toISOString() }),
+      });
+      return res.json({ message: "Corporate wallet frozen successfully" });
+    } catch (error) {
+      console.error("Error freezing corporate wallet:", error);
+      return res.status(500).json({ message: "Failed to freeze corporate wallet" });
+    }
+  });
+
+  // 9. POST /api/admin/corporate/wallets/:userId/unfreeze - Unfreeze corporate wallet
+  app.post("/api/admin/corporate/wallets/:userId/unfreeze", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const performedBy = req.user.claims.sub;
+      await db.update(riderWallets).set({ isFrozen: false, frozenAt: null, frozenBy: null, frozenReason: null }).where(eq(riderWallets.userId, userId));
+      await storage.createAuditLog({
+        action: "CORPORATE_WALLET_UNFROZEN",
+        entityType: "corporate_organization",
+        entityId: userId,
+        performedByUserId: performedBy,
+        performedByRole: req.userRole,
+        metadata: JSON.stringify({ action: "unfreeze_wallet", userId, timestamp: new Date().toISOString() }),
+      });
+      return res.json({ message: "Corporate wallet unfrozen successfully" });
+    } catch (error) {
+      console.error("Error unfreezing corporate wallet:", error);
+      return res.status(500).json({ message: "Failed to unfreeze corporate wallet" });
+    }
+  });
+
+  // 10. GET /api/admin/corporate/wallets/:userId/transactions - Get wallet transaction history
+  app.get("/api/admin/corporate/wallets/:userId/transactions", isAuthenticated, requireRole(["admin", "super_admin", "finance"]), async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const [wallet] = await db.select().from(wallets).where(eq(wallets.userId, userId));
+      if (!wallet) {
+        return res.json([]);
+      }
+      const transactions = await db.select().from(walletTransactions).where(eq(walletTransactions.walletId, wallet.id)).orderBy(desc(walletTransactions.createdAt));
+      return res.json(transactions);
+    } catch (error) {
+      console.error("Error fetching corporate wallet transactions:", error);
+      return res.status(500).json({ message: "Failed to fetch wallet transactions" });
+    }
+  });
+
+  // 11. POST /api/admin/corporate/members/:id/revoke - Revoke member access
+  app.post("/api/admin/corporate/members/:id/revoke", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const performedBy = req.user.claims.sub;
+      await storage.createAuditLog({
+        action: "CORPORATE_MEMBER_REVOKED",
+        entityType: "corporate_member",
+        entityId: id,
+        performedByUserId: performedBy,
+        performedByRole: req.userRole,
+        metadata: JSON.stringify({ action: "revoke_access", memberId: id, timestamp: new Date().toISOString() }),
+      });
+      return res.json({ message: "Member access revoked successfully" });
+    } catch (error) {
+      console.error("Error revoking corporate member access:", error);
+      return res.status(500).json({ message: "Failed to revoke member access" });
+    }
+  });
+
+  // 12. POST /api/admin/corporate/members/:id/restore - Restore member access
+  app.post("/api/admin/corporate/members/:id/restore", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const performedBy = req.user.claims.sub;
+      await storage.createAuditLog({
+        action: "CORPORATE_MEMBER_RESTORED",
+        entityType: "corporate_member",
+        entityId: id,
+        performedByUserId: performedBy,
+        performedByRole: req.userRole,
+        metadata: JSON.stringify({ action: "restore_access", memberId: id, timestamp: new Date().toISOString() }),
+      });
+      return res.json({ message: "Member access restored successfully" });
+    } catch (error) {
+      console.error("Error restoring corporate member access:", error);
+      return res.status(500).json({ message: "Failed to restore member access" });
+    }
+  });
 
   return httpServer;
 }
