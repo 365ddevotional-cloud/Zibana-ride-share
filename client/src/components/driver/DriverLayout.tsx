@@ -1,6 +1,8 @@
 import { Link, useLocation } from "wouter";
-import { Home, Car, TrendingUp, Wallet, HelpCircle } from "lucide-react";
+import { Home, Car, TrendingUp, Wallet, HelpCircle, Sun, Moon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/components/theme-provider";
+import { Button } from "@/components/ui/button";
 
 interface DriverLayoutProps {
   children: React.ReactNode;
@@ -16,6 +18,11 @@ const navItems = [
 
 export function DriverLayout({ children }: DriverLayoutProps) {
   const [location] = useLocation();
+  const { setTheme, resolvedTheme } = useTheme();
+
+  const toggleTheme = () => {
+    setTheme(resolvedTheme === "dark" ? "light" : "dark");
+  };
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -27,6 +34,21 @@ export function DriverLayout({ children }: DriverLayoutProps) {
               <span className="text-xs font-medium opacity-80">Driver</span>
             </div>
           </Link>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleTheme}
+              className="text-white"
+              data-testid="button-driver-theme-toggle"
+            >
+              {resolvedTheme === "dark" ? (
+                <Sun className="h-5 w-5" />
+              ) : (
+                <Moon className="h-5 w-5" />
+              )}
+            </Button>
+          </div>
         </div>
       </header>
 
