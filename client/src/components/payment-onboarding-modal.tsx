@@ -35,6 +35,10 @@ export function PaymentOnboardingModal() {
     markSeenMutation.mutate();
   };
 
+  const handleDetailGotIt = () => {
+    setStep("intro");
+  };
+
   return (
     <Dialog open={!onboardingStatus.seen} onOpenChange={(open) => { if (!open) handleDismiss(); }}>
       <DialogContent className="max-w-sm" data-testid="dialog-payment-onboarding">
@@ -49,6 +53,7 @@ export function PaymentOnboardingModal() {
             </DialogHeader>
             <div className="space-y-3 py-2">
               <button
+                type="button"
                 className="w-full flex items-center gap-3 p-3 rounded-md hover-elevate text-left"
                 onClick={() => setStep("cash")}
                 data-testid="button-learn-cash"
@@ -63,6 +68,7 @@ export function PaymentOnboardingModal() {
                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
               </button>
               <button
+                type="button"
                 className="w-full flex items-center gap-3 p-3 rounded-md hover-elevate text-left"
                 onClick={() => setStep("card")}
                 data-testid="button-learn-card"
@@ -78,7 +84,12 @@ export function PaymentOnboardingModal() {
               </button>
             </div>
             <DialogFooter>
-              <Button className="w-full" onClick={handleDismiss} data-testid="button-got-it">
+              <Button
+                type="button"
+                className="w-full relative z-10"
+                onClick={(e) => { e.stopPropagation(); handleDismiss(); }}
+                data-testid="button-got-it"
+              >
                 Got it
               </Button>
             </DialogFooter>
@@ -100,10 +111,20 @@ export function PaymentOnboardingModal() {
               </div>
             </div>
             <DialogFooter className="gap-2">
-              <Button variant="outline" onClick={() => setStep("intro")} data-testid="button-back">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={(e) => { e.stopPropagation(); setStep("intro"); }}
+                data-testid="button-back"
+              >
                 Back
               </Button>
-              <Button onClick={handleDismiss} data-testid="button-got-it-cash">
+              <Button
+                type="button"
+                className="relative z-10"
+                onClick={(e) => { e.stopPropagation(); handleDetailGotIt(); }}
+                data-testid="button-got-it-cash"
+              >
                 Got it
               </Button>
             </DialogFooter>
@@ -125,10 +146,20 @@ export function PaymentOnboardingModal() {
               </div>
             </div>
             <DialogFooter className="gap-2">
-              <Button variant="outline" onClick={() => setStep("intro")} data-testid="button-back-card">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={(e) => { e.stopPropagation(); setStep("intro"); }}
+                data-testid="button-back-card"
+              >
                 Back
               </Button>
-              <Button onClick={handleDismiss} data-testid="button-got-it-card">
+              <Button
+                type="button"
+                className="relative z-10"
+                onClick={(e) => { e.stopPropagation(); handleDetailGotIt(); }}
+                data-testid="button-got-it-card"
+              >
                 Got it
               </Button>
             </DialogFooter>

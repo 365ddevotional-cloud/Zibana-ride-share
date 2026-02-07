@@ -1,0 +1,63 @@
+CRITICAL UX FIX — RIDER PAYMENT MODALS (“GOT IT” BUTTON)
+
+Context:
+In the Rider app, the payment explanation modals (“How payments work on ZIBA”, “Paying with cash”, “Paying with card”) are displaying correctly, but the “Got it” button is NOT clickable on mobile. This blocks the user experience and must be fixed immediately.
+
+DESIRED BEHAVIOR (APPROVED):
+Option A (Standard Mobile UX):
+
+1. Main modal: “How payments work on ZIBA”
+   - When the rider taps “Got it”, the modal should CLOSE only.
+   - The rider should remain on the Rider Home screen (“Where are you going?”).
+   - No navigation to another page.
+
+2. Detail modal: “Paying with cash” OR “Paying with card”
+   - When the rider taps “Got it”, the detail modal should CLOSE.
+   - The user should return to the main “How payments work on ZIBA” modal.
+   - The existing “Back” button already handles backward navigation.
+
+IMPLEMENTATION REQUIREMENTS:
+
+A. CLICKABILITY FIX (CRITICAL)
+- Ensure the “Got it” button is fully clickable on mobile and desktop.
+- Check and fix:
+  - z-index layering (button must be above backdrop)
+  - pointer-events (button must NOT inherit pointer-events: none)
+  - overlay/backdrop elements blocking clicks
+  - parent containers using transform/backdrop-filter that block mobile taps
+- The button must respond immediately on iOS Safari and Android Chrome.
+
+B. EVENT HANDLING
+- “Got it” button must explicitly call:
+  - closeModal() for main modal
+  - closeDetailModal() for detail modal
+- Do NOT rely on backdrop clicks to dismiss.
+
+C. STATE MANAGEMENT
+- Maintain modal state cleanly:
+  - isPaymentInfoOpen
+  - isCashInfoOpen
+  - isCardInfoOpen
+- Closing a detail modal should NOT reset the entire rider screen.
+- No route change, no reload, no redirect.
+
+D. SAFETY CHECKS
+- Ensure this logic applies ONLY to Rider UI.
+- Do NOT affect simulation mode, admin panels, or driver flows.
+
+E. VISUAL CONFIRMATION
+- After fix:
+  - “Got it” button shows normal hover/tap feedback
+  - Cursor changes appropriately on desktop
+  - Button responds instantly on mobile tap
+
+FINAL VALIDATION STEPS (YOU MUST TEST):
+1. Open Rider app on mobile.
+2. Trigger “How payments work on ZIBA”.
+3. Tap “Paying with cash” → tap “Got it” → returns to main modal.
+4. Tap “Paying with card” → tap “Got it” → returns to main modal.
+5. Tap main “Got it” → modal closes → Rider Home remains visible.
+6. No frozen UI, no blocked screen, no forced refresh.
+
+This fix is required for Play Store and App Store launch readiness.
+Do not add new UI. Do not change copy. Only fix behavior and click handling.
