@@ -20,7 +20,7 @@ import { Switch } from "@/components/ui/switch";
 import { EmptyState } from "@/components/empty-state";
 import {
   ArrowLeft, Shield, Package, AlertTriangle, FileText, Users,
-  ChevronRight, Clock, Phone, MapPin, ShieldCheck, ExternalLink, MessageCircle,
+  ChevronRight, Clock, Phone, MapPin, ShieldCheck, ExternalLink, MessageCircle, CheckCircle,
 } from "lucide-react";
 
 interface Trip {
@@ -45,6 +45,14 @@ interface LostItemReport {
   riderPhoneVisible: boolean;
   driverPhoneVisible: boolean;
   returnFee?: string;
+  returnMethod?: string;
+  hubId?: string;
+  hubDropOffPhotoUrl?: string;
+  expectedDropOffTime?: string;
+  hubConfirmedAt?: string;
+  hubPickedUpAt?: string;
+  driverHubBonus?: string;
+  hubServiceFee?: string;
   createdAt: string;
 }
 
@@ -94,6 +102,9 @@ const STATUS_COLORS: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
   reviewed: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
   resolved: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+  en_route_to_hub: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400",
+  at_hub: "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400",
+  resolved_by_admin: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400",
 };
 
 function formatStatus(status: string) {
@@ -201,6 +212,20 @@ export default function SafetyHubPage() {
     },
     onError: (error: Error) => {
       toast({ title: "Failed to submit report", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const hubPickupMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("PATCH", `/api/lost-items/${id}/hub-pickup`, {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/lost-items/my-reports"] });
+      toast({ title: "Pickup confirmed", description: "Item has been picked up from the hub" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
 
@@ -411,6 +436,29 @@ export default function SafetyHubPage() {
                               </div>
                               <StatusBadge status={item.status} />
                             </div>
+                            {(item.status === "en_route_to_hub" || item.status === "at_hub") && (
+                              <div className="mt-2 p-2 rounded-md bg-teal-50 dark:bg-teal-900/20 space-y-1">
+                                <p className="text-xs font-medium flex items-center gap-1">
+                                  <MapPin className="h-3 w-3 text-teal-600" />
+                                  {item.status === "en_route_to_hub" ? "Driver is delivering to a Safe Return Hub" : "Item is at a Safe Return Hub"}
+                                </p>
+                                {item.hubConfirmedAt && (
+                                  <p className="text-xs text-muted-foreground">Dropped off: {new Date(item.hubConfirmedAt).toLocaleString()}</p>
+                                )}
+                              </div>
+                            )}
+                            {item.status === "at_hub" && (
+                              <Button
+                                size="sm"
+                                className="mt-2 bg-teal-600"
+                                onClick={() => hubPickupMutation.mutate(item.id)}
+                                disabled={hubPickupMutation.isPending}
+                                data-testid={`button-hub-pickup-${item.id}`}
+                              >
+                                <CheckCircle className="h-4 w-4 mr-1" />
+                                Confirm Pickup from Hub
+                              </Button>
+                            )}
                             {item.communicationUnlocked && (
                               <div className="mt-3 space-y-2">
                                 <Button

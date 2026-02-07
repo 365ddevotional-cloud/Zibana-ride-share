@@ -14,10 +14,12 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -28,7 +30,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Package, Search, Settings, MessageCircle, Lock, Unlock, Phone, PhoneOff, CheckCircle } from "lucide-react";
+import { Package, Search, Settings, MessageCircle, Lock, Unlock, Phone, PhoneOff, CheckCircle, MapPin, Plus, Trash2 } from "lucide-react";
 
 interface LostItem {
   id: string;
@@ -48,6 +50,12 @@ interface LostItem {
   communicationUnlocked?: boolean;
   riderPhoneVisible?: boolean;
   driverPhoneVisible?: boolean;
+  hubId?: string;
+  hubConfirmedAt?: string;
+  hubPickedUpAt?: string;
+  driverHubBonus?: string;
+  hubServiceFee?: string;
+  returnMethod?: string;
   createdAt: string;
   updatedAt?: string;
 }
@@ -106,6 +114,10 @@ function statusBadgeClass(status: string): string {
       return "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300";
     case "resolved_by_admin":
       return "bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300";
+    case "en_route_to_hub":
+      return "bg-cyan-100 text-cyan-700 dark:bg-cyan-900 dark:text-cyan-300";
+    case "at_hub":
+      return "bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-300";
     default:
       return "";
   }
@@ -121,6 +133,9 @@ export function LostItemsPanel() {
   const [driverShare, setDriverShare] = useState("");
   const [platformFee, setPlatformFee] = useState("");
   const [chatDialogItem, setChatDialogItem] = useState<LostItem | null>(null);
+  const [hubManagementOpen, setHubManagementOpen] = useState(false);
+  const [hubFormOpen, setHubFormOpen] = useState(false);
+  const [hubForm, setHubForm] = useState({ name: "", type: "partner_station", address: "", city: "", countryCode: "NG", contactPerson: "", contactPhone: "", hasCctv: false, driverBonusReward: "200.00", hubServiceFee: "0.00", operatingHoursStart: "08:00", operatingHoursEnd: "20:00" });
 
   const [feeCountryCode, setFeeCountryCode] = useState("NG");
   const [feeBaseFee, setFeeBaseFee] = useState("");
@@ -140,6 +155,39 @@ export function LostItemsPanel() {
   const { data: chatMessages, isLoading: chatLoading } = useQuery<ChatMessage[]>({
     queryKey: ["/api/lost-items", chatDialogItem?.id, "messages"],
     enabled: !!chatDialogItem,
+  });
+
+  const { data: hubs, isLoading: hubsLoading } = useQuery<any[]>({
+    queryKey: ["/api/admin/safe-return-hubs"],
+  });
+
+  const createHubMutation = useMutation({
+    mutationFn: async (data: typeof hubForm) => {
+      const res = await apiRequest("POST", "/api/admin/safe-return-hubs", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/safe-return-hubs"] });
+      toast({ title: "Hub created successfully" });
+      setHubFormOpen(false);
+      setHubForm({ name: "", type: "partner_station", address: "", city: "", countryCode: "NG", contactPerson: "", contactPhone: "", hasCctv: false, driverBonusReward: "200.00", hubServiceFee: "0.00", operatingHoursStart: "08:00", operatingHoursEnd: "20:00" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const deleteHubMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/admin/safe-return-hubs/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/safe-return-hubs"] });
+      toast({ title: "Hub deleted" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
   });
 
   const updateStatusMutation = useMutation({
@@ -433,6 +481,21 @@ export function LostItemsPanel() {
                     <p data-testid="text-detail-return-location">{selectedItem.returnLocation}</p>
                   </div>
                 )}
+                {selectedItem.hubId && (
+                  <div className="col-span-2 space-y-1">
+                    <span className="text-muted-foreground">Safe Return Hub:</span>
+                    <p data-testid="text-detail-hub">
+                      <Badge variant="outline" className="mr-1">
+                        <MapPin className="h-3 w-3 mr-1" />
+                        Hub Return
+                      </Badge>
+                      Hub ID: {selectedItem.hubId.slice(0, 8)}
+                    </p>
+                    {selectedItem.hubConfirmedAt && <p className="text-xs text-muted-foreground">Dropped off: {new Date(selectedItem.hubConfirmedAt).toLocaleString()}</p>}
+                    {selectedItem.hubPickedUpAt && <p className="text-xs text-muted-foreground">Picked up: {new Date(selectedItem.hubPickedUpAt).toLocaleString()}</p>}
+                    {selectedItem.driverHubBonus && <p className="text-xs text-emerald-600">Driver bonus: {selectedItem.driverHubBonus}</p>}
+                  </div>
+                )}
               </div>
 
               <div className="border-t pt-4 space-y-3">
@@ -596,6 +659,57 @@ export function LostItemsPanel() {
         </DialogContent>
       </Dialog>
 
+      <Card data-testid="card-hub-management">
+        <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <MapPin className="h-4 w-4" />
+            Safe Return Hubs
+          </CardTitle>
+          <Button size="sm" onClick={() => setHubFormOpen(true)} data-testid="button-add-hub">
+            <Plus className="h-4 w-4 mr-1" />
+            Add Hub
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {hubsLoading ? (
+            <Skeleton className="h-24 w-full" />
+          ) : !hubs || hubs.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4" data-testid="text-no-hubs">No hubs configured</p>
+          ) : (
+            <Table data-testid="table-hubs">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>City</TableHead>
+                  <TableHead>Hours</TableHead>
+                  <TableHead>Bonus</TableHead>
+                  <TableHead>CCTV</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {hubs.map((hub: any) => (
+                  <TableRow key={hub.id} data-testid={`hub-row-${hub.id}`}>
+                    <TableCell className="font-medium" data-testid={`text-hub-name-${hub.id}`}>{hub.name}</TableCell>
+                    <TableCell><Badge variant="outline">{hub.type}</Badge></TableCell>
+                    <TableCell>{hub.city}</TableCell>
+                    <TableCell className="text-xs">{hub.operatingHoursStart}-{hub.operatingHoursEnd}</TableCell>
+                    <TableCell className="text-emerald-600">{hub.driverBonusReward}</TableCell>
+                    <TableCell>{hub.hasCctv ? "Yes" : "No"}</TableCell>
+                    <TableCell>
+                      <Button size="icon" variant="ghost" onClick={() => deleteHubMutation.mutate(hub.id)} disabled={deleteHubMutation.isPending} data-testid={`button-delete-hub-${hub.id}`}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg" data-testid="text-fee-config-title">
@@ -713,6 +827,81 @@ export function LostItemsPanel() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={hubFormOpen} onOpenChange={setHubFormOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto" data-testid="dialog-create-hub">
+          <DialogHeader>
+            <DialogTitle>Add Safe Return Hub</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>Name</Label>
+              <Input value={hubForm.name} onChange={(e) => setHubForm({...hubForm, name: e.target.value})} placeholder="Hub name" data-testid="input-hub-name" />
+            </div>
+            <div className="space-y-1">
+              <Label>Type</Label>
+              <Select value={hubForm.type} onValueChange={(v) => setHubForm({...hubForm, type: v})}>
+                <SelectTrigger data-testid="select-hub-type"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="partner_station">Partner Station</SelectItem>
+                  <SelectItem value="police_station">Police Station</SelectItem>
+                  <SelectItem value="service_center">Service Center</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Address</Label>
+              <Input value={hubForm.address} onChange={(e) => setHubForm({...hubForm, address: e.target.value})} placeholder="Full address" data-testid="input-hub-address" />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label>City</Label>
+                <Input value={hubForm.city} onChange={(e) => setHubForm({...hubForm, city: e.target.value})} placeholder="City" data-testid="input-hub-city" />
+              </div>
+              <div className="space-y-1">
+                <Label>Country</Label>
+                <Input value={hubForm.countryCode} onChange={(e) => setHubForm({...hubForm, countryCode: e.target.value})} placeholder="NG" data-testid="input-hub-country" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label>Opening Time</Label>
+                <Input value={hubForm.operatingHoursStart} onChange={(e) => setHubForm({...hubForm, operatingHoursStart: e.target.value})} placeholder="08:00" data-testid="input-hub-open" />
+              </div>
+              <div className="space-y-1">
+                <Label>Closing Time</Label>
+                <Input value={hubForm.operatingHoursEnd} onChange={(e) => setHubForm({...hubForm, operatingHoursEnd: e.target.value})} placeholder="20:00" data-testid="input-hub-close" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label>Contact Person</Label>
+                <Input value={hubForm.contactPerson} onChange={(e) => setHubForm({...hubForm, contactPerson: e.target.value})} placeholder="Name" data-testid="input-hub-contact" />
+              </div>
+              <div className="space-y-1">
+                <Label>Contact Phone</Label>
+                <Input value={hubForm.contactPhone} onChange={(e) => setHubForm({...hubForm, contactPhone: e.target.value})} placeholder="Phone" data-testid="input-hub-phone" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label>Driver Bonus</Label>
+                <Input value={hubForm.driverBonusReward} onChange={(e) => setHubForm({...hubForm, driverBonusReward: e.target.value})} placeholder="200.00" data-testid="input-hub-bonus" />
+              </div>
+              <div className="space-y-1">
+                <Label>Service Fee</Label>
+                <Input value={hubForm.hubServiceFee} onChange={(e) => setHubForm({...hubForm, hubServiceFee: e.target.value})} placeholder="0.00" data-testid="input-hub-fee" />
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="flex gap-2">
+            <Button variant="outline" onClick={() => setHubFormOpen(false)} data-testid="button-cancel-hub-form">Cancel</Button>
+            <Button onClick={() => createHubMutation.mutate(hubForm)} disabled={!hubForm.name || !hubForm.address || !hubForm.city || createHubMutation.isPending} data-testid="button-submit-hub">
+              {createHubMutation.isPending ? "Creating..." : "Create Hub"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

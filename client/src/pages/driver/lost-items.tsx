@@ -13,7 +13,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { ChevronLeft, Package, Phone, Calendar, Tag, CheckCircle, XCircle, RotateCcw, AlertTriangle, DollarSign } from "lucide-react";
+import { ChevronLeft, Package, Phone, Calendar, Tag, CheckCircle, XCircle, RotateCcw, AlertTriangle, DollarSign, MapPin } from "lucide-react";
 
 interface LostItemReport {
   id: string;
@@ -30,6 +30,14 @@ interface LostItemReport {
   driverPhoneVisible: boolean;
   returnFee?: string;
   driverPayout?: string;
+  returnMethod?: string;
+  hubId?: string;
+  hubDropOffPhotoUrl?: string;
+  expectedDropOffTime?: string;
+  hubConfirmedAt?: string;
+  hubPickedUpAt?: string;
+  driverHubBonus?: string;
+  hubServiceFee?: string;
   createdAt: string;
 }
 
@@ -43,6 +51,8 @@ const STATUS_COLORS: Record<string, string> = {
   found: "bg-blue-500/15 text-blue-700 dark:text-blue-400",
   disputed: "bg-purple-500/15 text-purple-700 dark:text-purple-400",
   resolved_by_admin: "bg-indigo-500/15 text-indigo-700 dark:text-indigo-400",
+  en_route_to_hub: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-400",
+  at_hub: "bg-teal-500/15 text-teal-700 dark:text-teal-400",
 };
 
 function formatStatus(status: string) {
@@ -56,10 +66,17 @@ export default function DriverLostItems() {
   const [notesDialogOpen, setNotesDialogOpen] = useState(false);
   const [driverNotes, setDriverNotes] = useState("");
   const [pendingAction, setPendingAction] = useState<{ id: string; response: "driver_confirmed" | "driver_denied" } | null>(null);
+  const [hubDialogOpen, setHubDialogOpen] = useState(false);
+  const [selectedReportForHub, setSelectedReportForHub] = useState<string | null>(null);
+  const [selectedHubId, setSelectedHubId] = useState<string | null>(null);
 
   const { data: reports, isLoading } = useQuery<LostItemReport[]>({
     queryKey: ["/api/lost-items/driver-reports"],
     enabled: !!user,
+  });
+
+  const { data: hubs } = useQuery<any[]>({
+    queryKey: ["/api/safe-return-hubs"],
   });
 
   const respondMutation = useMutation({
@@ -76,6 +93,37 @@ export default function DriverLostItems() {
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message || "Failed to submit response", variant: "destructive" });
+    },
+  });
+
+  const selectReturnMethodMutation = useMutation({
+    mutationFn: async ({ id, returnMethod, hubId }: { id: string; returnMethod: string; hubId?: string }) => {
+      const res = await apiRequest("PATCH", `/api/lost-items/${id}/return-method`, { returnMethod, hubId });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/lost-items/driver-reports"] });
+      toast({ title: "Return method selected", description: "Return method has been set" });
+      setHubDialogOpen(false);
+      setSelectedReportForHub(null);
+      setSelectedHubId(null);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const hubDropoffMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("PATCH", `/api/lost-items/${id}/hub-dropoff`, {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/lost-items/driver-reports"] });
+      toast({ title: "Drop-off confirmed", description: "Item has been dropped off at the hub" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
 
@@ -109,7 +157,7 @@ export default function DriverLostItems() {
   };
 
   const showChat = (status: string) =>
-    ["driver_confirmed", "return_in_progress", "found", "returned"].includes(status);
+    ["driver_confirmed", "return_in_progress", "found", "returned", "en_route_to_hub", "at_hub"].includes(status);
 
   return (
     <DriverLayout>
@@ -260,6 +308,60 @@ export default function DriverLostItems() {
                     </Button>
                   )}
 
+                  {report.status === "found" && !report.returnMethod && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground">Choose return method:</p>
+                      <div className="flex gap-2 flex-wrap">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => selectReturnMethodMutation.mutate({ id: report.id, returnMethod: "direct" })}
+                          disabled={selectReturnMethodMutation.isPending}
+                          data-testid={`button-direct-return-${report.id}`}
+                        >
+                          <RotateCcw className="h-4 w-4 mr-1" />
+                          Return Directly
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="bg-teal-600"
+                          onClick={() => { setSelectedReportForHub(report.id); setHubDialogOpen(true); }}
+                          disabled={selectReturnMethodMutation.isPending}
+                          data-testid={`button-hub-return-${report.id}`}
+                        >
+                          <MapPin className="h-4 w-4 mr-1" />
+                          Drop at Safe Hub
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {report.status === "en_route_to_hub" && (
+                    <div className="space-y-2">
+                      <Badge className="bg-cyan-500/15 text-cyan-700 dark:text-cyan-400" data-testid={`badge-hub-enroute-${report.id}`}>
+                        <MapPin className="h-3 w-3 mr-1" />
+                        En Route to Hub
+                      </Badge>
+                      <Button
+                        size="sm"
+                        className="bg-teal-600"
+                        onClick={() => hubDropoffMutation.mutate(report.id)}
+                        disabled={hubDropoffMutation.isPending}
+                        data-testid={`button-confirm-dropoff-${report.id}`}
+                      >
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                        Confirm Drop-off at Hub
+                      </Button>
+                    </div>
+                  )}
+
+                  {report.status === "at_hub" && report.driverHubBonus && (
+                    <Badge className="bg-teal-500/15 text-teal-700 dark:text-teal-400" data-testid={`badge-hub-bonus-${report.id}`}>
+                      <DollarSign className="h-3 w-3 mr-1" />
+                      Hub Bonus: {report.driverHubBonus} (pending rider pickup)
+                    </Badge>
+                  )}
+
                   {showChat(report.status) && report.communicationUnlocked && (
                     <LostItemChat
                       reportId={report.id}
@@ -307,6 +409,53 @@ export default function DriverLostItems() {
               data-testid="button-submit-response"
             >
               {respondMutation.isPending ? "Submitting..." : "Submit"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={hubDialogOpen} onOpenChange={setHubDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Select Safe Return Hub</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+            {!hubs || hubs.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4" data-testid="text-no-hubs">No hubs available in your area</p>
+            ) : (
+              hubs.map((hub: any) => (
+                <Card
+                  key={hub.id}
+                  className={`cursor-pointer hover-elevate ${selectedHubId === hub.id ? "ring-2 ring-teal-500" : ""}`}
+                  onClick={() => setSelectedHubId(hub.id)}
+                  data-testid={`card-hub-${hub.id}`}
+                >
+                  <CardContent className="p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-medium text-sm" data-testid={`text-hub-name-${hub.id}`}>{hub.name}</p>
+                        <p className="text-xs text-muted-foreground">{hub.address}</p>
+                        <p className="text-xs text-muted-foreground">{hub.operatingHoursStart} - {hub.operatingHoursEnd}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        {hub.hasCctv && <Badge variant="outline" className="text-xs">CCTV</Badge>}
+                        <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">Bonus: {hub.driverBonusReward}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+          <DialogFooter className="flex gap-2">
+            <Button variant="outline" onClick={() => setHubDialogOpen(false)} data-testid="button-cancel-hub">Cancel</Button>
+            <Button
+              className="bg-teal-600"
+              disabled={!selectedHubId || selectReturnMethodMutation.isPending}
+              onClick={() => selectedReportForHub && selectedHubId && selectReturnMethodMutation.mutate({ id: selectedReportForHub, returnMethod: "hub", hubId: selectedHubId })}
+              data-testid="button-confirm-hub"
+            >
+              {selectReturnMethodMutation.isPending ? "Confirming..." : "Confirm Hub"}
             </Button>
           </DialogFooter>
         </DialogContent>
