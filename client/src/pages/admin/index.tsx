@@ -44,6 +44,7 @@ import { AccidentReportsPanel } from "@/components/admin/accident-reports-panel"
 import { InsurancePartnersPanel } from "@/components/admin/insurance-partners-panel";
 import { ReliefFundPanel } from "@/components/admin/relief-fund-panel";
 import { LostItemFraudPanel } from "@/components/admin/lost-item-fraud-panel";
+import { ComplianceLogPanel } from "@/components/admin/compliance-log-panel";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -2471,6 +2472,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <TabsTrigger value="safety" className="admin-nav-trigger rounded-md" data-testid="tab-safety">
                 <ShieldAlert className="h-4 w-4 mr-2" />
                 Safety
+              </TabsTrigger>
+            )}
+            {(isSuperAdmin || userRole === "admin") && (
+              <TabsTrigger value="compliance-logs" className="admin-nav-trigger rounded-md" data-testid="tab-compliance-logs">
+                <Shield className="h-4 w-4 mr-2" />
+                Compliance Logs
               </TabsTrigger>
             )}
             {(isSuperAdmin || userRole === "admin") && (
@@ -6846,6 +6853,11 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
             </TabsContent>
           )}
 
+          {(isSuperAdmin || userRole === "admin") && (
+            <TabsContent value="compliance-logs">
+              <ComplianceLogPanel />
+            </TabsContent>
+          )}
           {(isSuperAdmin || userRole === "admin") && (
             <TabsContent value="tax-documents">
               <div className="space-y-6">

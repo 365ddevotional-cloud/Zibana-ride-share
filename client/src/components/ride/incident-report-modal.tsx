@@ -71,6 +71,10 @@ export function IncidentReportModal({
       });
     },
     onSuccess: () => {
+      apiRequest("POST", "/api/legal/acknowledge", {
+        acknowledgementType: "INCIDENT_DISCLAIMER",
+        metadata: { formType: "incident_report" },
+      }).catch(() => {});
       toast({
         title: "Incident Reported",
         description: "Your incident report has been submitted successfully.",

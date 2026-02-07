@@ -21,6 +21,10 @@ export default function DriverRegister() {
       return response.json();
     },
     onSuccess: (data) => {
+      apiRequest("POST", "/api/legal/acknowledge", {
+        acknowledgementType: "DRIVER_REGISTRATION_TERMS",
+        metadata: { formType: "driver_registration" },
+      }).catch(() => {});
       queryClient.invalidateQueries({ queryKey: ["/api/user/role"] });
       toast({
         title: "Welcome to ZIBA Driver!",

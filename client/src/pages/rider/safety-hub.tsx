@@ -189,6 +189,10 @@ export default function SafetyHubPage() {
       return res.json();
     },
     onSuccess: () => {
+      apiRequest("POST", "/api/legal/acknowledge", {
+        acknowledgementType: "LOST_ITEM_DISCLAIMER",
+        metadata: { formType: "lost_item_report" },
+      }).catch(() => {});
       queryClient.invalidateQueries({ queryKey: ["/api/lost-items/my-reports"] });
       toast({ title: "Report submitted", description: "Your lost item report has been submitted successfully." });
       setLostItemDialogOpen(false);
@@ -208,6 +212,10 @@ export default function SafetyHubPage() {
       return res.json();
     },
     onSuccess: () => {
+      apiRequest("POST", "/api/legal/acknowledge", {
+        acknowledgementType: "ACCIDENT_DISCLAIMER",
+        metadata: { formType: "accident_report" },
+      }).catch(() => {});
       queryClient.invalidateQueries({ queryKey: ["/api/accident-reports/my-reports"] });
       toast({ title: "Report submitted", description: "Your accident report has been submitted successfully." });
       setAccidentDialogOpen(false);
