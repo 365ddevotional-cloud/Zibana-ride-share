@@ -1,0 +1,133 @@
+You are continuing execution of the ZIBA platform.
+
+STATUS:
+- Director logic finalized
+- ZIBRA Support stable
+- Onboarding & lifecycle complete
+- Permissions & simulations passed
+
+OBJECTIVE:
+Prepare ZIBA for PUBLIC LAUNCH by finalizing training, performance monitoring, store compliance, and operational readiness — without changing economics, commissions, or authority structures.
+
+DO NOT:
+- Change Director commission logic
+- Expose platform revenue
+- Rename ZIBRA / ZIBA Support
+- Break any existing flow
+
+====================================================
+PHASE 22 — DIRECTOR & DRIVER TRAINING MATERIALS
+====================================================
+
+Create built-in training content (in-app, non-video first):
+
+A) CONTRACT DIRECTOR TRAINING
+Topics:
+- How driver activity affects eligibility
+- Daily variability explained
+- Managing suspensions responsibly
+- Keeping drivers compliant
+- What Directors can and cannot do
+- How to avoid abuse flags
+
+B) EMPLOYED DIRECTOR TRAINING
+Topics:
+- Driver oversight
+- Reporting issues
+- Performance expectations
+- Escalation paths
+
+C) DRIVER TRAINING (LIGHT)
+Topics:
+- Staying active
+- Avoiding suspension
+- Lost item & safety expectations
+- Professional conduct
+
+Training format:
+- Short cards
+- Clear bullets
+- No financial numbers
+- Acknowledgement checkbox
+
+====================================================
+PHASE 23 — PERFORMANCE & HEALTH ALERTS
+====================================================
+
+Add NON-FINANCIAL alerts:
+
+Director alerts:
+- Driver activity dropping
+- High suspension rate
+- Approaching cell cap (1,300)
+- Low active driver percentage
+
+Admin alerts:
+- Director abuse patterns
+- Excessive suspensions
+- Appeal volume spikes
+
+ZIBRA may explain alerts, but never enforce actions.
+
+====================================================
+PHASE 24 — APP STORE & PLAY STORE COMPLIANCE (FINAL)
+====================================================
+
+Verify compliance:
+
+1) Automation disclosure
+- ZIBA Support described as “automated assistance”
+- No claims of human or AI deception
+
+2) Permissions
+- Notifications explained clearly
+- Location usage explained
+- No dark patterns
+
+3) Safety language
+- ZIBA is a facilitator
+- No guarantees
+- Clear responsibility boundaries
+
+4) Accessibility
+- Font size readable
+- Contrast acceptable
+- No blocked navigation
+
+====================================================
+PHASE 25 — OPERATIONAL READINESS
+====================================================
+
+Prepare Admin tools:
+- Director overview dashboard
+- Driver health overview
+- Appeal queue
+- ZIBRA logs viewer
+- Emergency suspend controls
+
+Prepare Playbooks:
+- Director suspension playbook
+- Mass driver issue playbook
+- Lost-item abuse playbook
+- Incident response playbook
+
+====================================================
+PHASE 26 — FINAL LAUNCH CHECKLIST
+====================================================
+
+Confirm:
+✔ All roles tested (Rider, Driver, Director, Admin, Super Admin)
+✔ ZIBRA responses safe and calm
+✔ No commission exposure
+✔ Appeals and suspensions work
+✔ Training acknowledged
+✔ Store compliance passed
+
+OUTPUT:
+1) Training content summary
+2) Alerts implemented
+3) Compliance checklist passed
+4) Launch readiness confirmation
+
+Proceed carefully.
+Do NOT mark launch-ready until all checks pass.

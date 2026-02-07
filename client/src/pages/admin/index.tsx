@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -110,6 +110,8 @@ import {
 } from "lucide-react";
 import type { DriverProfile, Trip, User } from "@shared/schema";
 import { NotificationBell } from "@/components/notification-bell";
+
+const DirectorOnboarding = lazy(() => import("@/components/director-onboarding"));
 
 type DriverWithUser = DriverProfile & { email?: string };
 type TripWithDetails = Trip & { driverName?: string; riderName?: string };
@@ -747,6 +749,8 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
     activeDriversToday: number;
     commissionableDrivers: number;
     suspendedDrivers: number;
+    lifecycleStatus: string;
+    onboardingCompleted: boolean;
   }>({
     queryKey: ["/api/director/dashboard"],
     enabled: !!user && isDirector,
@@ -2165,6 +2169,15 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               {directorDashboard.commissionFrozen && (
                 <Badge variant="destructive">Commissions Frozen</Badge>
               )}
+              {directorDashboard.lifecycleStatus === "suspended" && (
+                <Badge variant="destructive">Account Suspended</Badge>
+              )}
+              {directorDashboard.lifecycleStatus === "terminated" && (
+                <Badge variant="destructive">Terminated</Badge>
+              )}
+              {directorDashboard.lifecycleStatus === "pending" && (
+                <Badge variant="secondary">Pending Onboarding</Badge>
+              )}
               <span className="text-sm text-muted-foreground">
                 Cell: {directorDashboard.totalDrivers} / {directorDashboard.maxCellSize} max
               </span>
@@ -2173,6 +2186,18 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               Commission eligibility is calculated daily. Only a portion of active drivers count toward eligibility. Caps and ratios apply and may change based on policy.
             </p>
           </div>
+        )}
+
+        {isDirector && directorDashboard && !directorDashboard.onboardingCompleted && (
+          <Suspense fallback={<div className="text-sm text-muted-foreground">Loading...</div>}>
+            <DirectorOnboarding
+              directorType={directorDashboard.directorType as "contract" | "employed"}
+              referralCodeId={undefined}
+              onComplete={() => {
+                queryClient.invalidateQueries({ queryKey: ["/api/director/dashboard"] });
+              }}
+            />
+          </Suspense>
         )}
 
         {!isDirector && (<>
