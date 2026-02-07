@@ -1,0 +1,265 @@
+You are working on the ZIBA Ride Share app (Rider, Driver, Admin).
+Act as a senior full-stack engineer.
+Fix the issues below end-to-end and improve rider experience.
+Do NOT change pricing splits or expose platform commission anywhere.
+
+====================================
+GOAL
+====================================
+Stabilize and polish the Rider app by fixing:
+- Saved addresses
+- Scheduled ride persistence
+- Wallet auto top-up
+- Inbox & notifications
+- Theme & typography consistency
+- Cancellation penalties
+- User settings & notification controls
+- In-app engagement (welcome + marketing)
+
+====================================
+1️⃣ FIX: SAVED ADDRESSES (HOME & WORK)
+====================================
+
+BUG:
+- Home / Work address forms open
+- User enters address
+- Clicking “Save” fails with error
+
+REQUIRED FIX:
+- Backend endpoint:
+  POST /user/addresses
+- Required fields:
+  - user_id
+  - label (“home” | “work”)
+  - address_text
+  - notes (optional)
+- Persist address in DB
+- Return saved address
+
+FRONTEND:
+- On success → navigate back
+- Replace “Add home/work address” with saved value
+- Allow editing later
+
+VALIDATION:
+- Save Home → visible
+- Save Work → visible
+- Address reusable for pickup
+
+====================================
+2️⃣ FIX: WALLET AUTO TOP-UP
+====================================
+
+BUG:
+- Auto top-up toggle fails
+- Error shown: “Failed to update auto top-up”
+
+REQUIRED FIX:
+- Backend:
+  PATCH /wallet/auto-topup
+- Fields:
+  - enabled
+  - threshold_amount
+  - topup_amount
+- Require card to enable auto top-up
+- Clear error if no card exists
+
+FRONTEND:
+- Toggle ON/OFF works
+- Persist state after refresh
+- Prompt to add card if missing
+
+====================================
+3️⃣ FIX: SCHEDULED RIDES NOT APPEARING
+====================================
+
+BUG:
+- Ride schedules successfully
+- Confirmation appears
+- Scheduled list empty
+
+REQUIRED FIX:
+- Persist scheduled rides with:
+  - ride_type = "scheduled"
+  - status = "scheduled"
+  - scheduled_at
+  - pickup_location
+  - dropoff_location
+  - rider_id
+  - payment_method
+- API:
+  GET /rides?type=scheduled&user=rider
+
+FRONTEND:
+- Fetch & render immediately
+- Empty state ONLY if zero rides
+
+VALIDATION:
+- Schedule → view → ride appears
+
+====================================
+4️⃣ CANCELLATION FEE & PENALTIES (SERVER-SIDE)
+====================================
+
+RULES (Nigeria):
+- Free cancel within 3 minutes AFTER driver accepts
+- Cancel after 3 minutes while driver en route:
+  - Apply fixed cancellation fee
+- Scheduled ride canceled within 30 minutes:
+  - Apply scheduled penalty
+- Repeated cancellations reduce trust score
+
+IMPLEMENT:
+- Server-side enforcement only
+- Admin-configurable:
+  - cancellation_fee_amount
+  - scheduled_penalty_amount
+  - grace_period_minutes
+- Wallet deduction preferred
+- Clear warning message before cancel
+
+====================================
+5️⃣ RIDER INBOX (FIX + ENHANCE)
+====================================
+
+BUG:
+- Inbox crashes with “Something went wrong”
+
+REQUIRED FIX:
+- Backend:
+  GET /messages?user=rider
+- Must handle empty state safely
+
+INBOX FEATURES:
+- Message types:
+  - Trip updates
+  - Payment alerts
+  - Cancellation notices
+  - Promotions
+  - System messages
+- Default welcome message on first login:
+  Title: “Welcome to ZIBA 🎉”
+  Body: Friendly message expressing happiness to have the rider
+
+BADGE INDICATOR:
+- Inbox icon must show unread count
+- Red circular badge
+- White bold number inside
+- Updates in real time when messages arrive
+
+FRONTEND:
+- Inbox never hard-crashes
+- Empty state if no messages
+- Mark as read on open
+
+====================================
+6️⃣ NOTIFICATIONS (POWERFUL + USER SETTINGS)
+====================================
+
+DEFAULT BEHAVIOR:
+- Notifications ON by default
+- User can turn OFF later
+
+IMPLEMENT:
+- Notification permission request on first login
+- Save preference in user settings
+- Allow user to manage notification toggles:
+  - Trip updates
+  - Wallet alerts
+  - Promotions
+  - System alerts
+
+DELIVERY:
+- Notifications must:
+  - Appear in-app
+  - Also push to mobile device
+  - Behave like SMS (high priority push)
+- Triggers:
+  - Driver assigned
+  - Driver arriving
+  - Ride scheduled confirmation
+  - Cancellation penalties
+  - Low wallet balance
+  - New inbox message
+
+====================================
+7️⃣ IN-APP MARKETING (CONTROLLED)
+====================================
+
+AUTOMATED MESSAGES:
+- “Schedule rides ahead to avoid delays”
+- “Low balance — top up now”
+- “Drivers available near you”
+
+RULES:
+- Max 1 marketing message per 24 hours
+- Never during active trip
+- User can disable marketing notifications
+
+====================================
+8️⃣ THEME (LIGHT / DARK / SYSTEM)
+====================================
+
+BUG:
+- Theme switch exists on landing page
+- Missing inside Rider app
+
+FIX:
+- Global theme selector across Rider app
+- Options:
+  - Light
+  - Dark
+  - System (Auto)
+- Persist preference per user
+- Apply instantly across all pages
+
+====================================
+9️⃣ TYPOGRAPHY & UI CONSISTENCY
+====================================
+
+BUG:
+- Landing page fonts are large & beautiful
+- Rider app fonts are small
+
+FIX:
+- Use same font family as landing page
+- Increase:
+  - Headings
+  - Section titles
+  - Important labels
+- Improve spacing and readability
+- Apply globally to Rider app
+
+====================================
+10️⃣ ADMIN & DRIVER VISIBILITY
+====================================
+
+ADMIN:
+- View scheduled rides
+- View cancellation penalties
+- Configure penalty amounts
+- View rider inbox messages
+- See unread message counts
+
+DRIVER:
+- See upcoming scheduled rides
+- Receive reminders before pickup
+- Accept scheduled rides
+
+====================================
+FINAL VALIDATION CHECKLIST
+====================================
+
+✔ Home & Work addresses save correctly  
+✔ Wallet auto top-up works  
+✔ Scheduled rides persist & display  
+✔ Inbox loads with welcome message  
+✔ Inbox unread badge works  
+✔ Notifications push to phone  
+✔ Notification settings available  
+✔ Theme toggle everywhere  
+✔ Fonts consistent & polished  
+✔ Cancellation penalties enforced server-side  
+✔ No commission or splits exposed  
+
+Proceed carefully. Test each feature end-to-end before marking complete.

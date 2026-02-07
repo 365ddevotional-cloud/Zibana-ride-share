@@ -17766,7 +17766,19 @@ export async function registerRoutes(
   app.get("/api/rider/inbox", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const messages = await storage.getRiderInboxMessages(userId);
+      let messages = await storage.getRiderInboxMessages(userId);
+
+      if (messages.length === 0) {
+        await storage.createRiderInboxMessage({
+          userId,
+          title: "Welcome to ZIBA!",
+          body: "We're so happy to have you here! ZIBA connects you with safe and reliable rides whenever you need them. Enjoy your journey with us.",
+          type: "system_announcement",
+          read: false,
+        });
+        messages = await storage.getRiderInboxMessages(userId);
+      }
+
       return res.json(messages);
     } catch (error) {
       console.error("Error getting rider inbox:", error);
@@ -17803,8 +17815,8 @@ export async function registerRoutes(
   app.get("/api/rider/inbox/unread-count", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const unreadCount = await storage.getRiderUnreadMessageCount(userId);
-      return res.json({ unreadCount });
+      const count = await storage.getRiderUnreadMessageCount(userId);
+      return res.json({ count });
     } catch (error) {
       console.error("Error getting unread count:", error);
       return res.status(500).json({ message: "Failed to get unread count" });
