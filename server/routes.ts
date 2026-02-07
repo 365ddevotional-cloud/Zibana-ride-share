@@ -13198,6 +13198,306 @@ export async function registerRoutes(
   });
 
   // =============================================
+  // LOST ITEM REPORTS
+  // =============================================
+
+  // Rider: Report a lost item
+  app.post("/api/lost-items", isAuthenticated, async (req, res) => {
+    try {
+      const riderId = req.user!.claims.sub;
+      const { tripId, itemDescription, itemCategory, lastSeenLocation, contactPhone, photoUrls } = req.body;
+
+      if (!tripId || !itemDescription) {
+        return res.status(400).json({ message: "Trip ID and item description are required" });
+      }
+
+      const trip = await storage.getTrip(tripId);
+      if (!trip) {
+        return res.status(404).json({ message: "Trip not found" });
+      }
+
+      const report = await storage.createLostItemReport({
+        tripId,
+        riderId,
+        driverId: trip.driverId || "",
+        itemDescription,
+        itemCategory: itemCategory || "other",
+        lastSeenLocation: lastSeenLocation || null,
+        contactPhone: contactPhone || null,
+        photoUrls: photoUrls || null,
+        status: "reported",
+      });
+
+      return res.status(201).json(report);
+    } catch (error) {
+      console.error("Error creating lost item report:", error);
+      return res.status(500).json({ message: "Failed to create report" });
+    }
+  });
+
+  // Rider: Get my lost item reports
+  app.get("/api/lost-items/my-reports", isAuthenticated, async (req, res) => {
+    try {
+      const riderId = req.user!.claims.sub;
+      const reports = await storage.getLostItemReportsByRider(riderId);
+      return res.json(reports);
+    } catch (error) {
+      console.error("Error getting lost item reports:", error);
+      return res.status(500).json({ message: "Failed to get reports" });
+    }
+  });
+
+  // Driver: Get lost item reports assigned to me
+  app.get("/api/lost-items/driver-reports", isAuthenticated, async (req, res) => {
+    try {
+      const driverId = req.user!.claims.sub;
+      const reports = await storage.getLostItemReportsByDriver(driverId);
+      return res.json(reports);
+    } catch (error) {
+      console.error("Error getting driver lost item reports:", error);
+      return res.status(500).json({ message: "Failed to get reports" });
+    }
+  });
+
+  // Get single lost item report
+  app.get("/api/lost-items/:id", isAuthenticated, async (req, res) => {
+    try {
+      const report = await storage.getLostItemReport(req.params.id);
+      if (!report) {
+        return res.status(404).json({ message: "Report not found" });
+      }
+      return res.json(report);
+    } catch (error) {
+      console.error("Error getting lost item report:", error);
+      return res.status(500).json({ message: "Failed to get report" });
+    }
+  });
+
+  // Driver: Confirm or deny lost item
+  app.patch("/api/lost-items/:id/driver-response", isAuthenticated, async (req, res) => {
+    try {
+      const driverId = req.user!.claims.sub;
+      const { response, driverNotes } = req.body;
+
+      if (!response || !["driver_confirmed", "driver_denied"].includes(response)) {
+        return res.status(400).json({ message: "Response must be 'driver_confirmed' or 'driver_denied'" });
+      }
+
+      const report = await storage.getLostItemReport(req.params.id);
+      if (!report) {
+        return res.status(404).json({ message: "Report not found" });
+      }
+      if (report.driverId !== driverId) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+
+      const updated = await storage.updateLostItemReport(req.params.id, {
+        status: response,
+        driverNotes: driverNotes || null,
+        driverResponseAt: new Date(),
+      });
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error updating lost item report:", error);
+      return res.status(500).json({ message: "Failed to update report" });
+    }
+  });
+
+  // Update lost item status (return in progress, returned, etc.)
+  app.patch("/api/lost-items/:id/status", isAuthenticated, async (req, res) => {
+    try {
+      const { status, returnFee, driverShare, platformFee, returnLocation, returnNotes } = req.body;
+
+      if (!status) {
+        return res.status(400).json({ message: "Status is required" });
+      }
+
+      const report = await storage.getLostItemReport(req.params.id);
+      if (!report) {
+        return res.status(404).json({ message: "Report not found" });
+      }
+
+      const updateData: any = { status };
+      if (returnFee !== undefined) updateData.returnFee = returnFee;
+      if (driverShare !== undefined) updateData.driverShare = driverShare;
+      if (platformFee !== undefined) updateData.platformFee = platformFee;
+      if (returnLocation) updateData.returnLocation = returnLocation;
+      if (returnNotes) updateData.returnNotes = returnNotes;
+      if (status === "returned") updateData.returnedAt = new Date();
+      if (status === "closed") updateData.closedAt = new Date();
+
+      const updated = await storage.updateLostItemReport(req.params.id, updateData);
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error updating lost item status:", error);
+      return res.status(500).json({ message: "Failed to update status" });
+    }
+  });
+
+  // Admin: Get all lost item reports
+  app.get("/api/admin/lost-items", isAuthenticated, requireRole(["super_admin", "admin", "support_agent"]), async (req, res) => {
+    try {
+      const { status } = req.query;
+      const reports = status 
+        ? await storage.getLostItemReportsByStatus(status as string)
+        : await storage.getAllLostItemReports();
+      return res.json(reports);
+    } catch (error) {
+      console.error("Error getting all lost item reports:", error);
+      return res.status(500).json({ message: "Failed to get reports" });
+    }
+  });
+
+  // Admin: Get/update lost item fee config
+  app.get("/api/admin/lost-item-fees", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const configs = await storage.getAllLostItemFeeConfigs();
+      return res.json(configs);
+    } catch (error) {
+      console.error("Error getting lost item fee configs:", error);
+      return res.status(500).json({ message: "Failed to get configs" });
+    }
+  });
+
+  app.post("/api/admin/lost-item-fees", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const { countryCode, baseFee, perKmFee, maxFee, driverSharePercent, currency } = req.body;
+      if (!countryCode) {
+        return res.status(400).json({ message: "Country code is required" });
+      }
+      const config = await storage.upsertLostItemFeeConfig({
+        countryCode,
+        baseFee: baseFee || "500",
+        perKmFee: perKmFee || "50",
+        maxFee: maxFee || "5000",
+        driverSharePercent: driverSharePercent || "70",
+        currency: currency || "NGN",
+      });
+      return res.json(config);
+    } catch (error) {
+      console.error("Error updating lost item fee config:", error);
+      return res.status(500).json({ message: "Failed to update config" });
+    }
+  });
+
+  // =============================================
+  // ACCIDENT REPORTS
+  // =============================================
+
+  // Report an accident
+  app.post("/api/accident-reports", isAuthenticated, async (req, res) => {
+    try {
+      const reportedBy = req.user!.claims.sub;
+      const { 
+        tripId, incidentId, reporterRole, accidentType, severity,
+        description, isSafe, injuriesReported, emergencyServicesNeeded,
+        emergencyServicesContacted, gpsLat, gpsLng, photoUrls,
+        voiceNoteUrl, vehicleDamageDescription
+      } = req.body;
+
+      if (!tripId || !description || !accidentType) {
+        return res.status(400).json({ message: "Trip ID, description, and accident type are required" });
+      }
+
+      const report = await storage.createAccidentReport({
+        tripId,
+        incidentId: incidentId || null,
+        reportedBy,
+        reporterRole: reporterRole || "rider",
+        accidentType,
+        severity: severity || "minor",
+        description,
+        isSafe: isSafe !== undefined ? isSafe : true,
+        injuriesReported: injuriesReported || false,
+        emergencyServicesNeeded: emergencyServicesNeeded || false,
+        emergencyServicesContacted: emergencyServicesContacted || false,
+        gpsLat: gpsLat || null,
+        gpsLng: gpsLng || null,
+        photoUrls: photoUrls || null,
+        voiceNoteUrl: voiceNoteUrl || null,
+        vehicleDamageDescription: vehicleDamageDescription || null,
+        adminReviewStatus: "pending",
+      });
+
+      return res.status(201).json(report);
+    } catch (error) {
+      console.error("Error creating accident report:", error);
+      return res.status(500).json({ message: "Failed to create report" });
+    }
+  });
+
+  // Get my accident reports
+  app.get("/api/accident-reports/my-reports", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.claims.sub;
+      const allReports = await storage.getAllAccidentReports();
+      const myReports = allReports.filter(r => r.reportedBy === userId);
+      return res.json(myReports);
+    } catch (error) {
+      console.error("Error getting accident reports:", error);
+      return res.status(500).json({ message: "Failed to get reports" });
+    }
+  });
+
+  // Get single accident report
+  app.get("/api/accident-reports/:id", isAuthenticated, async (req, res) => {
+    try {
+      const report = await storage.getAccidentReport(req.params.id);
+      if (!report) {
+        return res.status(404).json({ message: "Report not found" });
+      }
+      return res.json(report);
+    } catch (error) {
+      console.error("Error getting accident report:", error);
+      return res.status(500).json({ message: "Failed to get report" });
+    }
+  });
+
+  // Admin: Get all accident reports
+  app.get("/api/admin/accident-reports", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const { status } = req.query;
+      const reports = status
+        ? await storage.getAccidentReportsByStatus(status as string)
+        : await storage.getAllAccidentReports();
+      return res.json(reports);
+    } catch (error) {
+      console.error("Error getting accident reports:", error);
+      return res.status(500).json({ message: "Failed to get reports" });
+    }
+  });
+
+  // Admin: Review accident report
+  app.patch("/api/admin/accident-reports/:id/review", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const adminId = req.user!.claims.sub;
+      const { adminReviewStatus, adminNotes, insuranceClaimRef } = req.body;
+
+      if (!adminReviewStatus) {
+        return res.status(400).json({ message: "Review status is required" });
+      }
+
+      const updated = await storage.updateAccidentReport(req.params.id, {
+        adminReviewStatus,
+        adminNotes: adminNotes || null,
+        insuranceClaimRef: insuranceClaimRef || null,
+        reviewedBy: adminId,
+        reviewedAt: new Date(),
+      });
+
+      if (!updated) {
+        return res.status(404).json({ message: "Report not found" });
+      }
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error reviewing accident report:", error);
+      return res.status(500).json({ message: "Failed to review report" });
+    }
+  });
+
+  // =============================================
   // PHASE 5: DISPUTES, REFUNDS & LEGAL RESOLUTION
   // =============================================
 
