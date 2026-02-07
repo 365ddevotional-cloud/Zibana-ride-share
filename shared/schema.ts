@@ -4428,3 +4428,23 @@ export const insertMarketingMessageSchema = createInsertSchema(marketingMessages
 });
 export type InsertMarketingMessage = z.infer<typeof insertMarketingMessageSchema>;
 export type MarketingMessage = typeof marketingMessages.$inferSelect;
+
+export const savedPlaces = pgTable("saved_places", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  riderId: varchar("rider_id").notNull(),
+  type: varchar("type", { length: 10 }).notNull(),
+  address: text("address").notNull(),
+  notes: text("notes"),
+  lat: decimal("lat", { precision: 10, scale: 7 }),
+  lng: decimal("lng", { precision: 10, scale: 7 }),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertSavedPlaceSchema = createInsertSchema(savedPlaces).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertSavedPlace = z.infer<typeof insertSavedPlaceSchema>;
+export type SavedPlace = typeof savedPlaces.$inferSelect;

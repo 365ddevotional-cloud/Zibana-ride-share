@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Navigation, Calendar, ChevronRight, Wallet, Beaker, AlertCircle, BookOpen, Banknote } from "lucide-react";
+import { MapPin, Navigation, Calendar, ChevronRight, Wallet, Beaker, AlertCircle, BookOpen, Banknote, Home as HomeIcon, Briefcase } from "lucide-react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -34,6 +34,23 @@ export default function RiderHome() {
   const { data: walletInfo } = useQuery<WalletInfo>({
     queryKey: ["/api/rider/wallet-info"],
   });
+
+  interface SavedPlace {
+    id: string;
+    riderId: string;
+    type: string;
+    address: string;
+    notes: string | null;
+    lat: string | null;
+    lng: string | null;
+  }
+
+  const { data: savedPlaces } = useQuery<SavedPlace[]>({
+    queryKey: ["/api/rider/saved-places"],
+  });
+
+  const homePlace = savedPlaces?.find(p => p.type === "home");
+  const workPlace = savedPlaces?.find(p => p.type === "work");
 
   const formatCurrency = (amount: string | null | undefined, currency: string) => {
     if (!amount) return `${getCurrencySymbol(currency)} 0.00`;
@@ -198,32 +215,70 @@ export default function RiderHome() {
             </h2>
             <Card className="shadow-sm">
               <CardContent className="p-0 divide-y">
-                <button 
-                  className="w-full p-4 flex items-center gap-3 hover-elevate text-left"
-                  onClick={() => setPickup("Home")}
-                  data-testid="button-saved-home"
-                >
-                  <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
-                    <MapPin className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="font-medium">Home</p>
-                    <p className="text-sm text-muted-foreground">Add home address</p>
-                  </div>
-                </button>
-                <button 
-                  className="w-full p-4 flex items-center gap-3 hover-elevate text-left"
-                  onClick={() => setDestination("Work")}
-                  data-testid="button-saved-work"
-                >
-                  <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
-                    <MapPin className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="font-medium">Work</p>
-                    <p className="text-sm text-muted-foreground">Add work address</p>
-                  </div>
-                </button>
+                <div className="flex items-center">
+                  <button 
+                    className="flex-1 p-4 flex items-center gap-3 hover-elevate text-left"
+                    onClick={() => setLocation("/rider/saved-places/home")}
+                    data-testid="button-saved-home"
+                  >
+                    <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
+                      <HomeIcon className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium" data-testid="text-home-label">Home</p>
+                      <p className="text-sm text-muted-foreground truncate" data-testid="text-home-address">
+                        {homePlace?.address || "Add home address"}
+                      </p>
+                    </div>
+                  </button>
+                  {homePlace?.address && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="mr-2"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDestination(homePlace.address);
+                        toast({ title: "Home address set as destination" });
+                      }}
+                      data-testid="button-use-home"
+                    >
+                      Use
+                    </Button>
+                  )}
+                </div>
+                <div className="flex items-center">
+                  <button 
+                    className="flex-1 p-4 flex items-center gap-3 hover-elevate text-left"
+                    onClick={() => setLocation("/rider/saved-places/work")}
+                    data-testid="button-saved-work"
+                  >
+                    <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
+                      <Briefcase className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium" data-testid="text-work-label">Work</p>
+                      <p className="text-sm text-muted-foreground truncate" data-testid="text-work-address">
+                        {workPlace?.address || "Add work address"}
+                      </p>
+                    </div>
+                  </button>
+                  {workPlace?.address && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="mr-2"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDestination(workPlace.address);
+                        toast({ title: "Work address set as destination" });
+                      }}
+                      data-testid="button-use-work"
+                    >
+                      Use
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </div>

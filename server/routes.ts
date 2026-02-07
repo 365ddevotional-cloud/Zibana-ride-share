@@ -17905,5 +17905,41 @@ export async function registerRoutes(
     }
   })();
 
+  // Saved Places
+  app.get("/api/rider/saved-places", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const places = await storage.getSavedPlaces(userId);
+      return res.json(places);
+    } catch (error) {
+      console.error("Error fetching saved places:", error);
+      return res.status(500).json({ message: "Failed to fetch saved places" });
+    }
+  });
+
+  app.put("/api/rider/saved-places/:type", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const { type } = req.params;
+      if (type !== "home" && type !== "work") {
+        return res.status(400).json({ message: "Type must be 'home' or 'work'" });
+      }
+      const { address, notes, lat, lng } = req.body;
+      if (!address || !address.trim()) {
+        return res.status(400).json({ message: "Address is required" });
+      }
+      const place = await storage.upsertSavedPlace(userId, type, {
+        address: address.trim(),
+        notes: notes?.trim() || null,
+        lat: lat || null,
+        lng: lng || null,
+      });
+      return res.json(place);
+    } catch (error) {
+      console.error("Error saving place:", error);
+      return res.status(500).json({ message: "Failed to save place" });
+    }
+  });
+
   return httpServer;
 }

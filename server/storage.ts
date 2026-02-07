@@ -426,8 +426,11 @@ import {
   type CancellationFeeConfig,
   type InsertCancellationFeeConfig,
   marketingMessages,
+  savedPlaces,
   type MarketingMessage,
   type InsertMarketingMessage,
+  type SavedPlace,
+  type InsertSavedPlace,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull } from "drizzle-orm";
@@ -1312,6 +1315,11 @@ export interface IStorage {
   // Marketing Messages
   getLastMarketingMessage(userId: string): Promise<MarketingMessage | null>;
   createMarketingMessage(data: InsertMarketingMessage): Promise<MarketingMessage>;
+
+  // Saved Places
+  getSavedPlaces(riderId: string): Promise<SavedPlace[]>;
+  getSavedPlace(riderId: string, type: string): Promise<SavedPlace | null>;
+  upsertSavedPlace(riderId: string, type: string, data: { address: string; notes?: string | null; lat?: string | null; lng?: string | null }): Promise<SavedPlace>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -10256,6 +10264,31 @@ export class DatabaseStorage implements IStorage {
   async createMarketingMessage(data: InsertMarketingMessage): Promise<MarketingMessage> {
     const [message] = await db.insert(marketingMessages).values(data).returning();
     return message;
+  }
+  // Saved Places
+  async getSavedPlaces(riderId: string): Promise<SavedPlace[]> {
+    return await db.select().from(savedPlaces).where(eq(savedPlaces.riderId, riderId));
+  }
+
+  async getSavedPlace(riderId: string, type: string): Promise<SavedPlace | null> {
+    const [place] = await db.select().from(savedPlaces)
+      .where(and(eq(savedPlaces.riderId, riderId), eq(savedPlaces.type, type)));
+    return place || null;
+  }
+
+  async upsertSavedPlace(riderId: string, type: string, data: { address: string; notes?: string | null; lat?: string | null; lng?: string | null }): Promise<SavedPlace> {
+    const existing = await this.getSavedPlace(riderId, type);
+    if (existing) {
+      const [updated] = await db.update(savedPlaces)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(savedPlaces.id, existing.id))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(savedPlaces)
+      .values({ riderId, type, ...data })
+      .returning();
+    return created;
   }
 }
 

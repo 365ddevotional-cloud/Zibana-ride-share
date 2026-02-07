@@ -56,6 +56,7 @@ const HelpCenterPage = lazy(() => import("@/pages/help-center"));
 const TrustedContactsPage = lazy(() => import("@/pages/rider/trusted-contacts"));
 const TripSharePage = lazy(() => import("@/pages/trip-share"));
 const SimulationEntryPage = lazy(() => import("@/pages/simulation-entry"));
+const SavedPlaceFormPage = lazy(() => import("@/pages/rider/saved-place-form"));
 
 const ADMIN_ROLES = ["super_admin", "admin", "finance_admin", "support_agent", "trip_coordinator", "director"];
 
@@ -455,6 +456,12 @@ function RiderRouter() {
         </ProtectedRoute>
       </Route>
       
+      <Route path="/rider/saved-places/:type">
+        <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["rider"]}>
+          <LazyComponent><SavedPlaceFormPage /></LazyComponent>
+        </ProtectedRoute>
+      </Route>
+
       <Route path="/rider/schedule">
         <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["rider"]}>
           <LazyComponent><RiderSchedulePage /></LazyComponent>
