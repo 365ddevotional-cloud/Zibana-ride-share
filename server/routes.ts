@@ -13225,6 +13225,72 @@ export async function registerRoutes(
         status: "reported",
       });
 
+      // Auto-generate fraud detection signals
+      try {
+        const previousReports = await storage.getLostItemReportsByRider(riderId);
+        const recentReports = previousReports.filter(r => {
+          const created = new Date(r.createdAt || 0);
+          const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+          return created > thirtyDaysAgo;
+        });
+
+        // Frequent reporter: 3+ reports in 30 days
+        if (recentReports.length >= 3) {
+          await storage.createLostItemFraudSignal({
+            userId: riderId,
+            lostItemReportId: report.id,
+            signalType: "frequent_reporter",
+            severity: recentReports.length >= 5 ? "high" : "medium",
+            riskScore: Math.min(recentReports.length * 15, 100),
+            details: `${recentReports.length} lost item reports in the last 30 days`,
+          });
+        }
+
+        // Same item type: 2+ reports with the same item type in 30 days
+        const sameTypeReports = recentReports.filter(r => r.itemType === (itemCategory || "other"));
+        if (sameTypeReports.length >= 2) {
+          await storage.createLostItemFraudSignal({
+            userId: riderId,
+            lostItemReportId: report.id,
+            signalType: "same_item_type",
+            severity: sameTypeReports.length >= 3 ? "high" : "medium",
+            riskScore: Math.min(sameTypeReports.length * 20, 100),
+            details: `${sameTypeReports.length} reports for "${itemCategory || "other"}" items in the last 30 days`,
+          });
+        }
+
+        // No proof: report with no photos
+        if (!photoUrls || (Array.isArray(photoUrls) && photoUrls.length === 0)) {
+          await storage.createLostItemFraudSignal({
+            userId: riderId,
+            lostItemReportId: report.id,
+            signalType: "no_proof",
+            severity: "low",
+            riskScore: 10,
+            details: "Lost item report submitted without photo evidence",
+          });
+        }
+
+        // Frequent accused: check if this driver has been accused often
+        const allReports = await storage.getAllLostItemReports();
+        const driverAccusations = allReports.filter(r => 
+          r.driverId === (trip.driverId || "") && 
+          new Date(r.createdAt || 0) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+        );
+        if (driverAccusations.length >= 3) {
+          await storage.createLostItemFraudSignal({
+            userId: trip.driverId || "",
+            lostItemReportId: report.id,
+            signalType: "frequent_accused",
+            severity: driverAccusations.length >= 5 ? "high" : "medium",
+            riskScore: Math.min(driverAccusations.length * 15, 100),
+            details: `Driver accused in ${driverAccusations.length} lost item reports in the last 30 days`,
+          });
+        }
+      } catch (fraudError) {
+        console.error("Fraud signal generation failed (non-blocking):", fraudError);
+      }
+
       return res.status(201).json(report);
     } catch (error) {
       console.error("Error creating lost item report:", error);
@@ -13294,6 +13360,18 @@ export async function registerRoutes(
         driverResponseAt: new Date(),
       });
 
+      // Capture trust signal for driver response
+      try {
+        const { captureBehaviorSignal } = await import("./trust-guards");
+        if (response === "driver_confirmed") {
+          await captureBehaviorSignal(driverId, "LOST_ITEM_RETURNED", "driver", report.tripId, { lostItemId: req.params.id });
+        } else if (response === "driver_denied") {
+          await captureBehaviorSignal(driverId, "LOST_ITEM_DENIED", "driver", report.tripId, { lostItemId: req.params.id });
+        }
+      } catch (signalErr) {
+        console.error("Trust signal capture failed (non-blocking):", signalErr);
+      }
+
       return res.json(updated);
     } catch (error) {
       console.error("Error updating lost item report:", error);
@@ -13325,6 +13403,17 @@ export async function registerRoutes(
       if (status === "closed") updateData.closedAt = new Date();
 
       const updated = await storage.updateLostItemReport(req.params.id, updateData);
+
+      // Capture trust signal for status transitions
+      try {
+        const { captureBehaviorSignal } = await import("./trust-guards");
+        if (status === "returned" && report.riderId) {
+          await captureBehaviorSignal(report.riderId, "LOST_ITEM_RESOLVED", "rider", report.tripId, { lostItemId: req.params.id });
+        }
+      } catch (signalErr) {
+        console.error("Trust signal capture failed (non-blocking):", signalErr);
+      }
+
       return res.json(updated);
     } catch (error) {
       console.error("Error updating lost item status:", error);
@@ -13411,6 +13500,29 @@ export async function registerRoutes(
         gpsLongitude: gpsLng || null,
         adminReviewStatus: "pending",
       });
+
+      // Capture trust signals for accident reporting and safety cooperation
+      try {
+        const { captureBehaviorSignal } = await import("./trust-guards");
+        const role = reporterRole || "rider";
+        const signalCategory = role === "driver" ? "driver" : "rider";
+
+        // Reward filing an accident report (transparency)
+        if (signalCategory === "rider") {
+          await captureBehaviorSignal(reportedBy, "ACCIDENT_REPORT_FILED", "rider", tripId, { accidentReportId: report.id });
+        }
+
+        // Safety check: isSafe response and emergency services cooperation
+        if (isSafe === true) {
+          if (signalCategory === "driver") {
+            await captureBehaviorSignal(reportedBy, "ACCIDENT_SAFETY_CHECK_PASSED", "driver", tripId, { accidentReportId: report.id });
+          } else {
+            await captureBehaviorSignal(reportedBy, "ACCIDENT_SAFETY_COOPERATION", "rider", tripId, { accidentReportId: report.id });
+          }
+        }
+      } catch (signalErr) {
+        console.error("Trust signal capture failed (non-blocking):", signalErr);
+      }
 
       return res.status(201).json(report);
     } catch (error) {
