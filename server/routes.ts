@@ -15302,6 +15302,45 @@ export async function registerRoutes(
     }
   });
 
+  // Support interaction logging
+  app.post("/api/support/log-interaction", async (req, res) => {
+    try {
+      const userId = req.isAuthenticated() ? (req.user as any).id || (req.user as any)?.claims?.sub : null;
+      const { userMessage, supportResponse, userRole, currentScreen } = req.body;
+      if (!userMessage || !supportResponse) return res.status(400).json({ message: "Missing required fields" });
+      
+      await storage.logSupportInteraction({
+        userId: userId || "anonymous",
+        userRole: userRole || "unknown",
+        currentScreen: currentScreen || null,
+        userMessage: userMessage.substring(0, 1000),
+        supportResponse: supportResponse.substring(0, 1000),
+      });
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to log interaction" });
+    }
+  });
+
+  // Admin: view support interactions
+  app.get("/api/admin/support-interactions", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const roles = user.roles || [];
+      if (!roles.includes("admin") && !roles.includes("super_admin")) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      const { userId, role } = req.query;
+      const results = await storage.getSupportInteractions(
+        userId as string | undefined,
+        role as string | undefined,
+      );
+      res.json(results);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch interactions" });
+    }
+  });
+
   // Check if user is a test user
   app.get("/api/compliance/test-mode", isAuthenticated, async (req, res) => {
     try {

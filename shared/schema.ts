@@ -3490,6 +3490,16 @@ export const legalAcknowledgements = pgTable("legal_acknowledgements", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const supportInteractions = pgTable("support_interactions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id"),
+  userRole: varchar("user_role", { length: 30 }).notNull(),
+  currentScreen: varchar("current_screen", { length: 100 }),
+  userMessage: text("user_message").notNull(),
+  supportResponse: text("support_response").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Compliance audit log (immutable, exportable)
 export const complianceAuditLog = pgTable("compliance_audit_log", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -3578,6 +3588,10 @@ export const insertComplianceAuditLogSchema = createInsertSchema(complianceAudit
   createdAt: true,
 });
 export const insertLegalAcknowledgementSchema = createInsertSchema(legalAcknowledgements).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertSupportInteractionSchema = createInsertSchema(supportInteractions).omit({
   id: true,
   createdAt: true,
 });
@@ -3713,6 +3727,8 @@ export type InsertComplianceAuditLog = z.infer<typeof insertComplianceAuditLogSc
 export type ComplianceAuditLog = typeof complianceAuditLog.$inferSelect;
 export type InsertLegalAcknowledgement = z.infer<typeof insertLegalAcknowledgementSchema>;
 export type LegalAcknowledgement = typeof legalAcknowledgements.$inferSelect;
+export type InsertSupportInteraction = z.infer<typeof insertSupportInteractionSchema>;
+export type SupportInteraction = typeof supportInteractions.$inferSelect;
 export type InsertLaunchSetting = z.infer<typeof insertLaunchSettingSchema>;
 export type LaunchSetting = typeof launchSettings.$inferSelect;
 export type InsertKillSwitchState = z.infer<typeof insertKillSwitchStateSchema>;

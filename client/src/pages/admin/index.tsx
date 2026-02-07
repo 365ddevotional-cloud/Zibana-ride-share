@@ -45,6 +45,8 @@ import { InsurancePartnersPanel } from "@/components/admin/insurance-partners-pa
 import { ReliefFundPanel } from "@/components/admin/relief-fund-panel";
 import { LostItemFraudPanel } from "@/components/admin/lost-item-fraud-panel";
 import { ComplianceLogPanel } from "@/components/admin/compliance-log-panel";
+import { SupportLogsPanel } from "@/components/admin/support-logs-panel";
+import { ZibaSupport } from "@/components/ziba-support";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -98,7 +100,8 @@ import {
   ScrollText,
   Banknote,
   Package,
-  Heart
+  Heart,
+  Headphones
 } from "lucide-react";
 import type { DriverProfile, Trip, User } from "@shared/schema";
 import { NotificationBell } from "@/components/notification-bell";
@@ -736,6 +739,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
   const [payoutMethod, setPayoutMethod] = useState("bank");
   const [payoutPeriodStart, setPayoutPeriodStart] = useState("");
   const [payoutPeriodEnd, setPayoutPeriodEnd] = useState("");
+  const [zAssistOpen, setZAssistOpen] = useState(false);
 
   const { data: driverWallets = [], isLoading: walletsLoading } = useQuery<WalletWithDetails[]>({
     queryKey: ["/api/admin/wallets"],
@@ -2478,6 +2482,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <TabsTrigger value="compliance-logs" className="admin-nav-trigger rounded-md" data-testid="tab-compliance-logs">
                 <Shield className="h-4 w-4 mr-2" />
                 Compliance Logs
+              </TabsTrigger>
+            )}
+            {(isSuperAdmin || userRole === "admin") && (
+              <TabsTrigger value="support-logs" className="admin-nav-trigger rounded-md" data-testid="tab-support-logs">
+                <Headphones className="h-4 w-4 mr-1" />
+                Support Logs
               </TabsTrigger>
             )}
             {(isSuperAdmin || userRole === "admin") && (
@@ -6859,6 +6869,11 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
             </TabsContent>
           )}
           {(isSuperAdmin || userRole === "admin") && (
+          <TabsContent value="support-logs">
+            <SupportLogsPanel />
+          </TabsContent>
+          )}
+          {(isSuperAdmin || userRole === "admin") && (
             <TabsContent value="tax-documents">
               <div className="space-y-6">
                 <TaxDocumentsPanel />
@@ -6921,6 +6936,19 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
         </Tabs>
         </div>
       </main>
+      {zAssistOpen && (
+        <div className="fixed bottom-20 right-4 w-[380px] max-w-[calc(100vw-2rem)] h-[520px] max-h-[calc(100vh-6rem)] z-50 shadow-lg rounded-lg overflow-hidden" data-testid="panel-z-assist">
+          <ZibaSupport onClose={() => setZAssistOpen(false)} />
+        </div>
+      )}
+      <Button
+        className="fixed bottom-4 right-4 z-50 rounded-full shadow-lg h-12 w-12"
+        size="icon"
+        onClick={() => setZAssistOpen(!zAssistOpen)}
+        data-testid="button-z-assist-toggle"
+      >
+        <Headphones className="h-5 w-5" />
+      </Button>
     </div>
   );
 }

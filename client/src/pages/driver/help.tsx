@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
+import { ZibaSupport } from "@/components/ziba-support";
 import {
   Rocket,
   UserCheck,
@@ -23,6 +24,7 @@ import {
   AlertTriangle,
   FileWarning,
   CheckCircle,
+  Headphones,
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { useLocation } from "wouter";
@@ -407,6 +409,7 @@ export default function DriverHelpPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<DriverHelpCategory | null>(null);
   const [selectedArticle, setSelectedArticle] = useState<DriverHelpArticle | null>(null);
+  const [supportOpen, setSupportOpen] = useState(false);
 
   const { data: incidents = [] } = useQuery<SafetyIncident[]>({
     queryKey: ["/api/safety/incidents/mine"],
@@ -519,6 +522,19 @@ export default function DriverHelpPage() {
             </CardContent>
           </Card>
         </div>
+        {supportOpen && (
+          <div className="fixed bottom-20 right-4 w-[360px] max-w-[calc(100vw-2rem)] h-[500px] max-h-[calc(100vh-6rem)] z-50 shadow-lg rounded-lg overflow-hidden" data-testid="panel-ziba-support-driver">
+            <ZibaSupport onClose={() => setSupportOpen(false)} />
+          </div>
+        )}
+        <Button
+          className="fixed bottom-4 right-4 z-50 rounded-full shadow-lg h-12 w-12"
+          size="icon"
+          onClick={() => setSupportOpen(!supportOpen)}
+          data-testid="button-ziba-support-toggle-driver"
+        >
+          <Headphones className="h-5 w-5" />
+        </Button>
       </DriverLayout>
     );
   }
@@ -574,6 +590,19 @@ export default function DriverHelpPage() {
             ))}
           </div>
         </div>
+        {supportOpen && (
+          <div className="fixed bottom-20 right-4 w-[360px] max-w-[calc(100vw-2rem)] h-[500px] max-h-[calc(100vh-6rem)] z-50 shadow-lg rounded-lg overflow-hidden" data-testid="panel-ziba-support-driver">
+            <ZibaSupport onClose={() => setSupportOpen(false)} />
+          </div>
+        )}
+        <Button
+          className="fixed bottom-4 right-4 z-50 rounded-full shadow-lg h-12 w-12"
+          size="icon"
+          onClick={() => setSupportOpen(!supportOpen)}
+          data-testid="button-ziba-support-toggle-driver"
+        >
+          <Headphones className="h-5 w-5" />
+        </Button>
       </DriverLayout>
     );
   }
@@ -740,6 +769,19 @@ export default function DriverHelpPage() {
           </>
         )}
       </div>
+      {supportOpen && (
+        <div className="fixed bottom-20 right-4 w-[360px] max-w-[calc(100vw-2rem)] h-[500px] max-h-[calc(100vh-6rem)] z-50 shadow-lg rounded-lg overflow-hidden" data-testid="panel-ziba-support-driver">
+          <ZibaSupport onClose={() => setSupportOpen(false)} />
+        </div>
+      )}
+      <Button
+        className="fixed bottom-4 right-4 z-50 rounded-full shadow-lg h-12 w-12"
+        size="icon"
+        onClick={() => setSupportOpen(!supportOpen)}
+        data-testid="button-ziba-support-toggle-driver"
+      >
+        <Headphones className="h-5 w-5" />
+      </Button>
     </DriverLayout>
   );
 }

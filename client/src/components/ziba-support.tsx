@@ -1,10 +1,13 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Headphones, Send, ArrowRight, X } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import { useLocation } from "wouter";
+
+type UserRole = "rider" | "driver" | "admin" | "super_admin" | "general";
 
 interface SupportMessage {
   id: string;
@@ -13,49 +16,269 @@ interface SupportMessage {
   timestamp: Date;
 }
 
-const QUICK_TOPICS = [
+interface QuickTopic {
+  label: string;
+  key: string;
+}
+
+const RIDER_TOPICS: QuickTopic[] = [
   { label: "How do I book a ride?", key: "book-ride" },
   { label: "Lost item help", key: "lost-item" },
   { label: "Payment issues", key: "payment" },
   { label: "Safety concerns", key: "safety" },
-  { label: "Account settings", key: "account" },
   { label: "Cancel a ride", key: "cancel" },
-  { label: "Driver questions", key: "driver" },
+  { label: "Account settings", key: "account" },
+  { label: "Scheduled rides", key: "schedule" },
   { label: "Talk to Support", key: "escalate" },
 ];
 
-const SUPPORT_RESPONSES: Record<string, string> = {
-  "book-ride": "To book a ride, go to the Home tab and enter your pickup and drop-off locations. ZIBA connects you with available drivers in your area. You can choose your preferred ride type and confirm the booking.",
-  "lost-item": "If you've lost an item during a trip, go to Activity, find the trip, and tap 'Report Lost Item'. ZIBA helps facilitate communication between you and the driver. Please note that item recovery is not guaranteed, and drivers assist voluntarily.",
-  "payment": "You can manage your payment methods in the Wallet section. ZIBA supports wallet credits, cash payments, and card payments. For payment disputes, please submit a support ticket and our team will review your case.",
-  "safety": "Your safety is important. Use the SOS button during trips for emergencies. You can also report incidents through the Safety Hub. Remember, ZIBA facilitates safety tools, but all users are responsible for their own personal safety decisions.",
-  "account": "You can update your profile, notification preferences, and privacy settings from the Account tab. For account-related issues, contact our support team through the Help Center.",
-  "cancel": "You can cancel a ride before the driver arrives. Please note that cancellation fees may apply depending on timing. Check our Refund & Cancellation Policy in the Legal section for full details.",
-  "default": "Thank you for reaching out to ZIBA Support. Based on your question, we recommend checking the Help Center articles for detailed guidance. If you need further assistance, you can submit a support ticket and our team will help you.",
-  "greeting": "Hi, I'm ZIBA Support. I'm here to help you navigate the app. Select a topic below or type your question.",
-  "driver": "For driver-related questions: go to your Driver Dashboard for earnings, trips, and settings. You can manage your payout details in Wallet. For identity verification or document issues, check the Account section. ZIBA connects you with riders as an independent contractor - you control your own schedule and routes.",
+const DRIVER_TOPICS: QuickTopic[] = [
+  { label: "How do I go online?", key: "go-online" },
+  { label: "Earnings & payouts", key: "earnings" },
+  { label: "Lost item process", key: "lost-item-driver" },
+  { label: "Accident reporting", key: "accident" },
+  { label: "Trust score", key: "trust-score" },
+  { label: "Wallet & withdrawals", key: "wallet-driver" },
+  { label: "Training modules", key: "training" },
+  { label: "Talk to Support", key: "escalate" },
+];
+
+const ADMIN_TOPICS: QuickTopic[] = [
+  { label: "Dashboard overview", key: "admin-dashboard" },
+  { label: "Driver approvals", key: "admin-approvals" },
+  { label: "Dispute management", key: "admin-disputes" },
+  { label: "Fraud flags", key: "admin-fraud" },
+  { label: "Trust scores explained", key: "admin-trust" },
+  { label: "User management", key: "admin-users" },
+  { label: "Financial reports", key: "admin-finance" },
+  { label: "Safety incidents", key: "admin-safety" },
+];
+
+const SUPER_ADMIN_TOPICS: QuickTopic[] = [
+  { label: "System configuration", key: "sa-config" },
+  { label: "Country management", key: "sa-countries" },
+  { label: "Kill switches", key: "sa-killswitch" },
+  { label: "Compliance audit", key: "sa-compliance" },
+  { label: "Abuse patterns", key: "sa-abuse" },
+  { label: "Feature flags", key: "sa-flags" },
+  { label: "Legal considerations", key: "sa-legal" },
+  { label: "Risk assessment", key: "sa-risk" },
+];
+
+const RIDER_RESPONSES: Record<string, string> = {
+  "book-ride": "To book a ride, go to the Home tab and enter your pickup and drop-off locations. ZIBA helps connect you with available drivers in your area. You can choose your preferred ride type and confirm the booking.",
+  "lost-item": "If you've lost an item during a trip, go to Activity, find the trip, and tap 'Report Lost Item'. ZIBA helps facilitate communication between you and the driver. Please note that item recovery depends on driver cooperation and is not guaranteed.",
+  "payment": "You can manage your payment methods in the Wallet section. ZIBA supports wallet credits, cash payments, and card payments. For payment concerns, we recommend submitting a support ticket for review by our team.",
+  "safety": "Your safety is important. Use the SOS button during active trips for emergencies. You can also report incidents through the Safety Hub. ZIBA facilitates safety tools designed to assist you during trips.",
+  "account": "You can update your profile, notification preferences, and privacy settings from the Account tab. For account-related concerns, our support team can assist through the Help Center.",
+  "cancel": "You can cancel a ride before the driver arrives. Please note that cancellation fees may apply depending on timing. Check our policies in the Legal section for details.",
+  "schedule": "To schedule a ride in advance, go to Services and select 'Scheduled Rides'. You can set your pickup time up to 7 days ahead. ZIBA will help match you with an available driver at the scheduled time.",
   "escalate": "We recommend submitting a support ticket for personalized assistance. Go to Help Center and tap 'Submit a Ticket'. Our support team will review your case and respond as soon as possible. For urgent safety matters, please use the SOS button during an active trip.",
 };
 
-function getResponse(input: string): string {
-  const lower = input.toLowerCase();
-  if (lower.includes("book") || lower.includes("ride") || lower.includes("request")) return SUPPORT_RESPONSES["book-ride"];
-  if (lower.includes("lost") || lower.includes("item") || lower.includes("found")) return SUPPORT_RESPONSES["lost-item"];
-  if (lower.includes("pay") || lower.includes("wallet") || lower.includes("charge") || lower.includes("refund")) return SUPPORT_RESPONSES["payment"];
-  if (lower.includes("safe") || lower.includes("accident") || lower.includes("sos") || lower.includes("emergency")) return SUPPORT_RESPONSES["safety"];
-  if (lower.includes("account") || lower.includes("profile") || lower.includes("settings") || lower.includes("password")) return SUPPORT_RESPONSES["account"];
-  if (lower.includes("cancel")) return SUPPORT_RESPONSES["cancel"];
-  if (lower.includes("driver") || lower.includes("earning") || lower.includes("payout")) return SUPPORT_RESPONSES["driver"];
-  if (lower.includes("human") || lower.includes("agent") || lower.includes("support") || lower.includes("escalat") || lower.includes("talk") || lower.includes("ticket")) return SUPPORT_RESPONSES["escalate"];
-  return SUPPORT_RESPONSES["default"];
+const DRIVER_RESPONSES: Record<string, string> = {
+  "go-online": "To start accepting rides, go to your Driver Home and toggle the 'Go Online' switch. Make sure your GPS is enabled and you have an active internet connection. ZIBA connects you with riders based on proximity and availability.",
+  "earnings": "View your earnings in the Earnings tab. This shows trip income, bonuses, and incentives. Payouts are processed through your configured payment method in the Wallet section. ZIBA facilitates payment processing for completed trips.",
+  "lost-item-driver": "If a rider reports a lost item from your trip, you'll receive a notification. You can confirm or deny finding the item. If found, you may return it directly or through a Safe Return Hub. Participation is voluntary, and hub drop-offs may earn a bonus reward.",
+  "accident": "In case of an accident during a trip, use the Accident Report feature in your Safety Hub. Document the incident with photos and details. ZIBA facilitates documentation and may connect you with relief fund resources based on eligibility.",
+  "trust-score": "Your trust score reflects your overall reliability on the platform. It considers ratings, trip completion, behavior signals, and safety record. Maintaining consistent, professional service helps build your trust score over time.",
+  "wallet-driver": "Manage your wallet and withdrawal methods in the Wallet tab. You can set up bank or mobile money details for payouts. Identity verification may be required for withdrawals based on your country's requirements.",
+  "training": "Access training modules from the Help tab. These cover lost item protocol, Safe Return Hubs, accident reporting, and trust score management. Completing training helps you understand platform features and best practices.",
+  "escalate": "We recommend submitting a support ticket for personalized assistance. Go to Help and tap 'Submit a Ticket'. Our support team will review your case. For urgent safety matters during a trip, use the SOS button.",
+};
+
+const ADMIN_RESPONSES: Record<string, string> = {
+  "admin-dashboard": "The Admin Dashboard provides an overview of platform operations. The tabs at the top organize management areas: Drivers, Riders, Trips, Payouts, Disputes, and more. Use the tab navigation to access specific management functions.",
+  "admin-approvals": "Driver approvals are managed in the Drivers tab. Review pending applications, verify submitted documents, and approve or reject registrations. Each driver profile shows their submitted identity documents, vehicle information, and verification status.",
+  "admin-disputes": "Dispute management is in the Disputes tab. Review filed disputes, examine evidence from both parties, and make resolution decisions. You can issue refunds, apply penalties, or escalate to senior review. All actions are logged for audit purposes.",
+  "admin-fraud": "Fraud detection flags appear in the Fraud tab. The system generates signals based on behavioral patterns like unusual trip frequency, GPS mismatches, or suspicious financial activity. Review flagged items, adjust risk scores, and take appropriate action.",
+  "admin-trust": "Trust scores are calculated from multiple signals: ratings, trip completion rates, incident history, and behavior patterns. The system applies anti-manipulation guards to prevent gaming. You can view detailed breakdowns in user profiles.",
+  "admin-users": "User management allows you to search, view, and manage all platform users. You can view profiles, trip history, wallet status, and compliance records. Administrative actions include role assignment, status changes, and account restrictions.",
+  "admin-finance": "Financial reports cover trip revenue, commission breakdown, driver payouts, wallet balances, and settlement records. The Payouts tab manages pending and completed driver payments. The Cash Settlement section handles cash trip reconciliation.",
+  "admin-safety": "Safety management includes incident reports, SOS events, accident records, and the relief fund. Review reported incidents, process insurance referrals, and manage safety-related escalations. All safety actions maintain an audit trail.",
+};
+
+const SUPER_ADMIN_RESPONSES: Record<string, string> = {
+  "sa-config": "System configuration controls platform-wide settings. This includes production switches, test mode, simulation settings, and feature flags. Changes here affect all users — review dependencies before modifying critical settings.",
+  "sa-countries": "Country management controls operational regions. Each country has its own currency, tax rules, identity requirements, and compliance settings. Use Launch Readiness to verify all configurations before enabling a new market.",
+  "sa-killswitch": "Kill switches allow immediate feature disabling per country. These are safety controls for emergencies — disabling a feature is instant but re-enabling should be done with verification. Always check dependent features before toggling.",
+  "sa-compliance": "Compliance audits track legal acknowledgements, user consents, and regulatory adherence. The Compliance Logs panel shows timestamped acceptance records. Review these regularly to ensure platform-wide compliance coverage.",
+  "sa-abuse": "Abuse patterns are detected through the fraud engine. Look for recurring signals: frequent reporters, GPS mismatches, unusual financial patterns, and coordinated behavior. The system aggregates signals into risk profiles for investigation.",
+  "sa-flags": "Feature flags control which capabilities are active per country. Flags allow gradual rollout and quick rollback. Review the monitoring dashboard for flag impact metrics before making changes to production flags.",
+  "sa-legal": "Legal considerations include country-specific arbitration requirements, class action waivers, consumer protection compliance, and platform liability positioning. ZIBA operates as a technology marketplace — all communications should reinforce this positioning.",
+  "sa-risk": "Risk assessment involves reviewing fraud profiles, dispute trends, financial anomalies, and safety incident patterns. Use the monitoring dashboard to track KPIs and set up alerts for significant deviations from baselines.",
+};
+
+const COMMON_RESPONSES: Record<string, string> = {
+  "default": "Based on your question, we recommend checking the Help Center for detailed guidance. If you need further assistance, you can submit a support ticket and our team will review your case.",
+  "greeting-rider": "Hi, I'm ZIBA Support. I'm here to help you navigate the platform. Select a topic below or type your question.",
+  "greeting-driver": "Hi, I'm ZIBA Support. I'm here to help you with your driver experience. Select a topic below or type your question.",
+  "greeting-admin": "ZIBA Support — Internal Assistant. I can help you navigate dashboard functions, review processes, and administrative actions. Select a topic or ask a question.",
+  "greeting-super_admin": "ZIBA Support — System Assistant. I can assist with configuration, compliance, risk assessment, and operational oversight. Select a topic or ask a question.",
+  "greeting-general": "Hi, I'm ZIBA Support. I'm here to help you navigate the platform. Select a topic below or type your question.",
+};
+
+function detectRole(pathname: string, userRoles?: string[]): UserRole {
+  if (pathname.startsWith("/admin")) {
+    if (userRoles?.includes("super_admin")) return "super_admin";
+    if (userRoles?.includes("admin")) return "admin";
+    return "admin";
+  }
+  if (pathname.startsWith("/driver")) return "driver";
+  if (pathname.startsWith("/rider")) return "rider";
+  return "general";
 }
 
-export function ZibaSupport({ onClose }: { onClose?: () => void }) {
-  const [messages, setMessages] = useState<SupportMessage[]>([
-    { id: "greeting", role: "support", content: SUPPORT_RESPONSES["greeting"], timestamp: new Date() },
-  ]);
+function getTopics(role: UserRole): QuickTopic[] {
+  switch (role) {
+    case "super_admin": return SUPER_ADMIN_TOPICS;
+    case "admin": return ADMIN_TOPICS;
+    case "driver": return DRIVER_TOPICS;
+    case "rider": return RIDER_TOPICS;
+    default: return RIDER_TOPICS;
+  }
+}
+
+function getResponseMap(role: UserRole): Record<string, string> {
+  switch (role) {
+    case "super_admin": return { ...SUPER_ADMIN_RESPONSES, ...ADMIN_RESPONSES };
+    case "admin": return ADMIN_RESPONSES;
+    case "driver": return DRIVER_RESPONSES;
+    case "rider": return RIDER_RESPONSES;
+    default: return RIDER_RESPONSES;
+  }
+}
+
+function getScreenContext(pathname: string): string {
+  if (pathname.includes("/wallet")) return "wallet";
+  if (pathname.includes("/earnings")) return "earnings";
+  if (pathname.includes("/safety")) return "safety";
+  if (pathname.includes("/trips") || pathname.includes("/activity")) return "trips";
+  if (pathname.includes("/training")) return "training";
+  if (pathname.includes("/account") || pathname.includes("/settings")) return "account";
+  if (pathname.includes("/help") || pathname.includes("/help-center")) return "help";
+  if (pathname.includes("/inbox")) return "inbox";
+  if (pathname.includes("/services")) return "services";
+  return "home";
+}
+
+function getContextHint(screen: string, role: UserRole): string | null {
+  if (role === "rider") {
+    if (screen === "wallet") return "I see you're in your Wallet. I can help with payments, top-ups, or balance questions.";
+    if (screen === "safety") return "I see you're in the Safety Hub. I can help with incident reporting, SOS, or lost items.";
+    if (screen === "trips") return "I see you're viewing your trip activity. I can help with trip details, cancellations, or reports.";
+  }
+  if (role === "driver") {
+    if (screen === "wallet") return "I see you're in your Wallet. I can help with withdrawals, payout methods, or balance inquiries.";
+    if (screen === "earnings") return "I see you're viewing Earnings. I can help explain your trip income, bonuses, or incentives.";
+    if (screen === "training") return "I see you're in Training. I can help explain any training module or platform procedure.";
+    if (screen === "safety") return "I see you're in the Safety Hub. I can help with accident reporting, incident documentation, or emergency features.";
+  }
+  return null;
+}
+
+function getResponse(input: string, role: UserRole): string {
+  const lower = input.toLowerCase();
+  const responses = getResponseMap(role);
+
+  if (role === "rider" || role === "general") {
+    if (lower.includes("book") || lower.includes("ride") || lower.includes("request")) return responses["book-ride"] || RIDER_RESPONSES["book-ride"];
+    if (lower.includes("lost") || lower.includes("item") || lower.includes("found")) return responses["lost-item"] || RIDER_RESPONSES["lost-item"];
+    if (lower.includes("pay") || lower.includes("wallet") || lower.includes("charge") || lower.includes("refund") || lower.includes("money")) return responses["payment"] || RIDER_RESPONSES["payment"];
+    if (lower.includes("safe") || lower.includes("accident") || lower.includes("sos") || lower.includes("emergency") || lower.includes("incident")) return responses["safety"] || RIDER_RESPONSES["safety"];
+    if (lower.includes("account") || lower.includes("profile") || lower.includes("settings") || lower.includes("password")) return responses["account"] || RIDER_RESPONSES["account"];
+    if (lower.includes("cancel")) return responses["cancel"] || RIDER_RESPONSES["cancel"];
+    if (lower.includes("schedule") || lower.includes("advance") || lower.includes("later")) return responses["schedule"] || RIDER_RESPONSES["schedule"];
+  }
+
+  if (role === "driver") {
+    if (lower.includes("online") || lower.includes("go online") || lower.includes("start driving") || lower.includes("accept")) return responses["go-online"];
+    if (lower.includes("earn") || lower.includes("income") || lower.includes("payout") || lower.includes("commission")) return responses["earnings"];
+    if (lower.includes("lost") || lower.includes("item") || lower.includes("found") || lower.includes("hub")) return responses["lost-item-driver"];
+    if (lower.includes("accident") || lower.includes("crash") || lower.includes("collision")) return responses["accident"];
+    if (lower.includes("trust") || lower.includes("score") || lower.includes("rating")) return responses["trust-score"];
+    if (lower.includes("wallet") || lower.includes("withdraw") || lower.includes("bank") || lower.includes("mobile money")) return responses["wallet-driver"];
+    if (lower.includes("training") || lower.includes("module") || lower.includes("learn")) return responses["training"];
+    if (lower.includes("pay") || lower.includes("money") || lower.includes("charge")) return responses["earnings"];
+    if (lower.includes("safe") || lower.includes("sos") || lower.includes("emergency") || lower.includes("incident")) return responses["accident"];
+  }
+
+  if (role === "admin") {
+    if (lower.includes("dashboard") || lower.includes("overview") || lower.includes("home")) return responses["admin-dashboard"];
+    if (lower.includes("approv") || lower.includes("pending") || lower.includes("verify") || lower.includes("registration")) return responses["admin-approvals"];
+    if (lower.includes("dispute") || lower.includes("resolution") || lower.includes("complain")) return responses["admin-disputes"];
+    if (lower.includes("fraud") || lower.includes("suspicious") || lower.includes("flag") || lower.includes("signal")) return responses["admin-fraud"];
+    if (lower.includes("trust") || lower.includes("score") || lower.includes("rating")) return responses["admin-trust"];
+    if (lower.includes("user") || lower.includes("manage") || lower.includes("account") || lower.includes("profile")) return responses["admin-users"];
+    if (lower.includes("financ") || lower.includes("revenue") || lower.includes("payout") || lower.includes("commission") || lower.includes("money")) return responses["admin-finance"];
+    if (lower.includes("safe") || lower.includes("incident") || lower.includes("sos") || lower.includes("accident") || lower.includes("relief")) return responses["admin-safety"];
+  }
+
+  if (role === "super_admin") {
+    if (lower.includes("config") || lower.includes("setting") || lower.includes("system") || lower.includes("production switch")) return responses["sa-config"];
+    if (lower.includes("country") || lower.includes("market") || lower.includes("launch") || lower.includes("region")) return responses["sa-countries"];
+    if (lower.includes("kill") || lower.includes("switch") || lower.includes("disable") || lower.includes("emergency")) return responses["sa-killswitch"];
+    if (lower.includes("compliance") || lower.includes("consent") || lower.includes("audit") || lower.includes("log")) return responses["sa-compliance"];
+    if (lower.includes("abuse") || lower.includes("pattern") || lower.includes("fraud") || lower.includes("manipulation")) return responses["sa-abuse"];
+    if (lower.includes("flag") || lower.includes("feature") || lower.includes("rollout") || lower.includes("toggle")) return responses["sa-flags"];
+    if (lower.includes("legal") || lower.includes("liability") || lower.includes("arbitration") || lower.includes("waiver")) return responses["sa-legal"];
+    if (lower.includes("risk") || lower.includes("assess") || lower.includes("trend") || lower.includes("anomal")) return responses["sa-risk"];
+    if (lower.includes("dashboard") || lower.includes("overview")) return responses["admin-dashboard"] || ADMIN_RESPONSES["admin-dashboard"];
+    if (lower.includes("dispute")) return responses["admin-disputes"] || ADMIN_RESPONSES["admin-disputes"];
+    if (lower.includes("user") || lower.includes("manage")) return responses["admin-users"] || ADMIN_RESPONSES["admin-users"];
+    if (lower.includes("safe") || lower.includes("incident")) return responses["admin-safety"] || ADMIN_RESPONSES["admin-safety"];
+  }
+
+  if (lower.includes("human") || lower.includes("agent") || lower.includes("support") || lower.includes("escalat") || lower.includes("talk") || lower.includes("ticket") || lower.includes("help")) {
+    if (role === "admin" || role === "super_admin") {
+      return "For complex operational issues, check the relevant dashboard tab or escalate through internal channels. The compliance logs and audit trails provide detailed records for investigation.";
+    }
+    return role === "driver" ? DRIVER_RESPONSES["escalate"] : RIDER_RESPONSES["escalate"];
+  }
+
+  return COMMON_RESPONSES["default"];
+}
+
+function logSupportInteraction(userMessage: string, supportResponse: string, role: UserRole, screen: string) {
+  fetch("/api/support/log-interaction", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({
+      userMessage,
+      supportResponse: supportResponse.substring(0, 500),
+      userRole: role,
+      currentScreen: screen,
+    }),
+  }).catch(() => {});
+}
+
+interface ZibaSupportProps {
+  onClose?: () => void;
+  forceRole?: UserRole;
+}
+
+export function ZibaSupport({ onClose, forceRole }: ZibaSupportProps) {
+  const { user } = useAuth();
+  const [pathname] = useLocation();
+  const detectedRole = forceRole || detectRole(pathname, (user as any)?.roles);
+  const screen = getScreenContext(pathname);
+
+  const greetingKey = `greeting-${detectedRole}` as keyof typeof COMMON_RESPONSES;
+  const greeting = COMMON_RESPONSES[greetingKey] || COMMON_RESPONSES["greeting-general"];
+
+  const contextHint = getContextHint(screen, detectedRole);
+  const initialMessages: SupportMessage[] = [
+    { id: "greeting", role: "support", content: greeting, timestamp: new Date() },
+  ];
+  if (contextHint) {
+    initialMessages.push({ id: "context-hint", role: "support", content: contextHint, timestamp: new Date(Date.now() + 100) });
+  }
+
+  const [messages, setMessages] = useState<SupportMessage[]>(initialMessages);
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const topics = getTopics(detectedRole);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -63,7 +286,7 @@ export function ZibaSupport({ onClose }: { onClose?: () => void }) {
     }
   }, [messages]);
 
-  const handleSend = (text?: string) => {
+  const handleSend = useCallback((text?: string) => {
     const msg = text || input.trim();
     if (!msg) return;
 
@@ -74,25 +297,32 @@ export function ZibaSupport({ onClose }: { onClose?: () => void }) {
       timestamp: new Date(),
     };
 
-    const responseText = text
-      ? SUPPORT_RESPONSES[QUICK_TOPICS.find(t => t.label === text)?.key || "default"] || SUPPORT_RESPONSES["default"]
-      : getResponse(msg);
+    const responseMap = getResponseMap(detectedRole);
+    const matchedTopic = topics.find(t => t.label === text);
+    const responseText = matchedTopic
+      ? (responseMap[matchedTopic.key] || getResponse(msg, detectedRole))
+      : getResponse(msg, detectedRole);
 
     const supportMsg: SupportMessage = {
       id: `support-${Date.now()}`,
       role: "support",
       content: responseText,
-      timestamp: new Date(Date.now() + 500),
+      timestamp: new Date(Date.now() + 300),
     };
 
     setMessages(prev => [...prev, userMsg, supportMsg]);
     setInput("");
-  };
+
+    logSupportInteraction(msg, responseText, detectedRole, screen);
+  }, [input, detectedRole, topics, screen]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     handleSend();
   };
+
+  const isPrivateMode = detectedRole === "admin" || detectedRole === "super_admin";
+  const headerLabel = isPrivateMode ? "Z-Assist" : "ZIBA Support";
 
   return (
     <Card className="flex flex-col h-full" data-testid="card-ziba-support">
@@ -102,7 +332,10 @@ export function ZibaSupport({ onClose }: { onClose?: () => void }) {
             <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
               <Headphones className="h-4 w-4 text-primary" />
             </div>
-            ZIBA Support
+            {headerLabel}
+            {isPrivateMode && (
+              <Badge variant="secondary" className="text-[10px]">Internal</Badge>
+            )}
           </CardTitle>
           {onClose && (
             <Button variant="ghost" size="icon" onClick={onClose} data-testid="button-close-support">
@@ -132,9 +365,9 @@ export function ZibaSupport({ onClose }: { onClose?: () => void }) {
           ))}
         </div>
 
-        {messages.length <= 1 && (
+        {messages.length <= (contextHint ? 2 : 1) && (
           <div className="flex flex-wrap gap-1.5 mb-3" data-testid="container-quick-topics">
-            {QUICK_TOPICS.map((topic) => (
+            {topics.map((topic) => (
               <Badge
                 key={topic.key}
                 variant="outline"
@@ -153,7 +386,7 @@ export function ZibaSupport({ onClose }: { onClose?: () => void }) {
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Type your question..."
+            placeholder={isPrivateMode ? "Ask about platform operations..." : "Type your question..."}
             className="flex-1"
             data-testid="input-support-message"
           />
@@ -162,19 +395,24 @@ export function ZibaSupport({ onClose }: { onClose?: () => void }) {
           </Button>
         </form>
 
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full mt-2"
-          onClick={() => handleSend("Talk to Support")}
-          data-testid="button-escalate-support"
-        >
-          <Headphones className="h-3 w-3 mr-2" />
-          Talk to Support Team
-        </Button>
+        {!isPrivateMode && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full mt-2"
+            onClick={() => handleSend("Talk to Support")}
+            data-testid="button-escalate-support"
+          >
+            <Headphones className="h-3 w-3 mr-2" />
+            Talk to Support Team
+          </Button>
+        )}
 
         <p className="text-[10px] text-muted-foreground text-center mt-2">
-          ZIBA Support helps connect you with information and assistance.
+          {isPrivateMode
+            ? "Z-Assist provides advisory guidance. Verify critical actions independently."
+            : "ZIBA Support helps connect you with information and assistance."
+          }
         </p>
       </CardContent>
     </Card>

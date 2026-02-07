@@ -470,6 +470,9 @@ import {
   legalAcknowledgements,
   type LegalAcknowledgement,
   type InsertLegalAcknowledgement,
+  supportInteractions,
+  type SupportInteraction,
+  type InsertSupportInteraction,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull } from "drizzle-orm";
@@ -1443,6 +1446,8 @@ export interface IStorage {
   // Legal acknowledgements
   logLegalAcknowledgement(data: InsertLegalAcknowledgement): Promise<LegalAcknowledgement>;
   getLegalAcknowledgements(userId?: string, type?: string): Promise<LegalAcknowledgement[]>;
+  logSupportInteraction(data: InsertSupportInteraction): Promise<SupportInteraction>;
+  getSupportInteractions(userId?: string, role?: string): Promise<SupportInteraction[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -10769,6 +10774,22 @@ export class DatabaseStorage implements IStorage {
       query = query.where(and(...conditions)) as any;
     }
     return await query.orderBy(desc(legalAcknowledgements.createdAt)).limit(500);
+  }
+
+  async logSupportInteraction(data: InsertSupportInteraction): Promise<SupportInteraction> {
+    const [result] = await db.insert(supportInteractions).values(data).returning();
+    return result;
+  }
+
+  async getSupportInteractions(userId?: string, role?: string): Promise<SupportInteraction[]> {
+    let query = db.select().from(supportInteractions);
+    const conditions = [];
+    if (userId) conditions.push(eq(supportInteractions.userId, userId));
+    if (role) conditions.push(eq(supportInteractions.userRole, role));
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+    return await query.orderBy(desc(supportInteractions.createdAt)).limit(500);
   }
 }
 

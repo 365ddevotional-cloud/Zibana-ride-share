@@ -1,0 +1,521 @@
+You are implementing ZIBA AI Support across the ZIBA platform (Rider, Driver, Admin, Super Admin).
+
+OBJECTIVE:
+Create a role-aware, legally safe, branded support intelligence that assists users (Riders, Drivers, Admins, Super Admins) while reducing human support load and eliminating legal exposure.
+
+DO NOT label this system as “AI” to users.
+User-facing brand name: “ZIBA Support” (nickname UI label: “Z-Assist”).
+Internal/dev codename: “ZIBRA”.
+Use the ZIBRA zebra icon for avatar in UI, but do NOT mention “AI”.
+
+Audit existing help systems first.
+Add only missing components.
+Do NOT break existing flows.
+Do NOT change pricing splits or platform commission visibility.
+
+=====================================================================
+PHASE 0 — AUDIT FIRST (DO THIS BEFORE CODING ANYTHING NEW)
+=====================================================================
+1) Search repo for existing Help/Inbox/Support code:
+   - components/pages/routes containing: Help, Support, Inbox, Chat, Assistant, FAQ
+   - existing endpoints: /support, /messages, /inbox, /notifications, /events, /logs
+2) Identify existing data models for:
+   - User roles (rider/driver/admin/superAdmin)
+   - Notifications
+   - Messages/inbox
+   - Disputes/safety/lost items
+3) Identify where “Something went wrong” is thrown for Rider Inbox and fix that bug (route missing, API failing, auth mismatch, null ref).
+4) Make a checklist of what exists vs what is missing; implement ONLY missing pieces.
+
+=====================================================================
+PHASE 1 — CORE SUPPORT MODES
+=====================================================================
+
+1) GENERAL MODE (Riders & Drivers)
+ZIBA Support must:
+- Answer FAQs
+- Explain app features
+- Guide payments, rides, wallet, scheduling
+- Assist with saved places (Home/Work) flows
+- Assist with lost items and safety flows
+- Calm users and reduce friction
+- Suggest next steps without guarantees
+
+Restrictions:
+- Never admit fault
+- Never promise refunds or recovery
+- Never reveal platform commissions or internal rules
+- Use neutral facilitation language
+- Never reveal private/admin-only data or actions
+
+2) PRIVATE MODE (Admin & Super Admin only)
+When user role = Admin or Super Admin:
+- Enable Private Internal Assistant Mode automatically
+- Do NOT expose this mode to Riders or Drivers
+- UI label still “ZIBA Support” but it is internally privileged by role permissions
+
+=====================================================================
+PHASE 2 — CONTEXT-AWARE ASSISTANCE
+=====================================================================
+
+3) Context Detection
+ZIBA Support must detect and attach context to each message:
+- current screen/route (e.g., /rider/home, /driver/trips, /admin/training, /admin/drivers)
+- user role
+- active flow state:
+  - ride active/accepted/enroute/completed
+  - wallet low balance / cash vs wallet
+  - scheduled ride creating/viewing
+  - lost item ticket open/awaiting driver/returned
+  - accident report ticket open
+  - admin approval pending (driver/trainee)
+Responses must be relevant to context.
+
+Implementation guidance:
+- Frontend sends: route + selected entity ids (rideId, ticketId) + role to backend chat endpoint.
+- Backend validates role from session token (never trust frontend role).
+
+=====================================================================
+PHASE 3 — ROLE-BASED CAPABILITIES
+=====================================================================
+
+4) ADMIN CAPABILITIES
+Admin-facing ZIBA Support may:
+- Explain dashboard sections
+- Guide approvals (drivers, trainees)
+- Explain disputes, flags, trust scores (high-level)
+- Assist with searching logs
+- Suggest administrative actions (without executing automatically unless admin clicks a normal UI action)
+- Troubleshoot common admin issues (missing approvals tab, pending approval)
+
+5) SUPER ADMIN CAPABILITIES
+Super Admin-facing ZIBA Support may:
+- Explain system configuration
+- Highlight dependencies
+- Warn of risky actions
+- Summarize abuse patterns
+- Assist in audits and investigations
+- Explain legal/compliance considerations (high level, not legal advice)
+- Provide guided “checklists” for changes without breaking production
+
+6) ROLE SAFETY RULES
+- Same question → different answers based on role
+- Never leak private data across roles
+- Never expose internal metrics, commissions, or protected rules to public users
+- Never reveal another user’s phone/email/address
+- Never reveal driver phone to rider except in the EXACT approved lost-item workflow below
+
+=====================================================================
+PHASE 4 — LEGAL RESPONSE FRAMEWORK (APPROVED LANGUAGE ONLY)
+=====================================================================
+
+7) APPROVED LANGUAGE
+ZIBA Support must frame answers as:
+- “ZIBA helps facilitate…”
+- “Based on your situation…”
+- “We recommend…”
+- “This feature is designed to assist…”
+
+Never say:
+- “ZIBA guarantees…”
+- “ZIBA is responsible for…”
+- “We will reimburse you…”
+- “We confirm the driver has your item…” (unless system status explicitly confirms)
+
+8) DISCLAIMERS (STRATEGIC, NOT SPAM)
+- Show brief disclaimers at key points only:
+  - before submitting lost item report
+  - before scheduling a Safe Return Hub meet
+  - before submitting accident report
+  - before confirming any cancellation fee
+Text must be calm, short, and non-alarming.
+
+=====================================================================
+PHASE 5 — NOTIFICATIONS + INBOX (MUST FEEL LIKE SMS)
+=====================================================================
+
+9) NOTIFICATIONS (POWERFUL, DEVICE-LEVEL)
+Goal: In-app notifications that also appear on mobile like push alerts.
+- Implement Web Push (PWA) notifications for zibatech.org
+- Ask permission on first login (one-time)
+- DEFAULT PREFERENCE = ON (but still must respect OS permission; if denied, fallback to in-app only)
+- Provide Settings toggle to disable notifications inside app
+
+Triggers (store in DB + send push when possible):
+- Driver assigned
+- Driver arriving
+- Ride scheduled confirmation
+- Cancellation penalties
+- Wallet low balance
+- Lost item status updates
+- Accident report updates
+- Admin approval status updates (driver/trainee)
+
+10) INBOX
+- Fix Rider Inbox crash (“Something went wrong”)
+- Messages stored in DB and visible in Inbox tab (Rider/Driver)
+- Admin can view messages (read-only + filters)
+- Unread badge count on Inbox icon:
+  - red circle + white bold number
+  - updates in realtime or on refresh/navigation
+
+11) WELCOME MESSAGE (AUTOMATIC)
+On first signup + first login:
+- Create a welcome inbox message:
+  Title: “Welcome to ZIBA”
+  Body: friendly onboarding tips (no promises), links to Help topics, safety reminders
+
+12) MARKETING MESSAGES (NON-INTRUSIVE)
+- Max 1 per 24 hours
+- Disabled during active trip
+- Examples:
+  - “Schedule rides in advance and avoid delays.”
+  - “Low balance — top up your wallet to avoid ride issues.”
+  - “Reliable drivers available in your area now.”
+  - “Cash rides available — wallet gives priority matching.”
+Store these as “promotions” message type and deliver to Inbox + push (if enabled).
+
+=====================================================================
+PHASE 6 — SETTINGS + APPEARANCE (MATCH WELCOME PAGE QUALITY)
+=====================================================================
+
+13) ADD SETTINGS SCREEN (Rider & Driver)
+Add an “Account / Settings” section similar in capability (not copying UI):
+- Profile (name, phone, email)
+- Saved Places (Home/Work)
+- Notifications (toggle + permission status)
+- Appearance (Light / Dark / System Auto)
+- Privacy & Data (basic)
+- Safety (trusted contacts in future, ride PIN in future)
+- Language (future-ready)
+- Support escalation
+
+14) THEME SWITCHER CONSISTENCY
+- Theme switcher exists on welcome page but missing after login.
+Fix: Move theme controller to global app shell/layout used by authenticated routes.
+Persist preference in DB + local storage.
+Default: System Auto.
+
+15) TYPOGRAPHY / BIG BEAUTIFUL FONTS
+- Make authenticated Rider & Driver screens use same typography scale as welcome page:
+  - headings large/bold
+  - clearer spacing
+  - consistent font family
+Do this via shared design tokens/theme variables, not manual per page.
+
+=====================================================================
+PHASE 7 — FIX THESE CURRENT BUGS (DO NOT SKIP)
+=====================================================================
+
+16) SAVED PLACES — HOME/WORK SAVE FAIL
+Observed: Home/Work forms open, but Save fails (“Failed to save address”).
+Fix end-to-end:
+- Ensure API exists: POST/PUT /saved-places (or /profile/places)
+- Validate request body and user auth
+- DB model supports:
+  - user_id
+  - type (home/work)
+  - address_text
+  - notes
+  - optional lat/lng if available later
+- After save:
+  - return to previous page
+  - show saved address on Rider home screen
+  - allow edit and delete
+
+17) WALLET AUTO TOP-UP TOGGLE FAIL
+Observed: toggle cannot turn on; error “Failed to update auto top-up”.
+Fix:
+- Ensure API exists: PUT /wallet/auto-topup
+- Store:
+  - enabled
+  - threshold_amount
+  - topup_amount
+  - payment_source (future)
+- If payment rails not ready:
+  - still allow enabling in “simulation mode” with clear message
+  - OR disable toggle with explanation instead of failing
+Do not allow silent failure.
+
+18) RIDER INBOX ERROR PAGE
+Observed: clicking Inbox shows unexpected error.
+Fix:
+- Missing route? broken auth guard? API 500?
+- Add error boundary with actual cause logged.
+- Ensure Inbox page loads even if 0 messages (empty state).
+
+19) DRIVER “PENDING APPROVAL” — ADMIN APPROVAL UI MISSING
+Observed: Driver trainee can login but stuck “Pending Approval”, and admin dashboard no longer shows approval area.
+Fix:
+- Restore Admin approvals UI:
+  - Drivers Pending
+  - Trainee Drivers Pending
+- Add endpoints:
+  - GET /admin/approvals/drivers?status=pending
+  - POST /admin/approvals/drivers/:id/approve
+  - POST /admin/approvals/drivers/:id/reject
+- Ensure training mode creation sets correct flags:
+  - isTraining = true
+  - approval_status = pending
+- Ensure normal driver signup also creates pending approval record.
+- Approving should flip:
+  - approval_status = approved
+  - driver can go online
+
+=====================================================================
+PHASE 8 — LOST ITEM + ACCIDENT PROTOCOLS (SAFE + PROFITABLE + TRACKABLE)
+=====================================================================
+
+20) LOST ITEM FLOW (PROFIT + TRUST + SAFETY)
+Goals:
+- Encourage returns
+- Prevent abuse
+- Reduce conflict
+- Legally safe
+
+Core concepts:
+A) Lost Item Ticket:
+- riderId, driverId, rideId, itemCategory, description, lastSeen, contactPreference
+- status: submitted → driver_notified → driver_found / driver_not_found → return_scheduled → returned → closed
+- fees:
+  - optional “return handling fee” (admin-configurable)
+  - rider pays fee to driver upon confirmed return (wallet preferred; cash allowed)
+  - ZIBA may charge small facilitation fee ONLY if already agreed in existing product plan (do not expose splits)
+B) Driver incentive:
+- driver receives return handling fee (and possibly a bonus from “Driver Accident Relief Fund” pool only if you enable that later—separate)
+C) Contact rules:
+- By default: in-app chat only (masked)
+- Only when driver marks “FOUND ITEM” and requests coordination:
+  - system may reveal rider phone number to driver ONLY for return coordination
+  - rider does NOT see driver phone number unless “RETURNED CONFIRMED”
+  - all communications logged
+D) Trust score impact:
+- false claims / repeated claims reduce trust score
+- repeated non-cooperation reduces trust score (both sides)
+E) AI fraud detection:
+- flag patterns: frequent lost-item reports, same driver+multiple riders, high fee disputes
+- route flagged cases to admin review
+
+21) ACCIDENT REPORT FLOW (SAFETY + LIABILITY CONTROL)
+- Accident ticket:
+  - rideId, driverId, riderId, time, location (optional), description, photos (optional)
+  - injuries? emergency contacted? police report? (checkboxes)
+- Provide “Emergency call” shortcuts (device)
+- No admission of fault; language: “report”, “document”, “we can facilitate”
+- Admin Safety Dashboard:
+  - view accident tickets
+  - status: open → investigating → resolved
+  - insurance partner integration placeholder:
+    - store partner name, contact method, claim reference
+- Driver Accident Relief Fund:
+  - optional program: driver opts-in, small periodic contribution
+  - admin can approve relief payouts (do not promise)
+
+=====================================================================
+PHASE 9 — SAFE RETURN HUBS (DESIGN + UI + TERMS + EDGE CASES)
+=====================================================================
+
+22) WHAT “ZIBA SAFE RETURN HUBS” MEANS
+A network of neutral, verified public locations where lost-item handoffs can happen safely:
+- partner stores, fuel stations, offices, malls, security posts
+- reduces conflict and “doorstep” confrontations
+- creates trust and a predictable process
+- allows ZIBA to provide structure without taking custody of items
+
+Important: ZIBA does NOT store items; ZIBA only facilitates meeting.
+
+23) SAFE RETURN HUB DATA MODEL
+- SafeReturnHub:
+  - id, name, type (fuel_station/store/office/security_post)
+  - address, city, state, country
+  - openHours
+  - verificationStatus
+  - contactPhone (hub manager, optional)
+  - geo (lat/lng)
+  - notes (parking, landmark)
+- LostItemReturnMeet:
+  - lostItemTicketId
+  - hubId OR customMeetLocation
+  - scheduledAt
+  - confirmation codes (one-time)
+  - status: proposed → accepted → completed → disputed
+
+24) SAFE RETURN HUB UX (RIDER + DRIVER)
+Rider:
+- Lost Item → “Choose return method”
+  - Option 1: Meet at Safe Return Hub (recommended)
+  - Option 2: Meet at public place (manual)
+  - Option 3: Delivery (future)
+- Show nearby hubs list (city filter)
+- Choose time window
+- Agree to disclaimers + return fee (if any)
+Driver:
+- Lost Item Ticket → “I found the item”
+- Choose:
+  - Meet at Safe Return Hub
+  - Propose alternate safe location
+- Confirm time
+- When both accept:
+  - generate one-time handoff code (both must match)
+  - unlock limited contact (rider phone shown to driver only after “found” + “meet scheduled”)
+
+Admin:
+- Manage hubs CRUD (add/edit/disable)
+- View lost item tickets and return meets
+- Fraud flags dashboard
+- Reports by city/time/driver/rider
+
+25) SAFE RETURN HUB PARTNER BENEFITS (BUSINESS)
+- Partners get “ZIBA Safe Return Hub” badge listing
+- Potential foot traffic
+- Optional small partner incentive later (future)
+
+=====================================================================
+PHASE 10 — “ZIBA SUPPORT / Z-ASSIST / ZIBRA” IMPLEMENTATION
+=====================================================================
+
+26) SYSTEM ARCHITECTURE
+- Create Support service with:
+  - /api/support/chat (POST)
+  - /api/support/suggestions (GET)
+  - /api/support/context (POST optional)
+- Store every conversation:
+  - SupportConversation { id, userId, role, createdAt }
+  - SupportMessage { id, conversationId, sender(user/support), text, createdAt, routeContext, entityRefs(json), visibility(public/private) }
+- Add admin viewer for logs:
+  - /admin/support-logs (filters by role, topic, date)
+
+27) RESPONSE ENGINE (NO EXTERNAL AI REQUIRED INITIALLY)
+Implement in 2 layers:
+Layer A: Deterministic policy engine (must-have)
+- intents: wallet, scheduling, cancel fees, lost item, accident, approvals, inbox
+- pulls relevant policy text + step-by-step instructions
+- blocks disallowed phrases (guarantees/liability admissions)
+Layer B: Optional LLM integration later (pluggable)
+- only if you add a provider
+- still forced through policy engine + role-based redaction
+
+28) “DO NOT CALL IT AI” BEHAVIOR
+- UI copy never mentions AI
+- “ZIBA Support” speaks like a professional support concierge:
+  - short, calm, confident
+  - offers steps
+  - offers escalation
+- If asked “are you AI?” respond:
+  - “I’m ZIBA Support. I’m here to help you navigate ZIBA and resolve common issues quickly.”
+
+29) ROLE-AWARE RESPONSE RULES (ENFORCE SERVER-SIDE)
+- Backend reads role from auth token
+- Applies capability table:
+  - Rider: public help only
+  - Driver: public help + driver flows
+  - Admin: public + admin help + view logs
+  - SuperAdmin: everything + configuration guidance
+- Redaction:
+  - never show phone numbers unless allowed by the exact lost-item status gates
+  - never show private admin endpoints to riders/drivers
+
+30) ESCALATION TO HUMAN SUPPORT
+- Button: “Contact Human Support”
+- Creates support ticket:
+  - includes last 10 support messages + context snapshot
+- Provide SLA language carefully (no promises):
+  - “A support agent will review this as soon as possible.”
+
+=====================================================================
+PHASE 11 — UI ENTRY POINTS
+=====================================================================
+
+31) RIDER UI
+- Inbox tab works + badge count
+- Help tab includes:
+  - FAQ cards
+  - “Chat with ZIBA Support” entry
+- Optional floating help button on key screens
+
+32) DRIVER UI
+- Help tab includes ZIBA Support chat
+- Lost item + accident shortcuts in Help
+
+33) ADMIN UI
+- Sidebar item: “ZIBA Support Logs”
+- Sidebar widget: “Need help?” opens private mode assistant
+- Approvals restored (drivers + trainees)
+
+=====================================================================
+PHASE 12 — LEGAL TERMS (STORE-READY + GLOBAL-READY)
+=====================================================================
+
+34) LEGAL STRATEGY
+- Create modular Terms blocks:
+  - Global baseline (applies everywhere)
+  - Country addenda (Nigeria / US / UK / Canada / SA / Ghana + “Other Countries”)
+- Always include:
+  - platform as facilitator
+  - limitation of liability
+  - no guarantee of item recovery
+  - safety and user responsibility
+  - dispute resolution process
+  - governing law per region (placeholder, configurable)
+- Do NOT claim legal advice; write clear app terms language.
+
+35) LOST ITEM TERMS KEY POINTS
+- ZIBA facilitates communication; not responsible for custody
+- Return fees optional and subject to policy
+- No guarantees
+- Users must use Safe Return Hubs/public places
+- Fraud/abuse may lead to restriction
+
+36) ACCIDENT/SAFETY TERMS KEY POINTS
+- ZIBA is not a transportation provider
+- Drivers are independent providers (or the existing structure you already use—do not contradict your current model)
+- ZIBA does not guarantee safety outcomes
+- Emergency services responsibility remains with users
+- Insurance handled by driver/partner as applicable
+
+NOTE: Implement Terms acceptance during signup for Rider & Driver, plus a “Terms” link in Settings.
+
+=====================================================================
+PHASE 13 — EDGE CASES + ABUSE SIMULATION (MUST PASS)
+=====================================================================
+
+37) LOST ITEM ABUSE CASES
+Simulate and ensure correct outcomes:
+- rider false claim repeatedly → trust score down + admin flag
+- driver claims found but delays → auto reminders + admin escalate
+- driver demands extra money → show policy + report option
+- rider tries to get driver number without “found” status → blocked
+- dangerous meet location proposed → suggest Safe Return Hub instead
+
+38) ACCIDENT CASES
+- minor vs major accident flows
+- photos upload failure fallback
+- driver/rider blames each other → neutral language only
+- legal threats → provide “policy info” + escalation
+
+39) NOTIFICATION CASES
+- permission denied → fallback in-app inbox + banners
+- offline device → notifications queued + delivered later
+- badge count stays correct
+
+=====================================================================
+DELIVERABLES REQUIRED (DO THESE IN THIS ORDER)
+=====================================================================
+A) Fix the 4 bugs first (saved places save, auto top-up toggle, rider inbox crash, driver approvals missing)
+B) Implement Inbox + Notifications foundation (DB + API + UI + badge)
+C) Add Settings/Appearance for rider & driver (theme + typography improvements)
+D) Implement ZIBA Support chat (policy engine + logging + role-aware)
+E) Implement Lost Item + Accident workflows (tickets + admin dashboards + Safe Return Hubs)
+F) Add Terms updates + acceptance + country addenda placeholders
+G) Run edge-case simulations and confirm pass
+
+=====================================================================
+CONFIRMATION REQUIREMENTS
+=====================================================================
+After each deliverable, confirm with:
+- what changed (files/endpoints/models)
+- how to test (step-by-step)
+- what remains
+Do NOT mark complete until end-to-end tests pass for each section.
+
+Proceed step-by-step and confirm completion.
