@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { createPortal } from "react-dom";
 import { RiderLayout } from "@/components/rider/RiderLayout";
 import { RiderRouteGuard } from "@/components/rider/RiderRouteGuard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -5,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
-import { Wallet, CreditCard, Plus, Clock, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import { Wallet, CreditCard, Plus, Clock, CheckCircle, XCircle, AlertCircle, X } from "lucide-react";
 
 interface WalletData {
   balance: string;
@@ -22,6 +24,7 @@ interface Refund {
 }
 
 export default function RiderWallet() {
+  const [showCardModal, setShowCardModal] = useState(false);
   const { data: wallet, isLoading: walletLoading } = useQuery<WalletData>({
     queryKey: ["/api/wallet/rider"],
   });
@@ -75,10 +78,15 @@ export default function RiderWallet() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="p-4 rounded-lg border border-dashed flex items-center justify-center gap-2 text-muted-foreground">
+              <button
+                className="w-full p-4 rounded-lg border border-dashed flex items-center justify-center gap-2 text-muted-foreground cursor-pointer hover-elevate"
+                onClick={() => setShowCardModal(true)}
+                data-testid="button-add-payment-method"
+                style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+              >
                 <Plus className="h-5 w-5" />
                 <span>Add Payment Method</span>
-              </div>
+              </button>
               <p className="text-xs text-muted-foreground text-center">
                 Payment methods are managed in test mode
               </p>
@@ -134,6 +142,92 @@ export default function RiderWallet() {
           </div>
         </div>
       </RiderLayout>
+      {showCardModal && createPortal(
+        <div
+          data-testid="overlay-card-unavailable"
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 2147483647,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "1rem",
+            isolation: "isolate",
+          }}
+        >
+          <div
+            onClick={() => setShowCardModal(false)}
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0,0,0,0.7)",
+              zIndex: 0,
+            }}
+          />
+          <div
+            data-testid="dialog-card-unavailable"
+            className="border bg-background"
+            style={{
+              position: "relative",
+              zIndex: 1,
+              width: "100%",
+              maxWidth: "22rem",
+              padding: "1.5rem",
+              borderRadius: "0.5rem",
+              boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)",
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setShowCardModal(false)}
+              data-testid="button-close-card-modal"
+              style={{
+                position: "absolute",
+                right: "1rem",
+                top: "1rem",
+                background: "none",
+                border: "none",
+                padding: "8px",
+                margin: "-4px",
+                cursor: "pointer",
+                opacity: 0.7,
+                touchAction: "manipulation",
+                WebkitTapHighlightColor: "transparent",
+              }}
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <div style={{ textAlign: "center" }}>
+              <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center mx-auto" style={{ marginBottom: "1rem" }}>
+                <CreditCard className="h-7 w-7 text-muted-foreground" />
+              </div>
+              <h2 className="text-lg font-semibold" data-testid="text-card-unavailable-title">
+                Card Payments Unavailable
+              </h2>
+              <p className="text-sm text-muted-foreground" style={{ marginTop: "0.5rem" }}>
+                Card payments are disabled in test mode. You can continue using cash for trips. Card payments will be available in production.
+              </p>
+            </div>
+            <div style={{ marginTop: "1.25rem" }}>
+              <Button
+                className="w-full"
+                onClick={() => setShowCardModal(false)}
+                data-testid="button-ok-card-modal"
+              >
+                OK
+              </Button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </RiderRouteGuard>
   );
 }

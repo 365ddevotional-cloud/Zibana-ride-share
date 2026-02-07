@@ -1,0 +1,74 @@
+TITLE: Fix Rider Payment UX — Cash Update Error & Add Payment Method Button
+
+DO NOT TOUCH ANY OTHER PART OF THE APP.
+DO NOT REWORK SIMULATION.
+DO NOT CHANGE DRIVER FLOWS.
+“Got it” IS ALREADY FIXED — LEAVE IT AS IS.
+
+====================================
+
+ISSUE 1: “Could not update payment method” error when selecting Cash
+
+PROBLEM:
+When a rider selects CASH as payment, the app attempts to update the payment method via a backend API.
+That API fails in test/simulation mode, causing a red error banner:
+“Update failed – Could not update payment method”.
+
+THIS IS WRONG UX.
+
+REQUIRED FIX (MANDATORY):
+1. CASH must be treated as a LOCAL-ONLY payment option.
+2. Selecting CASH must:
+   - NOT call any backend API
+   - NOT attempt to persist payment method server-side
+   - NOT trigger any error banners
+3. CASH selection must:
+   - Update UI state immediately
+   - Be stored only in local state / session
+   - Always be allowed even when wallet balance = ₦0.00
+4. Backend payment update APIs must ONLY be called for:
+   - CARD
+   - WALLET
+
+ACCEPTANCE CRITERIA:
+- Selecting CASH never shows an error
+- CASH always works in test/simulation mode
+- Switching between CASH and WALLET never fails
+
+====================================
+
+ISSUE 2: “Add Payment Method” button is not clickable
+
+PROBLEM:
+The “Add Payment Method” button appears enabled but does nothing.
+This creates dead taps and will cause Play Store / App Store rejection.
+
+REQUIRED FIX (MANDATORY):
+1. The “Add Payment Method” button MUST be clickable.
+2. In TEST / SIMULATION MODE:
+   - DO NOT open any real card or payment flow
+   - DO NOT silently disable the button
+3. Instead, tapping the button must open an informational modal.
+
+MODAL BEHAVIOR:
+- Title: Card Payments Unavailable
+- Message:
+  “Card payments are disabled in test mode.
+   You can continue using cash for trips.
+   Card payments will be available in production.”
+- Button: OK (closes modal)
+
+IMPORTANT:
+- NO backend calls
+- NO error banners
+- NO dead taps
+
+====================================
+
+FINAL VERIFICATION (MUST TEST ON MOBILE VIEW):
+1. Rider selects CASH → no error, instant selection
+2. Rider switches CASH ↔ WALLET → no failure
+3. Rider taps “Add Payment Method” → modal appears
+4. No red error banners appear during normal rider actions
+
+ONLY confirm completion AFTER all steps above pass.

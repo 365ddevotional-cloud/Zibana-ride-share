@@ -68,6 +68,13 @@ export default function RiderPayments() {
 
   const handleSelectMethod = (method: PaymentMethod) => {
     setSelectedMethod(method);
+    if (method === "CASH") {
+      toast({
+        title: "Cash payment selected",
+        description: "You'll pay the driver the full trip amount in cash at the end of the ride.",
+      });
+      return;
+    }
     updateDefaultMethod.mutate(method);
   };
 
