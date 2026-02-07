@@ -53,8 +53,9 @@ Preferred communication style: Simple, everyday language.
 - **Universal Identity Framework**: Country-aware identity verification.
 - **Driver GPS & Navigation Enforcement**: Mandates GPS permissions and background execution consent.
 - **Ratings, Behavior Signals & Trust Scoring**: Bidirectional rating system, passive behavior signal capture, and trust score calculation with anti-manipulation guards.
-- **Safety & Incident Intelligence**: SOS trigger system, incident reporting, auto-escalation rules, and suspension management. Includes Accident Report Protocol with safety checks, evidence collection, and admin review workflow.
-- **Lost Item Protocol**: Full lost item reporting system with rider reporting, driver confirmation/denial, return fee management (country-specific), status tracking, and admin oversight.
+- **Safety & Incident Intelligence**: SOS trigger system, incident reporting, auto-escalation rules, and suspension management. Includes Accident Report Protocol with safety checks, evidence collection, and admin review workflow. Insurance partner integration for moderate/severe/critical accidents with rider opt-in referrals.
+- **Lost Item Protocol**: Full lost item reporting system with rider reporting, driver confirmation/denial, return fee management (country-specific), status tracking, and admin oversight. AI fraud detection with auto-generated signals (frequent_reporter, same_item_type, frequent_accused, gps_mismatch, no_proof) and risk scoring.
+- **Driver Accident Relief Fund**: Pool-based financial support for drivers involved in verified accidents. Funded by cancellation fee allocations (10%), lost item fee allocations (5%), and admin top-ups. Claims reviewed by admin with fault determination (not_at_fault, shared_fault, at_fault). Minimum trust score requirement for eligibility.
 - **Disputes, Refunds & Legal Resolution**: Formal dispute filing, refund engine, chargeback tracking, and immutable audit trail.
 - **Pre-Launch Compliance & Store Readiness**: Versioned legal documents, user consent tracking, kill switch system, and test mode isolation.
 - **Admin Override Control & Support Safety**: Authorized admin/super_admin users can perform controlled overrides with audit logging.
