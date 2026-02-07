@@ -359,6 +359,98 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     response: "Language preferences can be managed in your Account settings. ZIBA currently supports English. Additional language support is being expanded. If your preferred language is not available, the app will default to English."
   },
 
+  // Ride Experience (Rider)
+  {
+    id: "r-ride-rating",
+    role: "rider",
+    category: "booking",
+    keywords: ["rate ride", "rate driver", "rating", "stars", "review trip", "give rating"],
+    response: "To rate a completed ride:\n1. After your trip ends, the rating prompt will appear.\n2. Select a star rating and optionally leave a comment.\n3. Submit your rating.\n\nYour feedback helps maintain service quality. Let me know if you need further guidance."
+  },
+  {
+    id: "r-ride-receipt",
+    role: "rider",
+    category: "booking",
+    keywords: ["receipt", "trip receipt", "ride receipt", "invoice", "fare breakdown", "email receipt"],
+    response: "To view your trip receipt:\n1. Go to Activity and find the completed trip.\n2. Tap the trip to see the fare breakdown and receipt details.\n\nReceipts include pickup, drop-off, distance, duration, and total charges. I can guide you through this if you want."
+  },
+  {
+    id: "r-ride-route",
+    role: "rider",
+    category: "booking",
+    keywords: ["wrong route", "bad route", "longer route", "detour", "different route", "not shortest"],
+    response: "If your driver took a different route than expected, the fare may reflect the actual distance traveled. To request a review:\n1. Go to Activity and find the trip.\n2. Review the route details.\n3. Submit a support ticket if you believe the route was incorrect.\n\nWe recommend providing specific details for a thorough review. Let me know if you need further guidance."
+  },
+  {
+    id: "r-ride-corporate",
+    role: "rider",
+    category: "booking",
+    keywords: ["corporate ride", "business ride", "company ride", "corporate account", "business account", "how corporate works", "corporate policy", "business travel", "corporate setup"],
+    response: "ZIBA helps facilitate corporate ride options for business travel. Corporate rides allow billing to a business account. Based on your situation, check with your company administrator for corporate ride setup and policies. I can guide you through this if you want."
+  },
+
+  // Safety (Rider) - Additional
+  {
+    id: "r-safety-trusted-contacts",
+    role: "rider",
+    category: "safety",
+    keywords: ["trusted contacts", "manage contacts", "add contact", "emergency contact", "safety contact"],
+    response: "To manage your trusted contacts:\n1. Go to the Safety Hub in your Account.\n2. Select 'Trusted Contacts'.\n3. Add, edit, or remove contacts as needed.\n\nTrusted contacts can receive your live trip details when you share a trip. We recommend keeping this list up to date. Let me know if you need further guidance."
+  },
+  {
+    id: "r-safety-accident",
+    role: "rider",
+    category: "safety",
+    keywords: ["accident", "crash", "collision", "injured", "rider accident", "hurt"],
+    response: "If there's an emergency, please contact local emergency services first. To report an accident as a rider:\n1. Go to the Safety Hub.\n2. Select 'Report Incident' and choose 'Accident'.\n3. Provide details and any photos if available.\n\nZIBA facilitates documentation and review of accident reports. Let me know if you need immediate assistance.",
+    priority: 10
+  },
+
+  // Wallet (Rider) - Additional
+  {
+    id: "r-wallet-failed-topup",
+    role: "rider",
+    category: "wallet",
+    keywords: ["top up failed", "topup failed", "payment failed", "can't add money", "fund failed", "declined"],
+    response: "If your wallet top-up failed:\n1. Check that your payment method is valid and has sufficient funds.\n2. Verify that your card details are entered correctly.\n3. Try again after a few minutes.\n\nIf the issue persists, submit a support ticket for assistance. Let me know if you need further guidance."
+  },
+
+  // Cash (Rider) - Additional
+
+  // Referral & Promo (Rider)
+  {
+    id: "r-referral",
+    role: "rider",
+    category: "account",
+    keywords: ["referral", "refer friend", "referral code", "invite friend", "referral program", "share code"],
+    response: "ZIBA helps facilitate referral rewards when you invite friends to the platform. To find your referral code:\n1. Go to the Account section.\n2. Look for the Referral or Invite Friends option.\n3. Share your unique code with friends.\n\nRewards are applied when your referral completes qualifying activity. Let me know if you need further guidance."
+  },
+  {
+    id: "r-promo",
+    role: "rider",
+    category: "payment",
+    keywords: ["promo code", "promotion", "discount", "coupon", "promo", "discount code"],
+    response: "To apply a promo code:\n1. Enter your promo code in the Promotions section or during booking.\n2. The discount will be applied to eligible trips.\n\nPromo codes have specific terms and expiration dates. Based on your situation, check the promo details for eligibility requirements. Let me know if you need further guidance."
+  },
+
+  // App Issues (Rider)
+
+  // Corporate & Feedback (Rider)
+  {
+    id: "r-feedback",
+    role: "rider",
+    category: "general_help",
+    keywords: ["feedback", "suggestion", "improve", "feature request", "idea"],
+    response: "We appreciate your feedback. To share suggestions or ideas:\n1. Go to the Help Center.\n2. Submit a support ticket with your feedback.\n\nYour input helps us improve the ZIBA experience. Let me know if you need further guidance."
+  },
+  {
+    id: "r-help-center",
+    role: "rider",
+    category: "general_help",
+    keywords: ["help center", "where is help", "find help", "support page", "help section"],
+    response: "The Help Center is accessible from your Account tab or the Support section. It contains frequently asked questions, guides, and the option to submit a support ticket. Based on your situation, you can browse topics or search for specific help. I can guide you through this if you want."
+  },
+
   // ============================
   // DRIVER TEMPLATES (~40)
   // ============================
@@ -563,6 +655,100 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     response: "I can forward this to our support team for review. Go to Help and tap 'Submit a Ticket'. A support agent will look into this. For urgent safety matters during a trip, use the SOS button."
   },
 
+  // Driver Signup - Additional
+  {
+    id: "d-signup-vehicle",
+    role: "driver",
+    category: "driver_signup",
+    keywords: ["vehicle requirements", "car requirements", "vehicle type", "eligible vehicle", "what car"],
+    response: "Vehicle requirements vary by location but generally include:\n- Vehicle must be in good working condition\n- Must pass inspection requirements\n- Must have valid registration and insurance\n- Year and model restrictions may apply by market\n\nUpload your vehicle details during registration. We recommend checking local requirements for your area. Let me know if you need further guidance."
+  },
+
+
+  // Trip Management (Driver) - Additional
+  {
+    id: "d-trip-complete",
+    role: "driver",
+    category: "trip_acceptance",
+    keywords: ["complete trip", "end trip", "finish trip", "trip done", "drop off complete"],
+    response: "To complete a trip:\n1. Arrive at the drop-off location.\n2. Confirm the drop-off in the app.\n3. The trip will be marked as completed and earnings will be added to your account.\n\nMake sure to confirm completion only after the rider has exited safely. Let me know if you need further guidance."
+  },
+  {
+    id: "d-trip-cancel",
+    role: "driver",
+    category: "trip_acceptance",
+    keywords: ["cancel trip", "driver cancel", "can't do trip", "decline trip", "cancel accepted"],
+    response: "If you need to cancel an accepted trip:\n1. Open the active trip screen.\n2. Select the cancel option and provide a reason.\n\nFrequent cancellations may affect your trust score. We recommend only canceling when necessary. Based on your situation, consider completing the trip if possible. Let me know if you need further guidance."
+  },
+  {
+    id: "d-rider-rating",
+    role: "driver",
+    category: "trust_score",
+    keywords: ["rate rider", "rider rating", "rate passenger", "rider behavior"],
+    response: "After each trip, you can rate the rider:\n1. The rating prompt appears when the trip is completed.\n2. Select a star rating and optionally leave feedback.\n3. Submit your rating.\n\nYour ratings help maintain community standards and inform the trust system. Let me know if you need further guidance."
+  },
+
+  // Incentives (Driver)
+  {
+    id: "d-incentive",
+    role: "driver",
+    category: "driver_wallet",
+    keywords: ["incentive", "incentive program", "bonus program", "driver incentive", "earn more"],
+    response: "ZIBA helps facilitate incentive programs to reward active drivers. Incentive details vary by market and may include:\n- Trip completion bonuses\n- Peak hour multipliers\n- Weekly or monthly targets\n\nCheck your Earnings tab for current incentive opportunities. I can guide you through this if you want."
+  },
+  {
+    id: "d-incentive-bonus",
+    role: "driver",
+    category: "driver_wallet",
+    keywords: ["bonus", "bonus reward", "extra reward", "bonus earned", "where is bonus"],
+    response: "Bonus rewards are credited to your driver wallet upon meeting the qualifying criteria. To check your bonuses:\n1. Go to the Earnings tab.\n2. Look for bonus entries in your transaction history.\n\nBonus amounts and criteria vary by program and market. Let me know if you need further guidance."
+  },
+
+  // Lost Item Chat (Driver)
+  {
+    id: "d-lost-chat",
+    role: "driver",
+    category: "lost_item",
+    keywords: ["chat rider", "message rider", "contact rider", "in-app chat", "lost item chat"],
+    response: "To communicate with a rider about a lost item:\n1. Open the lost item notification.\n2. Use the in-app messaging to coordinate return details.\n\nZIBA facilitates communication between you and the rider. We recommend keeping all communications within the app for documentation purposes. Let me know if you need further guidance."
+  },
+
+  // Safety (Driver) - Additional
+  {
+    id: "d-safety-sos",
+    role: "driver",
+    category: "safety",
+    keywords: ["sos", "emergency", "driver emergency", "panic", "danger"],
+    response: "If there's an emergency, please contact local emergency services first. During an active trip, use the SOS button for immediate assistance. ZIBA facilitates safety tools to help protect you on the road. Let me know if you need immediate assistance.",
+    priority: 10
+  },
+  {
+    id: "d-safety-incident",
+    role: "driver",
+    category: "safety",
+    keywords: ["report incident", "driver incident", "rider behavior", "unsafe rider", "problem rider"],
+    response: "To report a safety incident:\n1. Go to the Safety Hub from your Help tab.\n2. Select 'Report Incident'.\n3. Provide details about what happened.\n\nZIBA facilitates incident documentation and review. Your report will be reviewed by our team. Let me know if you need further guidance.",
+    priority: 10
+  },
+
+  // Account (Driver) - Additional
+  {
+    id: "d-account-edit",
+    role: "driver",
+    category: "account",
+    keywords: ["edit profile", "update profile", "change name", "change photo", "driver profile"],
+    response: "To update your driver profile:\n1. Go to the Profile section.\n2. Edit your name, photo, or other details.\n3. Changes are saved automatically.\n\nSome profile changes may require re-verification. I can guide you through this if you want."
+  },
+
+  // Wallet (Driver) - Tax
+  {
+    id: "d-wallet-tax",
+    role: "driver",
+    category: "driver_wallet",
+    keywords: ["tax", "tax statement", "tax document", "annual statement", "tax report", "1099"],
+    response: "Tax statements summarize your earnings for reporting purposes. To access your tax documents:\n1. Go to the Statements section in your driver dashboard.\n2. Select the relevant tax period.\n3. Download or view your statement.\n\nWe recommend consulting a tax professional for guidance on your obligations. I can guide you through this if you want."
+  },
+
   // ============================
   // ADMIN TEMPLATES (~30)
   // ============================
@@ -695,6 +881,98 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     response: "User suspensions and restrictions are available in the user management section. Before taking action:\n1. Review the user's full history.\n2. Document the reason for the action.\n3. Apply the appropriate restriction level.\n\nAll administrative actions are logged with timestamps and reasons for audit purposes."
   },
 
+  // Document & Vehicle Review (Admin)
+  {
+    id: "a-approval-documents",
+    role: "admin",
+    category: "approval_management",
+    keywords: ["review documents", "check documents", "document verification", "verify docs", "driver documents"],
+    response: "To review driver documents:\n1. Go to the Drivers tab and select the driver profile.\n2. Review each submitted document for authenticity and completeness.\n3. Cross-check details against identity verification requirements.\n4. Approve or request re-submission as needed.\n\nAll document review actions are logged for audit purposes. Let me know if you need further guidance."
+  },
+
+  // User Management (Admin)
+  {
+    id: "a-user-search",
+    role: "admin",
+    category: "user_complaints",
+    keywords: ["search user", "find user", "look up user", "user search", "find rider", "find driver"],
+    response: "To search for a user:\n1. Use the search functionality in the admin dashboard.\n2. Search by name, email, or user ID.\n3. Select the user to view their full profile.\n\nUser search results include account status, role, and recent activity. Let me know if you need further guidance."
+  },
+  {
+    id: "a-user-profile",
+    role: "admin",
+    category: "user_complaints",
+    keywords: ["view profile", "user profile", "user details", "account details", "user info"],
+    response: "User profiles in the admin dashboard display:\n- Account information and verification status\n- Trip history and activity\n- Trust score and behavior signals\n- Support ticket history\n- Any active restrictions or flags\n\nReview profiles thoroughly before taking administrative actions. All profile access is logged for audit purposes."
+  },
+
+  // Trip & Payout Review (Admin)
+  {
+    id: "a-trip-review",
+    role: "admin",
+    category: "reports",
+    keywords: ["review trip", "trip details", "trip investigation", "check trip", "trip audit"],
+    response: "To review trip details:\n1. Search for the trip by ID or user.\n2. Review the route, fare breakdown, and payment method.\n3. Check timestamps and status transitions.\n4. Review any associated disputes or incident reports.\n\nTrip data includes GPS records, fare calculations, and communication logs. Let me know if you need further guidance."
+  },
+  {
+    id: "a-payout-process",
+    role: "admin",
+    category: "reports",
+    keywords: ["process payout", "approve payout", "send payout", "payout processing", "release funds"],
+    response: "To process driver payouts:\n1. Go to the Payouts section in the admin dashboard.\n2. Review pending payout requests.\n3. Verify driver identity and bank details.\n4. Approve and process the payout.\n\nAll payout actions are logged for audit purposes. We recommend verifying details before processing. Let me know if you need further guidance."
+  },
+  {
+    id: "a-payout-pending",
+    role: "admin",
+    category: "reports",
+    keywords: ["pending payouts", "payout queue", "waiting payouts", "unprocessed payouts"],
+    response: "Pending payouts are listed in the Payouts section of the admin dashboard. Each entry shows the driver, amount, and submission date. Review pending payouts regularly to ensure timely processing. Based on your situation, filter by status or date range for efficient review. Let me know if you need further guidance."
+  },
+  {
+    id: "a-cash-settlement",
+    role: "admin",
+    category: "reports",
+    keywords: ["cash settlement", "cash reconciliation", "cash trip settlement", "settle cash"],
+    response: "Cash trip settlements are managed in the Cash Settlement section. To review:\n1. Check outstanding cash balances for drivers.\n2. Review trip-by-trip cash collection records.\n3. Process settlements according to the configured schedule.\n\nZIBA helps facilitate transparent cash reconciliation. All settlement actions are logged. Let me know if you need further guidance."
+  },
+
+  // Safety (Admin)
+  {
+    id: "a-safety-sos",
+    role: "admin",
+    category: "escalation",
+    keywords: ["sos review", "sos incident", "emergency report", "sos alert", "review sos"],
+    response: "To review SOS incidents:\n1. Go to the Safety section in the admin dashboard.\n2. Check active and recent SOS alerts.\n3. Review incident details, location data, and user statements.\n4. Follow up with appropriate actions and documentation.\n\nSOS incidents require prompt attention. All review actions are logged for audit purposes. Let me know if you need further guidance.",
+    priority: 10
+  },
+  {
+    id: "a-safety-escalation",
+    role: "admin",
+    category: "escalation",
+    keywords: ["escalation procedure", "escalate issue", "escalation process", "senior review"],
+    response: "For escalation procedures:\n1. Review the full case history and documentation.\n2. Assess severity and determine the appropriate escalation level.\n3. Forward to senior review with a summary of findings.\n4. Document the escalation reason and expected resolution timeline.\n\nWe recommend including all relevant evidence when escalating. Let me know if you need further guidance."
+  },
+
+  // Notifications (Admin)
+
+  // Fraud (Admin)
+  {
+    id: "a-fraud-review",
+    role: "admin",
+    category: "abuse_patterns",
+    keywords: ["fraud review", "fraud flag", "suspicious activity", "review fraud", "fraud alert"],
+    response: "To review fraud flags:\n1. Go to the fraud monitoring section.\n2. Review flagged accounts and their risk signals.\n3. Check for patterns across multiple data points.\n4. Document your findings before taking action.\n\nWe recommend building a case from multiple signals before making decisions. All review actions are logged for audit purposes. Let me know if you need further guidance."
+  },
+
+  // Wallet Review (Admin)
+  {
+    id: "a-wallet-review",
+    role: "admin",
+    category: "reports",
+    keywords: ["review wallet", "user wallet", "wallet balance check", "wallet audit", "check wallet"],
+    response: "To review a user's wallet:\n1. Search for the user in the admin dashboard.\n2. Open their wallet details to view balance and transaction history.\n3. Check for any pending or disputed transactions.\n4. Review top-up and payout records as needed.\n\nWallet reviews are logged for audit purposes. Let me know if you need further guidance."
+  },
+
   // ============================
   // SUPER ADMIN TEMPLATES (~20)
   // ============================
@@ -802,6 +1080,49 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     response: "Each country has specific compliance requirements configured in the system. Review country-specific settings including:\n- Arbitration clauses\n- Consumer protection notes\n- Cash handling disclaimers\n- Data privacy requirements\n\nEnsure all country addenda are current and aligned with local regulations."
   },
 
+  // System Configuration - Additional
+  {
+    id: "sa-config-currency",
+    role: "super_admin",
+    category: "system_config",
+    keywords: ["currency", "currency config", "exchange rate", "currency settings", "local currency"],
+    response: "Currency configuration controls how fares, payouts, and wallet balances are displayed and processed per market. To manage currency settings:\n1. Go to the System Configuration section.\n2. Select Currency settings for the target country.\n3. Verify currency code, symbol, and decimal precision.\n\nWe recommend testing currency changes in a controlled environment before applying to production. Let me know if you need further guidance."
+  },
+  {
+    id: "sa-config-identity",
+    role: "super_admin",
+    category: "system_config",
+    keywords: ["identity config", "identity verification", "kyc config", "verification settings"],
+    response: "Identity verification configuration controls the requirements for user and driver onboarding per market. Settings include:\n- Required document types\n- Verification provider configuration\n- Liveness check requirements\n- Re-verification intervals\n\nWe recommend reviewing country-specific regulations before modifying identity settings. Let me know if you need further guidance."
+  },
+
+  // Risky Actions - Additional
+
+  // Monitoring
+  {
+    id: "sa-monitoring-kpi",
+    role: "super_admin",
+    category: "reports",
+    keywords: ["kpi", "key performance", "metrics dashboard", "performance indicators", "monitor kpi"],
+    response: "KPI monitoring provides real-time visibility into platform health. Key indicators include:\n- Active trips and driver availability\n- Trip completion rates\n- Average response times\n- Revenue and payout metrics\n- Safety incident rates\n\nReview KPIs regularly to identify trends and address issues proactively. Let me know if you need further guidance."
+  },
+  {
+    id: "sa-monitoring-alerts",
+    role: "super_admin",
+    category: "reports",
+    keywords: ["alerts", "alert management", "system alerts", "monitoring alerts", "configure alerts"],
+    response: "Alert management allows you to configure notifications for critical system events. To manage alerts:\n1. Go to the monitoring configuration section.\n2. Set thresholds for key metrics.\n3. Configure notification channels and recipients.\n4. Review and adjust alert sensitivity as needed.\n\nWe recommend starting with conservative thresholds and adjusting based on operational patterns. Let me know if you need further guidance."
+  },
+
+  // Legal
+  {
+    id: "sa-legal-terms",
+    role: "super_admin",
+    category: "compliance",
+    keywords: ["terms conditions", "legal terms", "update terms", "terms management", "tos"],
+    response: "Terms and conditions management covers platform-wide legal documents. To update terms:\n1. Review the current terms version and change history.\n2. Draft updates with legal review.\n3. Configure re-consent requirements for affected users.\n4. Deploy changes with appropriate notice period.\n\nAll terms changes trigger consent tracking updates. We recommend legal review before publishing any modifications. Let me know if you need further guidance."
+  },
+
   // ============================
   // CROSS-ROLE TEMPLATES
   // ============================
@@ -812,7 +1133,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: ["rider", "driver", "admin", "super_admin", "general"],
     category: "identity",
     keywords: ["are you ai", "are you a bot", "are you real", "are you human", "what are you", "who are you"],
-    response: "I'm ZIBA Support. I'm here to help you navigate ZIBA.",
+    response: "I'm ZIBA Support. I'm here to help you navigate ZIBA and resolve common issues quickly.",
     priority: 100
   },
 
@@ -953,7 +1274,7 @@ export interface ZibraLanguageConfig {
 }
 
 export const ZIBRA_LANGUAGE_CONFIG: ZibraLanguageConfig = {
-  supportedLanguages: ["en", "en-NG"],
+  supportedLanguages: ["en", "en-NG", "en-SIMPLE", "es", "fr", "pt"],
   defaultLanguage: "en",
   fallbackBehavior: "If your preferred language is not yet available, I'll respond in English. We're working on adding more language options.",
   rules: [
@@ -961,7 +1282,8 @@ export const ZIBRA_LANGUAGE_CONFIG: ZibraLanguageConfig = {
     "Preserve legal protections and disclaimers in every language",
     "Never mistranslate disclaimers or safety instructions",
     "Use formal, professional language without slang",
-    "If translation unavailable, respond in English and acknowledge limitation"
+    "If translation unavailable, respond in English and acknowledge limitation",
+    "Spanish (es), French (fr), and Portuguese (pt) are future-ready placeholders"
   ]
 };
 

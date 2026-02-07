@@ -1,0 +1,121 @@
+You are continuing execution of the ZIBRA (ZIBA Support / Z-Assist) system.
+
+STATUS:
+- ZIBRA response library exists
+- Personality & safety rules enforced
+- Multilingual rules active
+- Edge-case simulations passed
+
+OBJECTIVE:
+Lock ZIBRA into production by adding analytics, governance, admin controls, and store-compliance readiness WITHOUT changing business logic or pricing.
+
+DO NOT:
+- Rename ZIBRA
+- Expose the word “AI”
+- Change commission visibility
+- Break any existing flows
+
+====================================================
+PHASE G — ZIBRA ANALYTICS & INTELLIGENCE DASHBOARD
+====================================================
+
+Create an ADMIN-ONLY dashboard: **ZIBRA Insights**
+
+Metrics to track:
+- Total ZIBRA conversations (daily / weekly / monthly)
+- By role: Rider / Driver / Admin / Super Admin
+- Top 20 question categories
+- Top 20 unresolved escalations
+- Average resolution time (before human escalation)
+- % conversations resolved without human support
+- Abuse flags triggered (lost item, payment disputes, threats)
+- Language usage distribution
+
+Display as:
+- Charts + tables
+- Filter by date, country, role
+- Export CSV (admin only)
+
+====================================================
+PHASE H — GOVERNANCE & SAFETY CONTROLS
+====================================================
+
+Add Super-Admin controls:
+- Enable / disable ZIBRA globally
+- Enable / disable ZIBRA per role
+- Emergency “Safe Mode”:
+  - ZIBRA only answers FAQs
+  - No contextual or advisory responses
+- Phrase blacklist editor (words ZIBRA must never say)
+- Escalation threshold settings
+
+All changes must:
+- Require confirmation
+- Be logged with adminId + timestamp
+
+====================================================
+PHASE I — HUMAN ESCALATION PIPELINE
+====================================================
+
+When user clicks “Contact Human Support”:
+- Create Support Ticket
+- Attach:
+  - Last 10 ZIBRA messages
+  - User role
+  - Route context
+  - Active entities (rideId, ticketId)
+- Ticket statuses:
+  - Open
+  - In Review
+  - Responded
+  - Closed
+
+ZIBRA must:
+- Stop responding once escalated
+- Show neutral holding message:
+  “A support agent will review this as soon as possible.”
+
+====================================================
+PHASE J — APP STORE & PLAY STORE COMPLIANCE
+====================================================
+
+Ensure compliance readiness:
+
+1) Disclosure Language (Settings → Support):
+- “ZIBA Support provides general assistance and guidance.”
+- “ZIBA does not guarantee outcomes.”
+
+2) Data Handling:
+- Conversations logged securely
+- No sensitive data exposed
+- Users can request data deletion
+
+3) Permissions:
+- Notifications explained clearly
+- No deceptive prompts
+
+4) Accessibility:
+- Readable font sizes
+- Clear contrast
+- No misleading automation claims
+
+====================================================
+PHASE K — FINAL QA & SIGN-OFF
+====================================================
+
+Run final checks:
+- ZIBRA behaves consistently across Rider / Driver / Admin
+- Role boundaries enforced server-side
+- Inbox + notifications stable
+- No crashes or dead ends
+- All disclaimers appear only at strategic points
+- No legal promises anywhere
+
+OUTPUT REQUIRED:
+1) Summary of analytics added
+2) Admin controls implemented
+3) How to test each feature
+4) App-store readiness confirmation
+5) Any remaining optional enhancements
+
+Proceed carefully and confirm completion.
