@@ -4304,3 +4304,33 @@ export const simulationSessions = pgTable("simulation_sessions", {
 export const insertSimulationSessionSchema = createInsertSchema(simulationSessions).omit({ id: true, createdAt: true, endedAt: true });
 export type InsertSimulationSession = z.infer<typeof insertSimulationSessionSchema>;
 export type SimulationSession = typeof simulationSessions.$inferSelect;
+
+export const bankTransferStatusEnum = pgEnum("bank_transfer_status", [
+  "pending", "processing", "completed", "failed", "flagged"
+]);
+
+export const bankTransfers = pgTable("bank_transfers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  userRole: varchar("user_role", { length: 50 }).notNull(),
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 3 }).notNull().default("NGN"),
+  referenceCode: varchar("reference_code", { length: 50 }).notNull().unique(),
+  bankName: varchar("bank_name", { length: 100 }),
+  accountNumber: varchar("account_number", { length: 20 }),
+  status: bankTransferStatusEnum("status").notNull().default("pending"),
+  adminReviewedBy: varchar("admin_reviewed_by"),
+  adminNotes: text("admin_notes"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertBankTransferSchema = createInsertSchema(bankTransfers).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertBankTransfer = z.infer<typeof insertBankTransferSchema>;
+export type BankTransfer = typeof bankTransfers.$inferSelect;

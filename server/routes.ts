@@ -5,7 +5,7 @@ import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integra
 import { storage } from "./storage";
 import { db } from "./db";
 import { eq, and, count, sql, gte, lt, isNotNull, inArray, desc } from "drizzle-orm";
-import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users } from "@shared/schema";
+import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers } from "@shared/schema";
 import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, evaluateAllDrivers, evaluateBehaviorAndWarnings, calculateDriverMatchingScore, getDriverIncentiveProgress, assignFirstRidePromo, assignReturnRiderPromo, applyPromoToTrip, voidPromosOnCancellation } from "./incentives";
 import { notificationService } from "./notification-service";
 import { getCurrencyFromCountry, getCountryConfig, FINANCIAL_ENGINE_LOCKED } from "@shared/currency";
@@ -16945,6 +16945,149 @@ export async function registerRoutes(
   console.log("[SETTLEMENT SCHEDULER] Started — polling every 60min for period settlements");
 
   // =============================================
+  // BANK TRANSFER WALLET FUNDING
+  // =============================================
+
+  app.post("/api/wallet/bank-transfer", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { amount, currency } = req.body;
+
+      if (!amount || parseFloat(amount) <= 0) {
+        return res.status(400).json({ message: "Valid amount is required" });
+      }
+
+      const userRole = await storage.getUserRole(userId);
+      if (!userRole) {
+        return res.status(403).json({ message: "User role not found" });
+      }
+
+      const userCurrency = currency || await getUserCurrency(userId);
+      const referenceCode = `ZIBA-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+
+      const transfer = await storage.createBankTransfer({
+        userId,
+        userRole: userRole.role,
+        amount: String(amount),
+        currency: userCurrency,
+        referenceCode,
+        bankName: "ZIBA Payment Bank",
+        accountNumber: "0123456789",
+        status: "pending",
+      });
+
+      return res.json({
+        referenceCode: transfer.referenceCode,
+        bankName: "ZIBA Payment Bank",
+        accountNumber: "0123456789",
+        amount: transfer.amount,
+        currency: transfer.currency,
+        instructions: "Transfer the exact amount using the reference code. Funds will be credited after confirmation.",
+      });
+    } catch (error) {
+      console.error("Error initiating bank transfer:", error);
+      return res.status(500).json({ message: "Failed to initiate bank transfer" });
+    }
+  });
+
+  app.get("/api/wallet/bank-transfers", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const transfers = await storage.getBankTransfersByUser(userId);
+      return res.json(transfers);
+    } catch (error) {
+      console.error("Error fetching bank transfers:", error);
+      return res.status(500).json({ message: "Failed to fetch bank transfers" });
+    }
+  });
+
+  app.get("/api/admin/bank-transfers", isAuthenticated, requireRole(["admin", "super_admin", "finance"]), async (req: any, res) => {
+    try {
+      const status = req.query.status as string | undefined;
+      const transfers = await storage.getAllBankTransfers(status);
+      const transfersWithUserInfo = await Promise.all(transfers.map(async (transfer) => {
+        const [user] = await db.select().from(users).where(eq(users.id, transfer.userId));
+        return {
+          ...transfer,
+          userName: user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : user?.username || "Unknown",
+          userEmail: user?.email || "",
+        };
+      }));
+      return res.json(transfersWithUserInfo);
+    } catch (error) {
+      console.error("Error fetching admin bank transfers:", error);
+      return res.status(500).json({ message: "Failed to fetch bank transfers" });
+    }
+  });
+
+  app.post("/api/admin/bank-transfers/:id/approve", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const transferId = req.params.id;
+
+      const allTransfers = await storage.getAllBankTransfers();
+      const transfer = allTransfers.find(t => t.id === transferId);
+      if (!transfer) {
+        return res.status(404).json({ message: "Bank transfer not found" });
+      }
+
+      if (transfer.status !== "pending" && transfer.status !== "processing") {
+        return res.status(400).json({ message: `Cannot approve transfer with status: ${transfer.status}` });
+      }
+
+      const updated = await storage.updateBankTransferStatus(transferId, "completed", adminId);
+      if (!updated) {
+        return res.status(500).json({ message: "Failed to update transfer status" });
+      }
+
+      if (transfer.userRole === "rider") {
+        await storage.updateRiderWalletBalance(transfer.userId, parseFloat(transfer.amount), "credit");
+      } else if (transfer.userRole === "driver") {
+        await storage.creditDriverWallet(transfer.userId, transfer.amount, "bank-transfer");
+      }
+
+      await storage.createAuditLog({
+        action: "bank_transfer_approved",
+        entityType: "bank_transfer",
+        entityId: transferId,
+        performedBy: adminId,
+        details: `Approved bank transfer of ${transfer.amount} ${transfer.currency} for ${transfer.userRole} ${transfer.userId}. Reference: ${transfer.referenceCode}`,
+      });
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error approving bank transfer:", error);
+      return res.status(500).json({ message: "Failed to approve bank transfer" });
+    }
+  });
+
+  app.post("/api/admin/bank-transfers/:id/flag", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const transferId = req.params.id;
+      const { notes } = req.body;
+
+      const updated = await storage.updateBankTransferStatus(transferId, "flagged", adminId, notes);
+      if (!updated) {
+        return res.status(404).json({ message: "Bank transfer not found" });
+      }
+
+      await storage.createAuditLog({
+        action: "bank_transfer_flagged",
+        entityType: "bank_transfer",
+        entityId: transferId,
+        performedBy: adminId,
+        details: `Flagged bank transfer as suspicious. Notes: ${notes || "N/A"}`,
+      });
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error flagging bank transfer:", error);
+      return res.status(500).json({ message: "Failed to flag bank transfer" });
+    }
+  });
+
+  // =============================================
   // CORPORATE RIDE MANAGEMENT - Admin Routes
   // =============================================
 
@@ -17246,6 +17389,68 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error revoking corporate member access:", error);
       return res.status(500).json({ message: "Failed to revoke member access" });
+    }
+  });
+
+  // CANCELLATION FEE SETTINGS - Admin Routes
+  app.get("/api/admin/cancellation-fee-settings", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const countryCode = (req.query.countryCode as string) || "NG";
+      const [rule] = await db.select().from(countryPricingRules).where(eq(countryPricingRules.countryId, countryCode));
+      if (!rule) {
+        return res.json({
+          countryCode,
+          gracePeriodMinutes: 3,
+          cancellationFee: "500.00",
+          cancellationFeeArrivedMultiplier: "1.50",
+          feeEnRoute: 500,
+          feeArrived: 750,
+          currency: "NGN",
+        });
+      }
+      const fee = parseFloat(rule.cancellationFee);
+      const multiplier = parseFloat(rule.cancellationFeeArrivedMultiplier);
+      return res.json({
+        countryCode,
+        gracePeriodMinutes: 3,
+        cancellationFee: rule.cancellationFee,
+        cancellationFeeArrivedMultiplier: rule.cancellationFeeArrivedMultiplier,
+        feeEnRoute: fee,
+        feeArrived: fee * multiplier,
+        currency: rule.currency,
+      });
+    } catch (error) {
+      console.error("Error fetching cancellation fee settings:", error);
+      return res.status(500).json({ message: "Failed to fetch cancellation fee settings" });
+    }
+  });
+
+  app.post("/api/admin/cancellation-fee-settings", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { countryCode = "NG", cancellationFee, cancellationFeeArrivedMultiplier } = req.body;
+      if (!cancellationFee || !cancellationFeeArrivedMultiplier) {
+        return res.status(400).json({ message: "cancellationFee and cancellationFeeArrivedMultiplier are required" });
+      }
+      const performedBy = req.user.claims.sub;
+      await db.update(countryPricingRules)
+        .set({
+          cancellationFee: String(cancellationFee),
+          cancellationFeeArrivedMultiplier: String(cancellationFeeArrivedMultiplier),
+          updatedAt: new Date(),
+        })
+        .where(eq(countryPricingRules.countryId, countryCode));
+      await storage.createAuditLog({
+        action: "CANCELLATION_FEE_UPDATED",
+        entityType: "country_pricing_rules",
+        entityId: countryCode,
+        performedByUserId: performedBy,
+        performedByRole: req.userRole,
+        metadata: JSON.stringify({ countryCode, cancellationFee, cancellationFeeArrivedMultiplier }),
+      });
+      return res.json({ message: "Cancellation fee settings updated successfully" });
+    } catch (error) {
+      console.error("Error updating cancellation fee settings:", error);
+      return res.status(500).json({ message: "Failed to update cancellation fee settings" });
     }
   });
 

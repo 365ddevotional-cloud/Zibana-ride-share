@@ -36,6 +36,7 @@ import { CashSettlementPanel } from "@/components/admin/cash-settlement-panel";
 import { CashDisputesPanel } from "@/components/admin/cash-disputes-panel";
 import { SimulationCenter } from "@/components/admin/simulation-center";
 import { CorporateRidesPanel } from "@/components/admin/corporate-rides-panel";
+import { BankTransfersPanel } from "@/components/admin/bank-transfers-panel";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -86,7 +87,8 @@ import {
   Rocket,
   UserPlus,
   BookOpen,
-  ScrollText
+  ScrollText,
+  Banknote
 } from "lucide-react";
 import type { DriverProfile, Trip, User } from "@shared/schema";
 import { NotificationBell } from "@/components/notification-bell";
@@ -464,6 +466,137 @@ type GrowthSafetyStatus = {
 
 interface AdminDashboardProps {
   userRole?: "super_admin" | "admin" | "director" | "finance" | "trip_coordinator";
+}
+
+function CancellationFeeSettings() {
+  const { toast } = useToast();
+  const [countryCode, setCountryCode] = useState("NG");
+  const [feeEnRoute, setFeeEnRoute] = useState("");
+  const [feeArrived, setFeeArrived] = useState("");
+
+  const { data: settings, isLoading } = useQuery<{
+    countryCode: string;
+    gracePeriodMinutes: number;
+    cancellationFee: string;
+    cancellationFeeArrivedMultiplier: string;
+    feeEnRoute: number;
+    feeArrived: number;
+    currency: string;
+  }>({
+    queryKey: ["/api/admin/cancellation-fee-settings", countryCode],
+    queryFn: () => fetch(`/api/admin/cancellation-fee-settings?countryCode=${countryCode}`, { credentials: "include" }).then(r => r.json()),
+  });
+
+  useEffect(() => {
+    if (settings) {
+      setFeeEnRoute(String(settings.feeEnRoute));
+      setFeeArrived(String(settings.feeArrived));
+    }
+  }, [settings]);
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const enRoute = parseFloat(feeEnRoute);
+      const arrived = parseFloat(feeArrived);
+      if (isNaN(enRoute) || isNaN(arrived) || enRoute <= 0 || arrived <= 0) {
+        throw new Error("Please enter valid fee amounts");
+      }
+      const multiplier = arrived / enRoute;
+      return apiRequest("POST", "/api/admin/cancellation-fee-settings", {
+        countryCode,
+        cancellationFee: enRoute,
+        cancellationFeeArrivedMultiplier: multiplier.toFixed(2),
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "Settings saved", description: "Cancellation fee settings updated successfully." });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/cancellation-fee-settings", countryCode] });
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: err.message || "Failed to save settings", variant: "destructive" });
+    },
+  });
+
+  return (
+    <div className="space-y-6" data-testid="fee-settings-panel">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2" data-testid="text-fee-settings-title">
+            <Settings className="h-5 w-5" />
+            Cancellation Fee Settings
+          </CardTitle>
+          <CardDescription>Configure cancellation fees applied when riders cancel after a driver has been assigned.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="country-select">Country</Label>
+            <Select value={countryCode} onValueChange={setCountryCode}>
+              <SelectTrigger id="country-select" data-testid="select-fee-country">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="NG">Nigeria (NGN)</SelectItem>
+                <SelectItem value="US">United States (USD)</SelectItem>
+                <SelectItem value="GB">United Kingdom (GBP)</SelectItem>
+                <SelectItem value="ZA">South Africa (ZAR)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="rounded-md bg-muted p-3">
+            <p className="text-sm text-muted-foreground" data-testid="text-grace-period">
+              <Clock className="inline h-4 w-4 mr-1" />
+              Grace period: <strong>3 minutes</strong> — riders can cancel free of charge within this window after a driver accepts.
+            </p>
+          </div>
+
+          {isLoading ? (
+            <div className="text-sm text-muted-foreground">Loading current settings...</div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="fee-en-route">Fee when driver is en route ({settings?.currency || "NGN"})</Label>
+                <Input
+                  id="fee-en-route"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={feeEnRoute}
+                  onChange={(e) => setFeeEnRoute(e.target.value)}
+                  data-testid="input-fee-en-route"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="fee-arrived">Fee when driver has arrived ({settings?.currency || "NGN"})</Label>
+                <Input
+                  id="fee-arrived"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={feeArrived}
+                  onChange={(e) => setFeeArrived(e.target.value)}
+                  data-testid="input-fee-arrived"
+                />
+              </div>
+            </div>
+          )}
+
+          <Button
+            onClick={() => saveMutation.mutate()}
+            disabled={saveMutation.isPending || isLoading}
+            data-testid="button-save-fee-settings"
+          >
+            {saveMutation.isPending ? "Saving..." : "Save Changes"}
+          </Button>
+
+          <div className="space-y-2 text-sm text-muted-foreground">
+            <p data-testid="text-fee-note">Fee amounts are in the local currency. Riders will see "A cancellation fee may apply." — exact amounts are not shown.</p>
+            <p data-testid="text-driver-compensation-note">The fee is credited to the driver's earnings.</p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
 
 export default function AdminDashboard({ userRole = "admin" }: AdminDashboardProps) {
@@ -2343,6 +2476,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                 Cash Settlements
               </TabsTrigger>
             )}
+            {(isSuperAdmin || userRole === "admin" || userRole === "finance") && (
+              <TabsTrigger value="bank-transfers" className="admin-nav-trigger rounded-md" data-testid="tab-bank-transfers">
+                <Banknote className="h-4 w-4 mr-2" />
+                Bank Transfers
+              </TabsTrigger>
+            )}
             {(isSuperAdmin || userRole === "admin") && (
               <TabsTrigger value="cash-disputes" className="admin-nav-trigger rounded-md" data-testid="tab-cash-disputes">
                 <ShieldAlert className="h-4 w-4 mr-2" />
@@ -2353,6 +2492,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <TabsTrigger value="corporate" className="admin-nav-trigger rounded-md" data-testid="tab-corporate">
                 <Building className="h-4 w-4 mr-2" />
                 Corporate Rides
+              </TabsTrigger>
+            )}
+            {(isSuperAdmin || userRole === "admin") && (
+              <TabsTrigger value="fee-settings" className="admin-nav-trigger rounded-md" data-testid="tab-fee-settings">
+                <Settings className="h-4 w-4 mr-2" />
+                Fee Settings
               </TabsTrigger>
             )}
             {isSuperAdmin && (
@@ -6672,6 +6817,11 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <CashSettlementPanel />
             </TabsContent>
           )}
+          {(isSuperAdmin || userRole === "admin" || userRole === "finance") && (
+            <TabsContent value="bank-transfers">
+              <BankTransfersPanel />
+            </TabsContent>
+          )}
           {(isSuperAdmin || userRole === "admin") && (
             <TabsContent value="cash-disputes">
               <CashDisputesPanel />
@@ -6680,6 +6830,11 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
           {(isSuperAdmin || userRole === "admin") && (
             <TabsContent value="corporate">
               <CorporateRidesPanel />
+            </TabsContent>
+          )}
+          {(isSuperAdmin || userRole === "admin") && (
+            <TabsContent value="fee-settings">
+              <CancellationFeeSettings />
             </TabsContent>
           )}
           {isSuperAdmin && (

@@ -413,6 +413,9 @@ import {
   type InsertSimulationCode,
   type SimulationSession,
   type InsertSimulationSession,
+  bankTransfers,
+  type BankTransfer,
+  type InsertBankTransfer,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull } from "drizzle-orm";
@@ -1269,6 +1272,13 @@ export interface IStorage {
   getAllSimulationSessions(): Promise<SimulationSession[]>;
   endSimulationSession(sessionId: number): Promise<void>;
   cleanupExpiredSimulations(): Promise<number>;
+
+  // Bank Transfer Wallet Funding
+  createBankTransfer(data: InsertBankTransfer): Promise<BankTransfer>;
+  getBankTransfersByUser(userId: string): Promise<BankTransfer[]>;
+  getBankTransferByReference(referenceCode: string): Promise<BankTransfer | null>;
+  getAllBankTransfers(status?: string): Promise<BankTransfer[]>;
+  updateBankTransferStatus(id: string, status: string, adminId?: string, notes?: string): Promise<BankTransfer | null>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -9884,10 +9894,11 @@ export class DatabaseStorage implements IStorage {
 
     await this.createAuditLog({
       action: "CASH_LEDGER_WAIVED",
-      performedBy: adminUserId,
-      targetEntity: "cash_settlement_ledger",
-      targetId: ledgerId,
-      details: JSON.stringify({ reason, driverId: ledger.driverId, amountWaived: parseFloat(ledger.totalPlatformShareDue) - parseFloat(ledger.totalSettled) }),
+      performedByUserId: adminUserId,
+      performedByRole: "admin",
+      entityType: "cash_settlement_ledger",
+      entityId: ledgerId,
+      metadata: JSON.stringify({ reason, driverId: ledger.driverId, amountWaived: parseFloat(ledger.totalPlatformShareDue) - parseFloat(ledger.totalSettled) }),
     });
 
     const [updated] = await db.update(cashSettlementLedger)
@@ -10050,6 +10061,54 @@ export class DatabaseStorage implements IStorage {
       ))
       .returning();
     return expired.length;
+  }
+
+  async createBankTransfer(data: InsertBankTransfer): Promise<BankTransfer> {
+    const [transfer] = await db.insert(bankTransfers).values(data).returning();
+    return transfer;
+  }
+
+  async getBankTransfersByUser(userId: string): Promise<BankTransfer[]> {
+    return db.select().from(bankTransfers)
+      .where(eq(bankTransfers.userId, userId))
+      .orderBy(desc(bankTransfers.createdAt));
+  }
+
+  async getBankTransferByReference(referenceCode: string): Promise<BankTransfer | null> {
+    const [transfer] = await db.select().from(bankTransfers)
+      .where(eq(bankTransfers.referenceCode, referenceCode));
+    return transfer || null;
+  }
+
+  async getAllBankTransfers(status?: string): Promise<BankTransfer[]> {
+    if (status) {
+      return db.select().from(bankTransfers)
+        .where(eq(bankTransfers.status, status as any))
+        .orderBy(desc(bankTransfers.createdAt));
+    }
+    return db.select().from(bankTransfers)
+      .orderBy(desc(bankTransfers.createdAt));
+  }
+
+  async updateBankTransferStatus(id: string, status: string, adminId?: string, notes?: string): Promise<BankTransfer | null> {
+    const updateData: any = {
+      status: status as any,
+      updatedAt: new Date(),
+    };
+    if (adminId) {
+      updateData.adminReviewedBy = adminId;
+    }
+    if (notes) {
+      updateData.adminNotes = notes;
+    }
+    if (status === "completed") {
+      updateData.completedAt = new Date();
+    }
+    const [transfer] = await db.update(bankTransfers)
+      .set(updateData)
+      .where(eq(bankTransfers.id, id))
+      .returning();
+    return transfer || null;
   }
 }
 

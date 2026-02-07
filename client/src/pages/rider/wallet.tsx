@@ -9,10 +9,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Wallet, CreditCard, Plus, Clock, CheckCircle, XCircle, AlertCircle, X, RefreshCw, Settings } from "lucide-react";
+import { Wallet, CreditCard, Plus, Clock, CheckCircle, XCircle, AlertCircle, X, RefreshCw, Settings, Building2, Copy } from "lucide-react";
 
 interface WalletData {
   balance: string;
@@ -36,9 +37,28 @@ interface AutoTopUpSettings {
   failureCount: number;
 }
 
+interface BankTransferInfo {
+  referenceCode: string;
+  bankName: string;
+  accountNumber: string;
+  instructions: string;
+}
+
+interface BankTransfer {
+  id: string;
+  amount: string;
+  currencyCode: string;
+  status: string;
+  referenceCode: string;
+  createdAt: string;
+}
+
 export default function RiderWallet() {
   const { toast } = useToast();
   const [showCardModal, setShowCardModal] = useState(false);
+  const [showBankTransferDialog, setShowBankTransferDialog] = useState(false);
+  const [bankTransferAmount, setBankTransferAmount] = useState("");
+  const [bankTransferInfo, setBankTransferInfo] = useState<BankTransferInfo | null>(null);
   const [showAutoTopUp, setShowAutoTopUp] = useState(false);
   const [topUpThreshold, setTopUpThreshold] = useState("500");
   const [topUpAmount, setTopUpAmount] = useState("1000");
@@ -68,6 +88,42 @@ export default function RiderWallet() {
       toast({ title: "Failed to update auto top-up", variant: "destructive" });
     },
   });
+
+  const { data: bankTransfers, isLoading: bankTransfersLoading } = useQuery<BankTransfer[]>({
+    queryKey: ["/api/wallet/bank-transfers"],
+  });
+
+  const bankTransferMutation = useMutation({
+    mutationFn: async (data: { amount: number }) => {
+      const res = await apiRequest("POST", "/api/wallet/bank-transfer", data);
+      return res.json();
+    },
+    onSuccess: (data: BankTransferInfo) => {
+      setBankTransferInfo(data);
+      queryClient.invalidateQueries({ queryKey: ["/api/wallet/bank-transfers"] });
+      toast({ title: "Transfer instructions generated" });
+    },
+    onError: () => {
+      toast({ title: "Failed to generate transfer instructions", variant: "destructive" });
+    },
+  });
+
+  const getTransferStatusBadge = (status: string) => {
+    switch (status) {
+      case "pending":
+        return <Badge variant="outline" className="bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/30" data-testid={`badge-status-${status}`}>Pending</Badge>;
+      case "processing":
+        return <Badge variant="outline" className="bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30" data-testid={`badge-status-${status}`}>Processing</Badge>;
+      case "completed":
+        return <Badge variant="outline" className="bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30" data-testid={`badge-status-${status}`}>Completed</Badge>;
+      case "failed":
+        return <Badge variant="outline" className="bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/30" data-testid={`badge-status-${status}`}>Failed</Badge>;
+      case "flagged":
+        return <Badge variant="outline" className="bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/30" data-testid={`badge-status-${status}`}>Under Review</Badge>;
+      default:
+        return <Badge variant="outline" data-testid={`badge-status-${status}`}>{status}</Badge>;
+    }
+  };
 
   const formatCurrency = (amount: string | null, currency: string) => {
     if (!amount) return "—";
@@ -123,11 +179,70 @@ export default function RiderWallet() {
                 <Plus className="h-5 w-5" />
                 <span>Add Payment Method</span>
               </button>
+              <button
+                className="w-full p-4 rounded-lg border border-dashed flex items-center justify-center gap-2 text-muted-foreground cursor-pointer hover-elevate"
+                onClick={() => {
+                  setBankTransferInfo(null);
+                  setBankTransferAmount("");
+                  setShowBankTransferDialog(true);
+                }}
+                data-testid="button-bank-transfer"
+                style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+              >
+                <Building2 className="h-5 w-5" />
+                <span>Bank Transfer</span>
+              </button>
               <p className="text-xs text-muted-foreground text-center">
                 Payment methods are managed in test mode
               </p>
             </CardContent>
           </Card>
+
+          <div className="space-y-3">
+            <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+              Pending Transfers
+            </h2>
+
+            {bankTransfersLoading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
+              </div>
+            ) : !bankTransfers || bankTransfers.length === 0 ? (
+              <Card>
+                <CardContent className="p-6 text-center">
+                  <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                  <p className="text-muted-foreground">No bank transfers</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Bank transfer requests will appear here
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-3">
+                {bankTransfers.map((transfer) => (
+                  <Card key={transfer.id} data-testid={`card-bank-transfer-${transfer.id}`}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-3">
+                          <Building2 className="h-4 w-4 text-muted-foreground" />
+                          <div>
+                            <p className="font-medium" data-testid={`text-transfer-amount-${transfer.id}`}>
+                              {formatCurrency(transfer.amount, transfer.currencyCode)}
+                            </p>
+                            <p className="text-sm text-muted-foreground" data-testid={`text-transfer-ref-${transfer.id}`}>
+                              Ref: {transfer.referenceCode}
+                            </p>
+                          </div>
+                        </div>
+                        {getTransferStatusBadge(transfer.status)}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
 
           <Card>
             <CardHeader className="pb-3">
@@ -376,6 +491,122 @@ export default function RiderWallet() {
         </div>,
         document.body
       )}
+      <Dialog open={showBankTransferDialog} onOpenChange={(open) => {
+        setShowBankTransferDialog(open);
+        if (!open) {
+          setBankTransferInfo(null);
+          setBankTransferAmount("");
+        }
+      }}>
+        <DialogContent data-testid="dialog-bank-transfer">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5" />
+              Bank Transfer
+            </DialogTitle>
+            <DialogDescription>
+              Fund your wallet via bank transfer. Enter the amount and we'll generate payment instructions for you.
+            </DialogDescription>
+          </DialogHeader>
+
+          {!bankTransferInfo ? (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="bank-transfer-amount" className="text-sm">
+                  Amount to transfer
+                </Label>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">
+                    {wallet?.currencyCode === "NGN" ? "₦" : wallet?.currencyCode || "₦"}
+                  </span>
+                  <Input
+                    id="bank-transfer-amount"
+                    type="number"
+                    min="100"
+                    placeholder="Enter amount"
+                    value={bankTransferAmount}
+                    onChange={(e) => setBankTransferAmount(e.target.value)}
+                    data-testid="input-bank-transfer-amount"
+                  />
+                </div>
+              </div>
+              <Button
+                className="w-full"
+                onClick={() => {
+                  const amount = parseFloat(bankTransferAmount);
+                  if (!amount || amount < 100) {
+                    toast({ title: "Please enter an amount of at least 100", variant: "destructive" });
+                    return;
+                  }
+                  bankTransferMutation.mutate({ amount });
+                }}
+                disabled={bankTransferMutation.isPending}
+                data-testid="button-generate-transfer-instructions"
+              >
+                {bankTransferMutation.isPending ? "Generating..." : "Generate Transfer Instructions"}
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="p-4 rounded-lg bg-muted/50 space-y-3">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <span className="text-sm text-muted-foreground">Reference Code</span>
+                  <div className="flex items-center gap-1">
+                    <span className="font-mono font-semibold" data-testid="text-transfer-reference-code">{bankTransferInfo.referenceCode}</span>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => {
+                        navigator.clipboard.writeText(bankTransferInfo.referenceCode);
+                        toast({ title: "Reference code copied" });
+                      }}
+                      data-testid="button-copy-reference"
+                    >
+                      <Copy className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <span className="text-sm text-muted-foreground">Bank Name</span>
+                  <span className="font-medium" data-testid="text-transfer-bank-name">{bankTransferInfo.bankName}</span>
+                </div>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <span className="text-sm text-muted-foreground">Account Number</span>
+                  <div className="flex items-center gap-1">
+                    <span className="font-mono font-medium" data-testid="text-transfer-account-number">{bankTransferInfo.accountNumber}</span>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => {
+                        navigator.clipboard.writeText(bankTransferInfo.accountNumber);
+                        toast({ title: "Account number copied" });
+                      }}
+                      data-testid="button-copy-account"
+                    >
+                      <Copy className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              <div className="p-3 rounded-lg bg-blue-500/10 text-sm" data-testid="text-transfer-instructions">
+                {bankTransferInfo.instructions}
+              </div>
+              <Button
+                className="w-full"
+                variant="outline"
+                onClick={() => {
+                  setShowBankTransferDialog(false);
+                  setBankTransferInfo(null);
+                  setBankTransferAmount("");
+                }}
+                data-testid="button-done-bank-transfer"
+              >
+                Done
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </RiderRouteGuard>
   );
 }
