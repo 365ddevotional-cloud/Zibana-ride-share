@@ -272,6 +272,7 @@ export interface ActionValidationResult {
   requiresReason?: boolean;
   compensationEligible?: boolean;
   withinGracePeriod?: boolean;
+  estimatedFee?: number;
 }
 
 /**
@@ -379,10 +380,12 @@ function validateCancellation(
         driverMovement.durationSec
       );
       if (compensation.eligible) {
+        const fee = currentStatus === "arrived" ? 750 : 500;
         return {
           allowed: true,
           requiresFee: true,
-          compensationEligible: true
+          compensationEligible: true,
+          estimatedFee: fee,
         };
       }
     }
@@ -394,9 +397,19 @@ function validateCancellation(
         return {
           allowed: true,
           requiresFee: true,
-          compensationEligible: true
+          compensationEligible: true,
+          estimatedFee: 500,
         };
       }
+    }
+
+    // Arrived status always incurs the higher fee
+    if (currentStatus === "arrived") {
+      return {
+        allowed: true,
+        requiresFee: true,
+        estimatedFee: 750,
+      };
     }
 
     return { allowed: true };

@@ -1362,6 +1362,8 @@ export const countryPricingRules = pgTable("country_pricing_rules", {
   reservationPremiumPercent: decimal("reservation_premium_percent", { precision: 5, scale: 2 }).notNull().default("10.00"),
   cancellationFeeBase: decimal("cancellation_fee_base", { precision: 10, scale: 2 }).notNull().default("2.00"),
   cancellationFeePercent: decimal("cancellation_fee_percent", { precision: 5, scale: 2 }).notNull().default("20.00"),
+  cancellationFee: decimal("cancellation_fee", { precision: 10, scale: 2 }).notNull().default("500.00"),
+  cancellationFeeArrivedMultiplier: decimal("cancellation_fee_arrived_multiplier", { precision: 5, scale: 2 }).notNull().default("1.50"),
   zibaCommissionPercent: decimal("ziba_commission_percent", { precision: 5, scale: 2 }).notNull().default("20.00"),
   paymentProvider: paymentProviderEnum("payment_provider").notNull().default("placeholder"),
   active: boolean("active").notNull().default(true),

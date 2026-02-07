@@ -1,0 +1,159 @@
+SYSTEM INSTRUCTION:
+You are continuing work on the ZIBA Ride Share application. Build carefully, safely, and incrementally. Do NOT remove or break existing functionality. Follow fintech, ride-hailing, and app store compliance standards. Never expose platform commission, revenue share, or internal financial splits in UI, API responses, or Help Center content.
+
+---
+
+====================================
+PHASE 1: EXACT CANCELLATION FEE LOGIC
+====================================
+
+1. Implement precise cancellation timing logic:
+
+RIDER CANCELLATION RULES:
+- If rider cancels BEFORE any driver accepts → NO CHARGE.
+- If rider cancels AFTER driver accepts BUT within 3 minutes → NO CHARGE.
+- If rider cancels AFTER 3 minutes AND driver status = "en route" → APPLY CANCELLATION FEE.
+- If driver has arrived → APPLY FULL CANCELLATION FEE.
+
+2. Cancellation fee handling:
+- Fee is fixed and configurable from Admin settings.
+- Fee is deducted from rider WALLET if wallet balance is sufficient.
+- If wallet balance is insufficient:
+  - Allow negative wallet balance OR
+  - Flag account for settlement (do NOT block immediately).
+- For cash-selected rides, log cancellation fee as wallet debit.
+
+3. Required system logging:
+- cancellation_timestamp
+- driver_accept_timestamp
+- driver_en_route_timestamp
+- cancellation_reason
+- fee_applied (true/false)
+- fee_amount
+
+4. UI updates:
+- Show clear warning before cancellation once driver is en route:
+  “You may be charged a cancellation fee if you cancel now.”
+- Do NOT reveal fee calculation details.
+
+5. Update Rider Help Center:
+- Clearly explain the 3-minute grace period.
+- Explain that cancellation fees apply once driver is on the way.
+- Do NOT mention platform revenue or splits.
+
+---
+
+===============================
+PHASE 2: WALLET AUTO-TOP-UP
+===============================
+
+6. Add Wallet Auto Top-Up feature:
+
+- Riders may enable Auto Top-Up from Wallet settings.
+- Auto Top-Up triggers when wallet balance falls below a threshold (e.g. ₦X).
+- User selects:
+  - Threshold amount
+  - Top-up amount
+  - Card to use
+
+7. Auto Top-Up rules:
+- Cards are used ONLY to fund wallet.
+- No direct card-to-driver payments.
+- Auto Top-Up runs silently in background.
+- If auto top-up fails:
+  - Notify rider
+  - Do NOT block ride immediately
+  - Retry logic with cooldown
+
+8. Safety & compliance:
+- Allow users to turn Auto Top-Up ON/OFF anytime.
+- Log all auto top-up attempts.
+- Never expose gateway errors directly; show user-friendly messages.
+
+9. Update Rider Help Center:
+- Explain Auto Top-Up in simple language.
+- Explain how to enable, disable, and edit it.
+- Explain failure handling and notifications.
+
+---
+
+========================================
+PHASE 3: CORPORATE & SCHEDULED RIDES
+========================================
+
+10. Add Scheduled Rides (Rider & Corporate):
+
+- Allow riders to schedule rides for future date/time.
+- Scheduled rides enter a “Pending Dispatch” state.
+- Dispatch begins X minutes before pickup time.
+
+11. Scheduled ride rules:
+- Wallet must have sufficient balance OR cash allowed.
+- Cancellation rules still apply.
+- Scheduled rides show reminder notifications.
+
+12. Corporate / Organization Accounts (Trip Coordinator model):
+
+- Organizations can create a Corporate Account.
+- Corporate account can:
+  - Add multiple riders (members/clients)
+  - Fund a shared corporate wallet
+  - Book rides on behalf of members
+  - View trip history and invoices
+
+13. Corporate payment rules:
+- Trips are paid ONLY from corporate wallet or cash (if allowed).
+- No card-to-driver payments.
+- Corporate wallet can be funded by card or bank transfer.
+
+14. Admin controls:
+- Enable/disable corporate booking.
+- Set ride limits per organization.
+- View corporate trip summaries.
+
+15. Driver experience:
+- Driver sees “Corporate Ride” label.
+- No change to driver payout logic.
+- Cancellation handled same as regular rides.
+
+---
+
+====================================
+PHASE 4: HELP CENTER & SUPPORT
+====================================
+
+16. Update Help Center (Rider + Driver + Corporate):
+- Add FAQs for:
+  - Cancellation fees
+  - Auto Top-Up
+  - Scheduled rides
+  - Corporate rides
+  - Wallet funding
+  - Payment failures
+  - Refund timelines
+
+17. Smart search behavior:
+- If no exact match → return closest relevant article.
+- Never show “No results found” without help.
+
+18. Support context sharing:
+Automatically attach to support tickets:
+- App type (Rider / Driver / Corporate)
+- Account type
+- Wallet balance
+- Payment method
+- Auto Top-Up status
+- Trip ID (if applicable)
+- Cancellation timestamps
+
+Support can VIEW but NOT edit this data.
+
+---
+
+FINAL VALIDATION CHECKLIST:
+- No UI dead buttons
+- No blocked payment flows
+- No exposure of platform cut or commission
+- Mobile-first interaction verified
+- Store-compliant payment language
+- Backward compatible with existing users

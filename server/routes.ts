@@ -10050,7 +10050,51 @@ export async function registerRoutes(
         compensationEligible,
       });
 
-      // Log the action
+      let feeAmount = 0;
+      let feeApplied = false;
+      let walletDebitSuccess = false;
+      let insufficientBalance = false;
+
+      if (validation.requiresFee && isRider) {
+        feeAmount = validation.estimatedFee || (ride.status === "arrived" ? 750 : 500);
+        feeApplied = true;
+
+        try {
+          const riderWallet = await storage.getRiderWallet(userId);
+          const currentBalance = riderWallet ? parseFloat(riderWallet.balance?.toString() || "0") : 0;
+
+          if (currentBalance < feeAmount) {
+            insufficientBalance = true;
+          }
+
+          await storage.updateRiderWalletBalance(userId, feeAmount, "debit");
+          walletDebitSuccess = true;
+
+          if (insufficientBalance) {
+            await storage.createFinancialAuditLog({
+              rideId,
+              userId,
+              actorRole: "SYSTEM",
+              eventType: "CANCELLATION_FEE",
+              amount: feeAmount.toFixed(2),
+              currency: "NGN",
+              description: `Cancellation fee applied with insufficient balance. Previous balance: ₦${currentBalance.toFixed(2)}`,
+              metadata: JSON.stringify({ feeAmount, previousBalance: currentBalance, insufficientBalance: true }),
+            });
+          }
+        } catch (walletError) {
+          console.error("Error debiting rider wallet for cancellation fee:", walletError);
+        }
+
+        await storage.createNotification({
+          userId,
+          role: "rider",
+          title: "Cancellation Fee Applied",
+          type: "ride_cancelled",
+          message: `A cancellation fee of ₦${feeAmount.toFixed(2)} has been deducted from your wallet.`,
+        });
+      }
+
       await storage.createRideAuditLog({
         rideId,
         action: "ride_cancelled",
@@ -10068,10 +10112,18 @@ export async function registerRoutes(
           driverMovement,
           penaltyInfo,
           appliedFee: validation.requiresFee,
+          cancellation_timestamp: new Date().toISOString(),
+          driver_accept_timestamp: ride.acceptedAt || null,
+          driver_en_route_timestamp: ride.enRouteAt || null,
+          cancellation_reason: reason || null,
+          fee_applied: feeApplied,
+          fee_amount: feeAmount,
+          grace_period_active: validation.withinGracePeriod || false,
+          wallet_debit_success: walletDebitSuccess,
+          insufficient_balance: insufficientBalance,
         }),
       });
 
-      // Notify the other party
       if (isRider && ride.driverId) {
         const compensationMsg = compensationEligible 
           ? ` You will receive a compensation of ₦${((compensationData?.driverCompensation || 0) / 100).toFixed(2)}.`
@@ -10099,7 +10151,8 @@ export async function registerRoutes(
         compensationData,
         driverCompensation,
         penaltyInfo,
-        feeApplied: validation.requiresFee,
+        feeApplied,
+        feeAmount: feeApplied ? feeAmount : undefined,
       });
     } catch (error) {
       console.error("Error cancelling ride:", error);
