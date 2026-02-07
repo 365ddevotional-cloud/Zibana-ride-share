@@ -1,0 +1,171 @@
+You are implementing FINAL Director Logic + ZIBRA Support integration for the ZIBA platform.
+
+THIS PROMPT OVERRIDES ALL PRIOR DIRECTOR ASSUMPTIONS.
+Follow EXACTLY what is written below.
+Do NOT invent logic.
+Do NOT expose platform revenue or commissions to Directors, Drivers, or Riders.
+Do NOT break existing flows.
+
+====================================================
+PHASE 1 — DIRECTOR TYPES (AUTHORITATIVE)
+====================================================
+
+ZIBA has TWO Director types:
+
+1) CONTRACT DIRECTOR
+- Independent
+- Recruits drivers via referral code
+- Drivers who sign up via referral are automatically assigned
+- Director manages drivers under their cell
+
+2) EMPLOYED DIRECTOR
+- Assigned drivers by ZIBA
+- No referral recruiting
+- Oversees driver performance
+
+Both Director types are subject to Admin/Super Admin control.
+
+====================================================
+PHASE 2 — HARD CAPS (FINAL)
+====================================================
+
+- Max ACTIVE drivers per Director cell: 1,300
+- Max COMMISSIONABLE active drivers per day: 1,000
+- Anything beyond 1,000 commissionable drivers → NO additional commission
+- Calculations are DAILY
+- Only ACTIVE drivers (worked at least one trip that day) count
+
+====================================================
+PHASE 3 — COMMISSION ELIGIBILITY (CONTRACT DIRECTORS ONLY)
+====================================================
+
+Activation rule:
+- Director earns NOTHING until at least 10 drivers are recruited
+
+Daily eligibility logic:
+1) Identify drivers under Director
+2) Identify ACTIVE drivers today (completed ≥1 trip)
+3) Commissionable drivers today = floor(77% of ACTIVE drivers)
+4) Apply hard cap: min(result, 1000)
+
+Commission calculation:
+- Director earns 12% (default) of what the PLATFORM earns
+- ONLY from commissionable drivers
+- Percentage is adjustable by Super Admin
+- No guarantees
+- No retroactive promises
+
+FORMULA (SYSTEM USE ONLY):
+
+activeDriversToday = drivers under director who worked today
+commissionableDriversToday = min(floor(activeDriversToday * 0.77), 1000)
+directorCommission = commissionRate * platformEarningsFrom(commissionableDriversToday)
+
+====================================================
+PHASE 4 — DIRECTOR AUTHORITY & LIMITS
+====================================================
+
+Contract Director CAN:
+- Recruit drivers
+- Activate drivers who signed up via their referral code
+- Suspend drivers under them
+- Manage discipline and performance
+
+Contract Director CANNOT:
+- Permanently deactivate drivers
+- Override Admin or Super Admin
+- Change commission logic
+- View platform revenue or earnings
+- View per-trip or per-driver financials
+
+Admin & Super Admin CAN:
+- Activate/deactivate ANY account
+- Override Director actions
+- Reassign drivers
+- Suspend/terminate Directors
+- Adjust commission percentage
+- Adjust 77% ratio
+- Adjust caps (1,300 / 1,000)
+
+====================================================
+PHASE 5 — DIRECTOR DASHBOARD (SAFE METRICS ONLY)
+====================================================
+
+Show Directors:
+- Total drivers recruited
+- Active drivers today
+- Commissionable drivers today (after 77% + caps)
+- Suspended drivers count
+- Performance alerts
+- Activation status
+
+NEVER show:
+- Platform earnings
+- Commission amounts
+- Revenue breakdowns
+- Percent splits
+- Per-trip data
+
+====================================================
+PHASE 6 — ZIBRA (ZIBA SUPPORT) DIRECTOR MODE
+====================================================
+
+ZIBRA must:
+- Detect role = Contract Director or Employed Director via backend token
+- Explain structure, counts, eligibility
+- Emphasize DAILY variability
+- Use neutral, legal-safe language
+
+ZIBRA SAFE PHRASES:
+- “Your commission eligibility is calculated daily.”
+- “Only a portion of active drivers count toward commission.”
+- “Caps and ratios apply and may change based on policy.”
+
+ZIBRA MUST NEVER:
+- Promise income
+- Show money values
+- Reveal platform revenue
+- Admit liability
+
+====================================================
+PHASE 7 — SUPER ADMIN CONTROLS
+====================================================
+
+Add controls for Super Admin:
+- Edit commission percentage (default 12%)
+- Edit active ratio (default 77%)
+- Edit max cell size (default 1,300)
+- Edit max commissionable drivers (default 1,000)
+- Freeze / resume Director commissions
+- Suspend / terminate Directors
+
+All changes:
+- Require confirmation
+- Are logged with adminId + timestamp
+- Apply prospectively only
+
+====================================================
+PHASE 8 — ZIBRA RESPONSE ENFORCEMENT
+====================================================
+
+ZIBRA responses for Directors must:
+- Explain rules without numbers
+- Redirect entitlement claims calmly
+- Recommend performance focus
+- Never argue
+- Never disclose internals
+
+====================================================
+PHASE 9 — FINAL VALIDATION
+====================================================
+
+Confirm before marking complete:
+- 77% daily logic enforced
+- 1,000 / 1,300 caps enforced
+- Director activation requires 10 drivers
+- No commission visibility leaks
+- Admin/Super Admin supremacy intact
+- ZIBRA Director explanations accurate and safe
+
+Proceed carefully.
+Do NOT mark complete until end-to-end tests pass.

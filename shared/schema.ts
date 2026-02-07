@@ -22,6 +22,7 @@ export const adminPermissionScopeEnum = pgEnum("admin_permission_scope", [
   "FRAUD_DETECTION"
 ]);
 export const directorStatusEnum = pgEnum("director_status", ["active", "inactive"]);
+export const directorTypeEnum = pgEnum("director_type", ["contract", "employed"]);
 export const rolloutStatusEnum = pgEnum("rollout_status", ["PLANNED", "PREP", "PILOT", "LIMITED_LIVE", "FULL_LIVE", "PAUSED"]);
 export const driverStatusEnum = pgEnum("driver_status", ["pending", "approved", "suspended"]);
 
@@ -480,7 +481,55 @@ export const directorProfiles = pgTable("director_profiles", {
   userId: varchar("user_id").notNull().unique(),
   fullName: varchar("full_name").notNull(),
   email: varchar("email"),
+  directorType: directorTypeEnum("director_type").notNull().default("contract"),
+  referralCodeId: varchar("referral_code_id"),
+  activationThreshold: integer("activation_threshold").notNull().default(10),
+  maxCellSize: integer("max_cell_size").notNull().default(1300),
+  commissionFrozen: boolean("commission_frozen").notNull().default(false),
+  suspendedAt: timestamp("suspended_at"),
+  suspendedBy: varchar("suspended_by"),
   status: directorStatusEnum("status").notNull().default("active"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const directorCommissionSettings = pgTable("director_commission_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  commissionRate: varchar("commission_rate").notNull().default("0.12"),
+  activeRatio: varchar("active_ratio").notNull().default("0.77"),
+  maxCommissionableDrivers: integer("max_commissionable_drivers").notNull().default(1000),
+  maxCellSize: integer("max_cell_size").notNull().default(1300),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  updatedBy: varchar("updated_by"),
+});
+
+export const directorCommissionLogs = pgTable("director_commission_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  directorUserId: varchar("director_user_id").notNull(),
+  date: varchar("date").notNull(),
+  totalDrivers: integer("total_drivers").notNull().default(0),
+  activeDriversToday: integer("active_drivers_today").notNull().default(0),
+  commissionableDrivers: integer("commissionable_drivers").notNull().default(0),
+  commissionRate: varchar("commission_rate").notNull(),
+  activeRatio: varchar("active_ratio").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const directorDriverAssignments = pgTable("director_driver_assignments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  directorUserId: varchar("director_user_id").notNull(),
+  driverUserId: varchar("driver_user_id").notNull().unique(),
+  assignmentType: varchar("assignment_type").notNull().default("referral"),
+  assignedAt: timestamp("assigned_at").defaultNow(),
+  assignedBy: varchar("assigned_by"),
+});
+
+export const directorSettingsAuditLogs = pgTable("director_settings_audit_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  settingKey: varchar("setting_key").notNull(),
+  oldValue: text("old_value"),
+  newValue: text("new_value").notNull(),
+  changedBy: varchar("changed_by").notNull(),
+  reason: text("reason").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -1800,6 +1849,13 @@ export const insertDirectorProfileSchema = createInsertSchema(directorProfiles).
   id: true,
   createdAt: true,
   status: true,
+  directorType: true,
+  referralCodeId: true,
+  activationThreshold: true,
+  maxCellSize: true,
+  commissionFrozen: true,
+  suspendedAt: true,
+  suspendedBy: true,
 });
 
 // Phase 14.5 - Trip Coordinator schemas
@@ -1955,6 +2011,16 @@ export type RiderProfile = typeof riderProfiles.$inferSelect;
 export type InsertDirectorProfile = z.infer<typeof insertDirectorProfileSchema>;
 export type DirectorProfile = typeof directorProfiles.$inferSelect;
 
+export const insertDirectorCommissionSettingsSchema = createInsertSchema(directorCommissionSettings).omit({ id: true, updatedAt: true });
+export const insertDirectorCommissionLogSchema = createInsertSchema(directorCommissionLogs).omit({ id: true, createdAt: true });
+export const insertDirectorDriverAssignmentSchema = createInsertSchema(directorDriverAssignments).omit({ id: true, assignedAt: true });
+export const insertDirectorSettingsAuditLogSchema = createInsertSchema(directorSettingsAuditLogs).omit({ id: true, createdAt: true });
+
+export type DirectorCommissionSettings = typeof directorCommissionSettings.$inferSelect;
+export type DirectorCommissionLog = typeof directorCommissionLogs.$inferSelect;
+export type DirectorDriverAssignment = typeof directorDriverAssignments.$inferSelect;
+export type DirectorSettingsAuditLog = typeof directorSettingsAuditLogs.$inferSelect;
+
 // Phase 14.5 - Trip Coordinator types
 export type InsertTripCoordinatorProfile = z.infer<typeof insertTripCoordinatorProfileSchema>;
 export type TripCoordinatorProfile = typeof tripCoordinatorProfiles.$inferSelect;
@@ -2011,6 +2077,10 @@ export type PayoutTransactionWithDetails = PayoutTransaction & {
 
 export type DirectorWithUser = DirectorProfile & {
   email?: string;
+  directorType?: string;
+  totalDrivers?: number;
+  activeDriversToday?: number;
+  commissionableDrivers?: number;
 };
 
 export type DisputeWithDetails = Dispute & {
