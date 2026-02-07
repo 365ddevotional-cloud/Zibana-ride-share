@@ -50,6 +50,7 @@ const DriverWelcomePage = lazy(() => import("@/pages/driver/welcome"));
 const DriverRegisterPage = lazy(() => import("@/pages/driver/register"));
 const DriverWelcomeBackPage = lazy(() => import("@/pages/driver/welcome-back"));
 const DriverLostItemsPage = lazy(() => import("@/pages/driver/lost-items"));
+const DriverReliefFundPage = lazy(() => import("@/pages/driver/relief-fund"));
 const RiderSchedulePage = lazy(() => import("@/pages/rider/schedule"));
 const RiderInboxPage = lazy(() => import("@/pages/rider/inbox"));
 const RiderActivityPage = lazy(() => import("@/pages/rider/activity"));
@@ -268,6 +269,9 @@ function DriverRouter() {
       </Route>
       <Route path="/driver/lost-items">
         <LazyComponent><DriverLostItemsPage /></LazyComponent>
+      </Route>
+      <Route path="/driver/relief-fund">
+        <LazyComponent><DriverReliefFundPage /></LazyComponent>
       </Route>
       <Route>
         <Redirect to="/driver/dashboard" />

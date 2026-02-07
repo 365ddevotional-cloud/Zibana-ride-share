@@ -41,6 +41,9 @@ import { BankTransfersPanel } from "@/components/admin/bank-transfers-panel";
 import { AdminCancellationFeeSettings } from "@/components/admin/cancellation-fee-settings";
 import { LostItemsPanel } from "@/components/admin/lost-items-panel";
 import { AccidentReportsPanel } from "@/components/admin/accident-reports-panel";
+import { InsurancePartnersPanel } from "@/components/admin/insurance-partners-panel";
+import { ReliefFundPanel } from "@/components/admin/relief-fund-panel";
+import { LostItemFraudPanel } from "@/components/admin/lost-item-fraud-panel";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -93,7 +96,8 @@ import {
   BookOpen,
   ScrollText,
   Banknote,
-  Package
+  Package,
+  Heart
 } from "lucide-react";
 import type { DriverProfile, Trip, User } from "@shared/schema";
 import { NotificationBell } from "@/components/notification-bell";
@@ -2521,6 +2525,24 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <TabsTrigger value="accident-reports" className="admin-nav-trigger rounded-md" data-testid="tab-accident-reports">
                 <AlertTriangle className="h-4 w-4 mr-2" />
                 Accidents
+              </TabsTrigger>
+            )}
+            {isSuperAdmin && (
+              <TabsTrigger value="insurance" className="admin-nav-trigger rounded-md" data-testid="tab-insurance">
+                <Shield className="h-4 w-4 mr-2" />
+                Insurance
+              </TabsTrigger>
+            )}
+            {isSuperAdmin && (
+              <TabsTrigger value="relief-fund" className="admin-nav-trigger rounded-md" data-testid="tab-relief-fund">
+                <Heart className="h-4 w-4 mr-2" />
+                Relief Fund
+              </TabsTrigger>
+            )}
+            {isSuperAdmin && (
+              <TabsTrigger value="lost-item-fraud" className="admin-nav-trigger rounded-md" data-testid="tab-lost-item-fraud">
+                <ShieldAlert className="h-4 w-4 mr-2" />
+                Fraud Detection
               </TabsTrigger>
             )}
           </TabsList>
@@ -6875,6 +6897,15 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <AccidentReportsPanel />
             </TabsContent>
           )}
+          <TabsContent value="insurance">
+            <InsurancePartnersPanel />
+          </TabsContent>
+          <TabsContent value="relief-fund">
+            <ReliefFundPanel />
+          </TabsContent>
+          <TabsContent value="lost-item-fraud">
+            <LostItemFraudPanel />
+          </TabsContent>
         </Tabs>
         </div>
       </main>

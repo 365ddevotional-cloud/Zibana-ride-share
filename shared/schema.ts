@@ -4544,3 +4544,148 @@ export const insertAccidentReportSchema = createInsertSchema(accidentReports).om
 });
 export type InsertAccidentReport = z.infer<typeof insertAccidentReportSchema>;
 export type AccidentReport = typeof accidentReports.$inferSelect;
+
+// =============================================
+// INSURANCE PARTNER INTEGRATION
+// =============================================
+
+export const insurancePartners = pgTable("insurance_partners", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  companyName: varchar("company_name", { length: 200 }).notNull(),
+  coverageType: varchar("coverage_type", { length: 50 }).notNull(),
+  contactEmail: varchar("contact_email", { length: 200 }),
+  contactPhone: varchar("contact_phone", { length: 50 }),
+  claimUrl: text("claim_url"),
+  apiEndpoint: text("api_endpoint"),
+  activeRegions: text("active_regions"),
+  isActive: boolean("is_active").notNull().default(true),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertInsurancePartnerSchema = createInsertSchema(insurancePartners).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertInsurancePartner = z.infer<typeof insertInsurancePartnerSchema>;
+export type InsurancePartner = typeof insurancePartners.$inferSelect;
+
+export const insuranceReferrals = pgTable("insurance_referrals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  accidentReportId: varchar("accident_report_id").notNull(),
+  insurancePartnerId: varchar("insurance_partner_id").notNull(),
+  referredBy: varchar("referred_by").notNull(),
+  referredUserId: varchar("referred_user_id").notNull(),
+  referredUserRole: varchar("referred_user_role", { length: 20 }).notNull(),
+  status: varchar("status", { length: 30 }).notNull().default("referred"),
+  userOptedIn: boolean("user_opted_in").notNull().default(false),
+  claimReference: varchar("claim_reference", { length: 100 }),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertInsuranceReferralSchema = createInsertSchema(insuranceReferrals).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertInsuranceReferral = z.infer<typeof insertInsuranceReferralSchema>;
+export type InsuranceReferral = typeof insuranceReferrals.$inferSelect;
+
+// =============================================
+// DRIVER ACCIDENT RELIEF FUND
+// =============================================
+
+export const driverReliefFund = pgTable("driver_relief_fund", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  totalPool: decimal("total_pool", { precision: 12, scale: 2 }).notNull().default("0.00"),
+  cancellationFeePercent: integer("cancellation_fee_percent").notNull().default(10),
+  lostItemFeePercent: integer("lost_item_fee_percent").notNull().default(5),
+  currency: varchar("currency", { length: 3 }).notNull().default("NGN"),
+  isActive: boolean("is_active").notNull().default(true),
+  minTrustScoreRequired: integer("min_trust_score_required").notNull().default(50),
+  maxPayoutPerClaim: decimal("max_payout_per_claim", { precision: 10, scale: 2 }).notNull().default("50000.00"),
+  updatedBy: varchar("updated_by"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertDriverReliefFundSchema = createInsertSchema(driverReliefFund).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertDriverReliefFund = z.infer<typeof insertDriverReliefFundSchema>;
+export type DriverReliefFund = typeof driverReliefFund.$inferSelect;
+
+export const reliefFundClaims = pgTable("relief_fund_claims", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  driverId: varchar("driver_id").notNull(),
+  accidentReportId: varchar("accident_report_id").notNull(),
+  requestedAmount: decimal("requested_amount", { precision: 10, scale: 2 }).notNull(),
+  approvedAmount: decimal("approved_amount", { precision: 10, scale: 2 }),
+  status: varchar("status", { length: 30 }).notNull().default("pending"),
+  faultDetermination: varchar("fault_determination", { length: 30 }),
+  driverTrustScoreAtTime: integer("driver_trust_score_at_time"),
+  reviewedBy: varchar("reviewed_by"),
+  reviewNotes: text("review_notes"),
+  payoutWalletTxId: varchar("payout_wallet_tx_id"),
+  expectedPayoutDate: timestamp("expected_payout_date"),
+  paidAt: timestamp("paid_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertReliefFundClaimSchema = createInsertSchema(reliefFundClaims).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertReliefFundClaim = z.infer<typeof insertReliefFundClaimSchema>;
+export type ReliefFundClaim = typeof reliefFundClaims.$inferSelect;
+
+export const reliefFundContributions = pgTable("relief_fund_contributions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  source: varchar("source", { length: 50 }).notNull(),
+  sourceReferenceId: varchar("source_reference_id"),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 3 }).notNull().default("NGN"),
+  contributedBy: varchar("contributed_by"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertReliefFundContributionSchema = createInsertSchema(reliefFundContributions).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertReliefFundContribution = z.infer<typeof insertReliefFundContributionSchema>;
+export type ReliefFundContribution = typeof reliefFundContributions.$inferSelect;
+
+// =============================================
+// LOST ITEM FRAUD DETECTION
+// =============================================
+
+export const lostItemFraudSignals = pgTable("lost_item_fraud_signals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  userRole: varchar("user_role", { length: 20 }).notNull(),
+  signalType: varchar("signal_type", { length: 50 }).notNull(),
+  severity: varchar("severity", { length: 20 }).notNull().default("low"),
+  description: text("description"),
+  relatedReportId: varchar("related_report_id"),
+  riskScore: integer("risk_score").notNull().default(0),
+  autoResolved: boolean("auto_resolved").notNull().default(false),
+  adminReviewed: boolean("admin_reviewed").notNull().default(false),
+  adminReviewedBy: varchar("admin_reviewed_by"),
+  adminNotes: text("admin_notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertLostItemFraudSignalSchema = createInsertSchema(lostItemFraudSignals).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertLostItemFraudSignal = z.infer<typeof insertLostItemFraudSignalSchema>;
+export type LostItemFraudSignal = typeof lostItemFraudSignals.$inferSelect;

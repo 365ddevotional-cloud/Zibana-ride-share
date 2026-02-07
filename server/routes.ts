@@ -13211,7 +13211,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Trip ID and item description are required" });
       }
 
-      const trip = await storage.getTrip(tripId);
+      const trip = await storage.getTripById(tripId);
       if (!trip) {
         return res.status(404).json({ message: "Trip not found" });
       }
@@ -13221,10 +13221,7 @@ export async function registerRoutes(
         riderId,
         driverId: trip.driverId || "",
         itemDescription,
-        itemCategory: itemCategory || "other",
-        lastSeenLocation: lastSeenLocation || null,
-        contactPhone: contactPhone || null,
-        photoUrls: photoUrls || null,
+        itemType: itemCategory || "other",
         status: "reported",
       });
 
@@ -13362,17 +13359,16 @@ export async function registerRoutes(
 
   app.post("/api/admin/lost-item-fees", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
     try {
-      const { countryCode, baseFee, perKmFee, maxFee, driverSharePercent, currency } = req.body;
+      const { countryCode, standardFee, urgentFee, driverSharePercent, platformSharePercent } = req.body;
       if (!countryCode) {
         return res.status(400).json({ message: "Country code is required" });
       }
       const config = await storage.upsertLostItemFeeConfig({
         countryCode,
-        baseFee: baseFee || "500",
-        perKmFee: perKmFee || "50",
-        maxFee: maxFee || "5000",
-        driverSharePercent: driverSharePercent || "70",
-        currency: currency || "NGN",
+        standardFee: standardFee || "500.00",
+        urgentFee: urgentFee || "1000.00",
+        driverSharePercent: driverSharePercent || 75,
+        platformSharePercent: platformSharePercent || 25,
       });
       return res.json(config);
     } catch (error) {
@@ -13402,21 +13398,17 @@ export async function registerRoutes(
 
       const report = await storage.createAccidentReport({
         tripId,
-        incidentId: incidentId || null,
-        reportedBy,
+        incidentId: incidentId || "",
+        reporterId: reportedBy,
         reporterRole: reporterRole || "rider",
-        accidentType,
-        severity: severity || "minor",
-        description,
+        accidentSeverity: severity || accidentType || "minor",
         isSafe: isSafe !== undefined ? isSafe : true,
-        injuriesReported: injuriesReported || false,
         emergencyServicesNeeded: emergencyServicesNeeded || false,
         emergencyServicesContacted: emergencyServicesContacted || false,
-        gpsLat: gpsLat || null,
-        gpsLng: gpsLng || null,
-        photoUrls: photoUrls || null,
+        photoEvidence: photoUrls || null,
         voiceNoteUrl: voiceNoteUrl || null,
-        vehicleDamageDescription: vehicleDamageDescription || null,
+        gpsLatitude: gpsLat || null,
+        gpsLongitude: gpsLng || null,
         adminReviewStatus: "pending",
       });
 
@@ -13432,7 +13424,7 @@ export async function registerRoutes(
     try {
       const userId = req.user!.claims.sub;
       const allReports = await storage.getAllAccidentReports();
-      const myReports = allReports.filter(r => r.reportedBy === userId);
+      const myReports = allReports.filter(r => r.reporterId === userId);
       return res.json(myReports);
     } catch (error) {
       console.error("Error getting accident reports:", error);
@@ -13494,6 +13486,284 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error reviewing accident report:", error);
       return res.status(500).json({ message: "Failed to review report" });
+    }
+  });
+
+  // =============================================
+  // INSURANCE PARTNERS
+  // =============================================
+
+  // Admin: Get all insurance partners
+  app.get("/api/admin/insurance-partners", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const partners = await storage.getAllInsurancePartners();
+      return res.json(partners);
+    } catch (error) {
+      console.error("Error getting insurance partners:", error);
+      return res.status(500).json({ message: "Failed to get insurance partners" });
+    }
+  });
+
+  // Admin: Get active insurance partners
+  app.get("/api/insurance-partners/active", isAuthenticated, async (req, res) => {
+    try {
+      const partners = await storage.getActiveInsurancePartners();
+      return res.json(partners);
+    } catch (error) {
+      console.error("Error getting active insurance partners:", error);
+      return res.status(500).json({ message: "Failed to get partners" });
+    }
+  });
+
+  // Admin: Create insurance partner
+  app.post("/api/admin/insurance-partners", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const { companyName, coverageType, contactEmail, contactPhone, claimUrl, apiEndpoint, activeRegions, notes } = req.body;
+      if (!companyName || !coverageType) {
+        return res.status(400).json({ message: "Company name and coverage type are required" });
+      }
+      const partner = await storage.createInsurancePartner({
+        companyName,
+        coverageType,
+        contactEmail: contactEmail || null,
+        contactPhone: contactPhone || null,
+        claimUrl: claimUrl || null,
+        apiEndpoint: apiEndpoint || null,
+        activeRegions: activeRegions || null,
+        notes: notes || null,
+        isActive: true,
+      });
+      return res.status(201).json(partner);
+    } catch (error) {
+      console.error("Error creating insurance partner:", error);
+      return res.status(500).json({ message: "Failed to create partner" });
+    }
+  });
+
+  // Admin: Update insurance partner
+  app.patch("/api/admin/insurance-partners/:id", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const updated = await storage.updateInsurancePartner(req.params.id, { ...req.body, updatedAt: new Date() });
+      if (!updated) return res.status(404).json({ message: "Partner not found" });
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error updating insurance partner:", error);
+      return res.status(500).json({ message: "Failed to update partner" });
+    }
+  });
+
+  // Get insurance referrals for an accident report
+  app.get("/api/insurance-referrals/:accidentReportId", isAuthenticated, async (req, res) => {
+    try {
+      const referrals = await storage.getInsuranceReferralsByAccident(req.params.accidentReportId);
+      return res.json(referrals);
+    } catch (error) {
+      console.error("Error getting insurance referrals:", error);
+      return res.status(500).json({ message: "Failed to get referrals" });
+    }
+  });
+
+  // User opt-in to insurance referral
+  app.post("/api/insurance-referrals", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.claims.sub;
+      const { accidentReportId, insurancePartnerId, referredUserRole } = req.body;
+      if (!accidentReportId || !insurancePartnerId) {
+        return res.status(400).json({ message: "Accident report ID and insurance partner ID are required" });
+      }
+      const referral = await storage.createInsuranceReferral({
+        accidentReportId,
+        insurancePartnerId,
+        referredBy: userId,
+        referredUserId: userId,
+        referredUserRole: referredUserRole || "rider",
+        status: "referred",
+        userOptedIn: true,
+      });
+      return res.status(201).json(referral);
+    } catch (error) {
+      console.error("Error creating insurance referral:", error);
+      return res.status(500).json({ message: "Failed to create referral" });
+    }
+  });
+
+  // =============================================
+  // DRIVER RELIEF FUND
+  // =============================================
+
+  // Admin: Get relief fund config
+  app.get("/api/admin/relief-fund/config", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const config = await storage.getReliefFundConfig();
+      return res.json(config || { totalPool: "0.00", cancellationFeePercent: 10, lostItemFeePercent: 5, currency: "NGN", isActive: true, minTrustScoreRequired: 50, maxPayoutPerClaim: "50000.00" });
+    } catch (error) {
+      console.error("Error getting relief fund config:", error);
+      return res.status(500).json({ message: "Failed to get config" });
+    }
+  });
+
+  // Admin: Update relief fund config
+  app.post("/api/admin/relief-fund/config", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const adminId = req.user!.claims.sub;
+      const config = await storage.upsertReliefFundConfig({ ...req.body, updatedBy: adminId });
+      return res.json(config);
+    } catch (error) {
+      console.error("Error updating relief fund config:", error);
+      return res.status(500).json({ message: "Failed to update config" });
+    }
+  });
+
+  // Admin: Add manual contribution to relief fund
+  app.post("/api/admin/relief-fund/contribute", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const adminId = req.user!.claims.sub;
+      const { amount, notes, currency } = req.body;
+      if (!amount) return res.status(400).json({ message: "Amount is required" });
+      const contribution = await storage.createReliefFundContribution({
+        source: "admin_topup",
+        amount,
+        currency: currency || "NGN",
+        contributedBy: adminId,
+        notes: notes || null,
+      });
+      const config = await storage.getReliefFundConfig();
+      if (config) {
+        const newPool = (parseFloat(config.totalPool || "0") + parseFloat(amount)).toFixed(2);
+        await storage.upsertReliefFundConfig({ ...config, totalPool: newPool, updatedBy: adminId });
+      }
+      return res.status(201).json(contribution);
+    } catch (error) {
+      console.error("Error contributing to relief fund:", error);
+      return res.status(500).json({ message: "Failed to contribute" });
+    }
+  });
+
+  // Admin: Get all contributions
+  app.get("/api/admin/relief-fund/contributions", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const contributions = await storage.getAllReliefFundContributions();
+      return res.json(contributions);
+    } catch (error) {
+      console.error("Error getting contributions:", error);
+      return res.status(500).json({ message: "Failed to get contributions" });
+    }
+  });
+
+  // Admin: Get all relief fund claims
+  app.get("/api/admin/relief-fund/claims", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const { status } = req.query;
+      const claims = status
+        ? await storage.getReliefFundClaimsByStatus(status as string)
+        : await storage.getAllReliefFundClaims();
+      return res.json(claims);
+    } catch (error) {
+      console.error("Error getting relief fund claims:", error);
+      return res.status(500).json({ message: "Failed to get claims" });
+    }
+  });
+
+  // Admin: Review relief fund claim
+  app.patch("/api/admin/relief-fund/claims/:id", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const adminId = req.user!.claims.sub;
+      const { status, approvedAmount, reviewNotes, expectedPayoutDate, faultDetermination } = req.body;
+      const updated = await storage.updateReliefFundClaim(req.params.id, {
+        status,
+        approvedAmount: approvedAmount || null,
+        reviewedBy: adminId,
+        reviewNotes: reviewNotes || null,
+        expectedPayoutDate: expectedPayoutDate ? new Date(expectedPayoutDate) : null,
+        faultDetermination: faultDetermination || null,
+        updatedAt: new Date(),
+      });
+      if (!updated) return res.status(404).json({ message: "Claim not found" });
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error reviewing relief fund claim:", error);
+      return res.status(500).json({ message: "Failed to review claim" });
+    }
+  });
+
+  // Driver: Get my relief fund claims
+  app.get("/api/relief-fund/my-claims", isAuthenticated, async (req, res) => {
+    try {
+      const driverId = req.user!.claims.sub;
+      const claims = await storage.getReliefFundClaimsByDriver(driverId);
+      return res.json(claims);
+    } catch (error) {
+      console.error("Error getting driver relief claims:", error);
+      return res.status(500).json({ message: "Failed to get claims" });
+    }
+  });
+
+  // Driver: Submit relief fund claim
+  app.post("/api/relief-fund/claims", isAuthenticated, async (req, res) => {
+    try {
+      const driverId = req.user!.claims.sub;
+      const { accidentReportId, requestedAmount } = req.body;
+      if (!accidentReportId || !requestedAmount) {
+        return res.status(400).json({ message: "Accident report ID and requested amount are required" });
+      }
+      const trustProfile = await storage.getUserTrustProfile(driverId);
+      const claim = await storage.createReliefFundClaim({
+        driverId,
+        accidentReportId,
+        requestedAmount,
+        status: "pending",
+        driverTrustScoreAtTime: trustProfile?.trustScore || 75,
+      });
+      return res.status(201).json(claim);
+    } catch (error) {
+      console.error("Error submitting relief fund claim:", error);
+      return res.status(500).json({ message: "Failed to submit claim" });
+    }
+  });
+
+  // =============================================
+  // LOST ITEM FRAUD DETECTION
+  // =============================================
+
+  // Admin: Get all fraud signals
+  app.get("/api/admin/lost-item-fraud", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const signals = await storage.getAllLostItemFraudSignals();
+      return res.json(signals);
+    } catch (error) {
+      console.error("Error getting fraud signals:", error);
+      return res.status(500).json({ message: "Failed to get fraud signals" });
+    }
+  });
+
+  // Admin: Get fraud signals for a user
+  app.get("/api/admin/lost-item-fraud/user/:userId", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const signals = await storage.getLostItemFraudSignalsByUser(req.params.userId);
+      const riskScore = await storage.getUserLostItemRiskScore(req.params.userId);
+      return res.json({ signals, riskScore });
+    } catch (error) {
+      console.error("Error getting user fraud signals:", error);
+      return res.status(500).json({ message: "Failed to get fraud signals" });
+    }
+  });
+
+  // Admin: Review fraud signal
+  app.patch("/api/admin/lost-item-fraud/:id", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const adminId = req.user!.claims.sub;
+      const { adminNotes, autoResolved } = req.body;
+      const updated = await storage.updateLostItemFraudSignal(req.params.id, {
+        adminReviewed: true,
+        adminReviewedBy: adminId,
+        adminNotes: adminNotes || null,
+        autoResolved: autoResolved || false,
+      });
+      if (!updated) return res.status(404).json({ message: "Signal not found" });
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error reviewing fraud signal:", error);
+      return res.status(500).json({ message: "Failed to review signal" });
     }
   });
 

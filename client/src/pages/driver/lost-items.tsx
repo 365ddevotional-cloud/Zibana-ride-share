@@ -12,7 +12,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { ChevronLeft, Package, Phone, Calendar, Tag, CheckCircle, XCircle, RotateCcw } from "lucide-react";
+import { ChevronLeft, Package, Phone, Calendar, Tag, CheckCircle, XCircle, RotateCcw, AlertTriangle } from "lucide-react";
 
 interface LostItemReport {
   id: string;
@@ -114,6 +114,29 @@ export default function DriverLostItems() {
             <h1 className="text-xl font-bold" data-testid="text-lost-items-title">Lost Item Reports</h1>
           </div>
         </div>
+
+        <Card data-testid="card-relief-fund-info">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <div className="h-9 w-9 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center shrink-0 mt-0.5">
+                <AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+              </div>
+              <div className="flex-1 space-y-2">
+                <p className="text-sm" data-testid="text-relief-fund-info">
+                  Were you in an accident? You may be eligible for relief fund support.
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setLocation("/driver/relief-fund")}
+                  data-testid="button-view-relief-claims"
+                >
+                  View Relief Claims
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {isLoading ? (
           <div className="space-y-4">

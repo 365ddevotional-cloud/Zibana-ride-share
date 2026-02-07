@@ -440,6 +440,24 @@ import {
   type InsertLostItemFeeConfig,
   type AccidentReport,
   type InsertAccidentReport,
+  insurancePartners,
+  insuranceReferrals,
+  type InsurancePartner,
+  type InsertInsurancePartner,
+  type InsuranceReferral,
+  type InsertInsuranceReferral,
+  driverReliefFund,
+  reliefFundClaims,
+  reliefFundContributions,
+  type DriverReliefFund,
+  type InsertDriverReliefFund,
+  type ReliefFundClaim,
+  type InsertReliefFundClaim,
+  type ReliefFundContribution,
+  type InsertReliefFundContribution,
+  lostItemFraudSignals,
+  type LostItemFraudSignal,
+  type InsertLostItemFraudSignal,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull } from "drizzle-orm";
@@ -1353,6 +1371,44 @@ export interface IStorage {
   getAllAccidentReports(): Promise<AccidentReport[]>;
   getAccidentReportsByStatus(status: string): Promise<AccidentReport[]>;
   updateAccidentReport(id: string, data: Partial<AccidentReport>): Promise<AccidentReport | null>;
+
+  // Insurance Partners
+  createInsurancePartner(data: InsertInsurancePartner): Promise<InsurancePartner>;
+  getInsurancePartner(id: string): Promise<InsurancePartner | null>;
+  getAllInsurancePartners(): Promise<InsurancePartner[]>;
+  getActiveInsurancePartners(): Promise<InsurancePartner[]>;
+  getInsurancePartnersByRegion(region: string): Promise<InsurancePartner[]>;
+  updateInsurancePartner(id: string, data: Partial<InsurancePartner>): Promise<InsurancePartner | null>;
+  
+  // Insurance Referrals
+  createInsuranceReferral(data: InsertInsuranceReferral): Promise<InsuranceReferral>;
+  getInsuranceReferral(id: string): Promise<InsuranceReferral | null>;
+  getInsuranceReferralsByAccident(accidentReportId: string): Promise<InsuranceReferral[]>;
+  updateInsuranceReferral(id: string, data: Partial<InsuranceReferral>): Promise<InsuranceReferral | null>;
+
+  // Driver Relief Fund
+  getReliefFundConfig(): Promise<DriverReliefFund | null>;
+  upsertReliefFundConfig(data: InsertDriverReliefFund): Promise<DriverReliefFund>;
+  
+  // Relief Fund Claims
+  createReliefFundClaim(data: InsertReliefFundClaim): Promise<ReliefFundClaim>;
+  getReliefFundClaim(id: string): Promise<ReliefFundClaim | null>;
+  getReliefFundClaimsByDriver(driverId: string): Promise<ReliefFundClaim[]>;
+  getAllReliefFundClaims(): Promise<ReliefFundClaim[]>;
+  getReliefFundClaimsByStatus(status: string): Promise<ReliefFundClaim[]>;
+  updateReliefFundClaim(id: string, data: Partial<ReliefFundClaim>): Promise<ReliefFundClaim | null>;
+
+  // Relief Fund Contributions
+  createReliefFundContribution(data: InsertReliefFundContribution): Promise<ReliefFundContribution>;
+  getAllReliefFundContributions(): Promise<ReliefFundContribution[]>;
+
+  // Lost Item Fraud Signals
+  createLostItemFraudSignal(data: InsertLostItemFraudSignal): Promise<LostItemFraudSignal>;
+  getLostItemFraudSignalsByUser(userId: string): Promise<LostItemFraudSignal[]>;
+  getAllLostItemFraudSignals(): Promise<LostItemFraudSignal[]>;
+  getLostItemFraudSignalsByReport(reportId: string): Promise<LostItemFraudSignal[]>;
+  updateLostItemFraudSignal(id: string, data: Partial<LostItemFraudSignal>): Promise<LostItemFraudSignal | null>;
+  getUserLostItemRiskScore(userId: string): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -10411,6 +10467,146 @@ export class DatabaseStorage implements IStorage {
   async updateAccidentReport(id: string, data: Partial<AccidentReport>): Promise<AccidentReport | null> {
     const [updated] = await db.update(accidentReports).set(data).where(eq(accidentReports.id, id)).returning();
     return updated || null;
+  }
+
+  // Insurance Partners
+  async createInsurancePartner(data: InsertInsurancePartner): Promise<InsurancePartner> {
+    const [partner] = await db.insert(insurancePartners).values(data).returning();
+    return partner;
+  }
+
+  async getInsurancePartner(id: string): Promise<InsurancePartner | null> {
+    const [partner] = await db.select().from(insurancePartners).where(eq(insurancePartners.id, id));
+    return partner || null;
+  }
+
+  async getAllInsurancePartners(): Promise<InsurancePartner[]> {
+    return await db.select().from(insurancePartners).orderBy(desc(insurancePartners.createdAt));
+  }
+
+  async getActiveInsurancePartners(): Promise<InsurancePartner[]> {
+    return await db.select().from(insurancePartners).where(eq(insurancePartners.isActive, true)).orderBy(desc(insurancePartners.createdAt));
+  }
+
+  async getInsurancePartnersByRegion(region: string): Promise<InsurancePartner[]> {
+    return await db.select().from(insurancePartners).where(
+      and(
+        eq(insurancePartners.isActive, true),
+        sql`${insurancePartners.activeRegions} LIKE ${'%' + region + '%'}`
+      )
+    ).orderBy(desc(insurancePartners.createdAt));
+  }
+
+  async updateInsurancePartner(id: string, data: Partial<InsurancePartner>): Promise<InsurancePartner | null> {
+    const [updated] = await db.update(insurancePartners).set(data).where(eq(insurancePartners.id, id)).returning();
+    return updated || null;
+  }
+
+  // Insurance Referrals
+  async createInsuranceReferral(data: InsertInsuranceReferral): Promise<InsuranceReferral> {
+    const [referral] = await db.insert(insuranceReferrals).values(data).returning();
+    return referral;
+  }
+
+  async getInsuranceReferral(id: string): Promise<InsuranceReferral | null> {
+    const [referral] = await db.select().from(insuranceReferrals).where(eq(insuranceReferrals.id, id));
+    return referral || null;
+  }
+
+  async getInsuranceReferralsByAccident(accidentReportId: string): Promise<InsuranceReferral[]> {
+    return await db.select().from(insuranceReferrals).where(eq(insuranceReferrals.accidentReportId, accidentReportId)).orderBy(desc(insuranceReferrals.createdAt));
+  }
+
+  async updateInsuranceReferral(id: string, data: Partial<InsuranceReferral>): Promise<InsuranceReferral | null> {
+    const [updated] = await db.update(insuranceReferrals).set(data).where(eq(insuranceReferrals.id, id)).returning();
+    return updated || null;
+  }
+
+  // Driver Relief Fund
+  async getReliefFundConfig(): Promise<DriverReliefFund | null> {
+    const [config] = await db.select().from(driverReliefFund).limit(1);
+    return config || null;
+  }
+
+  async upsertReliefFundConfig(data: InsertDriverReliefFund): Promise<DriverReliefFund> {
+    const existing = await this.getReliefFundConfig();
+    if (existing) {
+      const [updated] = await db.update(driverReliefFund).set({ ...data, updatedAt: new Date() }).where(eq(driverReliefFund.id, existing.id)).returning();
+      return updated;
+    }
+    const [created] = await db.insert(driverReliefFund).values(data).returning();
+    return created;
+  }
+
+  // Relief Fund Claims
+  async createReliefFundClaim(data: InsertReliefFundClaim): Promise<ReliefFundClaim> {
+    const [claim] = await db.insert(reliefFundClaims).values(data).returning();
+    return claim;
+  }
+
+  async getReliefFundClaim(id: string): Promise<ReliefFundClaim | null> {
+    const [claim] = await db.select().from(reliefFundClaims).where(eq(reliefFundClaims.id, id));
+    return claim || null;
+  }
+
+  async getReliefFundClaimsByDriver(driverId: string): Promise<ReliefFundClaim[]> {
+    return await db.select().from(reliefFundClaims).where(eq(reliefFundClaims.driverId, driverId)).orderBy(desc(reliefFundClaims.createdAt));
+  }
+
+  async getAllReliefFundClaims(): Promise<ReliefFundClaim[]> {
+    return await db.select().from(reliefFundClaims).orderBy(desc(reliefFundClaims.createdAt));
+  }
+
+  async getReliefFundClaimsByStatus(status: string): Promise<ReliefFundClaim[]> {
+    return await db.select().from(reliefFundClaims).where(eq(reliefFundClaims.status, status)).orderBy(desc(reliefFundClaims.createdAt));
+  }
+
+  async updateReliefFundClaim(id: string, data: Partial<ReliefFundClaim>): Promise<ReliefFundClaim | null> {
+    const [updated] = await db.update(reliefFundClaims).set({ ...data, updatedAt: new Date() }).where(eq(reliefFundClaims.id, id)).returning();
+    return updated || null;
+  }
+
+  // Relief Fund Contributions
+  async createReliefFundContribution(data: InsertReliefFundContribution): Promise<ReliefFundContribution> {
+    const [contribution] = await db.insert(reliefFundContributions).values(data).returning();
+    return contribution;
+  }
+
+  async getAllReliefFundContributions(): Promise<ReliefFundContribution[]> {
+    return await db.select().from(reliefFundContributions).orderBy(desc(reliefFundContributions.createdAt));
+  }
+
+  // Lost Item Fraud Signals
+  async createLostItemFraudSignal(data: InsertLostItemFraudSignal): Promise<LostItemFraudSignal> {
+    const [signal] = await db.insert(lostItemFraudSignals).values(data).returning();
+    return signal;
+  }
+
+  async getLostItemFraudSignalsByUser(userId: string): Promise<LostItemFraudSignal[]> {
+    return await db.select().from(lostItemFraudSignals).where(eq(lostItemFraudSignals.userId, userId)).orderBy(desc(lostItemFraudSignals.createdAt));
+  }
+
+  async getAllLostItemFraudSignals(): Promise<LostItemFraudSignal[]> {
+    return await db.select().from(lostItemFraudSignals).orderBy(desc(lostItemFraudSignals.createdAt));
+  }
+
+  async getLostItemFraudSignalsByReport(reportId: string): Promise<LostItemFraudSignal[]> {
+    return await db.select().from(lostItemFraudSignals).where(eq(lostItemFraudSignals.relatedReportId, reportId)).orderBy(desc(lostItemFraudSignals.createdAt));
+  }
+
+  async updateLostItemFraudSignal(id: string, data: Partial<LostItemFraudSignal>): Promise<LostItemFraudSignal | null> {
+    const [updated] = await db.update(lostItemFraudSignals).set(data).where(eq(lostItemFraudSignals.id, id)).returning();
+    return updated || null;
+  }
+
+  async getUserLostItemRiskScore(userId: string): Promise<number> {
+    const result = await db.select({ totalRisk: sum(lostItemFraudSignals.riskScore) }).from(lostItemFraudSignals).where(
+      and(
+        eq(lostItemFraudSignals.userId, userId),
+        eq(lostItemFraudSignals.autoResolved, false)
+      )
+    );
+    return Number(result[0]?.totalRisk || 0);
   }
 }
 

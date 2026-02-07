@@ -18,7 +18,7 @@ import { Switch } from "@/components/ui/switch";
 import { EmptyState } from "@/components/empty-state";
 import {
   ArrowLeft, Shield, Package, AlertTriangle, FileText, Users,
-  ChevronRight, Clock, Phone, MapPin,
+  ChevronRight, Clock, Phone, MapPin, ShieldCheck, ExternalLink,
 } from "lucide-react";
 
 interface Trip {
@@ -52,6 +52,16 @@ interface AccidentReport {
   emergencyServicesContacted: boolean;
   status: string;
   createdAt: string;
+}
+
+interface InsurancePartner {
+  id: number;
+  companyName: string;
+  coverageType: string;
+  contactEmail: string;
+  contactPhone: string;
+  claimUrl: string;
+  isActive: boolean;
 }
 
 const ITEM_CATEGORIES = [
@@ -100,6 +110,8 @@ export default function SafetyHubPage() {
   const [activeTab, setActiveTab] = useState<"report" | "my-reports">("report");
   const [lostItemDialogOpen, setLostItemDialogOpen] = useState(false);
   const [accidentDialogOpen, setAccidentDialogOpen] = useState(false);
+  const [insuranceDialogOpen, setInsuranceDialogOpen] = useState(false);
+  const [selectedAccidentId, setSelectedAccidentId] = useState<number | null>(null);
 
   const [lostItemForm, setLostItemForm] = useState({
     tripId: "",
@@ -136,6 +148,11 @@ export default function SafetyHubPage() {
 
   const { data: accidentReports = [], isLoading: accidentReportsLoading } = useQuery<AccidentReport[]>({
     queryKey: ["/api/accident-reports/my-reports"],
+    enabled: activeTab === "my-reports",
+  });
+
+  const { data: insurancePartners = [] } = useQuery<InsurancePartner[]>({
+    queryKey: ["/api/insurance-partners/active"],
     enabled: activeTab === "my-reports",
   });
 
@@ -176,6 +193,25 @@ export default function SafetyHubPage() {
       toast({ title: "Failed to submit report", description: error.message, variant: "destructive" });
     },
   });
+
+  const insuranceReferralMutation = useMutation({
+    mutationFn: async ({ accidentReportId, insurancePartnerId }: { accidentReportId: number; insurancePartnerId: number }) => {
+      const res = await apiRequest("POST", "/api/insurance-referrals", {
+        accidentReportId,
+        insurancePartnerId,
+        referredUserRole: "rider",
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Insurance support requested", description: "Your request has been submitted. The insurance partner will be in touch." });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to request insurance support", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const ELIGIBLE_SEVERITIES = ["moderate", "severe", "critical", "medium", "high"];
 
   function resetLostItemForm() {
     setLostItemForm({ tripId: "", itemDescription: "", itemCategory: "", lastSeenLocation: "", contactPhone: "" });
@@ -377,32 +413,65 @@ export default function SafetyHubPage() {
                         Accident Reports
                       </p>
                       {accidentReports.map((report) => (
-                        <Card key={`accident-${report.id}`} data-testid={`card-accident-report-${report.id}`}>
-                          <CardContent className="p-4">
-                            <div className="flex items-start justify-between gap-3 flex-wrap">
-                              <div className="flex items-start gap-3 min-w-0 flex-1">
-                                <div className="h-9 w-9 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center shrink-0 mt-0.5">
-                                  <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
+                        <div key={`accident-${report.id}`} className="space-y-2">
+                          <Card data-testid={`card-accident-report-${report.id}`}>
+                            <CardContent className="p-4">
+                              <div className="flex items-start justify-between gap-3 flex-wrap">
+                                <div className="flex items-start gap-3 min-w-0 flex-1">
+                                  <div className="h-9 w-9 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center shrink-0 mt-0.5">
+                                    <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="font-medium text-sm" data-testid={`text-accident-type-${report.id}`}>
+                                      {formatStatus(report.accidentType)}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                      Severity: {formatStatus(report.severity)}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                                      {report.description}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                      {new Date(report.createdAt).toLocaleDateString()}
+                                    </p>
+                                  </div>
                                 </div>
-                                <div className="min-w-0">
-                                  <p className="font-medium text-sm" data-testid={`text-accident-type-${report.id}`}>
-                                    {formatStatus(report.accidentType)}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground mt-0.5">
-                                    Severity: {formatStatus(report.severity)}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                                    {report.description}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground mt-0.5">
-                                    {new Date(report.createdAt).toLocaleDateString()}
-                                  </p>
-                                </div>
+                                <StatusBadge status={report.status} />
                               </div>
-                              <StatusBadge status={report.status} />
-                            </div>
-                          </CardContent>
-                        </Card>
+                            </CardContent>
+                          </Card>
+                          {ELIGIBLE_SEVERITIES.includes(report.severity) && insurancePartners.length > 0 && (
+                            <Card className="border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20" data-testid={`card-insurance-support-${report.id}`}>
+                              <CardContent className="p-4">
+                                <div className="flex items-start gap-3">
+                                  <div className="h-9 w-9 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0 mt-0.5">
+                                    <ShieldCheck className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                  </div>
+                                  <div className="flex-1 space-y-2">
+                                    <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400" data-testid={`badge-insurance-available-${report.id}`}>
+                                      Insurance Support Available
+                                    </Badge>
+                                    <p className="text-sm text-muted-foreground" data-testid={`text-insurance-info-${report.id}`}>
+                                      You may opt in to contact an insurance partner for assistance with this incident.
+                                    </p>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => {
+                                        setSelectedAccidentId(report.id);
+                                        setInsuranceDialogOpen(true);
+                                      }}
+                                      data-testid={`button-contact-insurance-${report.id}`}
+                                    >
+                                      <ShieldCheck className="h-4 w-4 mr-1" />
+                                      Contact Insurance
+                                    </Button>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          )}
+                        </div>
                       ))}
                     </div>
                   )}
@@ -638,6 +707,64 @@ export default function SafetyHubPage() {
                   {createAccidentMutation.isPending ? "Submitting..." : "Submit Report"}
                 </Button>
               </form>
+            </DialogContent>
+          </Dialog>
+          <Dialog open={insuranceDialogOpen} onOpenChange={setInsuranceDialogOpen}>
+            <DialogContent className="max-h-[90vh] overflow-y-auto" data-testid="dialog-insurance-partners">
+              <DialogHeader>
+                <DialogTitle data-testid="text-insurance-dialog-title">Available Insurance Partners</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3">
+                {insurancePartners.map((partner) => (
+                  <Card key={partner.id} data-testid={`card-insurance-partner-${partner.id}`}>
+                    <CardContent className="p-4 space-y-2">
+                      <p className="font-medium text-sm" data-testid={`text-partner-name-${partner.id}`}>{partner.companyName}</p>
+                      <p className="text-xs text-muted-foreground" data-testid={`text-partner-coverage-${partner.id}`}>
+                        Coverage: {partner.coverageType}
+                      </p>
+                      <div className="text-xs text-muted-foreground space-y-1">
+                        {partner.contactPhone && (
+                          <p className="flex items-center gap-1" data-testid={`text-partner-phone-${partner.id}`}>
+                            <Phone className="h-3 w-3" /> {partner.contactPhone}
+                          </p>
+                        )}
+                        {partner.contactEmail && (
+                          <p data-testid={`text-partner-email-${partner.id}`}>
+                            {partner.contactEmail}
+                          </p>
+                        )}
+                        {partner.claimUrl && (
+                          <a
+                            href={partner.claimUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 text-blue-600 dark:text-blue-400"
+                            data-testid={`link-partner-claim-${partner.id}`}
+                          >
+                            <ExternalLink className="h-3 w-3" /> File a Claim
+                          </a>
+                        )}
+                      </div>
+                      <Button
+                        size="sm"
+                        className="w-full"
+                        disabled={insuranceReferralMutation.isPending}
+                        onClick={() => {
+                          if (selectedAccidentId) {
+                            insuranceReferralMutation.mutate({
+                              accidentReportId: selectedAccidentId,
+                              insurancePartnerId: partner.id,
+                            });
+                          }
+                        }}
+                        data-testid={`button-request-insurance-${partner.id}`}
+                      >
+                        {insuranceReferralMutation.isPending ? "Requesting..." : "Request Insurance Support"}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             </DialogContent>
           </Dialog>
         </div>
