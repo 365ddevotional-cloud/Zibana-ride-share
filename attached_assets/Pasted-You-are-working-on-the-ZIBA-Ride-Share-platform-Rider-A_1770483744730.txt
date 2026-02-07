@@ -1,0 +1,206 @@
+You are working on the ZIBA Ride Share platform (Rider App, Driver App, Admin Dashboard).
+
+ABSOLUTE PRIORITY:
+Make ZIBA legally insulated across ALL countries and ALL user interactions, while introducing a branded AI-powered support intelligence that reduces human support load without exposing ZIBA to liability.
+
+DO NOT break existing features.
+Audit current implementations first.
+Add ONLY what is missing.
+No rewrites unless absolutely required for legal safety.
+
+=====================================================
+PHASE 1 — GLOBAL LEGAL HARDENING (ALL COUNTRIES)
+=====================================================
+
+1) PLATFORM CLASSIFICATION (CORE)
+Enforce everywhere (Terms, Metadata, UI copy, API docs):
+
+- ZIBA is a technology marketplace, NOT a transportation provider
+- ZIBA does NOT employ drivers
+- Drivers are independent contractors
+- ZIBA does NOT control trip execution
+- ZIBA facilitates connections only
+
+This language must be consistent globally.
+
+=====================================================
+PHASE 2 — UNIVERSAL ASSUMPTION OF RISK (MANDATORY)
+=====================================================
+
+2) GLOBAL ASSUMPTION OF RISK CLAUSE
+All users (Riders, Drivers, Staff, Partners) must agree that:
+- Use of ZIBA is at their own risk
+- Trips involve inherent risks
+- ZIBA does not guarantee safety, recovery, or outcomes
+
+This acceptance must be:
+- Logged with timestamp
+- Required at signup
+- Re-confirmed during major policy updates
+
+=====================================================
+PHASE 3 — LOST ITEM LEGAL IMMUNITY
+=====================================================
+
+3) LOST ITEM DISCLAIMER (HARD BLOCK)
+Before submitting a lost item report, show:
+
+“ZIBA assists with communication only. ZIBA does not guarantee recovery, condition, or return of lost items. Drivers are not obligated to return items. ZIBA assumes no responsibility for loss, damage, theft, or recovery outcomes.”
+
+Require:
+[ I Understand & Agree ]
+
+4) SAFE RETURN HUB LEGAL POSITION
+Clarify that:
+- Safe Return Hubs are facilitation points
+- ZIBA does not take custody of items
+- Hub partners are independent entities
+- ZIBA is not liable for items once dropped
+
+=====================================================
+PHASE 4 — ACCIDENT, CRIME & SAFETY DISCLAIMERS
+=====================================================
+
+5) ACCIDENT & CRIME SHIELD
+Globally enforce:
+- ZIBA is not liable for accidents, injuries, assaults, robberies, or damages
+- Incident reporting is for documentation only
+- Reports do not imply fault or compensation
+- Any relief funds or insurance assistance are discretionary
+
+=====================================================
+PHASE 5 — COUNTRY-SPECIFIC LEGAL LOCALIZATION
+=====================================================
+
+6) LOCALIZATION LAYER (NO CODE DUPLICATION)
+
+Implement a legal localization config per country:
+
+Nigeria:
+- Independent contractor emphasis
+- No employment guarantees
+- Cash handling at user discretion
+
+USA / Canada / UK:
+- Arbitration clause
+- Class action waiver
+- Limitation of damages
+- Independent contractor classification
+
+South Africa / Ghana:
+- Marketplace facilitator language
+- No employer–employee relationship
+- Local consumer protection alignment
+
+All countries:
+- ZIBA never guarantees outcomes
+- ZIBA never assumes fault
+
+=====================================================
+PHASE 6 — STRATEGIC IN-APP LEGAL PLACEMENT
+=====================================================
+
+7) NON-INTRUSIVE LEGAL VISIBILITY
+Surface legal reminders ONLY at:
+- Signup
+- Lost item submission
+- Accident report
+- Safety center
+- Help articles
+- Terms update notifications
+
+Never spam.
+Never repeat unnecessarily.
+
+=====================================================
+PHASE 7 — INTRODUCE ZIBA AI SUPPORT (BRANDED)
+=====================================================
+
+8) ZIBA AI SUPPORT IDENTITY
+Create a branded support intelligence named ONE of:
+- “Z-Assist”
+- “ZIBA Guide”
+- “Zee”
+- “ZIBA Care”
+
+RULE:
+- NEVER call it “AI”
+- Present as “ZIBA Support”
+- Calm, respectful, human tone
+
+=====================================================
+PHASE 8 — ZIBA AI SUPPORT CAPABILITIES
+=====================================================
+
+9) WHAT ZIBA SUPPORT CAN DO
+- Answer FAQs
+- Explain app features
+- Guide riders & drivers
+- Assist with payments, rides, safety, lost items
+- Provide step-by-step help
+- Suggest best practices
+- Escalate to human support ONLY when needed
+
+10) WHAT ZIBA SUPPORT MUST NEVER DO
+- Admit fault
+- Promise compensation
+- Guarantee outcomes
+- Override Admin decisions
+- Reveal internal metrics or commissions
+
+=====================================================
+PHASE 9 — LEGALLY SAFE RESPONSE RULES
+=====================================================
+
+11) RESPONSE FRAMEWORK
+ZIBA Support must always:
+- Use neutral language
+- Emphasize facilitation, not responsibility
+- Avoid blame
+- Avoid guarantees
+
+Approved phrasing:
+- “ZIBA helps connect…”
+- “Based on your situation…”
+- “We recommend…”
+- “This feature is designed to assist…”
+
+=====================================================
+PHASE 10 — AI SUPPORT UX DESIGN
+=====================================================
+
+12) AI SUPPORT UX
+Add:
+- Chat entry in Help Center
+- Floating help button (optional)
+- Auto-suggested questions
+- Quick replies
+- Escalation button (“Talk to Support”)
+
+Include:
+- Welcome message:
+  “Hi, I’m ZIBA Support. I’m here to help you navigate the app.”
+
+=====================================================
+PHASE 11 — AUDIT, LOGGING & COMPLIANCE
+=====================================================
+
+13) LOG EVERYTHING
+- Log all AI interactions
+- Log legal acknowledgements
+- Log country-specific terms acceptance
+- Make logs Admin-accessible
+
+=====================================================
+FINAL ENFORCEMENT RULES
+=====================================================
+
+- No liability acceptance
+- No outcome guarantees
+- No employment implication
+- No legal exposure expansion
+- Always audit first
+- Add only missing components
+- Confirm nothing breaks before completion
+
+Proceed step-by-step and confirm completion per phase.
