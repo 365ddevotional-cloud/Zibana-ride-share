@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { FileText, Shield, Users, RefreshCw } from "lucide-react";
+import { FileText, Shield, Users, RefreshCw, AlertTriangle } from "lucide-react";
 
 export default function LegalPage() {
   const [activeTab, setActiveTab] = useState("terms");
@@ -16,7 +16,7 @@ export default function LegalPage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-6">
+          <TabsList className="grid w-full grid-cols-5 mb-6">
             <TabsTrigger value="terms" data-testid="tab-terms" className="flex items-center gap-2">
               <FileText className="h-4 w-4" />
               <span className="hidden sm:inline">Terms</span>
@@ -32,6 +32,10 @@ export default function LegalPage() {
             <TabsTrigger value="refund" data-testid="tab-refund" className="flex items-center gap-2">
               <RefreshCw className="h-4 w-4" />
               <span className="hidden sm:inline">Refund</span>
+            </TabsTrigger>
+            <TabsTrigger value="safety" data-testid="tab-safety" className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4" />
+              <span className="hidden sm:inline">Safety</span>
             </TabsTrigger>
           </TabsList>
 
@@ -371,6 +375,119 @@ export default function LegalPage() {
 
                     <p className="text-xs text-muted-foreground mt-8">
                       Last updated: January 2026
+                    </p>
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="safety">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5" />
+                  Safety, Lost Items & Accident Policy
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-[500px] pr-4">
+                  <div className="space-y-6 text-sm text-foreground" data-testid="content-safety">
+                    <section>
+                      <h3 className="font-semibold text-lg mb-2">1. Lost & Found Policy</h3>
+                      <p className="text-muted-foreground mb-2">
+                        ZIBA provides a Lost & Found system to help recover items left in vehicles. Please note:
+                      </p>
+                      <ul className="list-disc pl-6 text-muted-foreground space-y-1">
+                        <li>ZIBA is not responsible for items left in vehicles and does not guarantee recovery</li>
+                        <li>Riders should report lost items promptly through the app</li>
+                        <li>Drivers are encouraged to check vehicles after each trip</li>
+                        <li>Communication between rider and driver is facilitated through in-app chat once the driver confirms the item is found</li>
+                        <li>Phone numbers are not shared by default to protect privacy</li>
+                      </ul>
+                    </section>
+
+                    <section>
+                      <h3 className="font-semibold text-lg mb-2">2. Safe Return Hubs</h3>
+                      <p className="text-muted-foreground mb-2">
+                        ZIBA offers Safe Return Hubs as an optional, recommended method for item returns:
+                      </p>
+                      <ul className="list-disc pl-6 text-muted-foreground space-y-1">
+                        <li>Safe Return Hubs are designated partner locations (stores, fuel stations, service centers) where drivers can drop off found items</li>
+                        <li>Using hubs is optional but recommended for safety and convenience</li>
+                        <li>Drivers may receive a bonus reward for using Safe Return Hubs</li>
+                        <li>Hub service fees may apply and are disclosed before drop-off</li>
+                        <li>ZIBA does not guarantee the security of items at hub locations</li>
+                      </ul>
+                    </section>
+
+                    <section>
+                      <h3 className="font-semibold text-lg mb-2">3. Return Fees & Rewards</h3>
+                      <ul className="list-disc pl-6 text-muted-foreground space-y-1">
+                        <li>Return fees are country-specific and set by ZIBA</li>
+                        <li>Fees are split between driver compensation and platform costs</li>
+                        <li>Driver rewards and bonuses are discretionary and may change</li>
+                        <li>Tipping drivers for item returns is optional and appreciated</li>
+                      </ul>
+                    </section>
+
+                    <section>
+                      <h3 className="font-semibold text-lg mb-2">4. Fraud & Abuse</h3>
+                      <p className="text-muted-foreground mb-2">
+                        ZIBA employs automated fraud detection for the Lost & Found system:
+                      </p>
+                      <ul className="list-disc pl-6 text-muted-foreground space-y-1">
+                        <li>Repeated false claims may result in account suspension</li>
+                        <li>False confirmations of found items are prohibited</li>
+                        <li>Abuse of the return fee system will lead to penalties</li>
+                        <li>Trust scores are impacted by lost item interactions</li>
+                      </ul>
+                    </section>
+
+                    <section>
+                      <h3 className="font-semibold text-lg mb-2">5. Unclaimed Items</h3>
+                      <p className="text-muted-foreground">
+                        Items that remain unclaimed for 30 days may be disposed of or donated at ZIBA's discretion. ZIBA is not liable for unclaimed items after this period.
+                      </p>
+                    </section>
+
+                    <section>
+                      <h3 className="font-semibold text-lg mb-2">6. Accident Reporting</h3>
+                      <p className="text-muted-foreground mb-2">
+                        In the event of an accident during a ZIBA trip:
+                      </p>
+                      <ul className="list-disc pl-6 text-muted-foreground space-y-1">
+                        <li>Both riders and drivers should report the accident through the app immediately</li>
+                        <li>Provide photos, descriptions, and injury information</li>
+                        <li>Trip payouts may be frozen pending investigation</li>
+                        <li>ZIBA will coordinate with relevant authorities as needed</li>
+                        <li>Emergency services should be contacted directly for serious incidents</li>
+                      </ul>
+                    </section>
+
+                    <section>
+                      <h3 className="font-semibold text-lg mb-2">7. Driver Accident Relief Fund</h3>
+                      <p className="text-muted-foreground mb-2">
+                        ZIBA maintains a Driver Accident Relief Fund to support drivers:
+                      </p>
+                      <ul className="list-disc pl-6 text-muted-foreground space-y-1">
+                        <li>The fund provides financial assistance for verified accidents</li>
+                        <li>Claims are reviewed by ZIBA administrators</li>
+                        <li>Payouts are based on fault determination and accident severity</li>
+                        <li>A minimum trust score may be required for eligibility</li>
+                        <li>Abuse of the relief fund will result in account termination</li>
+                      </ul>
+                    </section>
+
+                    <section>
+                      <h3 className="font-semibold text-lg mb-2">8. Liability Limitation</h3>
+                      <p className="text-muted-foreground">
+                        ZIBA acts as a technology platform connecting riders and drivers. ZIBA is not liable for personal injuries, property damage, or lost items arising from the use of transportation services. All users are encouraged to maintain appropriate personal insurance.
+                      </p>
+                    </section>
+
+                    <p className="text-xs text-muted-foreground mt-8">
+                      Last updated: February 2026
                     </p>
                   </div>
                 </ScrollArea>

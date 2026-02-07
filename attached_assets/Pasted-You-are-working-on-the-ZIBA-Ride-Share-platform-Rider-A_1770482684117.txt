@@ -1,0 +1,218 @@
+You are working on the ZIBA Ride Share platform (Rider App, Driver App, Admin Dashboard).
+Proceed carefully. Do NOT break existing functionality. First audit what already exists, then ADD ONLY what is missing.
+
+GOAL:
+Implement the complete ZIBA Safe Return Hub system for Lost Items & Accidents, including UI flows, admin controls, driver training, legal terms, fraud prevention, and trust score logic.
+
+=====================================
+PHASE 1 — LOST ITEM + SAFE RETURN HUB
+=====================================
+
+1) LOST ITEM CORE LOGIC
+- Create a persistent `lost_item_case` model with:
+  - id
+  - trip_id
+  - rider_id
+  - driver_id
+  - item_category
+  - description
+  - photos[]
+  - status (reported, checking, found, hub_dropped, returned, closed)
+  - return_method (direct_meet | safe_return_hub)
+  - hub_id (nullable)
+  - timestamps
+- Ensure cases are immutable and fully auditable.
+
+2) RIDER APP — LOST ITEM FLOW
+Add the following screens (only if missing):
+- Report Lost Item (trip selector, item category, description, photo upload)
+- Lost Item Status Tracker with real-time updates
+- Item Found Notification
+- Safe Return Hub Pickup Details
+- Pickup Confirmation screen
+- After confirmation, show thank-you + optional tip prompt
+
+Ensure:
+- Rider phone number is NOT shared by default
+- In-app messaging is enabled once driver confirms item found
+- Rider sees clear safety messaging
+
+3) DRIVER APP — LOST ITEM FLOW
+Add:
+- Lost Item Alert screen (Found / Not Found)
+- Return Method selector (Safe Return Hub recommended)
+- Hub selection map/list
+- Drop-off confirmation with photo proof
+- Completion screen showing reward + trust score increase
+
+Ensure:
+- Driver phone number is shared ONLY after item is returned and confirmed
+- All actions are logged
+
+=====================================
+PHASE 2 — SAFE RETURN HUBS
+=====================================
+
+4) SAFE RETURN HUB SYSTEM
+- Create `safe_return_hubs` table:
+  - id
+  - name
+  - address
+  - city
+  - hours
+  - partner_type (store, fuel_station, office)
+  - active_status
+- Assign hubs per city
+- Hubs act as neutral drop-off points
+- Reduces conflict and improves safety
+
+5) ADMIN DASHBOARD — SAFE RETURN
+Add Admin menu:
+Safety → Lost Items & Safe Return
+
+Admin abilities:
+- View all lost item cases
+- Filter by city, status, driver, rider
+- View full timeline + messages + photos
+- Override status
+- Flag fraud
+- Adjust rewards
+- Close cases
+
+=====================================
+PHASE 3 — ACCIDENT REPORT PROTOCOL
+=====================================
+
+6) ACCIDENT REPORTING
+- Allow drivers and riders to report accidents
+- Capture:
+  - trip_id
+  - location
+  - description
+  - photos
+  - injuries flag
+- Notify Admin immediately
+- Freeze trip payouts until reviewed
+
+7) DRIVER ACCIDENT RELIEF FUND
+- Create configurable relief fund
+- Allow Admin to approve payouts
+- Track relief usage per driver
+- Tie abuse to trust score penalties
+
+=====================================
+PHASE 4 — FRAUD, TRUST & ANALYTICS
+=====================================
+
+8) AI FRAUD DETECTION (LIGHTWEIGHT)
+Flag patterns such as:
+- Repeated lost item claims
+- Same driver/rider pairing abuse
+- Frequent unclaimed items
+- False confirmations
+
+9) TRUST SCORE IMPACT
+- Increase trust score for:
+  - Item returned
+  - Safe Return Hub usage
+- Decrease trust score for:
+  - False claims
+  - Refusals
+  - Abuse patterns
+
+10) ANALYTICS & SAFEGUARDS
+Track:
+- Lost item frequency
+- Age bracket (if available)
+- City & hotspot areas
+- Driver return rate
+- Rider abuse patterns
+
+=====================================
+PHASE 5 — COMMUNICATION & NOTIFICATIONS
+=====================================
+
+11) IN-APP MESSAGING
+- Enable case-based messaging (driver ↔ rider)
+- Messages visible to Admin
+- Auto-close messaging after case resolution
+
+12) NOTIFICATIONS
+- Notifications ON by default
+- User can disable in Settings
+- Notifications behave like SMS:
+  - Push + in-app
+- Triggers:
+  - Item found
+  - Hub drop-off
+  - Pickup reminder
+  - Case closed
+
+13) INBOX UI
+- Add Inbox unread badge (red circle with count)
+- Add welcome message from ZIBA:
+  “Welcome to ZIBA. We’re happy to have you.”
+- Messages categorized (System, Safety, Promotions)
+
+=====================================
+PHASE 6 — SETTINGS, UI & UX POLISH
+=====================================
+
+14) SETTINGS (RIDER & DRIVER)
+Add:
+- Notifications toggle
+- Appearance (Light / Dark / Auto)
+- Saved places (Home / Work)
+- Communication preferences
+- Privacy controls
+
+15) UI CONSISTENCY
+- Match rider app typography scale to landing page
+- Larger, cleaner fonts
+- Maintain ZIBA branding (not copying competitors)
+
+=====================================
+PHASE 7 — LEGAL & TRAINING
+=====================================
+
+16) TERMS & CONDITIONS
+Add Lost & Found and Accident clauses:
+- ZIBA not liable for lost items
+- Safe Return Hubs are optional but recommended
+- Fees/rewards discretionary
+- Fraud leads to suspension
+- Unclaimed items handled per policy
+
+17) DRIVER TRAINING MODULE
+- What to do when item is found
+- Safe Return Hub benefits
+- What NOT to do
+- Trust score impact
+- Safety-first mindset
+
+=====================================
+PHASE 8 — APPROVAL SYSTEM FIX
+=====================================
+
+18) DRIVER & TRAINEE APPROVAL
+Fix missing approval flow:
+- Restore Admin ability to approve:
+  - New driver signups
+  - Driver trainees
+- Add approval queue with:
+  - Approve
+  - Reject
+  - Request info
+- Sync approval status to Driver App (remove “Pending Approval” once approved)
+
+=====================================
+FINAL RULES
+=====================================
+
+- Do NOT break existing ZIBA features
+- Check existing implementations first
+- Add only missing components
+- Keep everything configurable via Admin
+- Confirm each phase works end-to-end before marking complete
+
+Proceed step-by-step and report completion per phase.

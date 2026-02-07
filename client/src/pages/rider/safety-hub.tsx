@@ -480,6 +480,17 @@ export default function SafetyHubPage() {
                                 )}
                               </div>
                             )}
+                            {item.status === "returned" && (
+                              <div className="mt-3 p-3 rounded-md bg-emerald-50 dark:bg-emerald-900/20 space-y-2" data-testid={`card-returned-${item.id}`}>
+                                <div className="flex items-center gap-2">
+                                  <CheckCircle className="h-4 w-4 text-emerald-600" />
+                                  <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">Item returned successfully</p>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  Thank you for using ZIBA. Your item has been safely returned.
+                                </p>
+                              </div>
+                            )}
                           </CardContent>
                         </Card>
                       ))}

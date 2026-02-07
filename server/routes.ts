@@ -13910,6 +13910,16 @@ export async function registerRoutes(
           message: `Driver is delivering the item to Safe Return Hub: ${hub.name} (${hub.address}). You will be notified when the item arrives.`,
           isSystemMessage: true,
         });
+        try {
+          await storage.createNotification({
+            userId: report.riderId,
+            type: "safety",
+            title: "Item Being Delivered to Hub",
+            message: `Your lost item is being delivered to a Safe Return Hub. You'll be notified when it arrives.`,
+          });
+        } catch (notifErr) {
+          console.error("Notification failed (non-blocking):", notifErr);
+        }
       } else {
         updateData.status = "found";
         await storage.createLostItemMessage({
@@ -13959,6 +13969,16 @@ export async function registerRoutes(
         message: `Item has been dropped off at ${hub?.name || "the Safe Return Hub"}. ${hub ? `Address: ${hub.address}. Operating hours: ${hub.operatingHoursStart}-${hub.operatingHoursEnd}.` : ""} Please visit the hub to pick up your item.`,
         isSystemMessage: true,
       });
+      try {
+        await storage.createNotification({
+          userId: report.riderId,
+          type: "safety",
+          title: "Item Ready for Pickup",
+          message: `Your lost item has been dropped off at ${hub?.name || "a Safe Return Hub"}. Please visit the hub to pick it up.`,
+        });
+      } catch (notifErr) {
+        console.error("Notification failed (non-blocking):", notifErr);
+      }
       // Capture trust signal for hub drop-off
       try {
         const { captureBehaviorSignal } = await import("./trust-guards");
@@ -13999,6 +14019,18 @@ export async function registerRoutes(
         message: "Rider has picked up the item from the hub. Case resolved successfully.",
         isSystemMessage: true,
       });
+      try {
+        if (report.driverId) {
+          await storage.createNotification({
+            userId: report.driverId,
+            type: "safety",
+            title: "Item Pickup Confirmed",
+            message: "The rider has picked up their item from the hub. Thank you for using the Safe Return Hub!",
+          });
+        }
+      } catch (notifErr) {
+        console.error("Notification failed (non-blocking):", notifErr);
+      }
       // Apply driver bonus for hub usage
       if (report.driverId && report.driverHubBonus) {
         try {

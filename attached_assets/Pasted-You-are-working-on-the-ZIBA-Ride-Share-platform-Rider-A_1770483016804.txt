@@ -1,0 +1,181 @@
+You are working on the ZIBA Ride Share platform (Rider App, Driver App, Admin Dashboard).
+
+CRITICAL GOAL:
+Make ZIBA legally robust across ALL user touchpoints (riders, drivers, staff, partners, government-facing interactions), eliminating liability loopholes related to lost items, accidents, theft, injuries, or third-party actions — while still offering helpful safety features.
+
+Additionally, design a branded AI-powered support intelligence to reduce human support load, without explicitly labeling it as “AI”.
+
+DO NOT break existing functionality.
+Audit what already exists first.
+Add only what is missing.
+
+==================================================
+PHASE 1 — PLATFORM-WIDE LEGAL PROTECTION STRATEGY
+==================================================
+
+1) UNIVERSAL ASSUMPTION OF RISK CLAUSE
+Add a core legal principle enforced platform-wide:
+
+- Riders, drivers, and all users agree that:
+  - ZIBA is a technology platform, NOT a transportation provider
+  - All trips are undertaken at the user’s own risk
+  - ZIBA does not own vehicles, employ drivers, or control trip outcomes
+
+This clause must be:
+- Accepted at signup (mandatory checkbox)
+- Referenced in Terms & Conditions
+- Reinforced contextually (not aggressively) inside the app
+
+==================================================
+PHASE 2 — LOST ITEM LEGAL SAFEGUARDS
+==================================================
+
+2) LOST ITEM DISCLAIMER (MANDATORY ACCEPTANCE)
+Before a lost-item report can be submitted, show a short acknowledgement:
+
+“ZIBA helps facilitate communication but does not guarantee recovery of lost items. Drivers are not obligated to return items. ZIBA is not responsible for loss, damage, or recovery outcomes.”
+
+Require user to tap:
+[ I Understand & Agree ]
+
+3) TERMS CLARIFICATION
+Add explicit wording:
+- ZIBA is not liable for:
+  - Lost, damaged, or stolen personal property
+  - Failure to recover items
+  - Driver or rider actions regarding items
+- Lost item rewards are goodwill gestures, not obligations
+- Safe Return Hubs are facilitation tools, not custody guarantees
+
+==================================================
+PHASE 3 — ACCIDENT, ROBBERY & SAFETY LIABILITY SHIELD
+==================================================
+
+4) ACCIDENT & CRIME DISCLAIMER
+Add clauses stating:
+- ZIBA does not guarantee rider or driver safety
+- ZIBA is not liable for:
+  - Accidents
+  - Injuries
+  - Assault
+  - Robbery
+  - Property damage
+- Drivers and riders are responsible for personal safety decisions
+
+5) INCIDENT REPORT PURPOSE LIMITATION
+Clarify that:
+- Accident and incident reporting is for documentation and assistance ONLY
+- Reports do not imply fault, liability, or compensation
+- Any insurance or relief funds are discretionary and conditional
+
+==================================================
+PHASE 4 — DRIVER & RIDER AGREEMENTS
+==================================================
+
+6) DRIVER AGREEMENT ADDITIONS
+- Drivers are independent contractors
+- Drivers control acceptance, routes, and conduct
+- ZIBA does not supervise trips
+- Lost item handling is voluntary
+- Unsafe behavior or fraud may lead to deactivation
+
+7) RIDER AGREEMENT ADDITIONS
+- Riders are responsible for belongings
+- Riders must exercise caution and judgment
+- False reports or abuse may lead to suspension
+
+==================================================
+PHASE 5 — STRATEGIC IN-APP LEGAL PLACEMENT
+==================================================
+
+8) WHERE TO PLACE DISCLAIMERS (NON-INTRUSIVE)
+Strategically surface legal reminders at:
+- Signup (full acceptance)
+- Lost-item submission
+- Accident report submission
+- Safety center
+- Help center articles
+- Periodic app updates (“We’ve updated our Terms”)
+
+DO NOT show disclaimers on every screen.
+DO NOT overwhelm users.
+
+==================================================
+PHASE 6 — GOVERNMENT & PARTNER SAFEGUARDS
+==================================================
+
+9) PLATFORM POSITIONING
+Ensure all documentation, metadata, and descriptions state:
+- “ZIBA is a digital marketplace”
+- “ZIBA does not provide transportation services”
+- “ZIBA does not employ drivers”
+
+This protects against:
+- Labor classification issues
+- Government liability claims
+- Regulatory overreach
+
+==================================================
+PHASE 7 — AI SUPPORT INTELLIGENCE (BRANDED, QUIET)
+==================================================
+
+10) INTRODUCE A BRANDED SUPPORT INTELLIGENCE
+Create an in-app assistant named something neutral and friendly, e.g.:
+
+- “ZIBA Guide”
+- “Z-Assist”
+- “ZIBA Care”
+- “Zee”
+
+RULES:
+- Do NOT call it “AI”
+- Present it as “ZIBA Support”
+- Friendly, calm, informative tone
+
+11) CAPABILITIES
+ZIBA Support should:
+- Answer FAQs
+- Explain app features
+- Guide payments, rides, safety, lost items
+- Help users troubleshoot issues
+- Escalate to human support ONLY when needed
+
+12) LEGAL AWARE RESPONSES
+Ensure ZIBA Support:
+- Never admits fault
+- Never promises compensation
+- Always frames assistance as facilitation
+- Uses phrases like:
+  “ZIBA helps connect…”
+  “We recommend…”
+  “Based on your situation…”
+
+==================================================
+PHASE 8 — DATA & AUDIT PROTECTION
+==================================================
+
+13) LOGGING & AUDIT
+- Log all reports, chats, and acknowledgements
+- Time-stamp agreement acceptance
+- Make logs accessible to Admin
+- Ensure legal traceability
+
+==================================================
+FINAL CONSTRAINTS
+==================================================
+
+- No liability guarantees
+- No promises of recovery
+- No implied employment
+- No fault admission
+- No compensation obligation unless explicitly approved by Admin
+
+ZIBA must remain:
+✔ Helpful
+✔ Safety-conscious
+✔ Legally insulated
+✔ Scalable
+✔ Government-safe
+✔ Partner-safe
+
+Proceed carefully, validate each addition, and confirm nothing breaks.
