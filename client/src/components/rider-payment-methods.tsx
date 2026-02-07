@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { 
@@ -16,7 +17,8 @@ import {
   Smartphone,
   AlertCircle,
   Check,
-  Loader2
+  Loader2,
+  Banknote
 } from "lucide-react";
 import type { RiderPaymentMethod } from "@shared/schema";
 
@@ -42,6 +44,8 @@ interface PaymentSettings {
 export function RiderPaymentMethods() {
   const { toast } = useToast();
   const [isAddingCard, setIsAddingCard] = useState(false);
+  const [showFundWallet, setShowFundWallet] = useState(false);
+  const [fundAmount, setFundAmount] = useState("");
 
   const { data: wallet, isLoading: walletLoading } = useQuery<RiderWallet>({
     queryKey: ["/api/rider/wallet"],
@@ -83,31 +87,32 @@ export function RiderPaymentMethods() {
     },
   });
 
-  const addCardMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/rider/payment-methods/add-card/initialize");
-      return res.json() as Promise<{ authorizationUrl?: string }>;
+  const fundWalletMutation = useMutation({
+    mutationFn: async (amount: number) => {
+      const res = await apiRequest("POST", "/api/wallet/fund", { amount });
+      return res.json();
     },
-    onSuccess: (data: { authorizationUrl?: string }) => {
-      if (data.authorizationUrl) {
-        window.location.href = data.authorizationUrl;
-      } else {
-        toast({ title: "Card authorization initiated", description: "Please complete the payment to add your card." });
-      }
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/rider/wallet"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/rider/wallet-info"] });
+      toast({ title: "Wallet funded", description: `Your wallet has been funded successfully.` });
+      setShowFundWallet(false);
+      setFundAmount("");
     },
     onError: (error: Error) => {
-      const message = error.message || "Failed to add card";
-      if (message.includes("not available in test mode")) {
-        toast({ 
-          title: "Card payments not available", 
-          description: "Cards can only be added when real payments are enabled.",
-          variant: "destructive" 
-        });
-      } else {
-        toast({ title: "Failed to add card", variant: "destructive" });
-      }
+      const message = error.message || "Failed to fund wallet";
+      toast({ title: "Funding failed", description: message, variant: "destructive" });
     },
   });
+
+  const handleFundWallet = () => {
+    const amount = parseFloat(fundAmount);
+    if (!amount || amount <= 0) {
+      toast({ title: "Invalid amount", description: "Please enter a valid amount to fund.", variant: "destructive" });
+      return;
+    }
+    fundWalletMutation.mutate(amount);
+  };
 
   const formatCurrency = (amount: string | number, currency: string = "NGN") => {
     const num = typeof amount === "string" ? parseFloat(amount) : amount;
@@ -208,27 +213,76 @@ export function RiderPaymentMethods() {
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div>
               <CardTitle>Payment Methods</CardTitle>
-              <CardDescription>Manage your saved cards and payment options</CardDescription>
+              <CardDescription>Fund your wallet or pay with cash</CardDescription>
             </div>
-            {paymentSettings?.isCardAvailable && (
-              <Button 
-                size="sm" 
-                onClick={() => addCardMutation.mutate()}
-                disabled={addCardMutation.isPending}
-                data-testid="button-add-card"
-              >
-                {addCardMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Plus className="h-4 w-4 mr-2" />
-                )}
-                Add Card
-              </Button>
-            )}
+            <Button 
+              size="sm" 
+              onClick={() => setShowFundWallet(!showFundWallet)}
+              data-testid="button-fund-wallet"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Fund Wallet
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
+            {showFundWallet && (
+              <div className="p-4 rounded-lg border bg-muted/30 space-y-3" data-testid="fund-wallet-form">
+                <p className="text-sm font-medium">Fund Wallet with Card</p>
+                <p className="text-xs text-muted-foreground">
+                  Add funds to your ZIBA wallet. Cards can only be used to top up your wallet balance, not for direct trip payments.
+                </p>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-muted-foreground">₦</span>
+                  <Input
+                    type="number"
+                    placeholder="Enter amount"
+                    value={fundAmount}
+                    onChange={(e) => setFundAmount(e.target.value)}
+                    min="100"
+                    step="100"
+                    data-testid="input-fund-amount"
+                  />
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {[500, 1000, 2000, 5000].map((amount) => (
+                    <Button
+                      key={amount}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setFundAmount(amount.toString())}
+                      data-testid={`button-quick-fund-${amount}`}
+                    >
+                      ₦{amount.toLocaleString()}
+                    </Button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    onClick={handleFundWallet}
+                    disabled={fundWalletMutation.isPending || !fundAmount}
+                    className="flex-1"
+                    data-testid="button-confirm-fund"
+                  >
+                    {fundWalletMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <CreditCard className="h-4 w-4 mr-2" />
+                    )}
+                    Fund Wallet
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => { setShowFundWallet(false); setFundAmount(""); }}
+                    data-testid="button-cancel-fund"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+
             <div 
               className="flex items-center justify-between p-3 rounded-lg border bg-card"
               data-testid="payment-method-wallet"
@@ -242,6 +296,11 @@ export function RiderPaymentMethods() {
                   <p className="text-sm text-muted-foreground">
                     Balance: {formatCurrency(availableBalance, wallet?.currency)}
                   </p>
+                  {availableBalance === 0 && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                      Tap "Fund Wallet" above to add funds
+                    </p>
+                  )}
                 </div>
               </div>
               <Badge variant="secondary">
@@ -250,10 +309,31 @@ export function RiderPaymentMethods() {
               </Badge>
             </div>
 
-            {paymentMethods && paymentMethods.length > 0 ? (
+            <div 
+              className="flex items-center justify-between p-3 rounded-lg border bg-card"
+              data-testid="payment-method-cash-option"
+            >
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-emerald-100 dark:bg-emerald-900 flex items-center justify-center">
+                  <Banknote className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div>
+                  <p className="font-medium">Cash</p>
+                  <p className="text-sm text-muted-foreground">
+                    Pay the driver directly
+                  </p>
+                </div>
+              </div>
+              <Badge variant="secondary">
+                <Check className="h-3 w-3 mr-1" />
+                Available
+              </Badge>
+            </div>
+
+            {paymentMethods && paymentMethods.length > 0 && (
               <>
                 <Separator className="my-4" />
-                <p className="text-sm font-medium text-muted-foreground mb-2">Saved Cards</p>
+                <p className="text-sm font-medium text-muted-foreground mb-2">Saved Cards (for wallet funding)</p>
                 {paymentMethods.map((method) => (
                   <div 
                     key={method.id}
@@ -283,23 +363,9 @@ export function RiderPaymentMethods() {
                             Expires {method.cardExpMonth}/{method.cardExpYear}
                           </p>
                         )}
-                        {method.nickname && (
-                          <p className="text-sm text-muted-foreground">{method.nickname}</p>
-                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      {!method.isDefault && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => setDefaultMutation.mutate(method.id)}
-                          disabled={setDefaultMutation.isPending}
-                          data-testid={`button-set-default-${method.id}`}
-                        >
-                          Set Default
-                        </Button>
-                      )}
                       <Button 
                         variant="ghost" 
                         size="icon"
@@ -313,17 +379,16 @@ export function RiderPaymentMethods() {
                   </div>
                 ))}
               </>
-            ) : (
-              <>
-                {!paymentSettings?.isCardAvailable && (
-                  <div className="text-center py-6 text-muted-foreground">
-                    <CreditCard className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">Card payments are not available in test mode.</p>
-                    <p className="text-xs mt-1">Cards can be added when real payments are enabled.</p>
-                  </div>
-                )}
-              </>
             )}
+
+            <div className="mt-4 p-3 rounded-lg bg-muted/50">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                <p className="text-xs text-muted-foreground">
+                  Cards can only be used to fund your ZIBA Wallet. Trip payments are made using your wallet balance or cash.
+                </p>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>

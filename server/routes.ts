@@ -1980,6 +1980,35 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/rider/wallet-info", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      let wallet = await storage.getRiderWallet(userId);
+      if (!wallet) {
+        const currency = await getUserCurrency(userId);
+        wallet = await storage.createRiderWallet({ userId, currency });
+      }
+      const isTester = await storage.isUserTester(userId);
+      const profile = await storage.getRiderProfile(userId);
+      const backendMethod = profile?.paymentMethod || "WALLET";
+      let defaultPaymentMethod = "MAIN_WALLET";
+      if (backendMethod === "CASH") defaultPaymentMethod = "CASH";
+      else if (backendMethod === "TEST_WALLET") defaultPaymentMethod = "TEST_WALLET";
+      else defaultPaymentMethod = "MAIN_WALLET";
+
+      return res.json({
+        mainBalance: wallet.balance || "0",
+        testBalance: wallet.testerWalletBalance || "0",
+        currencyCode: "NGN",
+        isTester,
+        defaultPaymentMethod,
+      });
+    } catch (error) {
+      console.error("Error getting rider wallet info:", error);
+      return res.status(500).json({ message: "Failed to get wallet info" });
+    }
+  });
+
   // Get payment settings for rider (available methods based on mode)
   app.get("/api/rider/payment-settings", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
     try {
@@ -9962,6 +9991,7 @@ export async function registerRoutes(
 
       const validation = validateAction("cancel_ride", role, ride.status as any, {
         driverMovement,
+        driverAcceptedAt: ride.acceptedAt ? new Date(ride.acceptedAt) : null,
       });
 
       if (!validation.allowed) {

@@ -43,6 +43,9 @@ export const TOTAL_WAITING_MINUTES = WAITING_FREE_MINUTES + WAITING_PAID_MINUTES
 export const MIN_DISTANCE_KM_FOR_COMPENSATION = 1;
 export const MIN_DURATION_SEC_FOR_COMPENSATION = 60;
 
+// Grace period: rider can cancel free within this time after driver accepts
+export const RIDER_CANCEL_GRACE_PERIOD_MS = 3 * 60 * 1000; // 3 minutes
+
 // Safety check threshold
 export const IDLE_ALERT_MINUTES = 4;
 
@@ -268,6 +271,7 @@ export interface ActionValidationResult {
   requiresFee?: boolean;
   requiresReason?: boolean;
   compensationEligible?: boolean;
+  withinGracePeriod?: boolean;
 }
 
 /**
@@ -281,6 +285,7 @@ export function validateAction(
     isAssignedDriver?: boolean;
     matchingExpiresAt?: Date | null;
     driverMovement?: { distanceKm: number; durationSec: number };
+    driverAcceptedAt?: Date | null;
   }
 ): ActionValidationResult {
   // Check role permission
@@ -327,7 +332,7 @@ export function validateAction(
       break;
 
     case "cancel_ride":
-      return validateCancellation(role, currentStatus, options?.driverMovement);
+      return validateCancellation(role, currentStatus, options?.driverMovement, options?.driverAcceptedAt);
   }
 
   return { allowed: true };
@@ -339,7 +344,8 @@ export function validateAction(
 function validateCancellation(
   role: ActionRole,
   currentStatus: RideStatus | null,
-  driverMovement?: { distanceKm: number; durationSec: number }
+  driverMovement?: { distanceKm: number; durationSec: number },
+  driverAcceptedAt?: Date | null
 ): ActionValidationResult {
   if (!currentStatus) {
     return { allowed: false, error: "No ride to cancel" };
@@ -353,13 +359,38 @@ function validateCancellation(
       };
     }
 
-    // Check if fees apply (driver moved)
-    if (currentStatus === "driver_en_route" && driverMovement) {
+    // Before driver accepts → always free
+    if (currentStatus === "requested" || currentStatus === "matching") {
+      return { allowed: true };
+    }
+
+    // After driver accepts: check 3-minute grace period
+    if (driverAcceptedAt) {
+      const timeSinceAccept = Date.now() - driverAcceptedAt.getTime();
+      if (timeSinceAccept <= RIDER_CANCEL_GRACE_PERIOD_MS) {
+        return { allowed: true, withinGracePeriod: true };
+      }
+    }
+
+    // After grace period: check if fees apply (driver moved)
+    if ((currentStatus === "driver_en_route" || currentStatus === "accepted") && driverMovement) {
       const compensation = isDriverEligibleForCompensation(
         driverMovement.distanceKm,
         driverMovement.durationSec
       );
       if (compensation.eligible) {
+        return {
+          allowed: true,
+          requiresFee: true,
+          compensationEligible: true
+        };
+      }
+    }
+
+    // After grace period, driver en route but minimal movement → still apply fee based on time
+    if (currentStatus === "driver_en_route" && driverAcceptedAt) {
+      const timeSinceAccept = Date.now() - driverAcceptedAt.getTime();
+      if (timeSinceAccept > RIDER_CANCEL_GRACE_PERIOD_MS) {
         return {
           allowed: true,
           requiresFee: true,

@@ -1,0 +1,111 @@
+SYSTEM INSTRUCTION:
+You are fixing and extending the ZIBA Ride Share application. Make changes carefully, safely, and incrementally. Do not break existing functionality. Follow best practices for fintech, ride-hailing, and app store compliance. Never expose platform commission, revenue share, or internal financial splits in the UI or help content.
+
+---
+
+TASK GROUP 1: FIX PAYMENT METHOD ERRORS (CRITICAL)
+
+1. Fix the error "Could not update payment method":
+   - Ensure the backend accepts "cash" and "wallet" as valid payment methods.
+   - If the wallet balance is ₦0.00, allow wallet selection but show a non-blocking notice prompting funding.
+   - Do NOT throw an error when switching between cash and wallet.
+
+2. Fix "Add Payment Method" not being clickable:
+   - Enable the button to open a "Fund Wallet" flow instead of adding a direct card.
+   - Ensure the button works on mobile (iOS Safari / Android Chrome).
+   - Remove any disabled overlay, z-index, or pointer-events issues.
+   - Confirm tap targets work on small screens.
+
+---
+
+TASK GROUP 2: CARD PAYMENTS VIA WALLET ONLY (NO DIRECT CARD RIDES)
+
+3. Implement Card → Wallet funding ONLY:
+   - Riders may add a debit/credit card.
+   - Cards can ONLY be used to fund the ZIBA Wallet.
+   - Trips may be paid using:
+     a) Cash
+     b) Wallet balance
+   - Do NOT allow direct card payment for trips.
+   - Clearly label this as "Fund Wallet with Card".
+
+4. Wallet funding rules:
+   - Show success and failure states clearly.
+   - Wallet balance updates instantly after successful funding.
+   - Failed funding attempts show friendly, retryable messages.
+   - Store transaction references for support review.
+
+---
+
+TASK GROUP 3: CANCELLATION RULE UPDATE (IMPORTANT)
+
+5. Update rider cancellation logic:
+   - If rider cancels BEFORE driver accepts → no charge.
+   - If rider cancels AFTER driver accepts BUT within 3 minutes → no charge.
+   - If rider cancels AFTER 3 minutes while driver is on the way → apply cancellation fee.
+   - Clearly log cancellation reason and timing.
+
+6. Update Help Center cancellation content to reflect this rule clearly and consistently.
+
+---
+
+TASK GROUP 4: HELP CENTER – RIDER SIDE (PROACTIVE FAQ)
+
+7. Pre-populate Help Center with detailed rider FAQs, including but not limited to:
+   - How do I request a ride?
+   - Can I cancel a ride?
+   - Will I be charged for cancellation?
+   - How do payments work on ZIBA?
+   - What payment methods are supported?
+   - How do I fund my wallet?
+   - Why can’t I pay the driver with a card directly?
+   - How do refunds work?
+   - What if my wallet funding fails?
+   - Is ZIBA safe?
+   - What if I forget something in the car?
+   - How do ratings work?
+   - How do I contact support?
+
+8. Search behavior:
+   - If an exact FAQ is not found, return the closest relevant answer.
+   - Never return “No results found” without a helpful response.
+   - Use keyword matching + semantic similarity.
+
+---
+
+TASK GROUP 5: HELP CENTER – DRIVER SIDE
+
+9. Create a Driver Help Center with FAQs including:
+   - How do I accept rides?
+   - How do riders pay?
+   - How does cash payment work?
+   - How do wallet-funded trips work?
+   - When do I receive earnings?
+   - What happens if a rider cancels?
+   - How do ratings affect me?
+   - Safety guidelines
+   - How to contact support
+   - What to do in case of disputes
+
+---
+
+TASK GROUP 6: SUPPORT CONTEXT SHARING
+
+10. Automatically attach context to support requests:
+    - App type (Rider or Driver)
+    - App version
+    - Device type & OS
+    - Country
+    - Trip ID (if applicable)
+    - Payment method involved
+    - Wallet transaction reference (if applicable)
+
+This data should be visible to support staff but NOT editable by users.
+
+---
+
+FINAL CHECKS:
+- Ensure all buttons are clickable on mobile.
+- Ensure no payment flow hard-blocks the user.
+- Ensure no UI or help content reveals platform commission or revenue split.
+- Ensure all changes are production-safe and backward compatible.

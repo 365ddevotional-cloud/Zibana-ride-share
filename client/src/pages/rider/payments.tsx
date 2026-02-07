@@ -44,14 +44,24 @@ export default function RiderPayments() {
     }
   }, [walletData]);
 
+  const mapMethodToBackend = (method: PaymentMethod): string => {
+    switch (method) {
+      case "MAIN_WALLET": return "WALLET";
+      case "TEST_WALLET": return "TEST_WALLET";
+      case "CASH": return "CASH";
+      default: return "WALLET";
+    }
+  };
+
   const updateDefaultMethod = useMutation({
     mutationFn: async (method: PaymentMethod) => {
-      return apiRequest("PATCH", "/api/rider/payment-method", { defaultPaymentMethod: method });
+      const paymentMethod = mapMethodToBackend(method);
+      return apiRequest("PATCH", "/api/rider/payment-method", { paymentMethod });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/rider/wallet-info"] });
       toast({ 
-        title: selectedMethod === "CASH" ? "Cash payment selected" : "Card payment selected",
+        title: selectedMethod === "CASH" ? "Cash payment selected" : "Wallet payment selected",
         description: selectedMethod === "CASH" 
           ? "You'll pay the driver the full trip amount in cash at the end of the ride."
           : "Your payment will be handled securely in the app."
@@ -60,7 +70,7 @@ export default function RiderPayments() {
     onError: () => {
       toast({ 
         title: "Update failed", 
-        description: "Could not update payment method", 
+        description: "Could not update payment method. Please try again.", 
         variant: "destructive" 
       });
     },
@@ -68,13 +78,6 @@ export default function RiderPayments() {
 
   const handleSelectMethod = (method: PaymentMethod) => {
     setSelectedMethod(method);
-    if (method === "CASH") {
-      toast({
-        title: "Cash payment selected",
-        description: "You'll pay the driver the full trip amount in cash at the end of the ride.",
-      });
-      return;
-    }
     updateDefaultMethod.mutate(method);
   };
 
@@ -153,7 +156,7 @@ export default function RiderPayments() {
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <p className="font-semibold">Main Wallet</p>
+                            <p className="font-semibold">ZIBA Wallet</p>
                             <Badge variant="outline" className="text-xs">
                               {currency}
                             </Badge>
@@ -161,9 +164,15 @@ export default function RiderPayments() {
                           <p className="text-lg font-bold mt-1" data-testid="text-main-balance">
                             {formatCurrency(walletData?.mainBalance, currency)}
                           </p>
-                          <p className="text-xs text-muted-foreground">
-                            Pay securely in the app
-                          </p>
+                          {parseFloat(walletData?.mainBalance || "0") === 0 && selectedMethod === "MAIN_WALLET" ? (
+                            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                              Your wallet is empty. You can still select it, but please fund your wallet before requesting a ride.
+                            </p>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">
+                              Pay securely in the app
+                            </p>
+                          )}
                         </div>
                       </div>
                       {selectedMethod === "MAIN_WALLET" && (
