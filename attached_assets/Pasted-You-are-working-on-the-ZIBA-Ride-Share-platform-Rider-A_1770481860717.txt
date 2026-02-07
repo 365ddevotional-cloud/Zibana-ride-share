@@ -1,0 +1,234 @@
+You are working on the ZIBA Ride Share platform (Rider App, Driver App, Admin Dashboard).
+
+GOAL:
+Design and implement the ZIBA Safe Return Hub system for lost items in a way that improves safety, reduces conflict, protects drivers, reassures riders, and strengthens brand trust — WITHOUT breaking existing ride, wallet, or trust-score logic.
+
+IMPORTANT CONSTRAINTS:
+- Do NOT remove existing lost-item reporting flows
+- Do NOT expose driver phone numbers to riders by default
+- Do NOT expose rider phone numbers to drivers until item is confirmed found
+- All logic must be server-side enforced
+- Everything must be auditable in Admin
+- Extend existing systems; do not rewrite them
+
+====================================================
+1️⃣ SAFE RETURN HUB — CORE CONCEPT
+====================================================
+
+Implement a new optional lost-item return method called:
+"ZIBA Safe Return Hub"
+
+Definition:
+A Safe Return Hub is a ZIBA-approved neutral drop-off location where a driver can safely deposit a found item for rider pickup.
+
+Safe Return Hubs include:
+- Partner fuel stations
+- Supermarkets
+- Pharmacies
+- Hotels
+- ZIBA offices
+- Approved corporate partners
+
+Each hub must have:
+- Name
+- Location (lat/lng + address)
+- Operating hours
+- Contact person (optional)
+- Status (active / inactive)
+- City coverage
+- CCTV / verification flag (boolean)
+
+====================================================
+2️⃣ LOST ITEM FLOW (END-TO-END)
+====================================================
+
+STEP A — Rider Reports Lost Item
+- Rider selects a completed trip
+- Submits:
+  - Item category
+  - Description
+  - Optional photo
+- Status = "reported"
+
+STEP B — Driver Confirmation
+- Driver receives notification
+- Driver selects:
+  - "Item not found"
+  - "Item found"
+- If "Item found":
+  - System unlocks in-app messaging
+  - System temporarily reveals rider phone number to driver ONLY
+  - Rider does NOT see driver phone number yet
+- Status = "found"
+
+STEP C — Return Method Selection
+Driver chooses one:
+1. Direct meet-up with rider
+2. ZIBA Safe Return Hub (recommended)
+
+====================================================
+3️⃣ SAFE RETURN HUB FLOW
+====================================================
+
+If driver selects "Safe Return Hub":
+
+- System suggests nearest available hubs
+- Driver selects hub
+- System records:
+  - hub_id
+  - expected drop-off time
+- Status = "en_route_to_hub"
+
+At hub:
+- Driver marks "Item dropped at hub"
+- Uploads confirmation photo
+- Hub staff (or driver self-confirmation) verifies receipt
+- Status = "at_hub"
+
+Rider:
+- Receives notification
+- Sees hub details and pickup instructions
+- Picks up item
+- Confirms pickup in app
+- Status = "returned"
+
+====================================================
+4️⃣ COMMUNICATION & PRIVACY RULES
+====================================================
+
+- In-app messaging enabled after item is marked "found"
+- Driver sees rider phone number ONLY after confirmation
+- Rider sees driver phone number ONLY AFTER item is marked "returned"
+- All chats are logged and visible to Admin
+- Phone numbers auto-expire after case closure
+
+====================================================
+5️⃣ PAYMENTS, INCENTIVES & PROFIT ALIGNMENT
+====================================================
+
+Driver Incentives:
+- Lost-item reward configurable in Admin
+- Bonus reward for Safe Return Hub usage
+- Trust score increase for successful returns
+
+Rider Costs:
+- Optional return fee
+- Hub service fee (configurable)
+- Waived if Admin intervenes or fault not rider’s
+
+ZIBA Benefits:
+- Reduced disputes
+- Clear audit trail
+- Partner revenue opportunities
+- Strong safety branding
+
+====================================================
+6️⃣ TRUST SCORE & FRAUD PREVENTION
+====================================================
+
+Trust Score Logic:
+- Driver:
+  + Successful return → score increase
+  - Confirmed abuse → score decrease
+- Rider:
+  - Repeated false claims → score decrease
+  - Legitimate claims → no penalty
+
+AI Fraud Detection:
+- Detect repeated lost-item reports by same rider
+- Flag unusual frequency or patterns
+- Escalate to Admin automatically
+
+====================================================
+7️⃣ ADMIN DASHBOARD (NEW MODULE)
+====================================================
+
+Add "Lost Items & Safe Return" section with:
+- All lost-item cases
+- Filters by:
+  - Status
+  - City
+  - Hub
+  - Driver
+  - Rider
+- View full timeline
+- View chat logs
+- Override decisions
+- Manually close cases
+- Configure:
+  - Rewards
+  - Fees
+  - Trust score impact
+  - Hub availability
+
+====================================================
+8️⃣ DRIVER APP UI (CLEAR & SIMPLE)
+====================================================
+
+Driver Screens:
+- Lost item notification
+- Item confirmation screen
+- Return method selection
+- Safe Return Hub map selection
+- Drop-off confirmation screen
+- Reward confirmation
+
+Include driver education:
+"Using a Safe Return Hub protects you and earns extra trust points."
+
+====================================================
+9️⃣ RIDER APP UI (REASSURING & FRIENDLY)
+====================================================
+
+Rider Screens:
+- Lost item report
+- Status tracking
+- Hub pickup instructions
+- Pickup confirmation
+- Thank-you message
+
+Include reassurance copy:
+"Your item is safe and monitored by ZIBA."
+
+====================================================
+🔟 TERMS & CONDITIONS (STORE-READY)
+====================================================
+
+Add clauses covering:
+- ZIBA not liable for unreported items
+- Safe Return Hub is optional but recommended
+- Rewards are goodwill incentives, not guarantees
+- Fraud or abuse leads to suspension
+- All decisions logged and auditable
+
+====================================================
+1️⃣1️⃣ SAFETY & EDGE CASE HANDLING
+====================================================
+
+Handle cases:
+- Driver refuses to return
+- Rider never picks up item
+- Item damaged
+- Item unclaimed after X days
+- False claims
+
+Admin must have override controls for all.
+
+====================================================
+1️⃣2️⃣ IMPLEMENTATION RULE
+====================================================
+
+Before coding:
+- Check existing lost-item logic
+- Reuse existing wallet, trust score, messaging systems
+- Only ADD missing parts
+- Ensure nothing breaks
+- Test end-to-end before marking complete
+
+FINAL OBJECTIVE:
+Create a Safe Return system where:
+✔ Drivers feel protected
+✔ Riders feel reassured
+✔ ZIBA reduces conflict
+✔ Trust and safety improve
+✔ Platform reputation strengthens

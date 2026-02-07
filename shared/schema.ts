@@ -4474,6 +4474,13 @@ export const lostItemReports = pgTable("lost_item_reports", {
   meetupLocation: text("meetup_location"),
   returnCompletedAt: timestamp("return_completed_at"),
   adminNotes: text("admin_notes"),
+  hubId: varchar("hub_id"),
+  hubDropOffPhotoUrl: text("hub_drop_off_photo_url"),
+  expectedDropOffTime: timestamp("expected_drop_off_time"),
+  hubConfirmedAt: timestamp("hub_confirmed_at"),
+  hubPickedUpAt: timestamp("hub_picked_up_at"),
+  hubServiceFee: decimal("hub_service_fee", { precision: 10, scale: 2 }),
+  driverHubBonus: decimal("driver_hub_bonus", { precision: 10, scale: 2 }),
   communicationUnlocked: boolean("communication_unlocked").notNull().default(false),
   communicationUnlockedAt: timestamp("communication_unlocked_at"),
   communicationUnlockedBy: varchar("communication_unlocked_by"),
@@ -4746,3 +4753,37 @@ export const insertLostItemFraudSignalSchema = createInsertSchema(lostItemFraudS
 });
 export type InsertLostItemFraudSignal = z.infer<typeof insertLostItemFraudSignalSchema>;
 export type LostItemFraudSignal = typeof lostItemFraudSignals.$inferSelect;
+
+// =============================================
+// SAFE RETURN HUB SYSTEM
+// =============================================
+
+export const safeReturnHubs = pgTable("safe_return_hubs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name", { length: 200 }).notNull(),
+  type: varchar("type", { length: 50 }).notNull().default("partner_station"),
+  address: text("address").notNull(),
+  city: varchar("city", { length: 100 }).notNull(),
+  countryCode: varchar("country_code", { length: 2 }).notNull().default("NG"),
+  latitude: decimal("latitude", { precision: 10, scale: 7 }),
+  longitude: decimal("longitude", { precision: 10, scale: 7 }),
+  operatingHoursStart: varchar("operating_hours_start", { length: 5 }).default("08:00"),
+  operatingHoursEnd: varchar("operating_hours_end", { length: 5 }).default("20:00"),
+  contactPerson: varchar("contact_person", { length: 100 }),
+  contactPhone: varchar("contact_phone", { length: 20 }),
+  hasCctv: boolean("has_cctv").notNull().default(false),
+  isActive: boolean("is_active").notNull().default(true),
+  hubServiceFee: decimal("hub_service_fee", { precision: 10, scale: 2 }).default("0.00"),
+  driverBonusReward: decimal("driver_bonus_reward", { precision: 10, scale: 2 }).default("200.00"),
+  createdBy: varchar("created_by"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertSafeReturnHubSchema = createInsertSchema(safeReturnHubs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertSafeReturnHub = z.infer<typeof insertSafeReturnHubSchema>;
+export type SafeReturnHub = typeof safeReturnHubs.$inferSelect;
