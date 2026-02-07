@@ -1,0 +1,102 @@
+==============================
+PROMPT FLOW — SIMULATION SYSTEM (CRITICAL)
+==============================
+
+PROMPT 1 — FIX SIMULATION CODE & ENTRY FLOW (FOUNDATION)
+
+Problem:
+Simulation codes are generated correctly, but the simulation entry flow is inconsistent and unreliable.
+
+Required actions (implement exactly):
+
+1. Simulation code length must be standardized to 6 digits everywhere:
+   - Generator
+   - Validator
+   - Database lookup
+   - Expiry logic
+   - /simulation entry page
+   Environment variable must be:
+   SIMULATION_CODE_LENGTH=6
+
+2. When a valid 6-digit code is entered at /simulation:
+   - Validate the code
+   - Create a server-side simulation session immediately
+   - Persist:
+     simulationActive = true
+     simulationRole (Driver / Rider / Admin / Director)
+     simulationCountry
+     simulationCity
+     simulationTier
+     simulationWallet
+     simulationRating
+
+3. Simulation session must be stored BEFORE authentication and routing.
+
+4. Old or expired simulation codes must be rejected cleanly.
+   Valid codes must always pass.
+
+5. Restart app after changes and confirm:
+   - Admin generates 6-digit code
+   - /simulation accepts it
+   - Redirects correctly to login
+   - Simulation session is active
+
+Confirm Prompt 1 is fully working before proceeding.
+
+
+--------------------------------------------
+
+PROMPT 2 — ENFORCE ROLE-LOCKED SIMULATION & BYPASS REAL AUTH (CRITICAL)
+
+Current issue:
+Simulation role is NOT enforced. Driver simulations fall back to Rider.
+Real authentication (365D Devotional) hijacks simulation onboarding.
+
+This MUST be fixed.
+
+Required correct simulation behavior:
+
+1. Simulation context MUST be applied BEFORE:
+   - authentication
+   - onboarding choice
+   - role-based routing
+
+2. During simulation mode:
+   - Bypass ALL real authentication providers
+   - DO NOT redirect to 365D Devotional
+   - DO NOT reuse existing logged-in user
+   - Generate a simulated identity:
+     simulatedUserId
+     simulatedEmail (e.g. driver_sim_123@ziba.test)
+     simulatedPhone
+
+3. Role locking rules (NO FALLBACKS):
+   - If simulationRole = Driver:
+       • Show ONLY Driver onboarding and Driver UI
+       • Rider pages must be inaccessible
+   - If simulationRole = Rider:
+       • Show ONLY Rider UI
+
+4. Header banner MUST ALWAYS reflect the locked role:
+   - “Simulation Mode — Driver (Nigeria)”
+   - Never default to Rider
+
+5. Simulation state must persist across:
+   - refresh
+   - navigation
+   - internal redirects
+
+6. Exit Simulation:
+   - Clear simulation session completely
+   - Restore normal authentication and routing
+
+Goal:
+Simulation must deliver a FULL, REALISTIC, ROLE-LOCKED experience
+from onboarding → active use → task completion,
+without leaking into real auth or default roles.
+
+Fix this at the routing + auth-guard level, not UI-only.
+
+Confirm with proof:
+- Driver simulation stays Driver end-to-end
+- Rider simulation stays Rider end-to-end
