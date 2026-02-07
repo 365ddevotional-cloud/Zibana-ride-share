@@ -180,10 +180,24 @@ export async function setupAuth(app: Express) {
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
+  const sessionData = req.session as any;
+  if (sessionData?.simulationActive && sessionData?.simulatedUserId) {
+    (req as any).user = {
+      claims: {
+        sub: sessionData.simulatedUserId,
+        email: sessionData.simulatedEmail || "sim@ziba.test",
+        first_name: sessionData.simulatedFirstName || "Simulation",
+        last_name: sessionData.simulatedLastName || "User",
+      },
+      _isSimulated: true,
+    };
+    return next();
+  }
+
   const user = req.user as any;
 
-  if (!req.isAuthenticated() || !user.expires_at) {
-    return res.status(401).json({ message: "Unauthorized" });
+  if (!req.isAuthenticated() || !user?.expires_at) {
+    return res.status(401).json({ message: "Not authenticated" });
   }
 
   const now = Math.floor(Date.now() / 1000);
@@ -193,7 +207,7 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
 
   const refreshToken = user.refresh_token;
   if (!refreshToken) {
-    res.status(401).json({ message: "Unauthorized" });
+    res.status(401).json({ message: "Not authenticated" });
     return;
   }
 
@@ -203,7 +217,7 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     updateUserSession(user, tokenResponse);
     return next();
   } catch (error) {
-    res.status(401).json({ message: "Unauthorized" });
+    res.status(401).json({ message: "Not authenticated" });
     return;
   }
 };

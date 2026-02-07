@@ -57,21 +57,43 @@ const requireRole = (allowedRoles: string[]): RequestHandler => {
         return res.status(401).json({ message: "Unauthorized" });
       }
       
+      const { enabled: simEnabled } = getSimulationConfig();
+      if (simEnabled) {
+        const simSession = await storage.getActiveSimulationSession(userId);
+        if (simSession && new Date(simSession.expiresAt) > new Date()) {
+          const simRole = simSession.role;
+          if (allowedRoles.includes(simRole)) {
+            req.userRole = simRole;
+            req.userRoleData = { role: simRole, userId, _simulation: true };
+            return next();
+          }
+          return res.status(403).json({ message: "Access denied for simulated role" });
+        }
+
+        if (req.user?._isSimulated) {
+          const sessionData = (req as any).session;
+          const simRole = sessionData?.simulatedRole;
+          if (simRole && allowedRoles.includes(simRole)) {
+            req.userRole = simRole;
+            req.userRoleData = { role: simRole, userId, _simulation: true };
+            return next();
+          }
+          return res.status(403).json({ message: "Access denied for simulated role" });
+        }
+      }
+
       const userRole = await storage.getUserRole(userId);
       if (!userRole) {
         console.warn(`[SECURITY AUDIT] User ${userId} has no role, denied access to ${req.path}`);
         return res.status(403).json({ message: "Access denied" });
       }
       
-      // super_admin always has access to all roles
       const hasAccess = userRole.role === "super_admin" || allowedRoles.includes(userRole.role);
       if (!hasAccess) {
-        // SECURITY AUDIT LOG: Log unauthorized admin access attempts
         console.warn(`[SECURITY AUDIT] Unauthorized access attempt: User ${userId} (role: ${userRole.role}) tried to access ${req.path} - Required roles: ${allowedRoles.join(", ")}`);
         return res.status(403).json({ message: "Access denied" });
       }
       
-      // For admin role, check if still valid (time-bound)
       if (userRole.role === "admin") {
         const { valid, reason } = await storage.isAdminValid(userId);
         if (!valid) {
@@ -16267,7 +16289,82 @@ export async function registerRoutes(
     }
   });
 
-  // Auth'd: Enter simulation mode
+  app.post("/api/simulation/enter-direct", requireSimulationEnabled, async (req: any, res) => {
+    try {
+      const { code } = req.body;
+      if (!code) return res.status(400).json({ message: "Simulation code required" });
+
+      const simCode = await storage.getSimulationCode(code.trim());
+      if (!simCode) return res.status(404).json({ message: "Invalid simulation code" });
+      if (simCode.revokedAt) return res.status(410).json({ message: "This simulation code has been revoked" });
+      if (new Date(simCode.expiresAt) < new Date()) return res.status(410).json({ message: "This simulation code has expired" });
+      if (simCode.used && !simCode.reusable) return res.status(410).json({ message: "This simulation code has already been used" });
+
+      const simUserId = `sim-${simCode.role}-${Date.now()}`;
+      const simEmail = `${simCode.role}_sim_${code}@ziba.test`;
+      const roleNames: Record<string, string> = { driver: "Driver", rider: "Rider", admin: "Admin", director: "Director" };
+      const simFirstName = "Simulation";
+      const simLastName = roleNames[simCode.role] || "User";
+
+      if (!simCode.reusable) {
+        await storage.markSimulationCodeUsed(simCode.id);
+      }
+
+      const sessionExpiry = new Date(simCode.expiresAt);
+      const config = JSON.stringify({
+        city: simCode.city,
+        driverTier: simCode.driverTier,
+        walletBalance: simCode.walletBalance,
+        ratingState: simCode.ratingState,
+        cashEnabled: simCode.cashEnabled,
+      });
+
+      const session = await storage.createSimulationSession({
+        codeId: simCode.id,
+        userId: simUserId,
+        role: simCode.role,
+        countryCode: simCode.countryCode,
+        config,
+        active: true,
+        expiresAt: sessionExpiry,
+      });
+
+      const sessionData = req.session as any;
+      sessionData.simulationActive = true;
+      sessionData.simulatedUserId = simUserId;
+      sessionData.simulatedEmail = simEmail;
+      sessionData.simulatedFirstName = simFirstName;
+      sessionData.simulatedLastName = simLastName;
+      sessionData.simulatedRole = simCode.role;
+      sessionData.simulatedCountryCode = simCode.countryCode;
+      sessionData.simulationSessionId = session.id;
+
+      req.session.save((err: any) => {
+        if (err) {
+          console.error("Error saving simulation session:", err);
+          return res.status(500).json({ message: "Failed to save simulation session" });
+        }
+        return res.json({
+          sessionId: session.id,
+          role: simCode.role,
+          countryCode: simCode.countryCode,
+          config: JSON.parse(config),
+          expiresAt: sessionExpiry,
+          simulatedUser: {
+            id: simUserId,
+            email: simEmail,
+            firstName: simFirstName,
+            lastName: simLastName,
+          },
+        });
+      });
+    } catch (error) {
+      console.error("Error entering direct simulation:", error);
+      return res.status(500).json({ message: "Failed to enter simulation" });
+    }
+  });
+
+  // Auth'd: Enter simulation mode (for already logged-in users)
   app.post("/api/simulation/enter", isAuthenticated, requireSimulationEnabled, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -16322,38 +16419,102 @@ export async function registerRoutes(
     }
   });
 
-  // Auth'd: Check current simulation session
-  app.get("/api/simulation/status", isAuthenticated, requireSimulationEnabled, async (req: any, res) => {
+  app.get("/api/simulation/status", requireSimulationEnabled, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const session = await storage.getActiveSimulationSession(userId);
-
-      if (!session || new Date(session.expiresAt) < new Date()) {
-        if (session) await storage.endSimulationSession(session.id);
-        return res.json({ active: false });
+      const sessionData = req.session as any;
+      if (sessionData?.simulationActive && sessionData?.simulatedUserId) {
+        const simSessionId = sessionData.simulationSessionId;
+        if (simSessionId) {
+          const session = await storage.getSimulationSessionById?.(simSessionId);
+          if (session && session.active && new Date(session.expiresAt) > new Date()) {
+            return res.json({
+              active: true,
+              sessionId: session.id,
+              role: session.role,
+              countryCode: session.countryCode,
+              config: JSON.parse(session.config || "{}"),
+              expiresAt: session.expiresAt,
+            });
+          }
+          if (session && (new Date(session.expiresAt) <= new Date() || !session.active)) {
+            delete sessionData.simulationActive;
+            delete sessionData.simulatedUserId;
+            delete sessionData.simulatedEmail;
+            delete sessionData.simulatedRole;
+            delete sessionData.simulatedCountryCode;
+            delete sessionData.simulationSessionId;
+          }
+        }
+        if (sessionData.simulationActive) {
+          return res.json({
+            active: true,
+            sessionId: sessionData.simulationSessionId,
+            role: sessionData.simulatedRole,
+            countryCode: sessionData.simulatedCountryCode,
+            config: {},
+            expiresAt: null,
+          });
+        }
       }
 
-      return res.json({
-        active: true,
-        sessionId: session.id,
-        role: session.role,
-        countryCode: session.countryCode,
-        config: JSON.parse(session.config || "{}"),
-        expiresAt: session.expiresAt,
-      });
+      if (req.isAuthenticated && req.isAuthenticated()) {
+        const userId = (req.user as any)?.claims?.sub;
+        if (userId) {
+          const session = await storage.getActiveSimulationSession(userId);
+          if (!session || new Date(session.expiresAt) < new Date()) {
+            if (session) await storage.endSimulationSession(session.id);
+            return res.json({ active: false });
+          }
+          return res.json({
+            active: true,
+            sessionId: session.id,
+            role: session.role,
+            countryCode: session.countryCode,
+            config: JSON.parse(session.config || "{}"),
+            expiresAt: session.expiresAt,
+          });
+        }
+      }
+
+      return res.json({ active: false });
     } catch (error) {
       console.error("Error checking simulation status:", error);
       return res.status(500).json({ message: "Failed to check simulation status" });
     }
   });
 
-  // Auth'd: Exit simulation mode
-  app.post("/api/simulation/exit", isAuthenticated, requireSimulationEnabled, async (req: any, res) => {
+  app.post("/api/simulation/exit", requireSimulationEnabled, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const session = await storage.getActiveSimulationSession(userId);
-      if (session) {
-        await storage.endSimulationSession(session.id);
+      const sessionData = req.session as any;
+
+      if (sessionData?.simulationActive) {
+        const simSessionId = sessionData.simulationSessionId;
+        if (simSessionId) {
+          await storage.endSimulationSession(simSessionId);
+        }
+        delete sessionData.simulationActive;
+        delete sessionData.simulatedUserId;
+        delete sessionData.simulatedEmail;
+        delete sessionData.simulatedFirstName;
+        delete sessionData.simulatedLastName;
+        delete sessionData.simulatedRole;
+        delete sessionData.simulatedCountryCode;
+        delete sessionData.simulationSessionId;
+
+        return req.session.save((err: any) => {
+          if (err) console.error("Error saving session on exit:", err);
+          return res.json({ success: true });
+        });
+      }
+
+      if (req.isAuthenticated && req.isAuthenticated()) {
+        const userId = (req.user as any)?.claims?.sub;
+        if (userId) {
+          const session = await storage.getActiveSimulationSession(userId);
+          if (session) {
+            await storage.endSimulationSession(session.id);
+          }
+        }
       }
       return res.json({ success: true });
     } catch (error) {

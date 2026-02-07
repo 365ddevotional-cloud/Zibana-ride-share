@@ -1244,6 +1244,7 @@ export interface IStorage {
   revokeSimulationCode(id: number): Promise<void>;
   createSimulationSession(data: InsertSimulationSession): Promise<SimulationSession>;
   getActiveSimulationSession(userId: string): Promise<SimulationSession | null>;
+  getSimulationSessionById(sessionId: number): Promise<SimulationSession | null>;
   getAllSimulationSessions(): Promise<SimulationSession[]>;
   endSimulationSession(sessionId: number): Promise<void>;
   cleanupExpiredSimulations(): Promise<number>;
@@ -9836,6 +9837,12 @@ export class DatabaseStorage implements IStorage {
         eq(simulationSessions.userId, userId),
         eq(simulationSessions.active, true)
       ));
+    return session || null;
+  }
+
+  async getSimulationSessionById(sessionId: number): Promise<SimulationSession | null> {
+    const [session] = await db.select().from(simulationSessions)
+      .where(eq(simulationSessions.id, sessionId));
     return session || null;
   }
 
