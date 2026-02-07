@@ -205,6 +205,15 @@ export function SimulationCenter() {
               </span>
             )}
           </CardDescription>
+          <div className="mt-2 flex items-center gap-2 flex-wrap">
+            <Badge variant="outline" data-testid="badge-environment">
+              {window.location.hostname.includes("replit.app") ? "Published App" : "Development"}
+            </Badge>
+            <span className="text-xs text-muted-foreground">
+              Codes generated here only work on this same URL.
+              Test at: <a href={`${window.location.origin}/simulation`} target="_blank" rel="noopener noreferrer" className="underline text-primary">{window.location.origin}/simulation</a>
+            </span>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
