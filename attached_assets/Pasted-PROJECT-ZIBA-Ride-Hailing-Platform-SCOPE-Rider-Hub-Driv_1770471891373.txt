@@ -1,0 +1,211 @@
+PROJECT: ZIBA Ride-Hailing Platform
+SCOPE: Rider Hub + Driver Hub UX, Payments, Notifications, Inbox, Settings, Activities
+
+GOAL:
+Upgrade ZIBA Rider and Driver apps to be production-ready, visually premium, reliable, and engagement-driven — inspired by Uber but not copied.
+
+------------------------------------
+A. GLOBAL UI / UX FIXES (RIDER + DRIVER)
+------------------------------------
+1. Fix ALL crash routes:
+   - Inbox page currently throws “Something went wrong”.
+   - Add proper API guards, empty-state UI, and fallback rendering.
+   - No route should ever crash the app.
+
+2. Typography & Visual Consistency:
+   - Apply the SAME large, elegant typography used on the ZIBA Welcome page across:
+     • Rider Home
+     • Driver Home
+     • Account
+     • Settings
+     • Inbox
+   - Increase heading sizes, spacing, and font weight for premium feel.
+   - Ensure consistent spacing, rounded cards, and soft shadows.
+
+3. Appearance Toggle Everywhere:
+   - Add Light / Dark / System (Auto) mode selector.
+   - Must exist on:
+     • Welcome page
+     • Rider account
+     • Driver account
+     • Settings page
+   - Persist user choice in database.
+   - Default = System (Auto).
+
+------------------------------------
+B. NAVIGATION STRUCTURE (RIDER)
+------------------------------------
+Bottom Navigation Tabs:
+- Home
+- Services (Scheduled / Corporate / Special rides)
+- Activity (Trips history, cancellations, penalties)
+- Inbox (Messages & notifications)
+- Account (Profile & Settings)
+
+------------------------------------
+C. INBOX & NOTIFICATIONS SYSTEM (CORE FEATURE)
+------------------------------------
+1. Inbox System:
+   - Create a fully functional Inbox page.
+   - Show message list with:
+     • Title
+     • Preview text
+     • Timestamp
+     • Read / Unread state
+   - Add unread message badge:
+     • Red circle on Inbox icon
+     • White bold number inside
+
+2. Default Welcome Message:
+   On signup, auto-insert message:
+   Title: “Welcome to ZIBA 🎉”
+   Body: 
+   “We’re excited to have you on ZIBA. Enjoy safe, reliable rides and exclusive benefits designed just for you.”
+
+3. Notification Engine:
+   - Notifications ON by default.
+   - User may opt-out in Settings.
+   - Notifications must:
+     • Appear in-app
+     • Appear as system push notifications (SMS-like behavior)
+   - Use push + in-app sync.
+
+4. Notification Types:
+   - Ride status
+   - Driver assigned
+   - Cancellation penalties
+   - Wallet low balance
+   - Promotions & loyalty rewards
+   - Safety alerts
+
+------------------------------------
+D. SETTINGS & ACCOUNT (RIDER)
+------------------------------------
+Create a structured Settings area inspired by Uber but original:
+
+Sections:
+1. Account
+   - Profile
+   - Phone
+   - Email
+   - Verification status
+
+2. Communication
+   - Push notifications (ON by default)
+   - Marketing messages (ON by default)
+   - Ride alerts
+   - Safety alerts (cannot be disabled)
+
+3. Appearance
+   - Light / Dark / System
+
+4. Privacy & Data
+   - Data usage summary
+   - Ride history controls
+
+5. Accessibility
+   - Larger text toggle
+   - High contrast mode
+
+6. Safety
+   - Trusted contacts
+   - Ride PIN
+   - Emergency button
+
+------------------------------------
+E. PAYMENTS & WALLET STRATEGY
+------------------------------------
+1. Payment Rule (Phase 1):
+   - Cash and Card both allowed
+   - ALL rides must be FUNDED THROUGH WALLET
+   - Card = auto-fund wallet
+   - Cash = driver receives cash, platform still records wallet equivalent
+
+2. Wallet Funding Methods:
+   - Card
+   - Bank transfer
+   - Admin credit (support tool)
+
+3. Auto Top-Up:
+   - Optional setting
+   - Trigger when balance drops below threshold
+
+------------------------------------
+F. CANCELLATION FEES & PENALTIES
+------------------------------------
+Design exact logic:
+
+Rider cancels:
+- Before driver assigned → Free
+- After driver assigned → Small fee
+- Driver arrived → Full cancellation fee
+
+Driver cancels:
+- Repeated cancellations reduce driver rating
+- Temporary job priority reduction
+
+Scheduled Ride Penalties:
+- Cancel < X hours → penalty
+- No-show → full charge
+
+------------------------------------
+G. SCHEDULED & CORPORATE RIDES
+------------------------------------
+1. Fix Scheduled Ride button (currently disabled):
+   - Ensure validation logic
+   - Enable backend route
+   - Add success confirmation UI
+
+2. Corporate / Organization Rides:
+   - Corporate account dashboard
+   - Monthly invoicing
+   - Ride limits per member
+   - Admin approvals
+
+------------------------------------
+H. ACTIVITIES TAB
+------------------------------------
+Activities should show:
+- Completed rides
+- Cancelled rides
+- Penalties applied
+- Wallet deductions
+- Rewards earned
+
+------------------------------------
+I. STRATEGIC IN-APP MARKETING (AUTOMATED)
+------------------------------------
+Add smart, respectful engagement messages:
+- “You’re close to a loyalty reward 🎁”
+- “Schedule rides and save time”
+- “Wallet low — top up now”
+
+No spam.
+Triggered by behavior.
+
+------------------------------------
+J. DRIVER HUB (PARITY + EXTRAS)
+------------------------------------
+Driver app must include:
+- Inbox + notifications (same system)
+- Appearance toggle
+- Earnings activity
+- Wallet & payouts
+- Penalty explanations
+- Driver-only promotions
+- Driver safety hub
+
+------------------------------------
+K. ZIBA-ONLY IMPROVEMENTS (NOT IN UBER)
+------------------------------------
+Add unique features:
+1. Ride Trust Score (visible, transparent)
+2. Loyalty wallet cashback
+3. Community announcements from ZIBA
+4. Driver appreciation messages
+5. Local event ride boosts
+
+------------------------------------
+DELIVERABLE:
+Implement all above cleanly, modularly, and production-safe.
+No placeholders. No broken routes. No silent failures.
