@@ -868,6 +868,11 @@ export const trips = pgTable("trips", {
   driverConfirmedCashAt: timestamp("driver_confirmed_cash_at"),
   cashDisputeFlag: boolean("cash_dispute_flag").default(false),
   cashDisputeReason: text("cash_dispute_reason"),
+  isReserved: boolean("is_reserved").default(false),
+  scheduledPickupAt: timestamp("scheduled_pickup_at"),
+  reservationStatus: reservationStatusEnum("reservation_status"),
+  cancellationFeeApplied: decimal("cancellation_fee_applied", { precision: 10, scale: 2 }),
+  cancellationFeeDeducted: boolean("cancellation_fee_deducted").default(false),
 });
 
 // Phase 22 - Enhanced Rides table with full Uber/Lyft-style lifecycle
@@ -4334,3 +4339,92 @@ export const insertBankTransferSchema = createInsertSchema(bankTransfers).omit({
 
 export type InsertBankTransfer = z.infer<typeof insertBankTransferSchema>;
 export type BankTransfer = typeof bankTransfers.$inferSelect;
+
+export const riderInboxMessageTypeEnum = pgEnum("rider_inbox_message_type", [
+  "trip_update",
+  "payment_alert",
+  "cancellation_notice",
+  "promotion",
+  "system_announcement",
+  "marketing",
+]);
+
+export const riderInboxMessages = pgTable("rider_inbox_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  title: varchar("title", { length: 200 }).notNull(),
+  body: text("body").notNull(),
+  type: riderInboxMessageTypeEnum("type").notNull().default("system_announcement"),
+  read: boolean("read").notNull().default(false),
+  referenceId: varchar("reference_id"),
+  referenceType: varchar("reference_type", { length: 50 }),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertRiderInboxMessageSchema = createInsertSchema(riderInboxMessages).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertRiderInboxMessage = z.infer<typeof insertRiderInboxMessageSchema>;
+export type RiderInboxMessage = typeof riderInboxMessages.$inferSelect;
+
+export const notificationPreferences = pgTable("notification_preferences", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique(),
+  driverAssigned: boolean("driver_assigned").notNull().default(true),
+  driverArriving: boolean("driver_arriving").notNull().default(true),
+  rideScheduledConfirmation: boolean("ride_scheduled_confirmation").notNull().default(true),
+  cancellationPenalties: boolean("cancellation_penalties").notNull().default(true),
+  walletLowBalance: boolean("wallet_low_balance").notNull().default(true),
+  promotions: boolean("promotions").notNull().default(true),
+  systemAnnouncements: boolean("system_announcements").notNull().default(true),
+  permissionGranted: boolean("permission_granted").notNull().default(false),
+  promptShownAt: timestamp("prompt_shown_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertNotificationPreferencesSchema = createInsertSchema(notificationPreferences).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertNotificationPreferences = z.infer<typeof insertNotificationPreferencesSchema>;
+export type NotificationPreferences = typeof notificationPreferences.$inferSelect;
+
+export const cancellationFeeConfig = pgTable("cancellation_fee_config", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  countryCode: varchar("country_code", { length: 3 }).notNull().default("NG"),
+  cancellationFeeAmount: decimal("cancellation_fee_amount", { precision: 10, scale: 2 }).notNull().default("500.00"),
+  scheduledPenaltyAmount: decimal("scheduled_penalty_amount", { precision: 10, scale: 2 }).notNull().default("750.00"),
+  gracePeriodMinutes: integer("grace_period_minutes").notNull().default(3),
+  scheduledCancelWindowMinutes: integer("scheduled_cancel_window_minutes").notNull().default(30),
+  arrivedCancellationFeeAmount: decimal("arrived_cancellation_fee_amount", { precision: 10, scale: 2 }).notNull().default("800.00"),
+  isActive: boolean("is_active").notNull().default(true),
+  updatedBy: varchar("updated_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertCancellationFeeConfigSchema = createInsertSchema(cancellationFeeConfig).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertCancellationFeeConfig = z.infer<typeof insertCancellationFeeConfigSchema>;
+export type CancellationFeeConfig = typeof cancellationFeeConfig.$inferSelect;
+
+export const marketingMessages = pgTable("marketing_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  messageKey: varchar("message_key", { length: 100 }).notNull(),
+  messageText: text("message_text").notNull(),
+  sentAt: timestamp("sent_at").defaultNow(),
+});
+
+export const insertMarketingMessageSchema = createInsertSchema(marketingMessages).omit({
+  id: true,
+  sentAt: true,
+});
+export type InsertMarketingMessage = z.infer<typeof insertMarketingMessageSchema>;
+export type MarketingMessage = typeof marketingMessages.$inferSelect;
