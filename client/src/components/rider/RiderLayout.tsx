@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Home, Clock, Wallet, BookOpen, Mail, User, Sun, Moon } from "lucide-react";
+import { Home, Grid3X3, Activity, Mail, User, Sun, Moon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { useTheme } from "@/components/theme-provider";
@@ -11,15 +11,15 @@ interface RiderLayoutProps {
 
 const navItems = [
   { path: "/rider/home", label: "Home", icon: Home },
-  { path: "/rider/trips", label: "Trips", icon: Clock },
-  { path: "/rider/wallet", label: "Wallet", icon: Wallet },
+  { path: "/rider/services", label: "Services", icon: Grid3X3 },
+  { path: "/rider/activity", label: "Activity", icon: Activity },
   { path: "/rider/inbox", label: "Inbox", icon: Mail },
-  { path: "/rider/profile", label: "Profile", icon: User },
+  { path: "/rider/account", label: "Account", icon: User },
 ];
 
 export function RiderLayout({ children }: RiderLayoutProps) {
   const [location] = useLocation();
-  const { theme, setTheme, resolvedTheme } = useTheme();
+  const { setTheme, resolvedTheme } = useTheme();
 
   const { data: unreadData } = useQuery<{ count: number }>({
     queryKey: ["/api/rider/inbox/unread-count"],
@@ -46,7 +46,7 @@ export function RiderLayout({ children }: RiderLayoutProps) {
               variant="ghost"
               size="icon"
               onClick={toggleTheme}
-              className="text-primary-foreground hover:bg-primary-foreground/10"
+              className="text-primary-foreground"
               data-testid="button-theme-toggle"
             >
               {resolvedTheme === "dark" ? (
@@ -70,7 +70,8 @@ export function RiderLayout({ children }: RiderLayoutProps) {
           {navItems.map((item) => {
             const isActive = location === item.path || 
               (item.path === "/rider/home" && location === "/rider") ||
-              (item.path === "/rider/inbox" && location.startsWith("/rider/inbox"));
+              (item.path === "/rider/inbox" && location.startsWith("/rider/inbox")) ||
+              (item.path === "/rider/account" && (location === "/rider/profile" || location.startsWith("/rider/settings")));
             const Icon = item.icon;
             const showBadge = item.label === "Inbox" && unreadCount > 0;
             
@@ -78,7 +79,7 @@ export function RiderLayout({ children }: RiderLayoutProps) {
               <Link key={item.path} href={item.path}>
                 <button
                   className={cn(
-                    "flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-colors min-w-[64px] relative",
+                    "flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-colors min-w-[56px] relative",
                     isActive 
                       ? "text-primary" 
                       : "text-muted-foreground hover:text-foreground"
@@ -97,7 +98,7 @@ export function RiderLayout({ children }: RiderLayoutProps) {
                     )}
                   </div>
                   <span className={cn(
-                    "text-xs",
+                    "text-[11px]",
                     isActive && "font-medium"
                   )}>
                     {item.label}

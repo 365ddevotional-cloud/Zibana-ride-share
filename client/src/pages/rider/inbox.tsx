@@ -134,63 +134,63 @@ export default function RiderInbox() {
     <RiderRouteGuard>
       <RiderLayout>
         <div className="p-4 space-y-4">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold" data-testid="text-inbox-title">Inbox</h1>
-              {unreadCount > 0 && (
-                <Badge data-testid="badge-unread-count">{unreadCount}</Badge>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              {unreadCount > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => markAllReadMutation.mutate()}
-                  disabled={markAllReadMutation.isPending}
-                  data-testid="button-mark-all-read"
-                >
-                  <CheckCheck className="h-4 w-4 mr-1" />
-                  Mark All Read
-                </Button>
-              )}
-              <CollapsibleTrigger asChild onClick={() => setPrefsOpen(!prefsOpen)}>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  data-testid="button-notification-settings"
-                >
-                  <Settings className="h-5 w-5" />
-                </Button>
-              </CollapsibleTrigger>
-            </div>
-          </div>
-
-          {prefs && !prefs.permissionGranted && (
-            <Card data-testid="card-enable-notifications">
-              <CardContent className="p-4 flex items-center justify-between gap-4 flex-wrap">
-                <div className="flex items-start gap-3 flex-1 min-w-0">
-                  <ShieldCheck className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-medium" data-testid="text-enable-notifications-title">Enable Notifications</p>
-                    <p className="text-sm text-muted-foreground">
-                      Stay updated with trip alerts, payment confirmations, and promotions.
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  size="sm"
-                  onClick={() => handleTogglePref("permissionGranted", true)}
-                  disabled={updatePrefsMutation.isPending}
-                  data-testid="button-allow-notifications"
-                >
-                  Allow
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-
           <Collapsible open={prefsOpen} onOpenChange={setPrefsOpen}>
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-bold" data-testid="text-inbox-title">Inbox</h1>
+                {unreadCount > 0 && (
+                  <Badge data-testid="badge-unread-count">{unreadCount}</Badge>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {unreadCount > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => markAllReadMutation.mutate()}
+                    disabled={markAllReadMutation.isPending}
+                    data-testid="button-mark-all-read"
+                  >
+                    <CheckCheck className="h-4 w-4 mr-1" />
+                    Mark All Read
+                  </Button>
+                )}
+                <CollapsibleTrigger asChild onClick={() => setPrefsOpen(!prefsOpen)}>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    data-testid="button-notification-settings"
+                  >
+                    <Settings className="h-5 w-5" />
+                  </Button>
+                </CollapsibleTrigger>
+              </div>
+            </div>
+
+            {prefs && !prefs.permissionGranted && (
+              <Card data-testid="card-enable-notifications">
+                <CardContent className="p-4 flex items-center justify-between gap-4 flex-wrap">
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <ShieldCheck className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-medium" data-testid="text-enable-notifications-title">Enable Notifications</p>
+                      <p className="text-sm text-muted-foreground">
+                        Stay updated with trip alerts, payment confirmations, and promotions.
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => handleTogglePref("permissionGranted", true)}
+                    disabled={updatePrefsMutation.isPending}
+                    data-testid="button-allow-notifications"
+                  >
+                    Allow
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
             <CollapsibleContent>
               <Card data-testid="card-notification-preferences">
                 <CardContent className="p-4 space-y-4">

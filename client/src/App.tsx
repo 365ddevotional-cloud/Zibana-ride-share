@@ -51,6 +51,9 @@ const DriverRegisterPage = lazy(() => import("@/pages/driver/register"));
 const DriverWelcomeBackPage = lazy(() => import("@/pages/driver/welcome-back"));
 const RiderSchedulePage = lazy(() => import("@/pages/rider/schedule"));
 const RiderInboxPage = lazy(() => import("@/pages/rider/inbox"));
+const RiderActivityPage = lazy(() => import("@/pages/rider/activity"));
+const RiderServicesPage = lazy(() => import("@/pages/rider/services"));
+const RiderAccountPage = lazy(() => import("@/pages/rider/account"));
 const RiderWelcomeBackPage = lazy(() => import("@/pages/rider/welcome-back"));
 const HelpCenterPage = lazy(() => import("@/pages/help-center"));
 const TrustedContactsPage = lazy(() => import("@/pages/rider/trusted-contacts"));
@@ -471,6 +474,24 @@ function RiderRouter() {
       <Route path="/rider/trips">
         <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["rider"]}>
           <LazyComponent><RiderTripsPage /></LazyComponent>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/rider/activity">
+        <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["rider"]}>
+          <LazyComponent><RiderActivityPage /></LazyComponent>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/rider/services">
+        <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["rider"]}>
+          <LazyComponent><RiderServicesPage /></LazyComponent>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/rider/account">
+        <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["rider"]}>
+          <LazyComponent><RiderAccountPage /></LazyComponent>
         </ProtectedRoute>
       </Route>
       
