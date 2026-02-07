@@ -144,6 +144,8 @@ type DirectorWithDetails = {
   lastName?: string;
   fullName?: string;
   status: string;
+  directorType?: string;
+  driverCount?: number;
   createdAt?: string;
 };
 
@@ -732,6 +734,57 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
   const { data: directors = [], isLoading: directorsLoading } = useQuery<DirectorWithDetails[]>({
     queryKey: ["/api/admin/directors"],
     enabled: !!user && !isDirector,
+  });
+
+  const { data: directorDashboard } = useQuery<{
+    directorType: string;
+    status: string;
+    commissionFrozen: boolean;
+    activationThreshold: number;
+    isActivated: boolean;
+    maxCellSize: number;
+    totalDrivers: number;
+    activeDriversToday: number;
+    commissionableDrivers: number;
+    suspendedDrivers: number;
+  }>({
+    queryKey: ["/api/director/dashboard"],
+    enabled: !!user && isDirector,
+  });
+
+  const { data: directorDrivers = [] } = useQuery<{
+    driverUserId: string;
+    assignmentType: string;
+    assignedAt: string;
+    fullName: string;
+    status: string;
+  }[]>({
+    queryKey: ["/api/director/drivers"],
+    enabled: !!user && isDirector,
+  });
+
+  // Super Admin Director Commission Settings
+  const { data: directorSettings, refetch: refetchDirectorSettings } = useQuery<{
+    commissionRate: string;
+    activeRatio: string;
+    maxCommissionableDrivers: number;
+    maxCellSize: number;
+  }>({
+    queryKey: ["/api/admin/director-settings"],
+    enabled: !!user && isSuperAdmin && activeTab === "director-settings",
+  });
+
+  const { data: directorSettingsAudit = [] } = useQuery<{
+    id: string;
+    settingKey: string;
+    oldValue: string | null;
+    newValue: string;
+    changedBy: string;
+    reason: string;
+    createdAt: string;
+  }[]>({
+    queryKey: ["/api/admin/director-settings/audit"],
+    enabled: !!user && isSuperAdmin && activeTab === "director-settings",
   });
 
   // Phase 11 - Wallet queries
@@ -2047,12 +2100,82 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
         <div className="mb-6">
           <h1 className="text-2xl font-bold">{isDirector ? "Director Dashboard" : "Admin Dashboard"}</h1>
           <p className="text-muted-foreground">
-            {isDirector 
-              ? "Read-only view of drivers, riders, trips, and payouts" 
-              : "Manage drivers, riders, and trips"}
+            {isDirector && directorDashboard?.directorType === "contract" ? "Manage your driver cell and track performance" : isDirector ? "Oversee driver performance and operations" : "Manage drivers, riders, and trips"}
           </p>
         </div>
 
+        {isDirector && directorDashboard && (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+            <Card data-testid="kpi-director-total-drivers">
+              <CardContent className="flex items-center gap-4 pt-6">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                  <Users className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-2xl font-bold">{directorDashboard.totalDrivers}</p>
+                  <p className="text-sm text-muted-foreground">Drivers in Cell</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card data-testid="kpi-director-active-today">
+              <CardContent className="flex items-center gap-4 pt-6">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
+                  <Activity className="h-6 w-6 text-green-600 dark:text-green-400" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-2xl font-bold">{directorDashboard.activeDriversToday}</p>
+                  <p className="text-sm text-muted-foreground">Active Today</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card data-testid="kpi-director-commissionable">
+              <CardContent className="flex items-center gap-4 pt-6">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-900/30">
+                  <Target className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-2xl font-bold">{directorDashboard.commissionableDrivers}</p>
+                  <p className="text-sm text-muted-foreground">Eligible Drivers</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card data-testid="kpi-director-suspended">
+              <CardContent className="flex items-center gap-4 pt-6">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-red-100 dark:bg-red-900/30">
+                  <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-2xl font-bold">{directorDashboard.suspendedDrivers}</p>
+                  <p className="text-sm text-muted-foreground">Suspended</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {isDirector && directorDashboard && (
+          <div className="mb-6 space-y-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <Badge variant={directorDashboard.directorType === "contract" ? "default" : "secondary"}>
+                {directorDashboard.directorType === "contract" ? "Contract Director" : "Employed Director"}
+              </Badge>
+              <Badge variant={directorDashboard.isActivated ? "default" : "destructive"}>
+                {directorDashboard.isActivated ? "Activated" : `Need ${directorDashboard.activationThreshold} drivers to activate`}
+              </Badge>
+              {directorDashboard.commissionFrozen && (
+                <Badge variant="destructive">Commissions Frozen</Badge>
+              )}
+              <span className="text-sm text-muted-foreground">
+                Cell: {directorDashboard.totalDrivers} / {directorDashboard.maxCellSize} max
+              </span>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Commission eligibility is calculated daily. Only a portion of active drivers count toward eligibility. Caps and ratios apply and may change based on policy.
+            </p>
+          </div>
+        )}
+
+        {!isDirector && (<>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 mb-6">
           <Card 
             className="cursor-pointer hover-elevate transition-all" 
@@ -2212,6 +2335,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
             </Card>
           </div>
         </div>
+        </>)}
 
         {/* Super Admin Tools Section */}
         {isSuperAdmin && (
@@ -2370,6 +2494,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                 </span>
               )}
             </TabsTrigger>
+            {isDirector && (
+              <TabsTrigger value="my-drivers" className="admin-nav-trigger rounded-md" data-testid="tab-my-drivers">
+                <Users className="h-4 w-4 mr-2" />
+                My Drivers
+              </TabsTrigger>
+            )}
             {!isDirector && (
               <TabsTrigger value="directors" className="admin-nav-trigger rounded-md" data-testid="tab-directors">
                 <Briefcase className="h-4 w-4 mr-2" />
@@ -2505,6 +2635,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <TabsTrigger value="zibra-governance" className="admin-nav-trigger rounded-md" data-testid="tab-zibra-governance">
                 <Settings2 className="h-4 w-4 mr-2" />
                 ZIBRA Governance
+              </TabsTrigger>
+            )}
+            {isSuperAdmin && (
+              <TabsTrigger value="director-settings" className="admin-nav-trigger rounded-md" data-testid="tab-director-settings">
+                <Settings2 className="h-4 w-4 mr-2" />
+                Director Settings
               </TabsTrigger>
             )}
             {(isSuperAdmin || userRole === "admin") && (
@@ -4394,13 +4530,110 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
             </DialogContent>
           </Dialog>
 
+          {isDirector && (
+            <TabsContent value="my-drivers">
+              <Card>
+                <CardHeader>
+                  <CardTitle>My Drivers</CardTitle>
+                  <CardDescription>
+                    Drivers assigned to your cell
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {directorDrivers.length === 0 ? (
+                    <EmptyState
+                      icon={Users}
+                      title="No drivers yet"
+                      description={directorDashboard?.directorType === "contract" ? "Share your referral code to recruit drivers" : "Drivers will be assigned to you by admin"}
+                    />
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Assignment</TableHead>
+                            <TableHead>Assigned</TableHead>
+                            {directorDashboard?.directorType === "contract" && <TableHead>Actions</TableHead>}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {directorDrivers.map((driver) => (
+                            <TableRow key={driver.driverUserId} data-testid={`row-my-driver-${driver.driverUserId}`}>
+                              <TableCell className="font-medium">{driver.fullName}</TableCell>
+                              <TableCell>
+                                <StatusBadge status={driver.status as any} />
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="secondary">
+                                  {driver.assignmentType === "referral" ? "Recruited" : "Assigned"}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {driver.assignedAt ? new Date(driver.assignedAt).toLocaleDateString() : "-"}
+                              </TableCell>
+                              {directorDashboard?.directorType === "contract" && (
+                                <TableCell>
+                                  {driver.status === "approved" ? (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      data-testid={`button-director-suspend-${driver.driverUserId}`}
+                                      onClick={async () => {
+                                        const reason = prompt("Reason for suspending this driver:");
+                                        if (!reason) return;
+                                        try {
+                                          await apiRequest("POST", `/api/director/drivers/${driver.driverUserId}/suspend`, { reason });
+                                          queryClient.invalidateQueries({ queryKey: ["/api/director/drivers"] });
+                                          queryClient.invalidateQueries({ queryKey: ["/api/director/dashboard"] });
+                                          toast({ title: "Driver suspended" });
+                                        } catch (e: any) {
+                                          toast({ title: "Failed to suspend", variant: "destructive" });
+                                        }
+                                      }}
+                                    >
+                                      Suspend
+                                    </Button>
+                                  ) : driver.status === "suspended" ? (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      data-testid={`button-director-activate-${driver.driverUserId}`}
+                                      onClick={async () => {
+                                        try {
+                                          await apiRequest("POST", `/api/director/drivers/${driver.driverUserId}/activate`);
+                                          queryClient.invalidateQueries({ queryKey: ["/api/director/drivers"] });
+                                          queryClient.invalidateQueries({ queryKey: ["/api/director/dashboard"] });
+                                          toast({ title: "Driver activated" });
+                                        } catch (e: any) {
+                                          toast({ title: "Failed to activate", variant: "destructive" });
+                                        }
+                                      }}
+                                    >
+                                      Activate
+                                    </Button>
+                                  ) : null}
+                                </TableCell>
+                              )}
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
+
           {!isDirector && (
             <TabsContent value="directors">
               <Card>
                 <CardHeader>
                   <CardTitle>Directors</CardTitle>
                   <CardDescription>
-                    Board members with read-only access to the platform
+                    Manage contract and employed directors
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -4412,7 +4645,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                     <EmptyState
                       icon={Briefcase}
                       title="No directors yet"
-                      description="Directors with governance access will appear here"
+                      description="Directors will appear here when created"
                     />
                   ) : (
                     <div className="overflow-x-auto">
@@ -4421,9 +4654,11 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                           <TableRow>
                             <TableHead>Name</TableHead>
                             <TableHead>Email</TableHead>
-                            <TableHead>Role</TableHead>
+                            <TableHead>Type</TableHead>
+                            <TableHead>Drivers</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead>Joined</TableHead>
+                            {isSuperAdmin && <TableHead>Actions</TableHead>}
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -4432,11 +4667,11 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                               <TableCell className="font-medium">{director.fullName || "-"}</TableCell>
                               <TableCell>{director.email || "-"}</TableCell>
                               <TableCell>
-                                <span className="flex items-center gap-1.5 text-purple-600 dark:text-purple-400">
-                                  <Briefcase className="h-3 w-3" />
-                                  Director
-                                </span>
+                                <Badge variant={director.directorType === "contract" ? "default" : "secondary"}>
+                                  {director.directorType === "contract" ? "Contract" : "Employed"}
+                                </Badge>
                               </TableCell>
+                              <TableCell>{director.driverCount || 0}</TableCell>
                               <TableCell>
                                 <StatusBadge status={director.status as any} />
                               </TableCell>
@@ -4445,6 +4680,69 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                                   ? new Date(director.createdAt).toLocaleDateString() 
                                   : "-"}
                               </TableCell>
+                              {isSuperAdmin && (
+                                <TableCell>
+                                  <div className="flex items-center gap-1">
+                                    {director.status === "active" ? (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        data-testid={`button-suspend-director-${director.id}`}
+                                        onClick={async () => {
+                                          const reason = prompt("Reason for suspending this director:");
+                                          if (!reason) return;
+                                          try {
+                                            await apiRequest("POST", `/api/admin/directors/${director.id}/suspend`, { reason });
+                                            queryClient.invalidateQueries({ queryKey: ["/api/admin/directors"] });
+                                            toast({ title: "Director suspended" });
+                                          } catch (e) {
+                                            toast({ title: "Failed to suspend director", variant: "destructive" });
+                                          }
+                                        }}
+                                      >
+                                        Suspend
+                                      </Button>
+                                    ) : (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        data-testid={`button-reactivate-director-${director.id}`}
+                                        onClick={async () => {
+                                          try {
+                                            await apiRequest("POST", `/api/admin/directors/${director.id}/reactivate`);
+                                            queryClient.invalidateQueries({ queryKey: ["/api/admin/directors"] });
+                                            toast({ title: "Director reactivated" });
+                                          } catch (e) {
+                                            toast({ title: "Failed to reactivate", variant: "destructive" });
+                                          }
+                                        }}
+                                      >
+                                        Reactivate
+                                      </Button>
+                                    )}
+                                    {director.directorType === "contract" && (
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        data-testid={`button-freeze-director-${director.id}`}
+                                        onClick={async () => {
+                                          const reason = prompt("Reason for freezing/unfreezing commissions:");
+                                          if (!reason) return;
+                                          try {
+                                            await apiRequest("POST", `/api/admin/directors/${director.id}/freeze`, { frozen: true, reason });
+                                            queryClient.invalidateQueries({ queryKey: ["/api/admin/directors"] });
+                                            toast({ title: "Commission status updated" });
+                                          } catch (e) {
+                                            toast({ title: "Failed to update", variant: "destructive" });
+                                          }
+                                        }}
+                                      >
+                                        Freeze
+                                      </Button>
+                                    )}
+                                  </div>
+                                </TableCell>
+                              )}
                             </TableRow>
                           ))}
                         </TableBody>
@@ -6904,6 +7202,172 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
           {isSuperAdmin && (
             <TabsContent value="zibra-governance">
               <ZibraGovernancePanel />
+            </TabsContent>
+          )}
+          {isSuperAdmin && (
+            <TabsContent value="director-settings">
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Settings2 className="h-5 w-5" />
+                      Director Commission Settings
+                    </CardTitle>
+                    <CardDescription>
+                      Configure global commission parameters for contract directors. Changes apply prospectively only.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {directorSettings ? (
+                      <div className="space-y-6">
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">Commission Rate</label>
+                            <p className="text-2xl font-bold">{(parseFloat(directorSettings.commissionRate) * 100).toFixed(0)}%</p>
+                            <p className="text-xs text-muted-foreground">Percentage of platform earnings</p>
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">Active Ratio</label>
+                            <p className="text-2xl font-bold">{(parseFloat(directorSettings.activeRatio) * 100).toFixed(0)}%</p>
+                            <p className="text-xs text-muted-foreground">Portion of active drivers counted</p>
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">Max Commissionable Drivers</label>
+                            <p className="text-2xl font-bold">{directorSettings.maxCommissionableDrivers.toLocaleString()}</p>
+                            <p className="text-xs text-muted-foreground">Daily cap per director</p>
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">Max Cell Size</label>
+                            <p className="text-2xl font-bold">{directorSettings.maxCellSize.toLocaleString()}</p>
+                            <p className="text-xs text-muted-foreground">Maximum active drivers per cell</p>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            variant="outline"
+                            data-testid="button-edit-commission-rate"
+                            onClick={async () => {
+                              const newRate = prompt("Enter new commission rate (e.g. 0.12 for 12%):", directorSettings.commissionRate);
+                              if (!newRate) return;
+                              const reason = prompt("Reason for this change:");
+                              if (!reason) return;
+                              try {
+                                await apiRequest("POST", "/api/admin/director-settings", { commissionRate: newRate, reason });
+                                refetchDirectorSettings();
+                                queryClient.invalidateQueries({ queryKey: ["/api/admin/director-settings/audit"] });
+                                toast({ title: "Commission rate updated" });
+                              } catch (e) {
+                                toast({ title: "Failed to update", variant: "destructive" });
+                              }
+                            }}
+                          >
+                            Edit Rate
+                          </Button>
+                          <Button
+                            variant="outline"
+                            data-testid="button-edit-active-ratio"
+                            onClick={async () => {
+                              const newRatio = prompt("Enter new active ratio (e.g. 0.77 for 77%):", directorSettings.activeRatio);
+                              if (!newRatio) return;
+                              const reason = prompt("Reason for this change:");
+                              if (!reason) return;
+                              try {
+                                await apiRequest("POST", "/api/admin/director-settings", { activeRatio: newRatio, reason });
+                                refetchDirectorSettings();
+                                queryClient.invalidateQueries({ queryKey: ["/api/admin/director-settings/audit"] });
+                                toast({ title: "Active ratio updated" });
+                              } catch (e) {
+                                toast({ title: "Failed to update", variant: "destructive" });
+                              }
+                            }}
+                          >
+                            Edit Ratio
+                          </Button>
+                          <Button
+                            variant="outline"
+                            data-testid="button-edit-max-commissionable"
+                            onClick={async () => {
+                              const newMax = prompt("Enter max commissionable drivers:", String(directorSettings.maxCommissionableDrivers));
+                              if (!newMax) return;
+                              const reason = prompt("Reason for this change:");
+                              if (!reason) return;
+                              try {
+                                await apiRequest("POST", "/api/admin/director-settings", { maxCommissionableDrivers: parseInt(newMax), reason });
+                                refetchDirectorSettings();
+                                queryClient.invalidateQueries({ queryKey: ["/api/admin/director-settings/audit"] });
+                                toast({ title: "Max commissionable updated" });
+                              } catch (e) {
+                                toast({ title: "Failed to update", variant: "destructive" });
+                              }
+                            }}
+                          >
+                            Edit Max Commissionable
+                          </Button>
+                          <Button
+                            variant="outline"
+                            data-testid="button-edit-max-cell"
+                            onClick={async () => {
+                              const newMax = prompt("Enter max cell size:", String(directorSettings.maxCellSize));
+                              if (!newMax) return;
+                              const reason = prompt("Reason for this change:");
+                              if (!reason) return;
+                              try {
+                                await apiRequest("POST", "/api/admin/director-settings", { maxCellSize: parseInt(newMax), reason });
+                                refetchDirectorSettings();
+                                queryClient.invalidateQueries({ queryKey: ["/api/admin/director-settings/audit"] });
+                                toast({ title: "Max cell size updated" });
+                              } catch (e) {
+                                toast({ title: "Failed to update", variant: "destructive" });
+                              }
+                            }}
+                          >
+                            Edit Cell Size
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground">Loading settings...</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Settings Audit Log</CardTitle>
+                    <CardDescription>All changes to director commission settings are logged</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {directorSettingsAudit.length === 0 ? (
+                      <p className="text-sm text-muted-foreground py-4 text-center">No changes logged yet</p>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Setting</TableHead>
+                              <TableHead>Old Value</TableHead>
+                              <TableHead>New Value</TableHead>
+                              <TableHead>Reason</TableHead>
+                              <TableHead>Date</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {directorSettingsAudit.map((log) => (
+                              <TableRow key={log.id}>
+                                <TableCell className="font-medium">{log.settingKey.replace(/_/g, " ")}</TableCell>
+                                <TableCell>{log.oldValue || "-"}</TableCell>
+                                <TableCell>{log.newValue}</TableCell>
+                                <TableCell className="max-w-[200px] truncate">{log.reason}</TableCell>
+                                <TableCell>{new Date(log.createdAt).toLocaleString()}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
             </TabsContent>
           )}
           {(isSuperAdmin || userRole === "admin") && (

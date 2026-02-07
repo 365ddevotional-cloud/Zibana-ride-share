@@ -1,4 +1,4 @@
-export type ZibraRole = "rider" | "driver" | "admin" | "super_admin" | "general";
+export type ZibraRole = "rider" | "driver" | "admin" | "super_admin" | "director" | "general";
 
 export type ZibraCategory =
   | "account" | "saved_places" | "wallet" | "cash_wallet" | "scheduling"
@@ -11,7 +11,9 @@ export type ZibraCategory =
   | "system_config" | "feature_flags" | "audit" | "abuse_patterns"
   | "risky_actions" | "compliance" | "escalation" | "identity"
   | "emotional" | "legal_threat" | "fraud_attempt" | "system_failure"
-  | "role_confusion" | "general_help";
+  | "role_confusion" | "general_help"
+  | "director_cell" | "director_commission" | "director_drivers"
+  | "director_performance" | "director_recruiting";
 
 export interface ZibraTemplate {
   id: string;
@@ -1124,13 +1126,194 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
   },
 
   // ============================
+  // DIRECTOR TEMPLATES (~25)
+  // ============================
+
+  // Cell Management
+  {
+    id: "d-cell-overview",
+    role: "director",
+    category: "director_cell",
+    keywords: ["cell", "my cell", "driver cell", "how many drivers", "cell size", "capacity"],
+    response: "Your cell overview is available on your Director Dashboard. It shows your total drivers, active drivers today, and eligible drivers. Cell sizes have maximum limits set by policy. Check your dashboard for current numbers."
+  },
+  {
+    id: "d-cell-limit",
+    role: "director",
+    category: "director_cell",
+    keywords: ["cell limit", "max drivers", "cell full", "maximum", "capacity limit", "1300"],
+    response: "Each director cell has a maximum driver capacity. When your cell reaches capacity, no additional drivers can be added. Contact administration if you believe an adjustment is warranted."
+  },
+  {
+    id: "d-cell-active",
+    role: "director",
+    category: "director_cell",
+    keywords: ["active drivers", "drivers working", "drivers today", "who is active", "working today"],
+    response: "Active drivers are those who have completed at least one trip today. This count resets daily. Your dashboard shows the current active count. Only active drivers factor into daily eligibility calculations."
+  },
+
+  // Commission Eligibility
+  {
+    id: "d-commission-how",
+    role: "director",
+    category: "director_commission",
+    keywords: ["commission", "how commission works", "earn", "earnings", "how do I earn", "payment"],
+    response: "Commission eligibility is calculated daily based on your active drivers. Only a portion of active drivers count toward eligibility, and caps apply. Rates and ratios are set by policy and may change. Check your dashboard for current eligibility status."
+  },
+  {
+    id: "d-commission-eligibility",
+    role: "director",
+    category: "director_commission",
+    keywords: ["eligible", "eligibility", "qualify", "qualification", "commissionable", "when do I start"],
+    response: "To become eligible, you must first meet the minimum driver recruitment threshold. Once activated, daily eligibility depends on how many of your drivers are active that day. A policy-defined portion of active drivers determines your eligible count, subject to daily caps."
+  },
+  {
+    id: "d-commission-daily",
+    role: "director",
+    category: "director_commission",
+    keywords: ["daily", "per day", "today commission", "daily calculation", "daily earnings"],
+    response: "Eligibility is recalculated every day based on that day's driver activity. Past performance does not guarantee future eligibility. Each day starts fresh with new activity counts."
+  },
+  {
+    id: "d-commission-caps",
+    role: "director",
+    category: "director_commission",
+    keywords: ["cap", "caps", "maximum commission", "limit", "ceiling", "driver cap"],
+    response: "Caps and ratios apply to daily eligibility calculations. These are set by policy and may be adjusted. The caps ensure fair distribution across the platform. Check with administration for current policy details."
+  },
+  {
+    id: "d-commission-frozen",
+    role: "director",
+    category: "director_commission",
+    keywords: ["frozen", "freeze", "commission frozen", "suspended commission", "paused"],
+    response: "If your commissions are frozen, this is an administrative action. Contact your administrator or support for clarification. Frozen status can be reversed by authorized personnel when appropriate."
+  },
+  {
+    id: "d-commission-rate",
+    role: "director",
+    category: "director_commission",
+    keywords: ["rate", "percentage", "commission rate", "how much percent", "what percentage"],
+    response: "Commission rates are set by policy and may be adjusted by administration. Specific rate details are managed at the platform level. Focus on growing your active driver count for best results."
+  },
+  {
+    id: "d-commission-promise",
+    role: "director",
+    category: "director_commission",
+    keywords: ["guarantee", "promised", "owed", "entitled", "right to", "must pay"],
+    response: "Commission eligibility is variable and calculated daily. There are no guarantees or fixed amounts. Eligibility depends on daily driver activity, policy-defined ratios, and applicable caps. We recommend focusing on driver performance and recruitment."
+  },
+
+  // Driver Management
+  {
+    id: "d-drivers-suspend",
+    role: "director",
+    category: "director_drivers",
+    keywords: ["suspend driver", "remove driver", "discipline", "deactivate driver"],
+    response: "Contract directors can suspend drivers under their cell for performance or disciplinary reasons. Go to your 'My Drivers' tab and use the Suspend action. Note: Only administrators can permanently deactivate drivers."
+  },
+  {
+    id: "d-drivers-activate",
+    role: "director",
+    category: "director_drivers",
+    keywords: ["activate driver", "unsuspend", "restore driver", "reactivate driver"],
+    response: "You can activate suspended drivers under your cell from the 'My Drivers' tab. This will change their status back to approved, allowing them to accept trips again."
+  },
+  {
+    id: "d-drivers-performance",
+    role: "director",
+    category: "director_performance",
+    keywords: ["driver performance", "underperforming", "not working", "lazy", "inactive"],
+    response: "Monitor driver activity through your dashboard. Active drivers are those completing trips daily. Consider reaching out to inactive drivers to understand any issues. If disciplinary action is needed, you can suspend drivers from your cell."
+  },
+  {
+    id: "d-drivers-list",
+    role: "director",
+    category: "director_drivers",
+    keywords: ["my drivers", "driver list", "see drivers", "view drivers", "all drivers"],
+    response: "Your complete driver list is in the 'My Drivers' tab on your dashboard. It shows each driver's name, status, how they were assigned, and when they joined your cell."
+  },
+
+  // Recruiting (Contract Directors)
+  {
+    id: "d-recruit-how",
+    role: "director",
+    category: "director_recruiting",
+    keywords: ["recruit", "recruiting", "referral", "invite drivers", "grow cell", "add drivers"],
+    response: "Contract directors recruit drivers using their referral code. When a new driver signs up using your code, they are automatically assigned to your cell. Share your referral code through appropriate channels to grow your team."
+  },
+  {
+    id: "d-recruit-threshold",
+    role: "director",
+    category: "director_recruiting",
+    keywords: ["minimum drivers", "threshold", "10 drivers", "activation requirement", "how many to start"],
+    response: "There is a minimum driver recruitment threshold before commission eligibility activates. Your dashboard shows your current progress toward this threshold. Focus on recruiting quality drivers who will be active on the platform."
+  },
+  {
+    id: "d-recruit-referral",
+    role: "director",
+    category: "director_recruiting",
+    keywords: ["referral code", "my code", "share code", "where is my code"],
+    response: "Your referral code is managed through the platform. Drivers who sign up using your code are automatically added to your cell. Contact support if you need help locating or managing your referral code."
+  },
+
+  // Director Authority
+  {
+    id: "d-authority-limits",
+    role: "director",
+    category: "director_cell",
+    keywords: ["what can I do", "permissions", "authority", "my powers", "allowed"],
+    response: "Directors can view their cell metrics, monitor driver performance, and manage driver status within their cell. Contract directors can also recruit drivers. Administrative actions like permanent deactivation, commission changes, and platform settings are managed by administrators."
+  },
+  {
+    id: "d-authority-override",
+    role: "director",
+    category: "director_cell",
+    keywords: ["override", "admin override", "overruled", "changed by admin", "admin changed"],
+    response: "Administrators and Super Administrators have ultimate authority over all platform operations, including the ability to override director actions, reassign drivers, and adjust policies. Director actions are subject to administrative review."
+  },
+
+  // Emotional / Entitlement
+  {
+    id: "d-emotional-frustrated",
+    role: "director",
+    category: "emotional",
+    keywords: ["unfair", "frustrated", "angry", "not right", "cheated", "scam"],
+    response: "I understand this can be challenging. Commission eligibility is designed to be fair and transparent, calculated daily based on clear criteria. I recommend focusing on growing your active driver count, which directly impacts your eligibility. If you have specific concerns, please contact support for assistance."
+  },
+  {
+    id: "d-emotional-entitled",
+    role: "director",
+    category: "emotional",
+    keywords: ["deserve", "entitled", "owed", "should get", "right to more"],
+    response: "I understand your perspective. Eligibility is calculated based on daily driver activity and policy-defined criteria. There are no fixed entitlements or guaranteed amounts. We recommend focusing on driver performance and recruitment, which are the factors within your control."
+  },
+
+  // Identity
+  {
+    id: "d-identity",
+    role: "director",
+    category: "identity",
+    keywords: ["who are you", "are you ai", "are you real", "bot", "human", "artificial"],
+    response: "I'm ZIBA Support. I'm here to help you navigate ZIBA and answer questions about your director dashboard, cell management, and eligibility criteria."
+  },
+
+  // General Help
+  {
+    id: "d-general-help",
+    role: "director",
+    category: "general_help",
+    keywords: ["help", "how to", "guide", "tutorial", "get started"],
+    response: "As a director, your main tools are:\n1. Dashboard - View cell metrics and daily activity\n2. My Drivers - Manage drivers in your cell\n3. Performance monitoring - Track active vs. inactive drivers\n\nFocus on keeping drivers active and your cell growing. Commission eligibility is calculated daily based on driver activity."
+  },
+
+  // ============================
   // CROSS-ROLE TEMPLATES
   // ============================
 
   // Identity
   {
     id: "x-identity",
-    role: ["rider", "driver", "admin", "super_admin", "general"],
+    role: ["rider", "driver", "admin", "super_admin", "director", "general"],
     category: "identity",
     keywords: ["are you ai", "are you a bot", "are you real", "are you human", "what are you", "who are you"],
     response: "I'm ZIBA Support. I'm here to help you navigate ZIBA and resolve common issues quickly.",
@@ -1140,7 +1323,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
   // Emotional / Frustration Handling
   {
     id: "x-frustrated",
-    role: ["rider", "driver", "admin", "super_admin", "general"],
+    role: ["rider", "driver", "admin", "super_admin", "director", "general"],
     category: "emotional",
     keywords: ["angry", "frustrat", "furious", "upset", "terrible", "worst", "horrible", "hate", "unacceptable", "disgusting", "ridiculous"],
     response: "I understand this is frustrating. I can help explain the options available. Based on your situation, would you like me to guide you through the next steps, or would you prefer to submit a support ticket for a detailed review?",
@@ -1148,7 +1331,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
   },
   {
     id: "x-blame",
-    role: ["rider", "driver", "admin", "super_admin", "general"],
+    role: ["rider", "driver", "admin", "super_admin", "director", "general"],
     category: "emotional",
     keywords: ["your fault", "you're responsible", "blame", "caused this"],
     response: "I understand your concern. I can help explain the options available to you. Would you like me to walk you through the relevant steps, or would you prefer to connect with our support team?",
@@ -1156,7 +1339,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
   },
   {
     id: "x-thanks",
-    role: ["rider", "driver", "admin", "super_admin", "general"],
+    role: ["rider", "driver", "admin", "super_admin", "director", "general"],
     category: "emotional",
     keywords: ["thank", "thanks", "thank you", "appreciated"],
     response: "Thanks for reaching out. Let me know if you'd like help with anything else.",
@@ -1166,7 +1349,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
   // Legal Threats
   {
     id: "x-legal-threat",
-    role: ["rider", "driver", "admin", "super_admin", "general"],
+    role: ["rider", "driver", "admin", "super_admin", "director", "general"],
     category: "legal_threat",
     keywords: ["sue", "lawyer", "legal action", "court", "lawsuit", "attorney"],
     response: "I understand your concern. For matters requiring formal review, we recommend submitting a support ticket through the Help Center with full details. Our team handles these cases with appropriate attention. ZIBA's terms and policies are available in the Legal section for your reference.",
@@ -1186,7 +1369,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
   // System Failure
   {
     id: "x-system-broken",
-    role: ["rider", "driver", "admin", "super_admin", "general"],
+    role: ["rider", "driver", "admin", "super_admin", "director", "general"],
     category: "system_failure",
     keywords: ["broken", "nothing works", "app broken", "everything broken", "not working", "app down", "site down"],
     response: "I understand this is frustrating. Let's try a few steps:\n1. Refresh the page or restart the app.\n2. Check your internet connection.\n3. Clear your browser cache.\n\nIf the issue persists, submit a support ticket with details about what you're experiencing. A support agent will look into this.",
@@ -1258,7 +1441,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
   // General Help / Default
   {
     id: "x-general-help",
-    role: ["rider", "driver", "admin", "super_admin", "general"],
+    role: ["rider", "driver", "admin", "super_admin", "director", "general"],
     category: "general_help",
     keywords: [],
     response: "Based on your question, we recommend checking the Help Center for detailed guidance. I can guide you through this if you want, or you can submit a support ticket for a detailed review.",

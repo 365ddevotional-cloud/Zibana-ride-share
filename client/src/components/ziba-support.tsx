@@ -66,17 +66,30 @@ const SUPER_ADMIN_TOPICS: QuickTopic[] = [
   { label: "Risk assessment", key: "sa-risk" },
 ];
 
+const DIRECTOR_TOPICS: QuickTopic[] = [
+  { label: "Cell overview", key: "cell-overview" },
+  { label: "Commission eligibility", key: "commission-how" },
+  { label: "My drivers", key: "my-drivers" },
+  { label: "Recruiting drivers", key: "recruit" },
+  { label: "Driver performance", key: "driver-performance" },
+  { label: "Caps and limits", key: "caps" },
+  { label: "Authority and permissions", key: "authority" },
+  { label: "Talk to Support", key: "escalate" },
+];
+
 const GREETINGS: Record<string, string> = {
   "rider": "Hi, I'm ZIBA Support. I'm here to help. Select a topic below or type your question.",
   "driver": "Hi, I'm ZIBA Support. I'm here to help. Select a topic below or type your question.",
   "admin": "ZIBA Support. I can help you navigate dashboard functions, review processes, and administrative actions. Select a topic or ask a question.",
   "super_admin": "ZIBA Support. I can assist with configuration, compliance, risk assessment, and operational oversight. Select a topic or ask a question.",
+  "director": "ZIBA Support. I can help with cell management, driver oversight, and eligibility questions. Select a topic or ask a question.",
   "general": "Hi, I'm ZIBA Support. I'm here to help. Select a topic below or type your question.",
 };
 
 function detectRole(pathname: string, userRoles?: string[]): UserRole {
   if (pathname.startsWith("/admin")) {
     if (userRoles?.includes("super_admin")) return "super_admin";
+    if (userRoles?.includes("director")) return "director";
     if (userRoles?.includes("admin")) return "admin";
     return "admin";
   }
@@ -89,6 +102,7 @@ function getTopics(role: UserRole): QuickTopic[] {
   switch (role) {
     case "super_admin": return SUPER_ADMIN_TOPICS;
     case "admin": return ADMIN_TOPICS;
+    case "director": return DIRECTOR_TOPICS;
     case "driver": return DRIVER_TOPICS;
     case "rider": return RIDER_TOPICS;
     default: return RIDER_TOPICS;

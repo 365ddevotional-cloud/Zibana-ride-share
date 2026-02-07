@@ -1,0 +1,133 @@
+You are continuing execution of the ZIBA platform with FINALIZED Director Logic and ZIBRA Support.
+
+STATUS:
+- Director structure locked
+- 77% daily active rule locked
+- Caps locked (1,300 total / 1,000 commissionable)
+- ZIBRA Director Mode implemented
+
+OBJECTIVE:
+Simulate real-world Director scenarios, stress-test logic, validate permissions, and ensure ZIBRA responses remain safe, calm, and legally protected.
+
+DO NOT:
+- Change commission rules
+- Expose platform earnings
+- Expose commission amounts
+- Modify existing flows unless fixing a bug
+
+====================================================
+PHASE 10 — REAL-WORLD DIRECTOR DAILY SIMULATIONS
+====================================================
+
+Simulate DAILY scenarios for Contract Directors.
+
+SCENARIO SET A — NORMAL DAYS
+- Director with 10 drivers → verify:
+  - Commission activates
+  - Only 77% of active drivers count
+- Director with 50 drivers → verify:
+  - Commissionable drivers = floor(77%)
+- Director with 1,200 drivers → verify:
+  - Commissionable drivers capped at 1,000
+
+Confirm:
+- Only ACTIVE drivers (worked ≥1 trip) are counted
+- Inactive drivers excluded
+- Calculations reset daily
+
+====================================================
+PHASE 11 — EDGE & FAILURE SCENARIOS
+====================================================
+
+SCENARIO SET B — EDGE CASES
+
+1) Director has 9 drivers
+   - No commission
+   - ZIBRA explains activation requirement
+
+2) Director has 30 drivers but only 8 worked today
+   - Commissionable drivers = floor(77% of 8)
+   - ZIBRA explains low activity impact
+
+3) Director reaches 1,300 drivers
+   - New driver signup blocked or flagged
+   - Admin notified
+
+4) Director tries to deactivate driver
+   - Action blocked
+   - ZIBRA explains authority limit
+
+5) Director suspends driver
+   - Suspension allowed
+   - Driver excluded from active count
+
+====================================================
+PHASE 12 — ZIBRA STRESS-TEST (DIRECTOR CONVERSATIONS)
+====================================================
+
+Simulate Director messages:
+
+- “Why didn’t I earn today?”
+- “I recruited 100 drivers, why am I capped?”
+- “ZIBA is cheating me”
+- “Show me how much the platform made”
+- “I want to deactivate this driver now”
+
+ZIBRA must:
+- Stay calm
+- Explain structure
+- Never show money
+- Never admit fault
+- Never argue
+- Redirect to performance & policy
+
+====================================================
+PHASE 13 — PERMISSION & SECURITY TESTS
+====================================================
+
+Verify:
+- Directors cannot:
+  - See platform revenue
+  - See commissions
+  - Modify rules
+  - Access Admin panels
+- Directors can:
+  - Activate referral drivers
+  - Suspend drivers
+- Admin & Super Admin override everything
+
+====================================================
+PHASE 14 — LOGGING & AUDIT CONFIRMATION
+====================================================
+
+Ensure logs capture:
+- Director actions (activate, suspend)
+- Daily eligibility calculations
+- ZIBRA Director conversations
+- Admin overrides
+
+Logs must include:
+- actorId
+- role
+- timestamp
+- action
+- affected driverId(s)
+
+====================================================
+PHASE 15 — FINAL ACCEPTANCE CHECK
+====================================================
+
+Confirm:
+✔ Daily commission logic stable
+✔ Caps enforced correctly
+✔ No revenue leakage
+✔ ZIBRA explanations accurate
+✔ Admin supremacy intact
+✔ No legal promises anywhere
+
+Output:
+1) Simulation results
+2) Any bugs found + fixed
+3) Confirmation of Director readiness
+
+Proceed carefully and do not mark complete until ALL scenarios pass.

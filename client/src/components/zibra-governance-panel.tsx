@@ -35,6 +35,7 @@ const CONFIG_KEYS = [
   { key: "zibra_role_driver_enabled", label: "Driver Support", description: "Enable ZIBRA for drivers", type: "boolean" as const },
   { key: "zibra_role_admin_enabled", label: "Admin Support (Z-Assist)", description: "Enable ZIBRA for admins", type: "boolean" as const },
   { key: "zibra_role_super_admin_enabled", label: "Super Admin Support", description: "Enable ZIBRA for super admins", type: "boolean" as const },
+  { key: "zibra_role_director_enabled", label: "Director Support", description: "Enable ZIBRA for directors", type: "boolean" as const },
   { key: "zibra_safe_mode", label: "Safe Mode", description: "Only allow FAQ responses, no contextual or advisory responses", type: "boolean" as const },
   { key: "zibra_escalation_threshold", label: "Escalation Threshold", description: "Number of messages before suggesting escalation (0 = disabled)", type: "number" as const },
 ];

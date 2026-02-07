@@ -15940,10 +15940,11 @@ export async function registerRoutes(
       let detectedRole = "rider";
       if (roleList.includes("super_admin")) detectedRole = "super_admin";
       else if (roleList.includes("admin")) detectedRole = "admin";
+      else if (roleList.includes("director")) detectedRole = "director";
       else if (roleList.includes("driver")) detectedRole = "driver";
       else if (roleList.includes("rider")) detectedRole = "rider";
 
-      const isPrivileged = detectedRole === "admin" || detectedRole === "super_admin";
+      const isPrivileged = detectedRole === "admin" || detectedRole === "super_admin" || detectedRole === "director";
 
       // Check if ZIBRA is enabled globally
       const zibraEnabled = await storage.getZibraConfig("zibra_enabled");
