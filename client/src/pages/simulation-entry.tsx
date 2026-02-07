@@ -14,14 +14,6 @@ interface SystemStatus {
   expiresMinutes: number;
 }
 
-interface ValidateResponse {
-  valid: boolean;
-  role: string;
-  countryCode: string;
-  city?: string;
-  cashEnabled: boolean;
-}
-
 function getRoleDashboardPath(role: string): string {
   if (role === "driver") return "/driver/dashboard";
   if (role === "admin" || role === "director" || role === "super_admin") return "/admin";
@@ -32,75 +24,38 @@ export default function SimulationEntryPage() {
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [validated, setValidated] = useState(false);
-  const [activating, setActivating] = useState(false);
   const [, navigate] = useLocation();
 
   const { data: systemStatus, isLoading: statusLoading } = useQuery<SystemStatus>({
     queryKey: ["/api/simulation/system-status"],
   });
 
-  const { data: currentUser } = useQuery<any>({
-    queryKey: ["/api/auth/user"],
-    retry: false,
-  });
-
-  const isLoggedIn = !!currentUser?.id;
-
-  const validateMutation = useMutation({
+  const enterMutation = useMutation({
     mutationFn: async (simulationCode: string) => {
-      const res = await fetch("/api/simulation/validate", {
+      const res = await fetch("/api/simulation/enter-direct", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ code: simulationCode }),
       });
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.message || "Invalid code");
       }
-      return res.json() as Promise<ValidateResponse>;
+      return res.json();
     },
-    onSuccess: async (data) => {
+    onSuccess: (data) => {
       setError(null);
       setValidated(true);
 
-      if (isLoggedIn) {
-        setActivating(true);
-        try {
-          const enterRes = await fetch("/api/simulation/enter", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({ code: code.trim() }),
-          });
+      queryClient.invalidateQueries({ queryKey: ["/api/simulation/status"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/role"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
 
-          if (enterRes.ok) {
-            queryClient.invalidateQueries({ queryKey: ["/api/simulation/status"] });
-            queryClient.invalidateQueries({ queryKey: ["/api/user/role"] });
-
-            setTimeout(() => {
-              const dashboardPath = getRoleDashboardPath(data.role);
-              window.location.href = dashboardPath;
-            }, 800);
-          } else {
-            const errData = await enterRes.json();
-            setError(errData.message || "Failed to activate simulation");
-            setValidated(false);
-            setActivating(false);
-          }
-        } catch {
-          setError("Failed to activate simulation. Please try again.");
-          setValidated(false);
-          setActivating(false);
-        }
-      } else {
-        sessionStorage.setItem("ziba-sim-code", code.trim());
-        sessionStorage.setItem("ziba-sim-role", data.role);
-
-        setTimeout(() => {
-          const loginRole = data.role === "admin" || data.role === "director" ? "admin" : data.role;
-          window.location.href = `/api/login?role=${loginRole}`;
-        }, 1200);
-      }
+      setTimeout(() => {
+        const dashboardPath = getRoleDashboardPath(data.role);
+        window.location.href = dashboardPath;
+      }, 800);
     },
     onError: (err: Error) => {
       setError(err.message);
@@ -116,7 +71,7 @@ export default function SimulationEntryPage() {
       return;
     }
     setError(null);
-    validateMutation.mutate(trimmed);
+    enterMutation.mutate(trimmed);
   };
 
   if (statusLoading) {
@@ -161,7 +116,7 @@ export default function SimulationEntryPage() {
               <CheckCircle className="h-10 w-10 mx-auto mb-3 text-green-600 dark:text-green-400" />
               <p className="text-sm font-medium">Code verified</p>
               <p className="text-xs text-muted-foreground mt-1">
-                {activating ? "Activating simulation..." : "Redirecting to login..."}
+                Activating simulation...
               </p>
             </div>
           ) : (
@@ -194,13 +149,13 @@ export default function SimulationEntryPage() {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={validateMutation.isPending || code.trim().length === 0}
+                disabled={enterMutation.isPending || code.trim().length === 0}
                 data-testid="button-start-simulation"
               >
-                {validateMutation.isPending ? (
+                {enterMutation.isPending ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Validating...
+                    Activating...
                   </>
                 ) : (
                   "Start Simulation"

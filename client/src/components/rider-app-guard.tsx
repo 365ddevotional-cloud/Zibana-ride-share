@@ -4,6 +4,7 @@ import { APP_MODE, getAppName } from "@/config/appMode";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useSimulation } from "@/context/SimulationContext";
 
 interface RiderAppGuardProps {
   children: React.ReactNode;
@@ -13,10 +14,11 @@ export function RiderAppGuard({ children }: RiderAppGuardProps) {
   const { user, logout } = useAuth();
   const [location, setLocation] = useLocation();
   const { toast } = useToast();
+  const { isSimulating } = useSimulation();
 
   const isAdminRoute = location.startsWith("/admin");
 
-  const { data: userRole, error: roleError, isError } = useQuery<{ role: string } | null>({
+  const { data: userRole, error: roleError, isError } = useQuery<{ role: string; simulating?: boolean } | null>({
     queryKey: ["/api/user/role"],
     enabled: !!user && !isAdminRoute,
     retry: false,
@@ -24,6 +26,8 @@ export function RiderAppGuard({ children }: RiderAppGuardProps) {
 
   useEffect(() => {
     if (isAdminRoute) return;
+    if (isSimulating) return;
+    if (userRole?.simulating) return;
     
     if (isError && roleError) {
       const errorMessage = (roleError as any)?.message || "";
@@ -38,10 +42,12 @@ export function RiderAppGuard({ children }: RiderAppGuardProps) {
         setLocation("/welcome");
       }
     }
-  }, [isError, roleError, logout, setLocation, toast, isAdminRoute]);
+  }, [isError, roleError, logout, setLocation, toast, isAdminRoute, isSimulating, userRole]);
 
   useEffect(() => {
     if (isAdminRoute) return;
+    if (isSimulating) return;
+    if (userRole?.simulating) return;
     
     if (APP_MODE === "RIDER" && user && userRole?.role && userRole.role !== "rider") {
       console.warn(`[RIDER APP GUARD] Non-rider blocked: role=${userRole.role}`);
@@ -54,7 +60,7 @@ export function RiderAppGuard({ children }: RiderAppGuardProps) {
       logout?.();
       setLocation("/welcome");
     }
-  }, [user, userRole, logout, setLocation, toast, isAdminRoute]);
+  }, [user, userRole, logout, setLocation, toast, isAdminRoute, isSimulating]);
 
   return <>{children}</>;
 }

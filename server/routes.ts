@@ -158,9 +158,21 @@ export async function registerRoutes(
       const userId = req.user.claims.sub;
       const userEmail = req.user.claims.email;
 
-      // SIMULATION MODE OVERRIDE: If user has an active simulation session, return the simulated role
       const { enabled: simEnabled } = getSimulationConfig();
       if (simEnabled) {
+        if (req.user?._isSimulated) {
+          const sessionData = (req as any).session;
+          const simRole = sessionData?.simulatedRole;
+          if (simRole) {
+            return res.json({
+              role: simRole,
+              roles: [simRole],
+              roleCount: 1,
+              simulating: true,
+            });
+          }
+        }
+
         const simSession = await storage.getActiveSimulationSession(userId);
         if (simSession && new Date(simSession.expiresAt) > new Date()) {
           return res.json({

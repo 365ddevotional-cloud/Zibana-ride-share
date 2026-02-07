@@ -1,6 +1,6 @@
-import { createContext, useContext, useCallback, useEffect, useState } from "react";
+import { createContext, useContext, useCallback, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle } from "lucide-react";
@@ -32,50 +32,12 @@ const SimulationContext = createContext<SimulationContextType>({
   exitSimulation: async () => {},
 });
 
-function getRoleDashboardPath(role: string): string {
-  if (role === "driver") return "/driver/dashboard";
-  if (role === "admin" || role === "director" || role === "super_admin") return "/admin";
-  return "/";
-}
-
 export function SimulationProvider({ children }: { children: React.ReactNode }) {
-  const [activating, setActivating] = useState(false);
-
-  const { data, error } = useQuery<SimulationStatusResponse>({
+  const { data } = useQuery<SimulationStatusResponse>({
     queryKey: ["/api/simulation/status"],
     refetchInterval: 30000,
     retry: false,
   });
-
-  useEffect(() => {
-    const pendingCode = sessionStorage.getItem("ziba-sim-code");
-    if (!pendingCode) return;
-
-    if (error) return;
-
-    if (data && !data.active && !activating) {
-      setActivating(true);
-      const savedRole = sessionStorage.getItem("ziba-sim-role") || "rider";
-      sessionStorage.removeItem("ziba-sim-code");
-      sessionStorage.removeItem("ziba-sim-role");
-      fetch("/api/simulation/enter", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ code: pendingCode }),
-      })
-        .then((res) => {
-          if (res.ok) {
-            queryClient.invalidateQueries({ queryKey: ["/api/simulation/status"] });
-            queryClient.invalidateQueries({ queryKey: ["/api/user/role"] });
-            const dashboardPath = getRoleDashboardPath(savedRole);
-            window.location.href = dashboardPath;
-          }
-        })
-        .catch(() => {})
-        .finally(() => setActivating(false));
-    }
-  }, [data, error, activating]);
 
   useEffect(() => {
     if (data?.active && data.expiresAt) {
@@ -98,12 +60,16 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
 
   const exitMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("POST", "/api/simulation/exit");
+      await fetch("/api/simulation/exit", {
+        method: "POST",
+        credentials: "include",
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/simulation/status"] });
       queryClient.invalidateQueries({ queryKey: ["/api/user/role"] });
-      window.location.href = "/";
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      window.location.href = "/simulation";
     },
   });
 
