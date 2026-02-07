@@ -1,0 +1,175 @@
+You are working on the ZIBA Ride Share app (Rider, Driver, Admin).
+
+GOAL: Fix scheduled rides persistence + implement cancellation fees + add rider inbox, notifications, automated in-app marketing + FIX Saved Places (Home/Work) so they are clickable, save correctly, and display on the Rider Home screen. Do NOT change pricing splits or platform commission visibility.
+
+====================================
+0️⃣ FIX: SAVED PLACES (HOME / WORK) NOT CLICKABLE
+====================================
+
+BUG:
+- On Rider Home screen, “Home – Add home address” and “Work – Add work address” are not clickable.
+- They must open a form, allow saving, then return to the previous screen and display the saved address.
+
+REQUIRED UX:
+- Tap “Home” row → navigates to SavedPlaceForm(type="home")
+- Tap “Work” row → navigates to SavedPlaceForm(type="work")
+- Form fields:
+  - Label (auto: Home/Work, non-editable)
+  - Address text (required)
+  - Optional: Notes (gate code / landmark)
+  - Optional: Latitude/Longitude if map/search exists (fallback to text only if not)
+  - Save button (enabled only when address is not empty)
+- On save:
+  - Persist to DB (or user profile table) tied to rider_id
+  - Navigate back to Rider Home
+  - Home/Work rows now show the saved address summary (truncate nicely)
+- Add Edit:
+  - If already saved, tapping Home/Work opens the same form pre-filled with existing value (update not duplicate)
+
+BACKEND REQUIREMENTS:
+- Add/confirm DB storage:
+  Option A (recommended): saved_places table
+    - id, rider_id, type ENUM('home','work'), address, notes, lat, lng, updated_at, created_at
+    - UNIQUE (rider_id, type)
+  Option B: rider_profile fields (home_address, work_address, etc.) if already present
+
+- Provide APIs:
+  GET  /me/saved-places
+  PUT  /me/saved-places/home
+  PUT  /me/saved-places/work
+(or a single endpoint PUT /me/saved-places {type, address, notes, lat, lng})
+
+FRONTEND REQUIREMENTS:
+- Ensure the Saved Places rows are real buttons (not blocked by overlay / pointer-events).
+- Add onClick handlers to navigate.
+- After save, refresh rider profile/saved places state so it renders immediately (optimistic update is fine).
+
+VALIDATION:
+- From Rider Home → tap Home → enter address → Save → back → Home now shows address
+- Same for Work
+- Edit existing address works
+- No page reload required
+
+====================================
+1️⃣ FIX: Scheduled Ride Not Appearing
+====================================
+
+BUG:
+- Rider can successfully schedule a ride
+- Confirmation screen shows success
+- Clicking “View Scheduled Rides” navigates correctly
+- BUT scheduled ride does NOT appear in the Scheduled tab
+
+REQUIRED FIX:
+- Ensure scheduled rides are saved persistently in the database with:
+  - ride_type = "scheduled"
+  - status = "scheduled"
+  - scheduled_at (datetime)
+  - pickup_location
+  - dropoff_location
+  - rider_id
+  - payment_method
+- Ensure backend returns scheduled rides when querying:
+  GET /rides?type=scheduled&user=rider
+- Ensure frontend Scheduled tab uses this API and renders results
+- Ensure newly scheduled ride appears immediately without refresh
+- Add fallback empty-state ONLY if zero scheduled rides exist
+
+VALIDATION:
+- Schedule ride → confirmation → view scheduled rides → ride appears
+
+====================================
+2️⃣ CANCELLATION FEE + PENALTY LOGIC
+====================================
+
+RULES (Nigeria launch):
+- Rider can cancel FREE within 3 minutes AFTER driver accepts
+- If rider cancels AFTER 3 minutes and driver is en route:
+  - Apply fixed cancellation fee (configurable via admin)
+  - Deduct from wallet (preferred) or mark as pending if cash
+- If scheduled ride is canceled within 30 minutes of pickup:
+  - Apply scheduled cancellation penalty
+- Repeated cancellations reduce rider trust score
+
+IMPLEMENT:
+- Server-side enforcement (no frontend-only logic)
+- Admin-configurable values:
+  - cancellation_fee_amount
+  - scheduled_penalty_amount
+  - grace_period_minutes
+- Clear rider-facing messages before confirming cancellation
+
+====================================
+3️⃣ RIDER MESSAGE INBOX
+====================================
+
+ADD:
+- In-app inbox for riders (non-SMS)
+- Message types:
+  - Trip updates
+  - Payment alerts
+  - Cancellation notices
+  - Promotions
+  - System announcements
+- Messages stored in DB and visible in Help / Inbox tab
+- Support team can view rider messages in Admin
+
+====================================
+4️⃣ NOTIFICATION PERMISSIONS
+====================================
+
+IMPLEMENT:
+- Prompt rider for notification permission on first login
+- Notification triggers:
+  - Driver assigned
+  - Driver arriving
+  - Ride scheduled confirmation
+  - Cancellation penalties
+  - Wallet low balance
+- Store notification preferences per user
+
+====================================
+5️⃣ STRATEGIC IN-APP MARKETING (NON-INTRUSIVE)
+====================================
+
+ADD automated messages such as:
+- “Schedule rides in advance and avoid delays”
+- “Low balance — top up your wallet to avoid ride issues”
+- “Reliable drivers available in your area now”
+- “Cash rides available — wallet gives priority matching”
+
+RULES:
+- No spam
+- Max 1 marketing message per 24 hours
+- Disable during active trip
+
+====================================
+6️⃣ ADMIN & DRIVER VISIBILITY
+====================================
+
+ADMIN DASHBOARD:
+- View all scheduled rides
+- Filter by date, city, status
+- See cancellation penalties applied
+- Configure cancellation fee values
+
+DRIVER SIDE:
+- Drivers can see upcoming scheduled rides
+- Drivers receive notification before pickup time
+- Drivers can accept scheduled rides
+
+====================================
+7️⃣ FINAL CHECKLIST
+====================================
+
+✔ Saved Places Home/Work are clickable
+✔ Home/Work save + return + display works (and edit works)
+✔ Scheduled rides persist and display correctly
+✔ Cancellation fees enforced server-side
+✔ Rider inbox functional
+✔ Notifications permission implemented
+✔ Marketing messages live but controlled
+✔ Admin controls configurable
+✔ No exposure of platform commission or splits
+
+Proceed carefully, test end-to-end, and confirm each section works before marking complete.

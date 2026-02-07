@@ -5,7 +5,7 @@ import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integra
 import { storage } from "./storage";
 import { db } from "./db";
 import { eq, and, count, sql, gte, lt, isNotNull, inArray, desc } from "drizzle-orm";
-import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers } from "@shared/schema";
+import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages } from "@shared/schema";
 import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, evaluateAllDrivers, evaluateBehaviorAndWarnings, calculateDriverMatchingScore, getDriverIncentiveProgress, assignFirstRidePromo, assignReturnRiderPromo, applyPromoToTrip, voidPromosOnCancellation } from "./incentives";
 import { notificationService } from "./notification-service";
 import { getCurrencyFromCountry, getCountryConfig, FINANCIAL_ENGINE_LOCKED } from "@shared/currency";
@@ -2766,9 +2766,86 @@ export async function registerRoutes(
       const { tripId } = req.params;
       const { reason } = req.body || {};
 
+      const existingTrip = await storage.getTripById(tripId);
+      if (!existingTrip) {
+        return res.status(404).json({ message: "Trip not found" });
+      }
+
+      let cancellationFeeAmount: string | null = null;
+      let feeDeducted = false;
+      let feeMessage = "";
+
+      try {
+        const userRole = await storage.getUserRole(userId);
+        const countryCode = userRole?.countryCode || "NG";
+        const feeConfig = await storage.getCancellationFeeConfig(countryCode);
+
+        if (feeConfig) {
+          const gracePeriodMs = (feeConfig.gracePeriodMinutes || 3) * 60 * 1000;
+          const tripCreatedAt = existingTrip.createdAt ? new Date(existingTrip.createdAt).getTime() : 0;
+          const timeSinceRequest = Date.now() - tripCreatedAt;
+          const isWithinGrace = timeSinceRequest < gracePeriodMs;
+
+          if (existingTrip.isReserved && existingTrip.scheduledPickupAt) {
+            const scheduledTime = new Date(existingTrip.scheduledPickupAt).getTime();
+            const cancelWindowMs = (feeConfig.scheduledCancelWindowMinutes || 30) * 60 * 1000;
+            const timeUntilPickup = scheduledTime - Date.now();
+
+            if (timeUntilPickup <= cancelWindowMs) {
+              cancellationFeeAmount = feeConfig.scheduledPenaltyAmount;
+              feeMessage = `Scheduled ride cancellation fee of ${feeConfig.scheduledPenaltyAmount} applied (cancelled within ${feeConfig.scheduledCancelWindowMinutes} minutes of pickup).`;
+            }
+          } else if (!isWithinGrace && existingTrip.status !== "requested") {
+            if (existingTrip.status === "accepted" && existingTrip.driverId) {
+              cancellationFeeAmount = feeConfig.cancellationFeeAmount;
+              feeMessage = `Cancellation fee of ${feeConfig.cancellationFeeAmount} applied (driver already assigned).`;
+            }
+          }
+
+          if (cancellationFeeAmount) {
+            const riderProfile = await storage.getRiderProfile(userId);
+            if (riderProfile && (riderProfile.paymentMethod === "WALLET" || riderProfile.paymentMethod === "TEST_WALLET")) {
+              const riderWallet = await storage.getRiderWallet(userId);
+              if (riderWallet && parseFloat(riderWallet.balance) >= parseFloat(cancellationFeeAmount)) {
+                await storage.updateRiderWalletBalance(userId, parseFloat(cancellationFeeAmount), "debit");
+                feeDeducted = true;
+                feeMessage += " Fee deducted from your wallet.";
+              } else {
+                feeMessage += " Insufficient wallet balance - fee recorded but not deducted.";
+              }
+            } else {
+              feeMessage += " Fee recorded on your account.";
+            }
+
+            await storage.createRiderInboxMessage({
+              userId,
+              title: "Cancellation Fee Applied",
+              body: feeMessage,
+              type: "payment_alert",
+              read: false,
+              referenceId: tripId,
+              referenceType: "trip_cancellation",
+            });
+          }
+        }
+      } catch (feeError) {
+        console.error("Error processing cancellation fee:", feeError);
+      }
+
       const trip = await storage.cancelTrip(tripId, userId, reason);
       if (!trip) {
         return res.status(404).json({ message: "Trip not found or cannot be cancelled" });
+      }
+
+      if (cancellationFeeAmount) {
+        try {
+          await storage.updateTrip(tripId, {
+            cancellationFeeApplied: cancellationFeeAmount,
+            cancellationFeeDeducted: feeDeducted,
+          });
+        } catch (updateError) {
+          console.error("Error updating trip cancellation fee fields:", updateError);
+        }
       }
 
       // Phase 5: Update behavior stats on cancellation and void promos
@@ -2782,7 +2859,12 @@ export async function registerRoutes(
         console.error("Error updating behavior on cancellation:", behaviorError);
       }
 
-      return res.json(trip);
+      return res.json({
+        ...trip,
+        cancellationFeeApplied: cancellationFeeAmount,
+        cancellationFeeDeducted: feeDeducted,
+        cancellationFeeMessage: feeMessage || undefined,
+      });
     } catch (error) {
       console.error("Error cancelling ride:", error);
       return res.status(500).json({ message: "Failed to cancel ride" });
@@ -17641,6 +17723,187 @@ export async function registerRoutes(
       return res.status(500).json({ message: "Failed to restore member access" });
     }
   });
+
+  // =============================================
+  // CANCELLATION FEE CONFIG ROUTES
+  // =============================================
+  app.get("/api/admin/cancellation-fee-config", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const configs = await storage.getAllCancellationFeeConfigs();
+      return res.json(configs);
+    } catch (error) {
+      console.error("Error getting cancellation fee configs:", error);
+      return res.status(500).json({ message: "Failed to get cancellation fee configs" });
+    }
+  });
+
+  app.put("/api/admin/cancellation-fee-config", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const data = { ...req.body, updatedBy: userId };
+      const config = await storage.upsertCancellationFeeConfig(data);
+      return res.json(config);
+    } catch (error) {
+      console.error("Error updating cancellation fee config:", error);
+      return res.status(500).json({ message: "Failed to update cancellation fee config" });
+    }
+  });
+
+  // =============================================
+  // RIDER INBOX MESSAGES ROUTES
+  // =============================================
+  app.get("/api/rider/inbox", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const messages = await storage.getRiderInboxMessages(userId);
+      return res.json(messages);
+    } catch (error) {
+      console.error("Error getting rider inbox:", error);
+      return res.status(500).json({ message: "Failed to get inbox messages" });
+    }
+  });
+
+  app.post("/api/rider/inbox/:messageId/read", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { messageId } = req.params;
+      const message = await storage.markRiderInboxMessageRead(messageId, userId);
+      if (!message) {
+        return res.status(404).json({ message: "Message not found" });
+      }
+      return res.json(message);
+    } catch (error) {
+      console.error("Error marking message as read:", error);
+      return res.status(500).json({ message: "Failed to mark message as read" });
+    }
+  });
+
+  app.post("/api/rider/inbox/read-all", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      await storage.markAllRiderInboxMessagesRead(userId);
+      return res.json({ message: "All messages marked as read" });
+    } catch (error) {
+      console.error("Error marking all messages as read:", error);
+      return res.status(500).json({ message: "Failed to mark all messages as read" });
+    }
+  });
+
+  app.get("/api/rider/inbox/unread-count", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const unreadCount = await storage.getRiderUnreadMessageCount(userId);
+      return res.json({ unreadCount });
+    } catch (error) {
+      console.error("Error getting unread count:", error);
+      return res.status(500).json({ message: "Failed to get unread count" });
+    }
+  });
+
+  app.get("/api/admin/rider-inbox/:userId", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const messages = await storage.getRiderInboxMessages(userId);
+      return res.json(messages);
+    } catch (error) {
+      console.error("Error getting rider inbox for admin:", error);
+      return res.status(500).json({ message: "Failed to get rider inbox" });
+    }
+  });
+
+  // =============================================
+  // NOTIFICATION PREFERENCES ROUTES
+  // =============================================
+  app.get("/api/rider/notification-preferences", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const prefs = await storage.getNotificationPreferences(userId);
+      return res.json(prefs);
+    } catch (error) {
+      console.error("Error getting notification preferences:", error);
+      return res.status(500).json({ message: "Failed to get notification preferences" });
+    }
+  });
+
+  app.put("/api/rider/notification-preferences", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const updates = req.body;
+      const prefs = await storage.updateNotificationPreferences(userId, updates);
+      return res.json(prefs);
+    } catch (error) {
+      console.error("Error updating notification preferences:", error);
+      return res.status(500).json({ message: "Failed to update notification preferences" });
+    }
+  });
+
+  // =============================================
+  // MARKETING MESSAGES ROUTE
+  // =============================================
+  app.get("/api/rider/marketing-tip", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      const activeTrips = await storage.getActiveTripsByUser(userId);
+      if (activeTrips && activeTrips.length > 0) {
+        return res.json({ eligible: false, reason: "Active trip in progress" });
+      }
+
+      const lastMessage = await storage.getLastMarketingMessage(userId);
+      if (lastMessage && lastMessage.sentAt) {
+        const hoursSinceLast = (Date.now() - new Date(lastMessage.sentAt).getTime()) / (1000 * 60 * 60);
+        if (hoursSinceLast < 24) {
+          return res.json({ eligible: false, reason: "Already received a tip today" });
+        }
+      }
+
+      const tips = [
+        { key: "wallet_topup", text: "Top up your wallet for faster checkouts and avoid payment delays during rides." },
+        { key: "schedule_rides", text: "Schedule your rides in advance to guarantee a driver at your preferred time." },
+        { key: "rate_drivers", text: "Rating your drivers helps us match you with the best rides every time." },
+        { key: "trusted_contacts", text: "Add trusted contacts so they can track your trip in real time for safety." },
+        { key: "promo_codes", text: "Check your inbox for promo codes and discounts on your next ride." },
+        { key: "peak_hours", text: "Avoid peak hours (7-9 AM, 5-7 PM) for lower fares and faster pickups." },
+      ];
+
+      const tipIndex = Math.floor(Math.random() * tips.length);
+      const tip = tips[tipIndex];
+
+      const message = await storage.createMarketingMessage({
+        userId,
+        messageKey: tip.key,
+        messageText: tip.text,
+      });
+
+      return res.json({ eligible: true, tip: tip.text, messageKey: tip.key, messageId: message.id });
+    } catch (error) {
+      console.error("Error getting marketing tip:", error);
+      return res.status(500).json({ message: "Failed to get marketing tip" });
+    }
+  });
+
+  // =============================================
+  // SEED DEFAULT NG CANCELLATION FEE CONFIG
+  // =============================================
+  (async () => {
+    try {
+      const existingConfig = await storage.getCancellationFeeConfig("NG");
+      if (!existingConfig) {
+        await storage.upsertCancellationFeeConfig({
+          countryCode: "NG",
+          cancellationFeeAmount: "500.00",
+          scheduledPenaltyAmount: "750.00",
+          gracePeriodMinutes: 3,
+          scheduledCancelWindowMinutes: 30,
+          arrivedCancellationFeeAmount: "800.00",
+          isActive: true,
+        });
+        console.log("[SEED] Default NG cancellation fee config created");
+      }
+    } catch (error) {
+      console.error("[SEED] Error seeding cancellation fee config:", error);
+    }
+  })();
 
   return httpServer;
 }

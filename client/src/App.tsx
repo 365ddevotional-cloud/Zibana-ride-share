@@ -50,6 +50,7 @@ const DriverWelcomePage = lazy(() => import("@/pages/driver/welcome"));
 const DriverRegisterPage = lazy(() => import("@/pages/driver/register"));
 const DriverWelcomeBackPage = lazy(() => import("@/pages/driver/welcome-back"));
 const RiderSchedulePage = lazy(() => import("@/pages/rider/schedule"));
+const RiderInboxPage = lazy(() => import("@/pages/rider/inbox"));
 const RiderWelcomeBackPage = lazy(() => import("@/pages/rider/welcome-back"));
 const HelpCenterPage = lazy(() => import("@/pages/help-center"));
 const TrustedContactsPage = lazy(() => import("@/pages/rider/trusted-contacts"));
@@ -481,6 +482,12 @@ function RiderRouter() {
       <Route path="/rider/profile">
         <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["rider"]}>
           <LazyComponent><RiderProfilePage /></LazyComponent>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/rider/inbox">
+        <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["rider"]}>
+          <LazyComponent><RiderInboxPage /></LazyComponent>
         </ProtectedRoute>
       </Route>
       

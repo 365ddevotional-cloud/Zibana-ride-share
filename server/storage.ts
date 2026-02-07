@@ -416,6 +416,18 @@ import {
   bankTransfers,
   type BankTransfer,
   type InsertBankTransfer,
+  riderInboxMessages,
+  type RiderInboxMessage,
+  type InsertRiderInboxMessage,
+  notificationPreferences,
+  type NotificationPreferences,
+  type InsertNotificationPreferences,
+  cancellationFeeConfig,
+  type CancellationFeeConfig,
+  type InsertCancellationFeeConfig,
+  marketingMessages,
+  type MarketingMessage,
+  type InsertMarketingMessage,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull } from "drizzle-orm";
@@ -1280,6 +1292,26 @@ export interface IStorage {
   getBankTransferByReference(referenceCode: string): Promise<BankTransfer | null>;
   getAllBankTransfers(status?: string): Promise<BankTransfer[]>;
   updateBankTransferStatus(id: string, status: string, adminId?: string, notes?: string): Promise<BankTransfer | null>;
+
+  // Cancellation Fee Config
+  getCancellationFeeConfig(countryCode: string): Promise<CancellationFeeConfig | null>;
+  upsertCancellationFeeConfig(data: InsertCancellationFeeConfig): Promise<CancellationFeeConfig>;
+  getAllCancellationFeeConfigs(): Promise<CancellationFeeConfig[]>;
+
+  // Rider Inbox Messages
+  createRiderInboxMessage(data: InsertRiderInboxMessage): Promise<RiderInboxMessage>;
+  getRiderInboxMessages(userId: string): Promise<RiderInboxMessage[]>;
+  markRiderInboxMessageRead(messageId: string, userId: string): Promise<RiderInboxMessage | null>;
+  markAllRiderInboxMessagesRead(userId: string): Promise<void>;
+  getRiderUnreadMessageCount(userId: string): Promise<number>;
+
+  // Notification Preferences
+  getNotificationPreferences(userId: string): Promise<NotificationPreferences>;
+  updateNotificationPreferences(userId: string, updates: Partial<NotificationPreferences>): Promise<NotificationPreferences>;
+
+  // Marketing Messages
+  getLastMarketingMessage(userId: string): Promise<MarketingMessage | null>;
+  createMarketingMessage(data: InsertMarketingMessage): Promise<MarketingMessage>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -10119,6 +10151,111 @@ export class DatabaseStorage implements IStorage {
       .where(eq(bankTransfers.id, id))
       .returning();
     return transfer || null;
+  }
+
+  // Cancellation Fee Config
+  async getCancellationFeeConfig(countryCode: string): Promise<CancellationFeeConfig | null> {
+    const [config] = await db.select().from(cancellationFeeConfig)
+      .where(and(
+        eq(cancellationFeeConfig.countryCode, countryCode),
+        eq(cancellationFeeConfig.isActive, true)
+      ))
+      .limit(1);
+    return config || null;
+  }
+
+  async upsertCancellationFeeConfig(data: InsertCancellationFeeConfig): Promise<CancellationFeeConfig> {
+    const existing = await this.getCancellationFeeConfig(data.countryCode || "NG");
+    if (existing) {
+      const [updated] = await db.update(cancellationFeeConfig)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(cancellationFeeConfig.id, existing.id))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(cancellationFeeConfig).values(data).returning();
+    return created;
+  }
+
+  async getAllCancellationFeeConfigs(): Promise<CancellationFeeConfig[]> {
+    return db.select().from(cancellationFeeConfig).orderBy(desc(cancellationFeeConfig.createdAt));
+  }
+
+  // Rider Inbox Messages
+  async createRiderInboxMessage(data: InsertRiderInboxMessage): Promise<RiderInboxMessage> {
+    const [message] = await db.insert(riderInboxMessages).values(data).returning();
+    return message;
+  }
+
+  async getRiderInboxMessages(userId: string): Promise<RiderInboxMessage[]> {
+    return db.select().from(riderInboxMessages)
+      .where(eq(riderInboxMessages.userId, userId))
+      .orderBy(desc(riderInboxMessages.createdAt));
+  }
+
+  async markRiderInboxMessageRead(messageId: string, userId: string): Promise<RiderInboxMessage | null> {
+    const [message] = await db.update(riderInboxMessages)
+      .set({ read: true })
+      .where(and(
+        eq(riderInboxMessages.id, messageId),
+        eq(riderInboxMessages.userId, userId)
+      ))
+      .returning();
+    return message || null;
+  }
+
+  async markAllRiderInboxMessagesRead(userId: string): Promise<void> {
+    await db.update(riderInboxMessages)
+      .set({ read: true })
+      .where(and(
+        eq(riderInboxMessages.userId, userId),
+        eq(riderInboxMessages.read, false)
+      ));
+  }
+
+  async getRiderUnreadMessageCount(userId: string): Promise<number> {
+    const [result] = await db.select({ count: count() }).from(riderInboxMessages)
+      .where(and(
+        eq(riderInboxMessages.userId, userId),
+        eq(riderInboxMessages.read, false)
+      ));
+    return result?.count || 0;
+  }
+
+  // Notification Preferences
+  async getNotificationPreferences(userId: string): Promise<NotificationPreferences> {
+    const [prefs] = await db.select().from(notificationPreferences)
+      .where(eq(notificationPreferences.userId, userId))
+      .limit(1);
+    if (prefs) return prefs;
+    const [created] = await db.insert(notificationPreferences)
+      .values({ userId })
+      .returning();
+    return created;
+  }
+
+  async updateNotificationPreferences(userId: string, updates: Partial<NotificationPreferences>): Promise<NotificationPreferences> {
+    const existing = await this.getNotificationPreferences(userId);
+    const { id, userId: _, createdAt, ...safeUpdates } = updates as any;
+    const [updated] = await db.update(notificationPreferences)
+      .set({ ...safeUpdates, updatedAt: new Date() })
+      .where(eq(notificationPreferences.id, existing.id))
+      .returning();
+    return updated;
+  }
+
+  // Marketing Messages
+  async getLastMarketingMessage(userId: string): Promise<MarketingMessage | null> {
+    const [message] = await db.select().from(marketingMessages)
+      .where(eq(marketingMessages.userId, userId))
+      .orderBy(desc(marketingMessages.sentAt))
+      .limit(1);
+    return message || null;
+  }
+
+  async createMarketingMessage(data: InsertMarketingMessage): Promise<MarketingMessage> {
+    const [message] = await db.insert(marketingMessages).values(data).returning();
+    return message;
   }
 }
 

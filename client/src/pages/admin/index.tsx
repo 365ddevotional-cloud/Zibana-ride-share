@@ -38,6 +38,7 @@ import { CashDisputesPanel } from "@/components/admin/cash-disputes-panel";
 import { SimulationCenter } from "@/components/admin/simulation-center";
 import { CorporateRidesPanel } from "@/components/admin/corporate-rides-panel";
 import { BankTransfersPanel } from "@/components/admin/bank-transfers-panel";
+import { AdminCancellationFeeSettings } from "@/components/admin/cancellation-fee-settings";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -6838,7 +6839,10 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
           )}
           {(isSuperAdmin || userRole === "admin") && (
             <TabsContent value="fee-settings">
-              <CancellationFeeSettings />
+              <div className="space-y-6">
+                <CancellationFeeSettings />
+                <AdminCancellationFeeSettings />
+              </div>
             </TabsContent>
           )}
           {isSuperAdmin && (
