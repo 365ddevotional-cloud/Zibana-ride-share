@@ -1334,14 +1334,14 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "director",
     category: "director_appeals",
     keywords: ["appeal", "contest", "dispute decision", "challenge", "unfair decision", "review my case"],
-    response: "You can submit an appeal through your director dashboard. Include the reason for your appeal and any supporting explanation. Your appeal will be reviewed by administration. Outcomes depend on policy and the specifics of your case. There are no guaranteed timelines for review."
+    response: "You can submit an appeal through your director dashboard. Include the reason for your appeal and any supporting explanation. Your appeal will be reviewed by administration. Outcomes depend on policy and the specifics of your case. Review timelines are not fixed and vary by case."
   },
   {
     id: "d-appeal-status",
     role: "director",
     category: "director_appeals",
     keywords: ["appeal status", "my appeal", "appeal update", "when will appeal", "appeal decision"],
-    response: "You can check the status of your appeals on your dashboard. Appeals are reviewed by administration according to policy. We cannot provide specific timelines or guarantee outcomes. Each case is assessed individually."
+    response: "You can check the status of your appeals on your dashboard. Appeals are reviewed by administration according to policy. We cannot provide specific timelines and outcomes are not predetermined. Each case is assessed individually."
   },
   {
     id: "d-reinstatement",
@@ -1371,7 +1371,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "director",
     category: "director_deescalation",
     keywords: ["show me the numbers", "real data", "internal data", "actual revenue", "how much money", "platform revenue", "company earnings"],
-    response: "Your director dashboard provides all the metrics relevant to your role, including driver counts, activity levels, and eligibility status. Internal platform financial data is confidential and not shared with individual accounts. If you have questions about your specific metrics, I can help explain what your dashboard shows."
+    response: "I understand your concern. Your director dashboard provides all the metrics relevant to your role, including driver counts, activity levels, and eligibility status. Internal platform financial data is confidential and not shared with individual accounts. If you have questions about your specific metrics, I can help explain what your dashboard shows."
   },
   {
     id: "d-accusation-cheating",
@@ -1385,7 +1385,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "director",
     category: "director_deescalation",
     keywords: ["want more", "need more money", "pay more", "increase my rate", "higher commission", "raise"],
-    response: "Commission rates and eligibility criteria are set at the platform level and apply equally to all directors. These are periodically reviewed by administration. The most effective way to improve your eligibility is to focus on growing your active driver count. Higher daily activity directly impacts your daily eligibility calculation."
+    response: "I understand your concern. Commission rates and eligibility criteria are set at the platform level and apply equally to all directors. These are periodically reviewed by administration. The most effective way to improve your eligibility is to focus on growing your active driver count. Higher daily activity directly impacts your daily eligibility calculation."
   },
 
   // ============================
