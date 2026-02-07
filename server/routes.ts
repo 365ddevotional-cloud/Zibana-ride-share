@@ -13238,11 +13238,12 @@ export async function registerRoutes(
         if (recentReports.length >= 3) {
           await storage.createLostItemFraudSignal({
             userId: riderId,
-            lostItemReportId: report.id,
+            userRole: "rider",
+            relatedReportId: report.id,
             signalType: "frequent_reporter",
             severity: recentReports.length >= 5 ? "high" : "medium",
             riskScore: Math.min(recentReports.length * 15, 100),
-            details: `${recentReports.length} lost item reports in the last 30 days`,
+            description: `${recentReports.length} lost item reports in the last 30 days`,
           });
         }
 
@@ -13251,11 +13252,12 @@ export async function registerRoutes(
         if (sameTypeReports.length >= 2) {
           await storage.createLostItemFraudSignal({
             userId: riderId,
-            lostItemReportId: report.id,
+            userRole: "rider",
+            relatedReportId: report.id,
             signalType: "same_item_type",
             severity: sameTypeReports.length >= 3 ? "high" : "medium",
             riskScore: Math.min(sameTypeReports.length * 20, 100),
-            details: `${sameTypeReports.length} reports for "${itemCategory || "other"}" items in the last 30 days`,
+            description: `${sameTypeReports.length} reports for "${itemCategory || "other"}" items in the last 30 days`,
           });
         }
 
@@ -13263,11 +13265,12 @@ export async function registerRoutes(
         if (!photoUrls || (Array.isArray(photoUrls) && photoUrls.length === 0)) {
           await storage.createLostItemFraudSignal({
             userId: riderId,
-            lostItemReportId: report.id,
+            userRole: "rider",
+            relatedReportId: report.id,
             signalType: "no_proof",
             severity: "low",
             riskScore: 10,
-            details: "Lost item report submitted without photo evidence",
+            description: "Lost item report submitted without photo evidence",
           });
         }
 
@@ -13280,11 +13283,12 @@ export async function registerRoutes(
         if (driverAccusations.length >= 3) {
           await storage.createLostItemFraudSignal({
             userId: trip.driverId || "",
-            lostItemReportId: report.id,
+            userRole: "driver",
+            relatedReportId: report.id,
             signalType: "frequent_accused",
             severity: driverAccusations.length >= 5 ? "high" : "medium",
             riskScore: Math.min(driverAccusations.length * 15, 100),
-            details: `Driver accused in ${driverAccusations.length} lost item reports in the last 30 days`,
+            description: `Driver accused in ${driverAccusations.length} lost item reports in the last 30 days`,
           });
         }
       } catch (fraudError) {
@@ -13354,11 +13358,32 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Not authorized" });
       }
 
-      const updated = await storage.updateLostItemReport(req.params.id, {
-        status: response,
-        driverNotes: driverNotes || null,
-        driverResponseAt: new Date(),
-      });
+      const updateData: any = {
+        status: response === "driver_confirmed" ? "found" : "driver_denied",
+        driverHasItem: response === "driver_confirmed",
+        driverConfirmedAt: new Date(),
+      };
+      if (driverNotes) updateData.adminNotes = driverNotes;
+
+      // When driver confirms item found: unlock communication + make rider phone visible to driver
+      if (response === "driver_confirmed") {
+        updateData.communicationUnlocked = true;
+        updateData.communicationUnlockedAt = new Date();
+        updateData.riderPhoneVisible = true;
+      }
+
+      const updated = await storage.updateLostItemReport(req.params.id, updateData);
+
+      // Create system message in chat
+      if (response === "driver_confirmed") {
+        await storage.createLostItemMessage({
+          lostItemReportId: req.params.id,
+          senderId: "system",
+          senderRole: "system",
+          message: "Driver confirmed the item was found. Chat is now unlocked for coordinating the return.",
+          isSystemMessage: true,
+        });
+      }
 
       // Capture trust signal for driver response
       try {
@@ -13379,13 +13404,19 @@ export async function registerRoutes(
     }
   });
 
-  // Update lost item status (return in progress, returned, etc.)
+  // Update lost item status (return in progress, returned, disputed, resolved_by_admin)
   app.patch("/api/lost-items/:id/status", isAuthenticated, async (req, res) => {
     try {
-      const { status, returnFee, driverShare, platformFee, returnLocation, returnNotes } = req.body;
+      const userId = req.user!.claims.sub;
+      const { status, returnFee, driverShare, platformFee, returnLocation, returnNotes, disputeReason } = req.body;
 
       if (!status) {
         return res.status(400).json({ message: "Status is required" });
+      }
+
+      const validStatuses = ["reported", "found", "returned", "disputed", "resolved_by_admin", "driver_denied", "closed"];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ message: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
       }
 
       const report = await storage.getLostItemReport(req.params.id);
@@ -13394,15 +13425,101 @@ export async function registerRoutes(
       }
 
       const updateData: any = { status };
-      if (returnFee !== undefined) updateData.returnFee = returnFee;
-      if (driverShare !== undefined) updateData.driverShare = driverShare;
+      if (returnFee !== undefined) updateData.returnFeeAmount = returnFee;
+      if (driverShare !== undefined) updateData.driverPayout = driverShare;
       if (platformFee !== undefined) updateData.platformFee = platformFee;
-      if (returnLocation) updateData.returnLocation = returnLocation;
-      if (returnNotes) updateData.returnNotes = returnNotes;
-      if (status === "returned") updateData.returnedAt = new Date();
-      if (status === "closed") updateData.closedAt = new Date();
+      if (returnLocation) updateData.meetupLocation = returnLocation;
+
+      if (status === "returned") {
+        updateData.returnCompletedAt = new Date();
+        updateData.driverPhoneVisible = true;
+
+        // Apply return fee from config if not provided
+        if (!returnFee && report.driverId) {
+          try {
+            const feeConfig = await storage.getLostItemFeeConfig("NG");
+            if (feeConfig) {
+              const fee = report.urgency === "urgent" ? parseFloat(feeConfig.urgentFee || "0") : parseFloat(feeConfig.standardFee || "0");
+              const driverPct = feeConfig.driverSharePercent || 75;
+              updateData.returnFeeAmount = fee.toFixed(2);
+              updateData.driverPayout = (fee * driverPct / 100).toFixed(2);
+              updateData.platformFee = (fee * (100 - driverPct) / 100).toFixed(2);
+              updateData.feeCollected = true;
+            }
+          } catch (feeErr) {
+            console.error("Fee calculation failed (non-blocking):", feeErr);
+          }
+        }
+
+        // System message
+        await storage.createLostItemMessage({
+          lostItemReportId: req.params.id,
+          senderId: "system",
+          senderRole: "system",
+          message: "Item has been returned successfully. Driver phone number is now visible to the rider.",
+          isSystemMessage: true,
+        });
+      }
+
+      if (status === "disputed") {
+        updateData.disputeReason = disputeReason || "No reason provided";
+        await storage.createLostItemMessage({
+          lostItemReportId: req.params.id,
+          senderId: "system",
+          senderRole: "system",
+          message: "This case has been disputed and escalated for admin review.",
+          isSystemMessage: true,
+        });
+      }
+
+      if (status === "resolved_by_admin") {
+        updateData.resolvedByAdminId = userId;
+        updateData.resolvedAt = new Date();
+        await storage.createLostItemMessage({
+          lostItemReportId: req.params.id,
+          senderId: "system",
+          senderRole: "system",
+          message: "This case has been resolved by an administrator.",
+          isSystemMessage: true,
+        });
+      }
 
       const updated = await storage.updateLostItemReport(req.params.id, updateData);
+
+      // Log analytics on terminal states
+      if (["returned", "disputed", "resolved_by_admin", "closed"].includes(status)) {
+        try {
+          const messages = await storage.getLostItemMessages(req.params.id);
+          const fraudSignals = await storage.getLostItemFraudSignalsByUser(report.riderId);
+          const riderReports = await storage.getLostItemReportsByRider(report.riderId);
+          const driverReports = report.driverId ? await storage.getLostItemReportsByDriver(report.driverId) : [];
+          const driverReturns = driverReports.filter(r => r.status === "returned").length;
+          const driverDenials = driverReports.filter(r => r.status === "driver_denied").length;
+
+          const createdAt = new Date(report.createdAt);
+          const resolvedAt = new Date();
+          const resolutionHours = (resolvedAt.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+
+          await storage.createLostItemAnalytics({
+            lostItemReportId: req.params.id,
+            riderId: report.riderId,
+            driverId: report.driverId || undefined,
+            tripId: report.tripId,
+            itemCategory: report.itemType,
+            outcome: status,
+            reportToResolutionHours: resolutionHours.toFixed(2),
+            returnFeeApplied: updated?.returnFeeAmount || undefined,
+            driverEarnings: updated?.driverPayout || undefined,
+            riderLostItemCount: riderReports.length,
+            driverReturnCount: driverReturns,
+            driverDenialCount: driverDenials,
+            chatMessageCount: messages.filter(m => !m.isSystemMessage).length,
+            fraudSignalCount: fraudSignals.filter(s => s.lostItemReportId === req.params.id).length,
+          });
+        } catch (analyticsErr) {
+          console.error("Analytics logging failed (non-blocking):", analyticsErr);
+        }
+      }
 
       // Capture trust signal for status transitions
       try {
@@ -13463,6 +13580,196 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error updating lost item fee config:", error);
       return res.status(500).json({ message: "Failed to update config" });
+    }
+  });
+
+  // =============================================
+  // LOST ITEM CHAT & COMMUNICATION
+  // =============================================
+
+  // Get chat messages for a lost item report
+  app.get("/api/lost-items/:id/messages", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.claims.sub;
+      const report = await storage.getLostItemReport(req.params.id);
+      if (!report) {
+        return res.status(404).json({ message: "Report not found" });
+      }
+      if (report.riderId !== userId && report.driverId !== userId) {
+        const role = await storage.getUserRole(userId);
+        if (!role || !["super_admin", "admin", "support_agent"].includes(role.role)) {
+          return res.status(403).json({ message: "Not authorized" });
+        }
+      }
+      if (!report.communicationUnlocked) {
+        return res.json([]);
+      }
+      await storage.markLostItemMessagesRead(req.params.id, userId);
+      const messages = await storage.getLostItemMessages(req.params.id);
+      return res.json(messages);
+    } catch (error) {
+      console.error("Error getting lost item messages:", error);
+      return res.status(500).json({ message: "Failed to get messages" });
+    }
+  });
+
+  // Send a chat message for a lost item report
+  app.post("/api/lost-items/:id/messages", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.claims.sub;
+      const { message } = req.body;
+      if (!message || !message.trim()) {
+        return res.status(400).json({ message: "Message is required" });
+      }
+      const report = await storage.getLostItemReport(req.params.id);
+      if (!report) {
+        return res.status(404).json({ message: "Report not found" });
+      }
+      if (report.riderId !== userId && report.driverId !== userId) {
+        return res.status(403).json({ message: "Only the rider or driver can send messages" });
+      }
+      if (!report.communicationUnlocked) {
+        return res.status(403).json({ message: "Communication is not yet unlocked for this report" });
+      }
+      const senderRole = report.riderId === userId ? "rider" : "driver";
+      const msg = await storage.createLostItemMessage({
+        lostItemReportId: req.params.id,
+        senderId: userId,
+        senderRole,
+        message: message.trim(),
+        isSystemMessage: false,
+      });
+      return res.status(201).json(msg);
+    } catch (error) {
+      console.error("Error sending lost item message:", error);
+      return res.status(500).json({ message: "Failed to send message" });
+    }
+  });
+
+  // Get phone number for a lost item (privacy-controlled)
+  app.get("/api/lost-items/:id/phone", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.claims.sub;
+      const report = await storage.getLostItemReport(req.params.id);
+      if (!report) {
+        return res.status(404).json({ message: "Report not found" });
+      }
+
+      const isRider = report.riderId === userId;
+      const isDriver = report.driverId === userId;
+      if (!isRider && !isDriver) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+
+      // Rider wants driver phone: only after item is returned
+      if (isRider && report.driverPhoneVisible && report.driverId) {
+        const driverProfile = await storage.getDriverProfile(report.driverId);
+        return res.json({ phone: driverProfile?.phone || null, role: "driver" });
+      }
+
+      // Driver wants rider phone: only after driver confirms found
+      if (isDriver && report.riderPhoneVisible) {
+        const riderUser = await storage.getUser(report.riderId);
+        return res.json({ phone: riderUser?.phone || null, role: "rider" });
+      }
+
+      return res.json({ phone: null, message: "Phone not yet available" });
+    } catch (error) {
+      console.error("Error getting phone for lost item:", error);
+      return res.status(500).json({ message: "Failed to get phone" });
+    }
+  });
+
+  // Admin: Unlock or revoke communication for a lost item
+  app.patch("/api/admin/lost-items/:id/communication", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const adminId = req.user!.claims.sub;
+      const { unlock, riderPhoneVisible, driverPhoneVisible } = req.body;
+
+      const report = await storage.getLostItemReport(req.params.id);
+      if (!report) {
+        return res.status(404).json({ message: "Report not found" });
+      }
+
+      const updateData: any = {};
+      if (unlock !== undefined) {
+        updateData.communicationUnlocked = unlock;
+        updateData.communicationUnlockedBy = adminId;
+        updateData.communicationUnlockedAt = new Date();
+      }
+      if (riderPhoneVisible !== undefined) updateData.riderPhoneVisible = riderPhoneVisible;
+      if (driverPhoneVisible !== undefined) updateData.driverPhoneVisible = driverPhoneVisible;
+
+      const updated = await storage.updateLostItemReport(req.params.id, updateData);
+
+      const action = unlock ? "unlocked" : "revoked";
+      await storage.createLostItemMessage({
+        lostItemReportId: req.params.id,
+        senderId: "system",
+        senderRole: "system",
+        message: `Admin has ${action} communication for this case.`,
+        isSystemMessage: true,
+      });
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error updating communication:", error);
+      return res.status(500).json({ message: "Failed to update communication" });
+    }
+  });
+
+  // Admin: Resolve a disputed lost item case
+  app.patch("/api/admin/lost-items/:id/resolve", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const adminId = req.user!.claims.sub;
+      const { resolution, adminNotes } = req.body;
+
+      const report = await storage.getLostItemReport(req.params.id);
+      if (!report) {
+        return res.status(404).json({ message: "Report not found" });
+      }
+
+      const updated = await storage.updateLostItemReport(req.params.id, {
+        status: "resolved_by_admin",
+        resolvedByAdminId: adminId,
+        resolvedAt: new Date(),
+        adminNotes: adminNotes || resolution || null,
+      });
+
+      await storage.createLostItemMessage({
+        lostItemReportId: req.params.id,
+        senderId: "system",
+        senderRole: "system",
+        message: `Case resolved by admin. ${adminNotes || ""}`.trim(),
+        isSystemMessage: true,
+      });
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error resolving lost item:", error);
+      return res.status(500).json({ message: "Failed to resolve" });
+    }
+  });
+
+  // Admin: Get lost item analytics summary
+  app.get("/api/admin/lost-item-analytics", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const summary = await storage.getLostItemAnalyticsSummary();
+      return res.json(summary);
+    } catch (error) {
+      console.error("Error getting lost item analytics:", error);
+      return res.status(500).json({ message: "Failed to get analytics" });
+    }
+  });
+
+  // Admin: Get all lost item analytics records
+  app.get("/api/admin/lost-item-analytics/records", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const records = await storage.getAllLostItemAnalytics();
+      return res.json(records);
+    } catch (error) {
+      console.error("Error getting analytics records:", error);
+      return res.status(500).json({ message: "Failed to get records" });
     }
   });
 
