@@ -3500,6 +3500,31 @@ export const supportInteractions = pgTable("support_interactions", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const supportConversations = pgTable("support_conversations", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: varchar("user_id").notNull(),
+  userRole: varchar("user_role", { length: 50 }).notNull(),
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  lastMessageAt: timestamp("last_message_at").defaultNow().notNull(),
+  messageCount: integer("message_count").notNull().default(0),
+  currentScreen: varchar("current_screen", { length: 255 }),
+});
+
+export const supportChatMessages = pgTable("support_chat_messages", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  conversationId: varchar("conversation_id").notNull(),
+  role: varchar("role", { length: 10 }).notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertSupportConversationSchema = createInsertSchema(supportConversations).omit({ id: true, startedAt: true, lastMessageAt: true, messageCount: true });
+export const insertSupportChatMessageSchema = createInsertSchema(supportChatMessages).omit({ id: true, createdAt: true });
+export type SupportConversation = typeof supportConversations.$inferSelect;
+export type SupportChatMessage = typeof supportChatMessages.$inferSelect;
+export type InsertSupportConversation = z.infer<typeof insertSupportConversationSchema>;
+export type InsertSupportChatMessage = z.infer<typeof insertSupportChatMessageSchema>;
+
 // Compliance audit log (immutable, exportable)
 export const complianceAuditLog = pgTable("compliance_audit_log", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -4401,6 +4426,34 @@ export const insertRiderInboxMessageSchema = createInsertSchema(riderInboxMessag
 });
 export type InsertRiderInboxMessage = z.infer<typeof insertRiderInboxMessageSchema>;
 export type RiderInboxMessage = typeof riderInboxMessages.$inferSelect;
+
+export const driverInboxMessageTypeEnum = pgEnum("driver_inbox_message_type", [
+  "system_announcement",
+  "trip_update",
+  "payout_update",
+  "approval_update",
+  "safety_alert",
+  "promotion",
+]);
+
+export const driverInboxMessages = pgTable("driver_inbox_messages", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: varchar("user_id").notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  body: text("body").notNull(),
+  type: driverInboxMessageTypeEnum("type").notNull().default("system_announcement"),
+  read: boolean("read").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertDriverInboxMessageSchema = createInsertSchema(driverInboxMessages).omit({
+  id: true,
+  read: true,
+  createdAt: true,
+});
+
+export type InsertDriverInboxMessage = z.infer<typeof insertDriverInboxMessageSchema>;
+export type DriverInboxMessage = typeof driverInboxMessages.$inferSelect;
 
 export const notificationPreferences = pgTable("notification_preferences", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

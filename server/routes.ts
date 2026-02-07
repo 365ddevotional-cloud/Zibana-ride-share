@@ -41,6 +41,65 @@ import { NAVIGATION_PROVIDERS } from "@shared/navigation-config";
 import { insertUserIdentityProfileSchema } from "@shared/schema";
 import { getIdentityConfig, isValidIdTypeForCountry } from "@shared/identity-config";
 
+function generateSupportResponse(input: string, role: string, isPrivileged: boolean): string {
+  const lower = input.toLowerCase();
+
+  if (lower.includes("are you ai") || lower.includes("are you a bot") || lower.includes("are you real") || lower.includes("are you human") || lower.includes("what are you")) {
+    return "I'm ZIBA Support. I'm here to help you navigate ZIBA.";
+  }
+
+  if (lower.includes("human") || lower.includes("agent") || lower.includes("escalat") || lower.includes("talk to") || lower.includes("real person")) {
+    if (isPrivileged) {
+      return "For complex operational issues, check the relevant dashboard tab or escalate through internal channels. The compliance logs and audit trails provide detailed records for investigation.";
+    }
+    return "We recommend submitting a support ticket for personalized assistance. Go to Help Center and tap 'Submit a Ticket'. Our support team will review your case and respond as soon as possible.";
+  }
+
+  if (role === "rider") {
+    if (lower.includes("book") || lower.includes("ride") || lower.includes("request")) return "To book a ride, go to the Home tab and enter your pickup and drop-off locations. ZIBA helps connect you with available drivers in your area.";
+    if (lower.includes("lost") || lower.includes("item") || lower.includes("found")) return "If you've lost an item during a trip, go to Activity, find the trip, and tap 'Report Lost Item'. ZIBA helps facilitate communication between you and the driver. Item recovery depends on driver cooperation and is not guaranteed.";
+    if (lower.includes("pay") || lower.includes("wallet") || lower.includes("charge") || lower.includes("refund")) return "You can manage your payment methods in the Wallet section. ZIBA supports wallet credits, cash payments, and card payments. For payment concerns, submit a support ticket for review.";
+    if (lower.includes("safe") || lower.includes("sos") || lower.includes("emergency")) return "Your safety is important. Use the SOS button during active trips for emergencies. You can also report incidents through the Safety Hub.";
+    if (lower.includes("cancel")) return "You can cancel a ride before the driver arrives. Cancellation fees may apply depending on timing. Check our policies in the Legal section for details.";
+    if (lower.includes("schedule") || lower.includes("advance") || lower.includes("later")) return "To schedule a ride in advance, go to Services and select 'Scheduled Rides'. You can set your pickup time up to 7 days ahead.";
+    if (lower.includes("saved") || lower.includes("home") || lower.includes("work") || lower.includes("place")) return "You can save your Home and Work addresses from the Account tab under Saved Places. These addresses will appear as quick options when booking a ride.";
+    if (lower.includes("account") || lower.includes("profile") || lower.includes("settings")) return "You can update your profile, notification preferences, and privacy settings from the Account tab.";
+  }
+
+  if (role === "driver") {
+    if (lower.includes("online") || lower.includes("start driving") || lower.includes("accept")) return "To start accepting rides, go to your Driver Home and toggle the 'Go Online' switch. Make sure your GPS is enabled and your account is approved.";
+    if (lower.includes("earn") || lower.includes("income") || lower.includes("payout") || lower.includes("commission")) return "View your earnings in the Earnings tab. Payouts are processed based on your country's payout schedule. You can manage your payout details in the Wallet section.";
+    if (lower.includes("lost") || lower.includes("item") || lower.includes("found") || lower.includes("hub")) return "If a rider reports a lost item, you'll receive a notification. If you find the item, confirm it in the app. You can return it directly or drop it at a Safe Return Hub.";
+    if (lower.includes("accident") || lower.includes("crash")) return "If you're involved in an accident, ensure everyone's safety first. Then report the incident through the app. ZIBA facilitates accident documentation for your records.";
+    if (lower.includes("trust") || lower.includes("score") || lower.includes("rating")) return "Your trust score is based on your driving record, rider ratings, and overall behavior. Maintain good performance to keep your score high.";
+    if (lower.includes("wallet") || lower.includes("withdraw") || lower.includes("bank")) return "Manage your payouts from the Wallet tab. Add your bank details or mobile money information to receive your earnings.";
+    if (lower.includes("training") || lower.includes("module") || lower.includes("learn")) return "Access training modules from the Help tab. Complete all required modules to stay up to date with ZIBA policies and best practices.";
+  }
+
+  if (isPrivileged) {
+    if (lower.includes("dashboard") || lower.includes("overview")) return "The Admin Dashboard shows key metrics including active trips, pending approvals, revenue, and safety incidents. Use the tabs to navigate between different management areas.";
+    if (lower.includes("approv") || lower.includes("pending") || lower.includes("driver registration")) return "Go to the Drivers tab and filter by 'Pending Approval' to see new driver applications. Review their documents and approve or reject them.";
+    if (lower.includes("dispute") || lower.includes("resolution") || lower.includes("complain")) return "Manage disputes in the Disputes tab. Review rider and driver claims, check trip details, and resolve based on evidence. All actions are logged for compliance.";
+    if (lower.includes("fraud") || lower.includes("suspicious") || lower.includes("flag")) return "Check the Fraud tab for flagged users and suspicious patterns. Review fraud signals, risk scores, and take appropriate action.";
+    if (lower.includes("user") || lower.includes("manage") || lower.includes("account")) return "The Users tab allows you to search, view, and manage user accounts. You can update roles, review profiles, and manage suspensions.";
+    if (lower.includes("financ") || lower.includes("revenue") || lower.includes("money")) return "Financial reports are available in the Finance tab. View revenue breakdown, commission reports, payout summaries, and wallet transactions.";
+    if (lower.includes("safe") || lower.includes("incident") || lower.includes("sos")) return "Safety incidents appear in the Safety tab. Review SOS triggers, accident reports, and incident escalations. Take action and document outcomes.";
+
+    if (role === "super_admin") {
+      if (lower.includes("config") || lower.includes("setting") || lower.includes("system")) return "System configuration is available in the Settings tab. Manage production switches, country-specific settings, and global parameters.";
+      if (lower.includes("country") || lower.includes("market") || lower.includes("launch")) return "Country management lets you configure market-specific settings including pricing, tax rules, compliance requirements, and launch status.";
+      if (lower.includes("kill") || lower.includes("switch") || lower.includes("disable")) return "Kill switches allow you to disable specific features per country in emergencies. Use with caution as they affect all users in that market.";
+      if (lower.includes("compliance") || lower.includes("audit") || lower.includes("log")) return "Compliance tools include consent tracking, legal acknowledgement logs, and audit trails. All admin actions are logged for accountability.";
+      if (lower.includes("abuse") || lower.includes("pattern") || lower.includes("manipulation")) return "Review abuse patterns in the Fraud and Safety tabs. Look for repeat offenders, coordinated behavior, and trust score manipulation attempts.";
+      if (lower.includes("flag") || lower.includes("feature") || lower.includes("rollout")) return "Feature flags control the gradual rollout of new features. Manage them in the Feature Flags section of the Settings tab.";
+      if (lower.includes("legal") || lower.includes("liability")) return "Legal documentation and compliance settings are managed through the Legal section. Ensure all country-specific terms are current.";
+      if (lower.includes("risk") || lower.includes("assess") || lower.includes("anomal")) return "Risk assessment involves reviewing trust scores, fraud patterns, safety incidents, and financial anomalies across the platform.";
+    }
+  }
+
+  return "I'm here to help you navigate ZIBA. Could you tell me more about what you need help with? You can ask about rides, payments, safety, your account, or any other ZIBA feature.";
+}
+
 // Helper function to get user's currency based on their country
 async function getUserCurrency(userId: string): Promise<string> {
   const userRole = await storage.getUserRole(userId);
@@ -3433,6 +3492,65 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error rejecting:", error);
       return res.status(500).json({ message: "Failed to reject" });
+    }
+  });
+
+  // PHASE 1: Specific driver approval endpoints
+  app.get("/api/admin/approvals/drivers", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const status = (req.query.status as string) || "pending";
+      const drivers = await storage.getDriversByStatus(status);
+      return res.json(drivers);
+    } catch (error) {
+      console.error("Error fetching drivers by status:", error);
+      return res.status(500).json({ message: "Failed to fetch drivers" });
+    }
+  });
+
+  app.post("/api/admin/approvals/drivers/:id/approve", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const driverId = req.params.id;
+      const driver = await storage.updateDriverStatus(driverId, "approved");
+      if (!driver) {
+        return res.status(404).json({ message: "Driver not found" });
+      }
+      
+      await storage.createNotification({
+        userId: driverId,
+        role: "driver",
+        title: "Account Approved",
+        message: "Congratulations! Your driver account has been approved. You can now go online and accept rides.",
+        type: "success",
+      });
+      
+      return res.json({ success: true, driver });
+    } catch (error) {
+      console.error("Error approving driver:", error);
+      return res.status(500).json({ message: "Failed to approve driver" });
+    }
+  });
+
+  app.post("/api/admin/approvals/drivers/:id/reject", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const driverId = req.params.id;
+      const { reason } = req.body;
+      const driver = await storage.updateDriverStatus(driverId, "rejected");
+      if (!driver) {
+        return res.status(404).json({ message: "Driver not found" });
+      }
+      
+      await storage.createNotification({
+        userId: driverId,
+        role: "driver",
+        title: "Application Update",
+        message: reason || "Your driver application was not approved at this time. Please contact support for more details.",
+        type: "warning",
+      });
+      
+      return res.json({ success: true, driver });
+    } catch (error) {
+      console.error("Error rejecting driver:", error);
+      return res.status(500).json({ message: "Failed to reject driver" });
     }
   });
 
@@ -15345,6 +15463,58 @@ export async function registerRoutes(
     }
   });
 
+  // ==========================================
+  // ZIBA SUPPORT CHAT (Phase 4 - ZIBRA)
+  // ==========================================
+
+  app.post("/api/support/chat", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const { message, conversationId, currentScreen } = req.body;
+      if (!message || typeof message !== "string") {
+        return res.status(400).json({ message: "Message is required" });
+      }
+
+      const allRoles = await storage.getAllUserRoles(userId);
+      const roleList = allRoles.map(r => r.role);
+      let detectedRole = "rider";
+      if (roleList.includes("super_admin")) detectedRole = "super_admin";
+      else if (roleList.includes("admin")) detectedRole = "admin";
+      else if (roleList.includes("driver")) detectedRole = "driver";
+      else if (roleList.includes("rider")) detectedRole = "rider";
+
+      const isPrivileged = detectedRole === "admin" || detectedRole === "super_admin";
+
+      const response = generateSupportResponse(message, detectedRole, isPrivileged);
+
+      let convId = conversationId;
+      if (!convId) {
+        const conv = await storage.createSupportConversation({
+          userId,
+          userRole: detectedRole,
+          currentScreen: currentScreen || null,
+        });
+        convId = conv.id;
+      }
+
+      await storage.addSupportMessage(convId, "user", message);
+      await storage.addSupportMessage(convId, "support", response);
+
+      return res.json({
+        response,
+        conversationId: convId,
+        role: detectedRole,
+      });
+    } catch (error) {
+      console.error("Error in support chat:", error);
+      return res.status(500).json({ message: "Support is temporarily unavailable. Please try again later." });
+    }
+  });
+
   // Admin: view support interactions
   app.get("/api/admin/support-interactions", isAuthenticated, async (req, res) => {
     try {
@@ -19228,6 +19398,57 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error getting unread count:", error);
       return res.status(500).json({ message: "Failed to get unread count" });
+    }
+  });
+
+  // ==========================================
+  // DRIVER INBOX
+  // ==========================================
+
+  app.get("/api/driver/inbox", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const messages = await storage.getDriverInboxMessages(userId);
+      return res.json(messages);
+    } catch (error) {
+      console.error("Error fetching driver inbox:", error);
+      return res.status(500).json({ message: "Failed to fetch inbox messages" });
+    }
+  });
+
+  app.get("/api/driver/inbox/unread-count", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const count = await storage.getDriverInboxUnreadCount(userId);
+      return res.json({ count });
+    } catch (error) {
+      console.error("Error fetching driver inbox unread count:", error);
+      return res.json({ count: 0 });
+    }
+  });
+
+  app.post("/api/driver/inbox/:messageId/read", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const message = await storage.markDriverInboxMessageRead(userId, req.params.messageId);
+      if (!message) {
+        return res.status(404).json({ message: "Message not found" });
+      }
+      return res.json(message);
+    } catch (error) {
+      console.error("Error marking driver inbox message read:", error);
+      return res.status(500).json({ message: "Failed to mark message as read" });
+    }
+  });
+
+  app.post("/api/driver/inbox/read-all", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      await storage.markAllDriverInboxMessagesRead(userId);
+      return res.json({ success: true });
+    } catch (error) {
+      console.error("Error marking all driver inbox messages read:", error);
+      return res.status(500).json({ message: "Failed to mark all messages as read" });
     }
   });
 

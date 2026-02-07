@@ -419,6 +419,9 @@ import {
   riderInboxMessages,
   type RiderInboxMessage,
   type InsertRiderInboxMessage,
+  driverInboxMessages,
+  type DriverInboxMessage,
+  type InsertDriverInboxMessage,
   notificationPreferences,
   type NotificationPreferences,
   type InsertNotificationPreferences,
@@ -473,6 +476,12 @@ import {
   supportInteractions,
   type SupportInteraction,
   type InsertSupportInteraction,
+  supportConversations,
+  supportChatMessages,
+  type SupportConversation,
+  type SupportChatMessage,
+  type InsertSupportConversation,
+  type InsertSupportChatMessage,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull } from "drizzle-orm";
@@ -525,6 +534,7 @@ export interface IStorage {
   updateDriverOnlineStatus(userId: string, isOnline: boolean): Promise<DriverProfile | undefined>;
   updateDriverStatus(userId: string, status: string): Promise<DriverProfile | undefined>;
   getAllDrivers(): Promise<DriverProfile[]>;
+  getDriversByStatus(status: string): Promise<any[]>;
   getAllDriversWithDetails(): Promise<any[]>;
 
   createRiderProfile(data: InsertRiderProfile): Promise<RiderProfile>;
@@ -1350,6 +1360,13 @@ export interface IStorage {
   markAllRiderInboxMessagesRead(userId: string): Promise<void>;
   getRiderUnreadMessageCount(userId: string): Promise<number>;
 
+  // Driver Inbox Messages
+  createDriverInboxMessage(data: InsertDriverInboxMessage): Promise<DriverInboxMessage>;
+  getDriverInboxMessages(userId: string): Promise<DriverInboxMessage[]>;
+  markDriverInboxMessageRead(userId: string, messageId: string): Promise<DriverInboxMessage | undefined>;
+  markAllDriverInboxMessagesRead(userId: string): Promise<void>;
+  getDriverInboxUnreadCount(userId: string): Promise<number>;
+
   // Notification Preferences
   getNotificationPreferences(userId: string): Promise<NotificationPreferences>;
   updateNotificationPreferences(userId: string, updates: Partial<NotificationPreferences>): Promise<NotificationPreferences>;
@@ -1448,6 +1465,10 @@ export interface IStorage {
   getLegalAcknowledgements(userId?: string, type?: string): Promise<LegalAcknowledgement[]>;
   logSupportInteraction(data: InsertSupportInteraction): Promise<SupportInteraction>;
   getSupportInteractions(userId?: string, role?: string): Promise<SupportInteraction[]>;
+  createSupportConversation(data: InsertSupportConversation): Promise<SupportConversation>;
+  addSupportMessage(conversationId: string, role: string, content: string): Promise<SupportChatMessage>;
+  getSupportConversation(id: string): Promise<SupportConversation | undefined>;
+  getUserSupportConversations(userId: string): Promise<SupportConversation[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1925,6 +1946,10 @@ export class DatabaseStorage implements IStorage {
 
   async getAllDrivers(): Promise<DriverProfile[]> {
     return await db.select().from(driverProfiles).orderBy(desc(driverProfiles.createdAt));
+  }
+
+  async getDriversByStatus(status: string): Promise<any[]> {
+    return db.select().from(driverProfiles).where(eq(driverProfiles.status, status));
   }
 
   async getAllDriversWithDetails(): Promise<any[]> {
@@ -10358,6 +10383,47 @@ export class DatabaseStorage implements IStorage {
     return result?.count || 0;
   }
 
+  // Driver Inbox Messages
+  async createDriverInboxMessage(data: InsertDriverInboxMessage): Promise<DriverInboxMessage> {
+    const [message] = await db.insert(driverInboxMessages).values(data).returning();
+    return message;
+  }
+
+  async getDriverInboxMessages(userId: string): Promise<DriverInboxMessage[]> {
+    return db.select().from(driverInboxMessages)
+      .where(eq(driverInboxMessages.userId, userId))
+      .orderBy(desc(driverInboxMessages.createdAt));
+  }
+
+  async markDriverInboxMessageRead(userId: string, messageId: string): Promise<DriverInboxMessage | undefined> {
+    const [message] = await db.update(driverInboxMessages)
+      .set({ read: true })
+      .where(and(
+        eq(driverInboxMessages.id, messageId),
+        eq(driverInboxMessages.userId, userId)
+      ))
+      .returning();
+    return message;
+  }
+
+  async markAllDriverInboxMessagesRead(userId: string): Promise<void> {
+    await db.update(driverInboxMessages)
+      .set({ read: true })
+      .where(and(
+        eq(driverInboxMessages.userId, userId),
+        eq(driverInboxMessages.read, false)
+      ));
+  }
+
+  async getDriverInboxUnreadCount(userId: string): Promise<number> {
+    const [result] = await db.select({ count: count() }).from(driverInboxMessages)
+      .where(and(
+        eq(driverInboxMessages.userId, userId),
+        eq(driverInboxMessages.read, false)
+      ));
+    return result?.count || 0;
+  }
+
   // Notification Preferences
   async getNotificationPreferences(userId: string): Promise<NotificationPreferences> {
     const [prefs] = await db.select().from(notificationPreferences)
@@ -10790,6 +10856,30 @@ export class DatabaseStorage implements IStorage {
       query = query.where(and(...conditions)) as any;
     }
     return await query.orderBy(desc(supportInteractions.createdAt)).limit(500);
+  }
+
+  async createSupportConversation(data: InsertSupportConversation): Promise<SupportConversation> {
+    const [conv] = await db.insert(supportConversations).values(data).returning();
+    return conv;
+  }
+
+  async addSupportMessage(conversationId: string, role: string, content: string): Promise<SupportChatMessage> {
+    const [msg] = await db.insert(supportChatMessages).values({ conversationId, role, content }).returning();
+    await db.update(supportConversations)
+      .set({ lastMessageAt: new Date(), messageCount: sql`${supportConversations.messageCount} + 1` })
+      .where(eq(supportConversations.id, conversationId));
+    return msg;
+  }
+
+  async getSupportConversation(id: string): Promise<SupportConversation | undefined> {
+    const [conv] = await db.select().from(supportConversations).where(eq(supportConversations.id, id));
+    return conv;
+  }
+
+  async getUserSupportConversations(userId: string): Promise<SupportConversation[]> {
+    return db.select().from(supportConversations)
+      .where(eq(supportConversations.userId, userId))
+      .orderBy(desc(supportConversations.lastMessageAt));
   }
 }
 

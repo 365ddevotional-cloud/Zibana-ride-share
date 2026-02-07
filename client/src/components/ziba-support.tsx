@@ -181,6 +181,10 @@ function getResponse(input: string, role: UserRole): string {
   const lower = input.toLowerCase();
   const responses = getResponseMap(role);
 
+  if (lower.includes("are you ai") || lower.includes("are you a bot") || lower.includes("are you real") || lower.includes("are you human") || lower.includes("what are you")) {
+    return "I'm ZIBA Support. I'm here to help you navigate ZIBA.";
+  }
+
   if (role === "rider" || role === "general") {
     if (lower.includes("book") || lower.includes("ride") || lower.includes("request")) return responses["book-ride"] || RIDER_RESPONSES["book-ride"];
     if (lower.includes("lost") || lower.includes("item") || lower.includes("found")) return responses["lost-item"] || RIDER_RESPONSES["lost-item"];
