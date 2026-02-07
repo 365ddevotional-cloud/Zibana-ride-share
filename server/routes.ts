@@ -3697,6 +3697,8 @@ export async function registerRoutes(
         directorType: profile.directorType,
         status: profile.status,
         commissionFrozen: profile.commissionFrozen,
+        lifecycleStatus: profile.lifecycleStatus,
+        onboardingCompleted: profile.onboardingCompleted,
         activationThreshold: profile.activationThreshold,
         isActivated,
         maxCellSize: profile.maxCellSize || settings?.maxCellSize || 1300,
@@ -3751,6 +3753,10 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Your director account is not active" });
       }
 
+      if (directorProfile.lifecycleStatus === "suspended" || directorProfile.lifecycleStatus === "terminated") {
+        return res.status(403).json({ message: "Your director account is currently " + directorProfile.lifecycleStatus });
+      }
+
       const assignment = await storage.getDirectorForDriver(driverUserId);
       if (!assignment || assignment.directorUserId !== directorUserId) {
         return res.status(403).json({ message: "This driver is not under your management" });
@@ -3786,6 +3792,10 @@ export async function registerRoutes(
 
       if (profile.status !== "active") {
         return res.status(403).json({ message: "Your director account is not active" });
+      }
+
+      if (profile.lifecycleStatus === "suspended" || profile.lifecycleStatus === "terminated") {
+        return res.status(403).json({ message: "Your director account is currently " + profile.lifecycleStatus });
       }
 
       const assignment = await storage.getDirectorForDriver(driverUserId);
@@ -4080,6 +4090,271 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error assigning driver:", error);
       return res.status(500).json({ message: "Failed to assign driver" });
+    }
+  });
+
+  // =============================================
+  // DIRECTOR LIFECYCLE & ONBOARDING (Phases 16-20)
+  // =============================================
+
+  app.post("/api/director/onboarding/complete", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const profile = await storage.getDirectorProfile(userId);
+      if (!profile) {
+        return res.status(404).json({ message: "Director profile not found" });
+      }
+      if (profile.onboardingCompleted) {
+        return res.json({ message: "Onboarding already completed", profile });
+      }
+      const updated = await storage.completeDirectorOnboarding(userId);
+      await storage.createAuditLog({
+        action: "director_onboarding_completed",
+        entityType: "director",
+        entityId: userId,
+        performedByUserId: userId,
+        performedByRole: "director",
+        metadata: JSON.stringify({ directorType: profile.directorType }),
+      });
+      return res.json({ message: "Onboarding completed", profile: updated });
+    } catch (error) {
+      console.error("Error completing director onboarding:", error);
+      return res.status(500).json({ message: "Failed to complete onboarding" });
+    }
+  });
+
+  app.get("/api/director/onboarding/status", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const profile = await storage.getDirectorProfile(userId);
+      if (!profile) {
+        return res.status(404).json({ message: "Director profile not found" });
+      }
+      return res.json({
+        onboardingCompleted: profile.onboardingCompleted,
+        lifecycleStatus: profile.lifecycleStatus,
+        directorType: profile.directorType,
+        referralCodeId: profile.referralCodeId,
+      });
+    } catch (error) {
+      console.error("Error getting onboarding status:", error);
+      return res.status(500).json({ message: "Failed to get onboarding status" });
+    }
+  });
+
+  app.post("/api/director/appeals", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { appealType, reason, explanation } = req.body;
+      
+      if (!appealType || !reason) {
+        return res.status(400).json({ message: "Appeal type and reason are required" });
+      }
+      
+      if (!["suspension", "termination"].includes(appealType)) {
+        return res.status(400).json({ message: "Appeal type must be 'suspension' or 'termination'" });
+      }
+
+      const profile = await storage.getDirectorProfile(userId);
+      if (!profile) {
+        return res.status(404).json({ message: "Director profile not found" });
+      }
+
+      const validStatuses = appealType === "suspension" ? ["suspended"] : ["terminated"];
+      if (!validStatuses.includes(profile.lifecycleStatus)) {
+        return res.status(400).json({ message: `You can only submit a ${appealType} appeal when your status is ${validStatuses.join(" or ")}` });
+      }
+
+      const existingAppeals = await storage.getDirectorAppeals(userId);
+      const pendingAppeal = existingAppeals.find(a => a.status === "pending" && a.appealType === appealType);
+      if (pendingAppeal) {
+        return res.status(400).json({ message: "You already have a pending appeal of this type" });
+      }
+
+      const appeal = await storage.createDirectorAppeal({
+        directorUserId: userId,
+        appealType,
+        reason,
+        explanation: explanation || null,
+        status: "pending",
+      });
+
+      await storage.createAuditLog({
+        action: "director_appeal_submitted",
+        entityType: "director",
+        entityId: userId,
+        performedByUserId: userId,
+        performedByRole: "director",
+        metadata: JSON.stringify({ appealType, appealId: appeal.id }),
+      });
+
+      return res.json({ message: "Appeal submitted successfully", appeal });
+    } catch (error) {
+      console.error("Error submitting director appeal:", error);
+      return res.status(500).json({ message: "Failed to submit appeal" });
+    }
+  });
+
+  app.get("/api/director/appeals", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const appeals = await storage.getDirectorAppeals(userId);
+      return res.json(appeals);
+    } catch (error) {
+      console.error("Error getting director appeals:", error);
+      return res.status(500).json({ message: "Failed to get appeals" });
+    }
+  });
+
+  app.get("/api/admin/director-appeals", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const appeals = await storage.getDirectorAppeals();
+      return res.json(appeals);
+    } catch (error) {
+      console.error("Error getting all director appeals:", error);
+      return res.status(500).json({ message: "Failed to get appeals" });
+    }
+  });
+
+  app.post("/api/admin/director-appeals/:appealId/review", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const { appealId } = req.params;
+      const { status, reviewNotes } = req.body;
+
+      if (!status || !["approved", "denied"].includes(status)) {
+        return res.status(400).json({ message: "Status must be 'approved' or 'denied'" });
+      }
+
+      const appeal = await storage.getDirectorAppealById(appealId);
+      if (!appeal) {
+        return res.status(404).json({ message: "Appeal not found" });
+      }
+
+      if (appeal.status !== "pending") {
+        return res.status(400).json({ message: "This appeal has already been reviewed" });
+      }
+
+      const updated = await storage.updateDirectorAppeal(appealId, {
+        status,
+        reviewedBy: adminUserId,
+        reviewNotes: reviewNotes || undefined,
+      });
+
+      if (status === "approved") {
+        await storage.updateDirectorLifecycleStatus(appeal.directorUserId, "active");
+        await storage.updateDirectorProfile(appeal.directorUserId, {
+          commissionFrozen: false,
+          suspendedAt: null,
+          suspendedBy: null,
+        });
+      }
+
+      await storage.createAuditLog({
+        action: `director_appeal_${status}`,
+        entityType: "director",
+        entityId: appeal.directorUserId,
+        performedByUserId: adminUserId,
+        performedByRole: "admin",
+        metadata: JSON.stringify({ appealId, appealType: appeal.appealType, reviewNotes }),
+      });
+
+      await storage.createNotification({
+        userId: appeal.directorUserId,
+        type: "system",
+        title: status === "approved" ? "Appeal Approved" : "Appeal Denied",
+        message: status === "approved"
+          ? "Your appeal has been reviewed and approved. Your director status has been restored."
+          : "Your appeal has been reviewed. The decision has been upheld based on policy review.",
+      });
+
+      return res.json({ message: `Appeal ${status}`, appeal: updated });
+    } catch (error) {
+      console.error("Error reviewing director appeal:", error);
+      return res.status(500).json({ message: "Failed to review appeal" });
+    }
+  });
+
+  app.post("/api/admin/directors/:directorUserId/lifecycle", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const { directorUserId } = req.params;
+      const { status, reason } = req.body;
+
+      if (!status || !["active", "suspended", "terminated"].includes(status)) {
+        return res.status(400).json({ message: "Status must be 'active', 'suspended', or 'terminated'" });
+      }
+      if (!reason) {
+        return res.status(400).json({ message: "Reason is required for lifecycle changes" });
+      }
+
+      const profile = await storage.getDirectorProfile(directorUserId);
+      if (!profile) {
+        return res.status(404).json({ message: "Director profile not found" });
+      }
+
+      const oldStatus = profile.lifecycleStatus;
+
+      if (status === "terminated") {
+        const reassignedCount = await storage.reassignAllDriversFromDirector(directorUserId);
+        
+        await storage.updateDirectorLifecycleStatus(directorUserId, "terminated", {
+          terminatedBy: adminUserId,
+          terminationReason: reason,
+        });
+
+        await storage.createNotification({
+          userId: directorUserId,
+          type: "system",
+          title: "Director Role Update",
+          message: "Your Director role has been ended based on review. Driver assignments have been updated.",
+        });
+
+        await storage.createAuditLog({
+          action: "terminate_director",
+          entityType: "director",
+          entityId: directorUserId,
+          performedByUserId: adminUserId,
+          performedByRole: "admin",
+          metadata: JSON.stringify({ reason, driversReassigned: reassignedCount, previousStatus: oldStatus }),
+        });
+
+        return res.json({ message: "Director terminated", driversReassigned: reassignedCount });
+      }
+
+      if (status === "suspended") {
+        await storage.updateDirectorLifecycleStatus(directorUserId, "suspended", {
+          suspendedBy: adminUserId,
+        });
+
+        await storage.createNotification({
+          userId: directorUserId,
+          type: "system",
+          title: "Director Account Suspended",
+          message: "Your director account has been suspended pending review. Commission calculations are paused. You may submit an appeal through your dashboard.",
+        });
+      } else if (status === "active") {
+        await storage.updateDirectorLifecycleStatus(directorUserId, "active");
+        await storage.updateDirectorProfile(directorUserId, {
+          commissionFrozen: false,
+          suspendedAt: null,
+          suspendedBy: null,
+        });
+      }
+
+      await storage.createAuditLog({
+        action: `director_lifecycle_${status}`,
+        entityType: "director",
+        entityId: directorUserId,
+        performedByUserId: adminUserId,
+        performedByRole: "admin",
+        metadata: JSON.stringify({ reason, previousStatus: oldStatus }),
+      });
+
+      return res.json({ message: `Director status updated to ${status}` });
+    } catch (error) {
+      console.error("Error updating director lifecycle:", error);
+      return res.status(500).json({ message: "Failed to update director lifecycle" });
     }
   });
 

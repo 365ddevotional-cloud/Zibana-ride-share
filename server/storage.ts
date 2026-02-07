@@ -496,6 +496,9 @@ import {
   type DirectorCommissionLog,
   type DirectorDriverAssignment,
   type DirectorSettingsAuditLog,
+  directorAppeals,
+  type InsertDirectorAppeal,
+  type DirectorAppeal,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull } from "drizzle-orm";
@@ -817,6 +820,15 @@ export interface IStorage {
   updateDirectorProfile(userId: string, updates: Partial<{ directorType: string; commissionFrozen: boolean; maxCellSize: number; activationThreshold: number; status: string; suspendedAt: Date | null; suspendedBy: string | null }>): Promise<DirectorProfile | undefined>;
   logDirectorSettingsChange(data: { settingKey: string; oldValue: string | null; newValue: string; changedBy: string; reason: string }): Promise<DirectorSettingsAuditLog>;
   getDirectorSettingsAuditLogs(limit?: number): Promise<DirectorSettingsAuditLog[]>;
+
+  // Director Lifecycle & Appeals
+  updateDirectorLifecycleStatus(userId: string, status: string, metadata?: { terminatedBy?: string; terminationReason?: string; suspendedBy?: string }): Promise<DirectorProfile | undefined>;
+  completeDirectorOnboarding(userId: string): Promise<DirectorProfile | undefined>;
+  createDirectorAppeal(data: InsertDirectorAppeal): Promise<DirectorAppeal>;
+  getDirectorAppeals(directorUserId?: string): Promise<DirectorAppeal[]>;
+  getDirectorAppealById(id: string): Promise<DirectorAppeal | undefined>;
+  updateDirectorAppeal(id: string, updates: { status: string; reviewedBy: string; reviewNotes?: string }): Promise<DirectorAppeal | undefined>;
+  reassignAllDriversFromDirector(directorUserId: string): Promise<number>;
 
   // Phase 14.5 - Trip Coordinator
   getTripCoordinatorProfile(userId: string): Promise<TripCoordinatorProfile | undefined>;
@@ -2781,6 +2793,75 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(directorSettingsAuditLogs)
       .orderBy(desc(directorSettingsAuditLogs.createdAt))
       .limit(limit);
+  }
+
+  async updateDirectorLifecycleStatus(userId: string, status: string, metadata?: { terminatedBy?: string; terminationReason?: string; suspendedBy?: string }): Promise<DirectorProfile | undefined> {
+    const updates: any = { lifecycleStatus: status };
+    if (status === "suspended") {
+      updates.suspendedAt = new Date();
+      updates.suspendedBy = metadata?.suspendedBy || null;
+      updates.commissionFrozen = true;
+    } else if (status === "terminated") {
+      updates.terminatedAt = new Date();
+      updates.terminatedBy = metadata?.terminatedBy || null;
+      updates.terminationReason = metadata?.terminationReason || null;
+      updates.commissionFrozen = true;
+      updates.status = "inactive";
+    } else if (status === "active") {
+      updates.suspendedAt = null;
+      updates.suspendedBy = null;
+      updates.status = "active";
+    }
+    const [updated] = await db.update(directorProfiles)
+      .set(updates)
+      .where(eq(directorProfiles.userId, userId))
+      .returning();
+    return updated;
+  }
+
+  async completeDirectorOnboarding(userId: string): Promise<DirectorProfile | undefined> {
+    const [updated] = await db.update(directorProfiles)
+      .set({ onboardingCompleted: true, lifecycleStatus: "active" })
+      .where(eq(directorProfiles.userId, userId))
+      .returning();
+    return updated;
+  }
+
+  async createDirectorAppeal(data: InsertDirectorAppeal): Promise<DirectorAppeal> {
+    const [appeal] = await db.insert(directorAppeals).values(data).returning();
+    return appeal;
+  }
+
+  async getDirectorAppeals(directorUserId?: string): Promise<DirectorAppeal[]> {
+    if (directorUserId) {
+      return db.select().from(directorAppeals)
+        .where(eq(directorAppeals.directorUserId, directorUserId))
+        .orderBy(desc(directorAppeals.createdAt));
+    }
+    return db.select().from(directorAppeals).orderBy(desc(directorAppeals.createdAt));
+  }
+
+  async getDirectorAppealById(id: string): Promise<DirectorAppeal | undefined> {
+    const [appeal] = await db.select().from(directorAppeals).where(eq(directorAppeals.id, id));
+    return appeal;
+  }
+
+  async updateDirectorAppeal(id: string, updates: { status: string; reviewedBy: string; reviewNotes?: string }): Promise<DirectorAppeal | undefined> {
+    const [updated] = await db.update(directorAppeals)
+      .set({ ...updates as any, reviewedAt: new Date() })
+      .where(eq(directorAppeals.id, id))
+      .returning();
+    return updated;
+  }
+
+  async reassignAllDriversFromDirector(directorUserId: string): Promise<number> {
+    const assignments = await this.getDriversUnderDirector(directorUserId);
+    const count = assignments.length;
+    if (count > 0) {
+      await db.delete(directorDriverAssignments)
+        .where(eq(directorDriverAssignments.directorUserId, directorUserId));
+    }
+    return count;
   }
 
   // Phase 14.5 - Trip Coordinator methods

@@ -13,7 +13,8 @@ export type ZibraCategory =
   | "emotional" | "legal_threat" | "fraud_attempt" | "system_failure"
   | "role_confusion" | "general_help"
   | "director_cell" | "director_commission" | "director_drivers"
-  | "director_performance" | "director_recruiting";
+  | "director_performance" | "director_recruiting"
+  | "director_lifecycle" | "director_appeals" | "director_deescalation";
 
 export interface ZibraTemplate {
   id: string;
@@ -1304,6 +1305,87 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     category: "general_help",
     keywords: ["help", "how to", "guide", "tutorial", "get started"],
     response: "As a director, your main tools are:\n1. Dashboard - View cell metrics and daily activity\n2. My Drivers - Manage drivers in your cell\n3. Performance monitoring - Track active vs. inactive drivers\n\nFocus on keeping drivers active and your cell growing. Commission eligibility is calculated daily based on driver activity."
+  },
+
+  // Director Lifecycle & Status
+  {
+    id: "d-status-suspended",
+    role: "director",
+    category: "director_lifecycle",
+    keywords: ["suspended", "my suspension", "why suspended", "account suspended", "can't access"],
+    response: "Your director account is currently suspended. During suspension, commission calculations are paused and driver management actions are restricted. You can submit an appeal through your dashboard if you believe this should be reviewed. Appeals are handled according to platform policy."
+  },
+  {
+    id: "d-status-terminated",
+    role: "director",
+    category: "director_lifecycle",
+    keywords: ["terminated", "fired", "removed", "ended", "role ended", "no longer director"],
+    response: "Your Director role has been ended based on review. Driver assignments have been updated. If you wish to contest this decision, you may submit an appeal through the appeals section. All appeals are reviewed according to platform policy."
+  },
+  {
+    id: "d-status-pending",
+    role: "director",
+    category: "director_lifecycle",
+    keywords: ["pending", "not activated", "waiting", "when will I start", "onboarding"],
+    response: "Your director account is in the onboarding phase. Complete the onboarding steps shown on your dashboard to activate your account. Once onboarding is complete and you meet the minimum driver threshold, you can begin managing your cell."
+  },
+  {
+    id: "d-appeal-process",
+    role: "director",
+    category: "director_appeals",
+    keywords: ["appeal", "contest", "dispute decision", "challenge", "unfair decision", "review my case"],
+    response: "You can submit an appeal through your director dashboard. Include the reason for your appeal and any supporting explanation. Your appeal will be reviewed by administration. Outcomes depend on policy and the specifics of your case. There are no guaranteed timelines for review."
+  },
+  {
+    id: "d-appeal-status",
+    role: "director",
+    category: "director_appeals",
+    keywords: ["appeal status", "my appeal", "appeal update", "when will appeal", "appeal decision"],
+    response: "You can check the status of your appeals on your dashboard. Appeals are reviewed by administration according to policy. We cannot provide specific timelines or guarantee outcomes. Each case is assessed individually."
+  },
+  {
+    id: "d-reinstatement",
+    role: "director",
+    category: "director_lifecycle",
+    keywords: ["reinstate", "reinstatement", "get back", "restore", "reactivate my account"],
+    response: "Reinstatement decisions are made by administration based on policy review. If your account has been suspended or terminated, you may submit an appeal through your dashboard. We cannot promise or guarantee reinstatement."
+  },
+
+  // De-escalation - Director specific (Phase 19)
+  {
+    id: "d-angry-deescalate",
+    role: "director",
+    category: "director_deescalation",
+    keywords: ["this is wrong", "you are wrong", "system is broken", "not working properly", "bug", "error in system"],
+    response: "I understand your concern. Let me help clarify your situation. Your dashboard shows your current metrics and status. If something appears incorrect, I recommend submitting a support ticket with specific details so our team can investigate. Is there a particular metric or action you need help understanding?"
+  },
+  {
+    id: "d-threat-quit",
+    role: "director",
+    category: "director_deescalation",
+    keywords: ["quit", "leave", "resign", "done with this", "leaving platform", "walk away", "give up"],
+    response: "I understand this may be a difficult decision. Your director dashboard has all the information about your current cell and status. If you have unresolved concerns, consider submitting a support ticket or appeal before making a final decision. We're here to help address any specific issues you're facing."
+  },
+  {
+    id: "d-demand-data",
+    role: "director",
+    category: "director_deescalation",
+    keywords: ["show me the numbers", "real data", "internal data", "actual revenue", "how much money", "platform revenue", "company earnings"],
+    response: "Your director dashboard provides all the metrics relevant to your role, including driver counts, activity levels, and eligibility status. Internal platform financial data is confidential and not shared with individual accounts. If you have questions about your specific metrics, I can help explain what your dashboard shows."
+  },
+  {
+    id: "d-accusation-cheating",
+    role: "director",
+    category: "director_deescalation",
+    keywords: ["you're cheating me", "platform is cheating", "stealing from me", "manipulating", "rigged", "rigging"],
+    response: "I understand this is frustrating. Commission eligibility is calculated daily using transparent criteria visible on your dashboard. The calculation follows consistent rules applied equally to all directors. If you believe there is a specific error in your metrics, please submit a support ticket with details and our team will investigate."
+  },
+  {
+    id: "d-demand-more",
+    role: "director",
+    category: "director_deescalation",
+    keywords: ["want more", "need more money", "pay more", "increase my rate", "higher commission", "raise"],
+    response: "Commission rates and eligibility criteria are set at the platform level and apply equally to all directors. These are periodically reviewed by administration. The most effective way to improve your eligibility is to focus on growing your active driver count. Higher daily activity directly impacts your daily eligibility calculation."
   },
 
   // ============================

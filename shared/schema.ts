@@ -489,6 +489,11 @@ export const directorProfiles = pgTable("director_profiles", {
   suspendedAt: timestamp("suspended_at"),
   suspendedBy: varchar("suspended_by"),
   status: directorStatusEnum("status").notNull().default("active"),
+  onboardingCompleted: boolean("onboarding_completed").notNull().default(false),
+  terminatedAt: timestamp("terminated_at"),
+  terminatedBy: varchar("terminated_by"),
+  terminationReason: text("termination_reason"),
+  lifecycleStatus: varchar("lifecycle_status", { length: 20 }).notNull().default("pending"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -530,6 +535,19 @@ export const directorSettingsAuditLogs = pgTable("director_settings_audit_logs",
   newValue: text("new_value").notNull(),
   changedBy: varchar("changed_by").notNull(),
   reason: text("reason").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const directorAppeals = pgTable("director_appeals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  directorUserId: varchar("director_user_id").notNull(),
+  appealType: varchar("appeal_type", { length: 50 }).notNull(),
+  reason: text("reason").notNull(),
+  explanation: text("explanation"),
+  status: varchar("appeal_status", { length: 20 }).notNull().default("pending"),
+  reviewedBy: varchar("reviewed_by"),
+  reviewNotes: text("review_notes"),
+  reviewedAt: timestamp("reviewed_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -2020,6 +2038,10 @@ export type DirectorCommissionSettings = typeof directorCommissionSettings.$infe
 export type DirectorCommissionLog = typeof directorCommissionLogs.$inferSelect;
 export type DirectorDriverAssignment = typeof directorDriverAssignments.$inferSelect;
 export type DirectorSettingsAuditLog = typeof directorSettingsAuditLogs.$inferSelect;
+
+export const insertDirectorAppealSchema = createInsertSchema(directorAppeals).omit({ id: true, createdAt: true, reviewedBy: true, reviewNotes: true, reviewedAt: true });
+export type InsertDirectorAppeal = z.infer<typeof insertDirectorAppealSchema>;
+export type DirectorAppeal = typeof directorAppeals.$inferSelect;
 
 // Phase 14.5 - Trip Coordinator types
 export type InsertTripCoordinatorProfile = z.infer<typeof insertTripCoordinatorProfileSchema>;
