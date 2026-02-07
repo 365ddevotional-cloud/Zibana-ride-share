@@ -458,6 +458,12 @@ import {
   lostItemFraudSignals,
   type LostItemFraudSignal,
   type InsertLostItemFraudSignal,
+  lostItemMessages,
+  type LostItemMessage,
+  type InsertLostItemMessage,
+  lostItemAnalytics,
+  type LostItemAnalytics,
+  type InsertLostItemAnalytics,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull } from "drizzle-orm";
@@ -1358,6 +1364,16 @@ export interface IStorage {
   getLostItemReportsByStatus(status: string): Promise<LostItemReport[]>;
   updateLostItemReport(id: string, data: Partial<LostItemReport>): Promise<LostItemReport | null>;
   
+  // Lost Item Messages
+  createLostItemMessage(data: InsertLostItemMessage): Promise<LostItemMessage>;
+  getLostItemMessages(lostItemReportId: string): Promise<LostItemMessage[]>;
+  markLostItemMessagesRead(lostItemReportId: string, userId: string): Promise<void>;
+
+  // Lost Item Analytics
+  createLostItemAnalytics(data: InsertLostItemAnalytics): Promise<LostItemAnalytics>;
+  getAllLostItemAnalytics(): Promise<LostItemAnalytics[]>;
+  getLostItemAnalyticsSummary(): Promise<any>;
+
   // Lost Item Fee Config
   getLostItemFeeConfig(countryCode: string): Promise<LostItemFeeConfig | null>;
   getAllLostItemFeeConfigs(): Promise<LostItemFeeConfig[]>;
@@ -10414,6 +10430,86 @@ export class DatabaseStorage implements IStorage {
   async updateLostItemReport(id: string, data: Partial<LostItemReport>): Promise<LostItemReport | null> {
     const [updated] = await db.update(lostItemReports).set({ ...data, updatedAt: new Date() }).where(eq(lostItemReports.id, id)).returning();
     return updated || null;
+  }
+
+  // Lost Item Messages
+  async createLostItemMessage(data: InsertLostItemMessage): Promise<LostItemMessage> {
+    const [msg] = await db.insert(lostItemMessages).values(data).returning();
+    return msg;
+  }
+
+  async getLostItemMessages(lostItemReportId: string): Promise<LostItemMessage[]> {
+    return db.select().from(lostItemMessages).where(eq(lostItemMessages.lostItemReportId, lostItemReportId)).orderBy(lostItemMessages.createdAt);
+  }
+
+  async markLostItemMessagesRead(lostItemReportId: string, userId: string): Promise<void> {
+    await db.update(lostItemMessages)
+      .set({ readAt: new Date() })
+      .where(and(
+        eq(lostItemMessages.lostItemReportId, lostItemReportId),
+        isNull(lostItemMessages.readAt),
+        sql`${lostItemMessages.senderId} != ${userId}`
+      ));
+  }
+
+  // Lost Item Analytics
+  async createLostItemAnalytics(data: InsertLostItemAnalytics): Promise<LostItemAnalytics> {
+    const [analytics] = await db.insert(lostItemAnalytics).values(data).returning();
+    return analytics;
+  }
+
+  async getAllLostItemAnalytics(): Promise<LostItemAnalytics[]> {
+    return db.select().from(lostItemAnalytics).orderBy(desc(lostItemAnalytics.createdAt));
+  }
+
+  async getLostItemAnalyticsSummary(): Promise<any> {
+    const all = await this.getAllLostItemAnalytics();
+    const totalCases = all.length;
+    const returnedCases = all.filter(a => a.outcome === "returned").length;
+    const disputedCases = all.filter(a => a.outcome === "disputed").length;
+    const deniedCases = all.filter(a => a.outcome === "denied").length;
+    const avgResolutionHours = all.filter(a => a.reportToResolutionHours).reduce((sum, a) => sum + parseFloat(a.reportToResolutionHours || "0"), 0) / (totalCases || 1);
+    const totalFees = all.reduce((sum, a) => sum + parseFloat(a.returnFeeApplied || "0"), 0);
+    const totalDriverEarnings = all.reduce((sum, a) => sum + parseFloat(a.driverEarnings || "0"), 0);
+
+    const categoryCounts: Record<string, number> = {};
+    const areaCounts: Record<string, number> = {};
+    const outcomeCounts: Record<string, number> = {};
+    for (const a of all) {
+      categoryCounts[a.itemCategory] = (categoryCounts[a.itemCategory] || 0) + 1;
+      if (a.areaCluster) areaCounts[a.areaCluster] = (areaCounts[a.areaCluster] || 0) + 1;
+      outcomeCounts[a.outcome] = (outcomeCounts[a.outcome] || 0) + 1;
+    }
+
+    const riderFrequency: Record<string, number> = {};
+    const driverPerformance: Record<string, { returns: number; denials: number }> = {};
+    for (const a of all) {
+      riderFrequency[a.riderId] = (riderFrequency[a.riderId] || 0) + 1;
+      if (a.driverId) {
+        if (!driverPerformance[a.driverId]) driverPerformance[a.driverId] = { returns: 0, denials: 0 };
+        if (a.outcome === "returned") driverPerformance[a.driverId].returns++;
+        if (a.outcome === "denied") driverPerformance[a.driverId].denials++;
+      }
+    }
+
+    const topReporters = Object.entries(riderFrequency).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([riderId, count]) => ({ riderId, count }));
+    const topDrivers = Object.entries(driverPerformance).sort((a, b) => b[1].returns - a[1].returns).slice(0, 10).map(([driverId, perf]) => ({ driverId, ...perf }));
+
+    return {
+      totalCases,
+      returnedCases,
+      disputedCases,
+      deniedCases,
+      returnRate: totalCases > 0 ? ((returnedCases / totalCases) * 100).toFixed(1) : "0.0",
+      avgResolutionHours: avgResolutionHours.toFixed(1),
+      totalFees: totalFees.toFixed(2),
+      totalDriverEarnings: totalDriverEarnings.toFixed(2),
+      categoryCounts,
+      areaCounts,
+      outcomeCounts,
+      topReporters,
+      topDrivers,
+    };
   }
 
   // Lost Item Fee Config
