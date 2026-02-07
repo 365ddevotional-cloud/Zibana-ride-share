@@ -1,9 +1,10 @@
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Car, Shield, Wallet, Clock, CheckCircle } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { FullPageLoading } from "@/components/loading-spinner";
@@ -12,6 +13,7 @@ export default function DriverRegister() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   const registerMutation = useMutation({
     mutationFn: async () => {
@@ -113,11 +115,28 @@ export default function DriverRegister() {
                 Start accepting ride requests
               </li>
             </ul>
+            <div className="rounded-md border border-emerald-200 p-3 space-y-2 bg-emerald-50/50 dark:bg-emerald-900/10 dark:border-emerald-800" data-testid="card-terms-acceptance">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                By registering, you acknowledge that you are an independent contractor. ZIBA is a technology platform that connects riders with drivers. ZIBA does not employ drivers, control trip outcomes, or provide transportation services. All trips are undertaken at your own risk.
+              </p>
+              <div className="flex items-start gap-2">
+                <Checkbox
+                  id="terms-acceptance"
+                  checked={termsAccepted}
+                  onCheckedChange={(checked) => setTermsAccepted(checked === true)}
+                  data-testid="checkbox-terms-acceptance"
+                  className="border-emerald-400 data-[state=checked]:bg-emerald-600"
+                />
+                <label htmlFor="terms-acceptance" className="text-xs font-medium cursor-pointer leading-tight">
+                  I accept the Terms of Service and Driver Agreement
+                </label>
+              </div>
+            </div>
             <Button
               size="lg"
               className="w-full bg-emerald-600 hover:bg-emerald-700"
               onClick={() => registerMutation.mutate()}
-              disabled={registerMutation.isPending}
+              disabled={registerMutation.isPending || !termsAccepted}
               data-testid="button-register-driver"
             >
               {registerMutation.isPending ? "Creating Account..." : "Register as Driver"}

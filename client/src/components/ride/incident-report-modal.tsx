@@ -4,6 +4,7 @@ import { FileWarning, Send } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -56,6 +57,7 @@ export function IncidentReportModal({
   const [incidentType, setIncidentType] = useState("");
   const [severity, setSeverity] = useState("");
   const [description, setDescription] = useState("");
+  const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -77,6 +79,7 @@ export function IncidentReportModal({
       setIncidentType("");
       setSeverity("");
       setDescription("");
+      setDisclaimerAccepted(false);
       onOpenChange(false);
     },
     onError: (error: Error) => {
@@ -167,10 +170,27 @@ export function IncidentReportModal({
             )}
           </div>
 
+          <div className="rounded-md border p-3 space-y-2 bg-muted/50" data-testid="card-incident-disclaimer">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              This report is for documentation and assistance only. Submitting a report does not imply fault, liability, or compensation from ZIBA. Reports are reviewed by our safety team.
+            </p>
+            <div className="flex items-start gap-2">
+              <Checkbox
+                id="incident-disclaimer"
+                checked={disclaimerAccepted}
+                onCheckedChange={(checked) => setDisclaimerAccepted(checked === true)}
+                data-testid="checkbox-incident-disclaimer"
+              />
+              <label htmlFor="incident-disclaimer" className="text-xs font-medium cursor-pointer leading-tight">
+                I understand and agree
+              </label>
+            </div>
+          </div>
+
           <Button
             type="submit"
             className="w-full"
-            disabled={!isValid || mutation.isPending}
+            disabled={!isValid || mutation.isPending || !disclaimerAccepted}
             data-testid="button-submit-incident"
           >
             <Send className="h-4 w-4 mr-2" />

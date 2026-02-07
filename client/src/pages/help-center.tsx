@@ -16,7 +16,9 @@ import {
   Shield,
   User,
   Wrench,
+  Headphones,
 } from "lucide-react";
+import { ZibaSupport } from "@/components/ziba-support";
 
 interface HelpArticle {
   id: string;
@@ -187,26 +189,32 @@ const ARTICLES: HelpArticle[] = [
   {
     id: "sf-1", categoryId: "safety", title: "How does ZIBA keep riders safe?",
     summary: "Our safety measures for riders",
-    content: "Your safety is our top priority. Here's how we keep you protected:\n\n\u2022 All drivers go through a verification process before being approved.\n\u2022 You can see your driver's details and vehicle information before the trip.\n\u2022 Real-time trip tracking lets you and your trusted contacts follow your ride.\n\u2022 An in-app SOS button is available during trips for emergencies.\n\u2022 Our rating system helps maintain high standards for driver behavior.\n\u2022 Our support team is available to help with any safety concerns.",
+    content: "ZIBA provides several safety tools to help protect you:\n\n\u2022 All drivers go through a verification process before being approved.\n\u2022 You can see your driver's details and vehicle information before the trip.\n\u2022 Real-time trip tracking lets you and your trusted contacts follow your ride.\n\u2022 An in-app SOS button is available during trips for emergencies.\n\u2022 Our rating system helps maintain high standards for driver behavior.\n\u2022 Our support team is available to help with any safety concerns.\n\nPlease note: ZIBA is a technology platform that connects riders with independent drivers. While we provide safety tools, all users are responsible for their own personal safety decisions during trips.",
     keywords: ["safe", "safety", "protect", "security", "trust", "secure", "verification"],
   },
   {
     id: "sf-2", categoryId: "safety", title: "Can I share my trip?",
     summary: "Sharing your trip details with others",
-    content: "Yes! ZIBA allows you to share your trip details with trusted contacts. During an active trip, you can share your real-time location and trip information so someone you trust can follow your journey.\n\nThis is a great feature to use, especially for late-night rides or trips to unfamiliar areas. Your safety and peace of mind matter to us.",
+    content: "Yes! ZIBA allows you to share your trip details with trusted contacts. During an active trip, you can share your real-time location and trip information so someone you trust can follow your journey.\n\nThis is a great feature to use, especially for late-night rides or trips to unfamiliar areas. We recommend always letting someone know when you're traveling.",
     keywords: ["share", "trip", "contact", "track", "location", "family", "friend"],
   },
   {
     id: "sf-3", categoryId: "safety", title: "What should I do in an emergency?",
     summary: "Emergency steps during a ride",
-    content: "If you're in an emergency during a ride:\n\n1. Use the SOS button in the app to alert our safety team immediately.\n2. If you're in immediate danger, call your local emergency services (e.g., 112 or 911).\n3. If possible, share your trip with a trusted contact.\n\nOur safety team monitors SOS alerts and will respond as quickly as possible. Your safety is always our highest priority.",
+    content: "If you're in an emergency during a ride:\n\n1. Use the SOS button in the app to alert our safety team immediately.\n2. If you're in immediate danger, call your local emergency services (e.g., 112 or 911).\n3. If possible, share your trip with a trusted contact.\n\nOur safety team monitors SOS alerts and will respond as quickly as possible. Please note: Incident and accident reports are for documentation and assistance purposes only. They do not imply fault, liability, or compensation from ZIBA.",
     keywords: ["emergency", "sos", "danger", "help", "urgent", "police", "911", "112", "accident"],
   },
   {
     id: "sf-4", categoryId: "safety", title: "How are drivers verified?",
     summary: "Our driver verification process",
-    content: "All ZIBA drivers go through a thorough verification process that includes:\n\n\u2022 Identity verification with valid government-issued ID.\n\u2022 Vehicle documentation check.\n\u2022 Driver's license verification.\n\u2022 Profile photo verification.\n\nDrivers must be approved before they can accept ride requests. We continuously monitor driver performance through ratings and feedback to maintain quality and safety standards.",
+    content: "All ZIBA drivers go through a thorough verification process that includes:\n\n\u2022 Identity verification with valid government-issued ID.\n\u2022 Vehicle documentation check.\n\u2022 Driver's license verification.\n\u2022 Profile photo verification.\n\nDrivers must be approved before they can accept ride requests. We continuously monitor driver performance through ratings and feedback. Please note: Drivers are independent contractors and ZIBA does not supervise individual trips.",
     keywords: ["driver", "verified", "verification", "check", "background", "approved", "license", "id"],
+  },
+  {
+    id: "sf-5", categoryId: "safety", title: "Lost item during a trip",
+    summary: "What to do if you leave something behind",
+    content: "If you've lost an item during a trip:\n\n1. Go to the Safety Hub from Activity or your Account.\n2. Tap 'Report Lost Item' and select the trip.\n3. Describe the item and submit your report.\n4. If the driver finds the item, you'll be connected via in-app chat.\n\nDrivers may use a Safe Return Hub to securely drop off your item for pickup. Please note: ZIBA helps facilitate communication but does not guarantee recovery of lost items. Drivers assist voluntarily, and ZIBA is not responsible for lost, damaged, or stolen personal property.",
+    keywords: ["lost", "item", "found", "left", "forgot", "belong", "missing", "property", "hub", "return"],
   },
   {
     id: "ac-1", categoryId: "account", title: "How do I update my profile?",
@@ -352,6 +360,7 @@ export default function HelpCenterPage({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<HelpCategory | null>(null);
   const [selectedArticle, setSelectedArticle] = useState<HelpArticle | null>(null);
+  const [supportOpen, setSupportOpen] = useState(false);
 
   const categoryArticles = useMemo(() => {
     if (!selectedCategory) return [];
@@ -654,6 +663,20 @@ export default function HelpCenterPage({
           </div>
         </>
       )}
+
+      {supportOpen && (
+        <div className="fixed bottom-20 right-4 w-[360px] max-w-[calc(100vw-2rem)] h-[500px] max-h-[calc(100vh-6rem)] z-50 shadow-lg rounded-lg overflow-hidden" data-testid="panel-ziba-support">
+          <ZibaSupport onClose={() => setSupportOpen(false)} />
+        </div>
+      )}
+      <Button
+        className="fixed bottom-4 right-4 z-50 rounded-full shadow-lg h-12 w-12"
+        size="icon"
+        onClick={() => setSupportOpen(!supportOpen)}
+        data-testid="button-ziba-support-toggle"
+      >
+        <Headphones className="h-5 w-5" />
+      </Button>
     </div>
   );
 }

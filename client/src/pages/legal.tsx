@@ -58,9 +58,24 @@ export default function LegalPage() {
                     </section>
 
                     <section>
+                      <h3 className="font-semibold text-lg mb-2">1a. Assumption of Risk</h3>
+                      <p className="text-muted-foreground mb-2">
+                        By using ZIBA, all users expressly acknowledge and agree that:
+                      </p>
+                      <ul className="list-disc pl-6 text-muted-foreground space-y-1">
+                        <li>ZIBA is a digital technology marketplace, not a transportation provider</li>
+                        <li>ZIBA does not own vehicles, employ drivers, or control trip outcomes</li>
+                        <li>All trips are undertaken at the user's own risk</li>
+                        <li>ZIBA does not guarantee the safety, reliability, or conduct of any driver or rider</li>
+                        <li>Users are responsible for their own personal safety decisions</li>
+                        <li>ZIBA is not liable for accidents, injuries, assault, robbery, or property damage occurring during or in connection with trips</li>
+                      </ul>
+                    </section>
+
+                    <section>
                       <h3 className="font-semibold text-lg mb-2">2. Platform Nature</h3>
                       <p className="text-muted-foreground">
-                        ZIBA operates as a technology marketplace that facilitates connections between riders seeking transportation and independent driver-partners who provide transportation services. ZIBA does not provide transportation services directly and is not a transportation carrier.
+                        ZIBA operates as a digital marketplace that facilitates connections between riders seeking transportation and independent driver-partners who provide transportation services. ZIBA does not provide transportation services directly, is not a transportation carrier, does not employ drivers, and does not supervise individual trips. ZIBA's role is limited to providing the technology platform and associated support services.
                       </p>
                     </section>
 
@@ -215,7 +230,7 @@ export default function LegalPage() {
                     <section>
                       <h3 className="font-semibold text-lg mb-2">1. Independent Contractor Status</h3>
                       <p className="text-muted-foreground">
-                        By registering as a driver on ZIBA, you acknowledge that you are an independent contractor, not an employee of ZIBA. You are responsible for your own taxes, insurance, and business expenses.
+                        By registering as a driver on ZIBA, you acknowledge that you are an independent contractor, not an employee of ZIBA. You control your own schedule, routes, and conduct. ZIBA does not supervise individual trips. You are responsible for your own taxes, insurance, business expenses, and personal safety decisions.
                       </p>
                     </section>
 
@@ -267,6 +282,8 @@ export default function LegalPage() {
                         <li>Follow all traffic laws and regulations</li>
                         <li>Not discriminate against riders</li>
                         <li>Report any incidents or safety concerns</li>
+                        <li>Lost item handling is voluntary and at driver's discretion</li>
+                        <li>Unsafe behavior, fraud, or false reports may result in immediate deactivation</li>
                       </ul>
                     </section>
 
@@ -462,6 +479,7 @@ export default function LegalPage() {
                         <li>Trip payouts may be frozen pending investigation</li>
                         <li>ZIBA will coordinate with relevant authorities as needed</li>
                         <li>Emergency services should be contacted directly for serious incidents</li>
+                        <li>Reports are for documentation and assistance only and do not imply fault, liability, or compensation</li>
                       </ul>
                     </section>
 
@@ -476,6 +494,7 @@ export default function LegalPage() {
                         <li>Payouts are based on fault determination and accident severity</li>
                         <li>A minimum trust score may be required for eligibility</li>
                         <li>Abuse of the relief fund will result in account termination</li>
+                        <li>The relief fund is a discretionary goodwill program and not an insurance product or entitlement</li>
                       </ul>
                     </section>
 

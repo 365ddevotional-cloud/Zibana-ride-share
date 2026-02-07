@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { EmptyState } from "@/components/empty-state";
 import {
   ArrowLeft, Shield, Package, AlertTriangle, FileText, Users,
@@ -129,6 +130,8 @@ export default function SafetyHubPage() {
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState<"report" | "my-reports">("report");
   const [expandedChat, setExpandedChat] = useState<string | null>(null);
+  const [lostItemDisclaimerAccepted, setLostItemDisclaimerAccepted] = useState(false);
+  const [accidentDisclaimerAccepted, setAccidentDisclaimerAccepted] = useState(false);
   const [lostItemDialogOpen, setLostItemDialogOpen] = useState(false);
   const [accidentDialogOpen, setAccidentDialogOpen] = useState(false);
   const [insuranceDialogOpen, setInsuranceDialogOpen] = useState(false);
@@ -250,10 +253,12 @@ export default function SafetyHubPage() {
 
   function resetLostItemForm() {
     setLostItemForm({ tripId: "", itemDescription: "", itemCategory: "", lastSeenLocation: "", contactPhone: "" });
+    setLostItemDisclaimerAccepted(false);
   }
 
   function resetAccidentForm() {
     setAccidentForm({ tripId: "", accidentType: "", severity: "", description: "", isSafe: true, injuriesReported: false, emergencyServicesNeeded: false, emergencyServicesContacted: false });
+    setAccidentDisclaimerAccepted(false);
   }
 
   function handleLostItemSubmit(e: React.FormEvent) {
@@ -655,10 +660,27 @@ export default function SafetyHubPage() {
                   />
                 </div>
 
+                <div className="rounded-md border p-3 space-y-2 bg-muted/50" data-testid="card-lost-item-disclaimer">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    ZIBA helps facilitate communication but does not guarantee recovery of lost items. Drivers are not obligated to return items. ZIBA is not responsible for loss, damage, or recovery outcomes.
+                  </p>
+                  <div className="flex items-start gap-2">
+                    <Checkbox
+                      id="lost-item-disclaimer"
+                      checked={lostItemDisclaimerAccepted}
+                      onCheckedChange={(checked) => setLostItemDisclaimerAccepted(checked === true)}
+                      data-testid="checkbox-lost-item-disclaimer"
+                    />
+                    <label htmlFor="lost-item-disclaimer" className="text-xs font-medium cursor-pointer leading-tight">
+                      I understand and agree
+                    </label>
+                  </div>
+                </div>
+
                 <Button
                   type="submit"
                   className="w-full"
-                  disabled={createLostItemMutation.isPending}
+                  disabled={createLostItemMutation.isPending || !lostItemDisclaimerAccepted}
                   data-testid="button-submit-lost-item"
                 >
                   {createLostItemMutation.isPending ? "Submitting..." : "Submit Report"}
@@ -788,10 +810,27 @@ export default function SafetyHubPage() {
                   </div>
                 </div>
 
+                <div className="rounded-md border p-3 space-y-2 bg-muted/50" data-testid="card-accident-disclaimer">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Accident and incident reporting is for documentation and assistance only. Reports do not imply fault, liability, or compensation from ZIBA. Any relief funds are discretionary and conditional. ZIBA does not guarantee rider or driver safety.
+                  </p>
+                  <div className="flex items-start gap-2">
+                    <Checkbox
+                      id="accident-disclaimer"
+                      checked={accidentDisclaimerAccepted}
+                      onCheckedChange={(checked) => setAccidentDisclaimerAccepted(checked === true)}
+                      data-testid="checkbox-accident-disclaimer"
+                    />
+                    <label htmlFor="accident-disclaimer" className="text-xs font-medium cursor-pointer leading-tight">
+                      I understand and agree
+                    </label>
+                  </div>
+                </div>
+
                 <Button
                   type="submit"
                   className="w-full"
-                  disabled={createAccidentMutation.isPending}
+                  disabled={createAccidentMutation.isPending || !accidentDisclaimerAccepted}
                   data-testid="button-submit-accident"
                 >
                   {createAccidentMutation.isPending ? "Submitting..." : "Submit Report"}
