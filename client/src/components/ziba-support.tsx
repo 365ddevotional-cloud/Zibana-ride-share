@@ -160,6 +160,9 @@ export function ZibaSupport({ onClose, forceRole }: ZibaSupportProps) {
 
   const [messages, setMessages] = useState<SupportMessage[]>(initialMessages);
   const [input, setInput] = useState("");
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [escalated, setEscalated] = useState(false);
+  const [escalating, setEscalating] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const topics = getTopics(detectedRole);
 
@@ -169,9 +172,9 @@ export function ZibaSupport({ onClose, forceRole }: ZibaSupportProps) {
     }
   }, [messages]);
 
-  const handleSend = useCallback((text?: string) => {
+  const handleSend = useCallback(async (text?: string) => {
     const msg = text || input.trim();
-    if (!msg) return;
+    if (!msg || escalated) return;
 
     const userMsg: SupportMessage = {
       id: `user-${Date.now()}`,
@@ -179,21 +182,41 @@ export function ZibaSupport({ onClose, forceRole }: ZibaSupportProps) {
       content: msg,
       timestamp: new Date(),
     };
+    setMessages(prev => [...prev, userMsg]);
+    setInput("");
+
+    try {
+      const res = await fetch("/api/support/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ message: msg, conversationId, currentScreen: screen }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.conversationId) setConversationId(data.conversationId);
+        if (data.escalated) setEscalated(true);
+        const supportMsg: SupportMessage = {
+          id: `support-${Date.now()}`,
+          role: "support",
+          content: data.response,
+          timestamp: new Date(Date.now() + 300),
+        };
+        setMessages(prev => [...prev, supportMsg]);
+        return;
+      }
+    } catch {}
 
     const responseText = getTemplateResponse(msg, detectedRole, screen);
-
     const supportMsg: SupportMessage = {
       id: `support-${Date.now()}`,
       role: "support",
       content: responseText,
       timestamp: new Date(Date.now() + 300),
     };
-
-    setMessages(prev => [...prev, userMsg, supportMsg]);
-    setInput("");
-
+    setMessages(prev => [...prev, supportMsg]);
     logSupportInteraction(msg, responseText, detectedRole, screen);
-  }, [input, detectedRole, screen]);
+  }, [input, detectedRole, screen, conversationId, escalated]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -267,24 +290,56 @@ export function ZibaSupport({ onClose, forceRole }: ZibaSupportProps) {
             onChange={(e) => setInput(e.target.value)}
             placeholder={isPrivateMode ? "Ask about platform operations..." : "Type your question..."}
             className="flex-1"
+            disabled={escalated}
             data-testid="input-support-message"
           />
-          <Button type="submit" size="icon" disabled={!input.trim()} data-testid="button-send-support">
+          <Button type="submit" size="icon" disabled={!input.trim() || escalated} data-testid="button-send-support">
             <Send className="h-4 w-4" />
           </Button>
         </form>
 
-        {!isPrivateMode && (
+        {!isPrivateMode && !escalated && (
           <Button
             variant="outline"
             size="sm"
             className="w-full mt-2"
-            onClick={() => handleSend("Talk to Support")}
+            onClick={async () => {
+              if (!conversationId) {
+                handleSend("Talk to Support");
+                return;
+              }
+              setEscalating(true);
+              try {
+                const res = await fetch("/api/support/escalate", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  credentials: "include",
+                  body: JSON.stringify({ conversationId, currentScreen: screen }),
+                });
+                if (res.ok) {
+                  const data = await res.json();
+                  setEscalated(true);
+                  setMessages(prev => [...prev, {
+                    id: `support-escalated-${Date.now()}`,
+                    role: "support",
+                    content: data.message || "A support agent will review this as soon as possible.",
+                    timestamp: new Date(),
+                  }]);
+                }
+              } catch {}
+              setEscalating(false);
+            }}
+            disabled={escalating}
             data-testid="button-escalate-support"
           >
             <Headphones className="h-3 w-3 mr-2" />
-            Talk to Support Team
+            {escalating ? "Connecting..." : "Talk to Support Team"}
           </Button>
+        )}
+        {escalated && (
+          <div className="text-center mt-2 p-2 bg-muted rounded-md">
+            <p className="text-xs text-muted-foreground">A support agent will review this as soon as possible.</p>
+          </div>
         )}
 
         <p className="text-[10px] text-muted-foreground text-center mt-2">

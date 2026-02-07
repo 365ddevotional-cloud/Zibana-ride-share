@@ -47,6 +47,8 @@ import { LostItemFraudPanel } from "@/components/admin/lost-item-fraud-panel";
 import { ComplianceLogPanel } from "@/components/admin/compliance-log-panel";
 import { SupportLogsPanel } from "@/components/admin/support-logs-panel";
 import { InboxViewerPanel } from "@/components/admin/inbox-viewer-panel";
+import { ZibraInsightsPanel } from "@/components/zibra-insights-panel";
+import { ZibraGovernancePanel } from "@/components/zibra-governance-panel";
 import { ZibaSupport } from "@/components/ziba-support";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -93,6 +95,7 @@ import {
   FileText,
   ChevronRight,
   Settings,
+  Settings2,
   TestTube,
   Trash2,
   Rocket,
@@ -2490,6 +2493,18 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <TabsTrigger value="support-logs" className="admin-nav-trigger rounded-md" data-testid="tab-support-logs">
                 <Headphones className="h-4 w-4 mr-1" />
                 Support Logs
+              </TabsTrigger>
+            )}
+            {(isSuperAdmin || userRole === "admin") && (
+              <TabsTrigger value="zibra-insights" className="admin-nav-trigger rounded-md" data-testid="tab-zibra-insights">
+                <BarChart3 className="h-4 w-4 mr-2" />
+                ZIBRA Insights
+              </TabsTrigger>
+            )}
+            {isSuperAdmin && (
+              <TabsTrigger value="zibra-governance" className="admin-nav-trigger rounded-md" data-testid="tab-zibra-governance">
+                <Settings2 className="h-4 w-4 mr-2" />
+                ZIBRA Governance
               </TabsTrigger>
             )}
             {(isSuperAdmin || userRole === "admin") && (
@@ -6880,6 +6895,16 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
           <TabsContent value="support-logs">
             <SupportLogsPanel />
           </TabsContent>
+          )}
+          {(isSuperAdmin || userRole === "admin") && (
+            <TabsContent value="zibra-insights">
+              <ZibraInsightsPanel />
+            </TabsContent>
+          )}
+          {isSuperAdmin && (
+            <TabsContent value="zibra-governance">
+              <ZibraGovernancePanel />
+            </TabsContent>
           )}
           {(isSuperAdmin || userRole === "admin") && (
             <TabsContent value="tax-documents">

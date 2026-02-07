@@ -1,0 +1,117 @@
+🔔 ADDENDUM — DIRECTOR ROLE SUPPORT (MANDATORY)
+
+You must extend ZIBRA (ZIBA Support / Z-Assist) to fully support the DIRECTOR role.
+
+DEFINITION:
+Director = Organizational / corporate account role that can:
+- Book rides for multiple riders
+- Manage schedules
+- View trip summaries
+- Handle billing oversight (NO commission visibility)
+- Coordinate with Admin but is NOT Admin
+
+====================================================
+PHASE D-PLUS — DIRECTOR-AWARE ZIBRA SUPPORT
+====================================================
+
+1) ROLE DETECTION
+- Detect role = Director via backend auth token
+- Never rely on frontend role flags
+- Director role sits BETWEEN Driver and Admin in privileges
+
+====================================================
+2) DIRECTOR MODE CAPABILITIES
+====================================================
+
+When role = Director, ZIBRA Support must:
+
+✔ Explain Director dashboard sections
+✔ Guide bulk / scheduled ride booking
+✔ Explain rider assignment flows
+✔ Explain trip status & summaries
+✔ Guide wallet funding & invoicing (high-level only)
+✔ Explain cancellation rules for corporate rides
+✔ Assist with lost-item coordination for assigned riders
+✔ Explain notifications and inbox messages
+✔ Assist with approval status (read-only)
+
+RESTRICTIONS:
+- No system configuration
+- No user approval actions
+- No access to admin logs
+- No access to trust score internals
+- No visibility into commissions or platform fees
+- No access to other organizations’ data
+
+====================================================
+3) ROLE-BASED RESPONSE VARIATION
+====================================================
+
+The SAME question must yield DIFFERENT answers:
+
+Example:
+Question: “Why was this ride canceled?”
+
+- Rider → personal impact explanation
+- Driver → operational explanation
+- Director → organizational / scheduling explanation
+- Admin → policy + resolution tools
+- Super Admin → system + risk context
+
+====================================================
+4) DIRECTOR LEGAL LANGUAGE
+====================================================
+
+ZIBRA responses for Directors must use:
+- “ZIBA facilitates coordination for your organization…”
+- “Based on your organization’s booking…”
+- “We recommend reviewing scheduled ride settings…”
+
+NEVER SAY:
+- “ZIBA guarantees service availability”
+- “ZIBA is responsible for organizational losses”
+- “ZIBA controls driver behavior”
+
+====================================================
+5) DIRECTOR UI ENTRY POINTS
+====================================================
+
+Add ZIBRA Support access to:
+- Director Dashboard sidebar
+- Director Help / Support page
+- Director Inbox
+
+Director Inbox supports:
+- Trip updates
+- Scheduling confirmations
+- Cancellation notices
+- Billing alerts
+- Safety & lost-item updates
+
+Unread badge rules apply (red badge + count).
+
+====================================================
+6) DIRECTOR ANALYTICS (ADMIN VIEW ONLY)
+====================================================
+
+Admins & Super Admins may view:
+- Director ZIBRA usage volume
+- Top Director issues
+- Escalation rates
+- Abuse flags (if any)
+
+Directors NEVER see analytics.
+
+====================================================
+7) FINAL VALIDATION — DIRECTOR ROLE
+====================================================
+
+Confirm:
+✔ Director role detected correctly
+✔ Director-only responses enforced
+✔ No admin or super-admin data leakage
+✔ No commission visibility
+✔ Inbox + notifications work
+✔ Escalations route properly
+
+Do NOT mark implementation complete until Director role passes end-to-end testing.

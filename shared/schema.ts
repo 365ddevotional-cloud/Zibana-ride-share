@@ -3497,6 +3497,8 @@ export const supportInteractions = pgTable("support_interactions", {
   currentScreen: varchar("current_screen", { length: 100 }),
   userMessage: text("user_message").notNull(),
   supportResponse: text("support_response").notNull(),
+  matchedTemplateId: varchar("matched_template_id", { length: 100 }),
+  matchedCategory: varchar("matched_category", { length: 50 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -3508,6 +3510,11 @@ export const supportConversations = pgTable("support_conversations", {
   lastMessageAt: timestamp("last_message_at").defaultNow().notNull(),
   messageCount: integer("message_count").notNull().default(0),
   currentScreen: varchar("current_screen", { length: 255 }),
+  escalated: boolean("escalated").notNull().default(false),
+  escalatedAt: timestamp("escalated_at"),
+  escalationTicketId: varchar("escalation_ticket_id"),
+  resolvedWithoutHuman: boolean("resolved_without_human").notNull().default(true),
+  country: varchar("country", { length: 10 }),
 });
 
 export const supportChatMessages = pgTable("support_chat_messages", {
@@ -3518,12 +3525,38 @@ export const supportChatMessages = pgTable("support_chat_messages", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const insertSupportConversationSchema = createInsertSchema(supportConversations).omit({ id: true, startedAt: true, lastMessageAt: true, messageCount: true });
+export const insertSupportConversationSchema = createInsertSchema(supportConversations).omit({ id: true, startedAt: true, lastMessageAt: true, messageCount: true, escalated: true, escalatedAt: true, escalationTicketId: true, resolvedWithoutHuman: true });
 export const insertSupportChatMessageSchema = createInsertSchema(supportChatMessages).omit({ id: true, createdAt: true });
 export type SupportConversation = typeof supportConversations.$inferSelect;
 export type SupportChatMessage = typeof supportChatMessages.$inferSelect;
 export type InsertSupportConversation = z.infer<typeof insertSupportConversationSchema>;
 export type InsertSupportChatMessage = z.infer<typeof insertSupportChatMessageSchema>;
+
+export const zibraConfig = pgTable("zibra_config", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: varchar("key", { length: 100 }).notNull().unique(),
+  value: text("value").notNull(),
+  description: text("description"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  updatedBy: varchar("updated_by"),
+});
+
+export const zibraConfigAuditLogs = pgTable("zibra_config_audit_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  configKey: varchar("config_key", { length: 100 }).notNull(),
+  oldValue: text("old_value"),
+  newValue: text("new_value").notNull(),
+  changedBy: varchar("changed_by").notNull(),
+  reason: text("reason"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertZibraConfigSchema = createInsertSchema(zibraConfig).omit({ id: true, updatedAt: true });
+export const insertZibraConfigAuditLogSchema = createInsertSchema(zibraConfigAuditLogs).omit({ id: true, createdAt: true });
+export type ZibraConfig = typeof zibraConfig.$inferSelect;
+export type InsertZibraConfig = z.infer<typeof insertZibraConfigSchema>;
+export type ZibraConfigAuditLog = typeof zibraConfigAuditLogs.$inferSelect;
+export type InsertZibraConfigAuditLog = z.infer<typeof insertZibraConfigAuditLogSchema>;
 
 // Compliance audit log (immutable, exportable)
 export const complianceAuditLog = pgTable("compliance_audit_log", {

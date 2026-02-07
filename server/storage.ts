@@ -482,6 +482,12 @@ import {
   type SupportChatMessage,
   type InsertSupportConversation,
   type InsertSupportChatMessage,
+  zibraConfig,
+  zibraConfigAuditLogs,
+  type ZibraConfig,
+  type InsertZibraConfig,
+  type ZibraConfigAuditLog,
+  type InsertZibraConfigAuditLog,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull } from "drizzle-orm";
@@ -1471,6 +1477,31 @@ export interface IStorage {
   addSupportMessage(conversationId: string, role: string, content: string): Promise<SupportChatMessage>;
   getSupportConversation(id: string): Promise<SupportConversation | undefined>;
   getUserSupportConversations(userId: string): Promise<SupportConversation[]>;
+
+  // ZIBRA Analytics (Phase G)
+  getZibraAnalytics(filters?: { startDate?: string; endDate?: string; role?: string; country?: string }): Promise<{
+    totalConversations: number;
+    conversationsByRole: Record<string, number>;
+    escalatedCount: number;
+    resolvedWithoutHumanCount: number;
+    resolvedWithoutHumanPercent: number;
+    topCategories: Array<{ category: string; count: number }>;
+    topUnresolvedCategories: Array<{ category: string; count: number }>;
+    abuseFlags: { lostItem: number; paymentDispute: number; threats: number };
+    languageDistribution: Record<string, number>;
+  }>;
+
+  // ZIBRA Governance (Phase H)
+  getZibraConfig(key: string): Promise<ZibraConfig | undefined>;
+  getAllZibraConfigs(): Promise<ZibraConfig[]>;
+  setZibraConfig(key: string, value: string, updatedBy: string, description?: string): Promise<ZibraConfig>;
+  logZibraConfigChange(data: InsertZibraConfigAuditLog): Promise<ZibraConfigAuditLog>;
+  getZibraConfigAuditLogs(configKey?: string): Promise<ZibraConfigAuditLog[]>;
+
+  // ZIBRA Escalation (Phase I)
+  escalateSupportConversation(conversationId: string, ticketId: string): Promise<SupportConversation | undefined>;
+  getConversationMessages(conversationId: string, limit?: number): Promise<SupportChatMessage[]>;
+  isConversationEscalated(conversationId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -10890,6 +10921,145 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(supportConversations)
       .where(eq(supportConversations.userId, userId))
       .orderBy(desc(supportConversations.lastMessageAt));
+  }
+
+  async getZibraAnalytics(filters?: { startDate?: string; endDate?: string; role?: string; country?: string }) {
+    const conditions: any[] = [];
+    if (filters?.startDate) conditions.push(gte(supportConversations.startedAt, new Date(filters.startDate)));
+    if (filters?.endDate) conditions.push(lte(supportConversations.startedAt, new Date(filters.endDate)));
+    if (filters?.role) conditions.push(eq(supportConversations.userRole, filters.role));
+    if (filters?.country) conditions.push(eq(supportConversations.country, filters.country));
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const [totalResult] = await db.select({ count: count() }).from(supportConversations).where(whereClause);
+    const totalConversations = Number(totalResult?.count || 0);
+
+    const roleResults = await db.select({ role: supportConversations.userRole, count: count() })
+      .from(supportConversations).where(whereClause).groupBy(supportConversations.userRole);
+    const conversationsByRole: Record<string, number> = {};
+    roleResults.forEach(r => { conversationsByRole[r.role] = Number(r.count); });
+
+    const escalatedConditions = [...conditions, eq(supportConversations.escalated, true)];
+    const [escResult] = await db.select({ count: count() }).from(supportConversations)
+      .where(and(...escalatedConditions));
+    const escalatedCount = Number(escResult?.count || 0);
+
+    const resolvedConditions = [...conditions, eq(supportConversations.resolvedWithoutHuman, true)];
+    const [resolvedResult] = await db.select({ count: count() }).from(supportConversations)
+      .where(and(...resolvedConditions));
+    const resolvedWithoutHumanCount = Number(resolvedResult?.count || 0);
+    const resolvedWithoutHumanPercent = totalConversations > 0 ? Math.round((resolvedWithoutHumanCount / totalConversations) * 100) : 0;
+
+    const interactionConditions: any[] = [];
+    if (filters?.startDate) interactionConditions.push(gte(supportInteractions.createdAt, new Date(filters.startDate)));
+    if (filters?.endDate) interactionConditions.push(lte(supportInteractions.createdAt, new Date(filters.endDate)));
+    if (filters?.role) interactionConditions.push(eq(supportInteractions.userRole, filters.role));
+    const interactionWhere = interactionConditions.length > 0 ? and(...interactionConditions) : undefined;
+
+    const categoryResults = await db.select({ 
+      category: supportInteractions.matchedCategory, 
+      count: count() 
+    }).from(supportInteractions)
+      .where(interactionWhere)
+      .groupBy(supportInteractions.matchedCategory)
+      .orderBy(desc(count()))
+      .limit(20);
+    const topCategories = categoryResults
+      .filter(c => c.category)
+      .map(c => ({ category: c.category!, count: Number(c.count) }));
+
+    const topUnresolvedCategories = topCategories.slice(0, 20);
+
+    const abuseCats = ['lost_items', 'lost_item', 'cash_wallet', 'payment', 'payment_dispute'];
+    const threatCats = ['legal_threats', 'legal_threat', 'aggressive', 'emotional'];
+    const lostCats = ['lost_items', 'lost_item'];
+    
+    const [lostCount] = await db.select({ count: count() }).from(supportInteractions)
+      .where(and(interactionWhere, inArray(supportInteractions.matchedCategory, lostCats)));
+    const [paymentCount] = await db.select({ count: count() }).from(supportInteractions)
+      .where(and(interactionWhere, inArray(supportInteractions.matchedCategory, abuseCats)));
+    const [threatCount] = await db.select({ count: count() }).from(supportInteractions)
+      .where(and(interactionWhere, inArray(supportInteractions.matchedCategory, threatCats)));
+
+    const abuseFlags = {
+      lostItem: Number(lostCount?.count || 0),
+      paymentDispute: Number(paymentCount?.count || 0),
+      threats: Number(threatCount?.count || 0),
+    };
+
+    const languageDistribution: Record<string, number> = { en: totalConversations };
+
+    return {
+      totalConversations,
+      conversationsByRole,
+      escalatedCount,
+      resolvedWithoutHumanCount,
+      resolvedWithoutHumanPercent,
+      topCategories,
+      topUnresolvedCategories,
+      abuseFlags,
+      languageDistribution,
+    };
+  }
+
+  async getZibraConfig(key: string): Promise<ZibraConfig | undefined> {
+    const [config] = await db.select().from(zibraConfig).where(eq(zibraConfig.key, key));
+    return config;
+  }
+
+  async getAllZibraConfigs(): Promise<ZibraConfig[]> {
+    return db.select().from(zibraConfig).orderBy(zibraConfig.key);
+  }
+
+  async setZibraConfig(key: string, value: string, updatedBy: string, description?: string): Promise<ZibraConfig> {
+    const existing = await this.getZibraConfig(key);
+    if (existing) {
+      const [updated] = await db.update(zibraConfig)
+        .set({ value, updatedBy, updatedAt: new Date(), description: description || existing.description })
+        .where(eq(zibraConfig.key, key))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(zibraConfig).values({ key, value, updatedBy, description }).returning();
+    return created;
+  }
+
+  async logZibraConfigChange(data: InsertZibraConfigAuditLog): Promise<ZibraConfigAuditLog> {
+    const [log] = await db.insert(zibraConfigAuditLogs).values(data).returning();
+    return log;
+  }
+
+  async getZibraConfigAuditLogs(configKey?: string): Promise<ZibraConfigAuditLog[]> {
+    if (configKey) {
+      return db.select().from(zibraConfigAuditLogs)
+        .where(eq(zibraConfigAuditLogs.configKey, configKey))
+        .orderBy(desc(zibraConfigAuditLogs.createdAt))
+        .limit(200);
+    }
+    return db.select().from(zibraConfigAuditLogs)
+      .orderBy(desc(zibraConfigAuditLogs.createdAt))
+      .limit(200);
+  }
+
+  async escalateSupportConversation(conversationId: string, ticketId: string): Promise<SupportConversation | undefined> {
+    const [updated] = await db.update(supportConversations)
+      .set({ escalated: true, escalatedAt: new Date(), escalationTicketId: ticketId, resolvedWithoutHuman: false })
+      .where(eq(supportConversations.id, conversationId))
+      .returning();
+    return updated;
+  }
+
+  async getConversationMessages(conversationId: string, limit: number = 10): Promise<SupportChatMessage[]> {
+    return db.select().from(supportChatMessages)
+      .where(eq(supportChatMessages.conversationId, conversationId))
+      .orderBy(desc(supportChatMessages.createdAt))
+      .limit(limit);
+  }
+
+  async isConversationEscalated(conversationId: string): Promise<boolean> {
+    const conv = await this.getSupportConversation(conversationId);
+    return conv?.escalated === true;
   }
 }
 

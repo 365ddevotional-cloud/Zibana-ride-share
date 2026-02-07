@@ -40,7 +40,7 @@ import {
 import { NAVIGATION_PROVIDERS } from "@shared/navigation-config";
 import { insertUserIdentityProfileSchema } from "@shared/schema";
 import { getIdentityConfig, isValidIdTypeForCountry } from "@shared/identity-config";
-import { getTemplateResponse, type ZibraRole } from "@shared/zibra-templates";
+import { getTemplateResponse, matchTemplate, type ZibraRole } from "@shared/zibra-templates";
 
 function generateSupportResponse(input: string, role: string, _isPrivileged: boolean): string {
   const zibraRole: ZibraRole = (role === "admin" || role === "super_admin" || role === "rider" || role === "driver") ? role : "general";
@@ -15498,12 +15498,16 @@ export async function registerRoutes(
       const { userMessage, supportResponse, userRole, currentScreen } = req.body;
       if (!userMessage || !supportResponse) return res.status(400).json({ message: "Missing required fields" });
       
+      const templateMatch = matchTemplate(userMessage, userRole || "rider");
+
       await storage.logSupportInteraction({
         userId: userId || "anonymous",
         userRole: userRole || "unknown",
         currentScreen: currentScreen || null,
         userMessage: userMessage.substring(0, 1000),
         supportResponse: supportResponse.substring(0, 1000),
+        matchedTemplateId: templateMatch?.id || null,
+        matchedCategory: templateMatch?.category || null,
       });
       res.json({ success: true });
     } catch (error) {
@@ -15527,6 +15531,19 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Message is required" });
       }
 
+      // Check if conversation already escalated
+      if (conversationId) {
+        const isEscalated = await storage.isConversationEscalated(conversationId);
+        if (isEscalated) {
+          return res.json({
+            response: "A support agent will review this as soon as possible.",
+            conversationId,
+            role: "rider",
+            escalated: true,
+          });
+        }
+      }
+
       const allRoles = await storage.getAllUserRoles(userId);
       const roleList = allRoles.map(r => r.role);
       let detectedRole = "rider";
@@ -15537,7 +15554,53 @@ export async function registerRoutes(
 
       const isPrivileged = detectedRole === "admin" || detectedRole === "super_admin";
 
-      const response = generateSupportResponse(message, detectedRole, isPrivileged);
+      // Check if ZIBRA is enabled globally
+      const zibraEnabled = await storage.getZibraConfig("zibra_enabled");
+      if (zibraEnabled && zibraEnabled.value === "false") {
+        return res.json({
+          response: "Support is currently in maintenance mode. Please submit a support ticket through the Help Center for assistance.",
+          conversationId,
+          role: detectedRole,
+        });
+      }
+
+      // Check if ZIBRA is enabled for this role
+      const roleEnabled = await storage.getZibraConfig(`zibra_role_${detectedRole}_enabled`);
+      if (roleEnabled && roleEnabled.value === "false") {
+        return res.json({
+          response: "Support is currently in maintenance mode. Please submit a support ticket through the Help Center for assistance.",
+          conversationId,
+          role: detectedRole,
+        });
+      }
+
+      // Check safe mode - only allow FAQ responses
+      const safeMode = await storage.getZibraConfig("zibra_safe_mode");
+
+      // Check phrase blacklist
+      const blacklistConfig = await storage.getZibraConfig("zibra_blacklist_phrases");
+      const blacklistPhrases = blacklistConfig ? blacklistConfig.value.split(",").map((p: string) => p.trim().toLowerCase()) : [];
+
+      let response = generateSupportResponse(message, detectedRole, isPrivileged);
+
+      // In safe mode, restrict to FAQ-only responses
+      if (safeMode && safeMode.value === "true") {
+        const match = matchTemplate(message, detectedRole);
+        if (!match || (match.priority !== undefined && match.priority < 70)) {
+          response = "For detailed assistance, please submit a support ticket through the Help Center. A support agent will review your request.";
+        }
+      }
+
+      // Filter blacklisted phrases
+      if (blacklistPhrases.length > 0) {
+        let filtered = response;
+        for (const phrase of blacklistPhrases) {
+          if (phrase && filtered.toLowerCase().includes(phrase)) {
+            filtered = filtered.replace(new RegExp(phrase, "gi"), "[redacted]");
+          }
+        }
+        response = filtered;
+      }
 
       let convId = conversationId;
       if (!convId) {
@@ -15579,6 +15642,197 @@ export async function registerRoutes(
       res.json(results);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch interactions" });
+    }
+  });
+
+  // ==========================================
+  // ZIBRA INSIGHTS - Analytics (Phase G)
+  // ==========================================
+
+  app.get("/api/admin/zibra/analytics", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user as any;
+      const roles = user.roles || [];
+      if (!roles.includes("admin") && !roles.includes("super_admin")) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      const { startDate, endDate, role, country } = req.query;
+      const analytics = await storage.getZibraAnalytics({
+        startDate: startDate as string | undefined,
+        endDate: endDate as string | undefined,
+        role: role as string | undefined,
+        country: country as string | undefined,
+      });
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching ZIBRA analytics:", error);
+      res.status(500).json({ message: "Failed to fetch analytics" });
+    }
+  });
+
+  app.get("/api/admin/zibra/analytics/export", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user as any;
+      const roles = user.roles || [];
+      if (!roles.includes("admin") && !roles.includes("super_admin")) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      const { startDate, endDate, role, country } = req.query;
+      const analytics = await storage.getZibraAnalytics({
+        startDate: startDate as string | undefined,
+        endDate: endDate as string | undefined,
+        role: role as string | undefined,
+        country: country as string | undefined,
+      });
+      
+      const csvRows = [
+        "Metric,Value",
+        `Total Conversations,${analytics.totalConversations}`,
+        `Escalated,${analytics.escalatedCount}`,
+        `Resolved Without Human,${analytics.resolvedWithoutHumanCount}`,
+        `Resolution Rate (%),${analytics.resolvedWithoutHumanPercent}`,
+        `Abuse - Lost Items,${analytics.abuseFlags.lostItem}`,
+        `Abuse - Payment Disputes,${analytics.abuseFlags.paymentDispute}`,
+        `Abuse - Threats,${analytics.abuseFlags.threats}`,
+        "",
+        "Role,Conversations",
+        ...Object.entries(analytics.conversationsByRole).map(([r, c]) => `${r},${c}`),
+        "",
+        "Category,Count",
+        ...analytics.topCategories.map((c: any) => `${c.category},${c.count}`),
+      ];
+      
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", "attachment; filename=zibra-analytics.csv");
+      res.send(csvRows.join("\n"));
+    } catch (error) {
+      console.error("Error exporting ZIBRA analytics:", error);
+      res.status(500).json({ message: "Failed to export analytics" });
+    }
+  });
+
+  // ==========================================
+  // ZIBRA GOVERNANCE - Controls (Phase H)
+  // ==========================================
+
+  app.get("/api/admin/zibra/config", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user as any;
+      const roles = user.roles || [];
+      if (!roles.includes("super_admin")) {
+        return res.status(403).json({ message: "Super admin access required" });
+      }
+      const configs = await storage.getAllZibraConfigs();
+      res.json(configs);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch ZIBRA config" });
+    }
+  });
+
+  app.post("/api/admin/zibra/config", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user as any;
+      const roles = user.roles || [];
+      if (!roles.includes("super_admin")) {
+        return res.status(403).json({ message: "Super admin access required" });
+      }
+      const userId = user.claims?.sub;
+      const { key, value, description, reason } = req.body;
+      if (!key || value === undefined) {
+        return res.status(400).json({ message: "Key and value are required" });
+      }
+
+      const existing = await storage.getZibraConfig(key);
+      const oldValue = existing?.value || null;
+
+      const config = await storage.setZibraConfig(key, String(value), userId, description);
+
+      await storage.logZibraConfigChange({
+        configKey: key,
+        oldValue,
+        newValue: String(value),
+        changedBy: userId,
+        reason: reason || null,
+      });
+
+      res.json(config);
+    } catch (error) {
+      console.error("Error updating ZIBRA config:", error);
+      res.status(500).json({ message: "Failed to update config" });
+    }
+  });
+
+  app.get("/api/admin/zibra/config/audit", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user as any;
+      const roles = user.roles || [];
+      if (!roles.includes("super_admin")) {
+        return res.status(403).json({ message: "Super admin access required" });
+      }
+      const { configKey } = req.query;
+      const logs = await storage.getZibraConfigAuditLogs(configKey as string | undefined);
+      res.json(logs);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch audit logs" });
+    }
+  });
+
+  // ==========================================
+  // ZIBRA ESCALATION PIPELINE (Phase I)
+  // ==========================================
+
+  app.post("/api/support/escalate", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const { conversationId, currentScreen } = req.body;
+      if (!conversationId) {
+        return res.status(400).json({ message: "Conversation ID is required" });
+      }
+
+      const already = await storage.isConversationEscalated(conversationId);
+      if (already) {
+        return res.json({ message: "This conversation has already been escalated.", alreadyEscalated: true });
+      }
+
+      const allRoles = await storage.getAllUserRoles(userId);
+      const roleList = allRoles.map(r => r.role);
+      let detectedRole = "rider";
+      if (roleList.includes("super_admin")) detectedRole = "super_admin";
+      else if (roleList.includes("admin")) detectedRole = "admin";
+      else if (roleList.includes("driver")) detectedRole = "driver";
+
+      const recentMessages = await storage.getConversationMessages(conversationId, 10);
+
+      const transcript = recentMessages.reverse().map((m: any) => 
+        `[${m.role === "user" ? "User" : "ZIBA Support"}]: ${m.content}`
+      ).join("\n\n");
+
+      const ticket = await storage.createSupportTicket({
+        createdByUserId: userId,
+        createdByRole: detectedRole as any,
+        subject: "ZIBA Support Escalation",
+        description: `Escalated from ZIBA Support conversation.\n\nRoute context: ${currentScreen || "Unknown"}\nUser role: ${detectedRole}\n\n--- Last 10 Messages ---\n${transcript}`,
+        status: "open",
+        priority: "medium",
+      });
+
+      await storage.escalateSupportConversation(conversationId, ticket.id);
+
+      await storage.addSupportMessage(conversationId, "support", 
+        "A support agent will review this as soon as possible. You will be notified when there is an update.");
+
+      res.json({ 
+        success: true, 
+        ticketId: ticket.id,
+        message: "A support agent will review this as soon as possible."
+      });
+    } catch (error) {
+      console.error("Error escalating conversation:", error);
+      res.status(500).json({ message: "Failed to escalate. Please try again." });
     }
   });
 
