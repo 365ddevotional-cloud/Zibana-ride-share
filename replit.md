@@ -1,7 +1,7 @@
 # ZIBA - Ride Hailing Platform
 
 ## Overview
-ZIBA is a ride-hailing web application for emerging markets, connecting riders with drivers for safe and reliable transportation. It supports seven user roles to manage operations, trip coordination, financial oversight, and customer support. The platform aims to be a scalable, reliable ride-hailing solution that improves mobility and creates economic opportunities in its operational regions.
+ZIBA is a ride-hailing web application designed for emerging markets, connecting riders with drivers for safe and reliable transportation. It supports seven distinct user roles to manage various aspects of operations, trip coordination, financial oversight, and customer support. The platform aims to be a scalable and reliable solution, enhancing mobility and fostering economic opportunities in its operational regions.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -12,9 +12,8 @@ Preferred communication style: Simple, everyday language.
 - **Framework**: React 18 with TypeScript.
 - **Routing**: Wouter.
 - **State Management**: TanStack React Query for server state; React hooks for local state.
-- **Styling**: Tailwind CSS integrated with shadcn/ui components.
-- **UI/UX**: Role-based dashboards, public landing page, dark/light mode, lazy loading, error boundaries, and loading skeletons.
-- **App Mode Separation**: Configurable `APP_MODE` (RIDER/DRIVER/UNIFIED) to build separate rider-only or driver-only apps from a single codebase.
+- **Styling**: Tailwind CSS with shadcn/ui components.
+- **UI/UX**: Features role-based dashboards, a public landing page, dark/light mode, lazy loading, error boundaries, and loading skeletons. Supports configurable app modes (RIDER/DRIVER/UNIFIED) from a single codebase.
 
 ### Backend
 - **Runtime**: Node.js with Express.js.
@@ -22,44 +21,38 @@ Preferred communication style: Simple, everyday language.
 - **API Pattern**: RESTful JSON APIs.
 - **Authentication**: Replit Auth (OpenID Connect) via Passport.js.
 - **Session Management**: Express sessions stored in PostgreSQL.
-- **Design Principles**: Clean separation of concerns for routes, storage, and authentication, with role-based middleware.
+- **Design Principles**: Emphasizes clean separation of concerns for routes, storage, and authentication, with role-based middleware.
 
 ### Data Storage
 - **Database**: PostgreSQL.
 - **ORM**: Drizzle ORM with Zod for schema validation.
-- **Schema**: Covers users, trips, wallets, notifications, disputes, fraud profiles, incentive programs, country-specific data, support tickets, organization contracts, enterprise billing, referral codes, marketing, and feature flags.
+- **Schema**: Comprehensive, covering users, trips, wallets, notifications, disputes, fraud profiles, incentive programs, country-specific data, support tickets, organization contracts, enterprise billing, referral codes, marketing, and feature flags.
 
 ### Core Features
 - **Authentication & Authorization**: Replit Auth integration and Role-Based Access Control (RBAC).
-- **Multi-Role User System**: Supports a single user having multiple distinct roles.
+- **Multi-Role User System**: Allows a single user to possess multiple roles.
 - **User & Trip Management**: Full lifecycle management of users and trips, including identity verification.
-- **Financial Operations**: Fare calculation, commission, driver payouts, simulated payment system with virtual wallets, and audit logging.
-- **Notifications**: In-app notifications for real-time updates.
-- **Ratings & Moderation**: Mutual rating system and dispute resolution.
+- **Financial Operations**: Includes fare calculation, commission, driver payouts, simulated payment system with virtual wallets, and audit logging. Supports wallet-based escrow, dynamic country-specific pricing, and payment provider abstraction.
+- **Notifications & Ratings**: In-app notifications and a mutual rating system with dispute resolution.
 - **Fraud Detection**: Real-time engine with configurable signals and risk scoring.
 - **Driver Incentives**: Management of various incentive programs.
 - **Trip Coordinator Module**: For institutional users to book and manage trips.
-- **Multi-Country Support**: Manages country-specific rules, taxes, and compliance for various regions (e.g., Nigeria, USA). Includes multi-country launch control and per-country system modes.
+- **Multi-Country Support**: Manages country-specific rules, taxes, and compliance, including multi-country launch control and per-country system modes.
 - **Customer Support System**: Dedicated `support_agent` role and ticket management.
 - **Enterprise Contracts & Billing**: Management of contracts, SLAs, and invoicing.
 - **Monitoring & KPIs**: Aggregation of performance metrics, alerts, and feature flag management.
 - **Growth & Marketing**: Referral codes and marketing campaign tracking.
 - **Scheduled Reservations**: Advance booking functionality.
-- **Monetization System**: Wallet-based escrow, dynamic country-specific pricing, payment provider abstraction, and rule-based fraud detection.
 - **Production Switches**: Server-side, `SUPER_ADMIN`-protected switches for country-specific features.
 - **Test Mode Configuration**: Global test mode for simulated payments.
 - **Driver Payout Management**: Drivers manage bank/mobile money details, with admin processing.
-- **Tax Statement Data Model & Compliance**: Full tax statement system with `DriverTaxProfile` (legal name, tax ID encrypted at rest via AES-256-GCM in `server/crypto.ts`, country, classification), `DriverTaxYearSummary` (gross earnings, tips, incentives, aggregated platform fees, mileage, reportable income, status: draft/finalized/issued), `DriverTaxDocument` (document type: 1099/annual_statement/country_equivalent with versioning and isLatest flag), and `TaxGenerationAuditLog` (immutable audit trail). Earnings computed from immutable trip ledger. No per-trip tax breakdowns. Admin can generate, finalize, and issue tax summaries but cannot edit finalized data or alter mileage totals. All generation events logged with timestamp and admin ID.
-- **Tax Document Generation (PDF & CSV)**: Server-side PDF generation via PDFKit (`server/tax-document-generator.ts`). PDF layout: clean white background, black/dark-gray text, sections for header (ZIBA logo text, title, version, issue date), driver identity (legal name, masked tax ID, country, classification), earnings summary (gross, trip, tips, incentives), aggregated platform fee disclosure, mileage disclosure, reportable income, and footer with legal disclaimer. CSV format: one row per driver per tax year with spec-compliant headers (driver_id, driver_legal_name, country, tax_year, total_gross_earnings, total_trip_earnings, total_tips, total_incentives, total_platform_fees, total_miles_driven, reportable_income, currency). Both formats match values exactly. Documents read-only after issuance. Admin bulk CSV export and per-driver PDF/CSV download available. Driver download endpoints support both PDF (default) and CSV formats.
-- **Tax Statement Mileage Disclosure**: Annual tax statements include total miles driven while online, aggregated per tax year. Mileage auto-accumulates from completed trips and is auditable via `driver_mileage_logs` table. Mileage shown only on annual tax statements and downloadable documents — never in daily trip views or earnings screens. Presentation is factual and neutral per TAX_PHILOSOPHY_LOCKED.
-- **Country-Specific Tax Compliance**: Configurable per-country tax rules via `country_tax_configs` table. Pre-seeded configs: US (IRS 1099-NEC Equivalent, USD), Nigeria (Annual Earnings Statement, NGN), Canada (T4A-style, CAD), Ghana (Annual Earnings Summary, GHS). Admin can enable/disable tax documents, set document type/label, currency, delivery method (in-app/email/both), mileage disclosure toggle, withholding flag, compliance notes, and driver classification label per country. Countries without explicit config receive generic Annual Earnings & Tax Summary. Tax withholding never auto-applied. Conservative fail-safe defaults. Admin Tax Compliance Configuration panel integrated into admin dashboard.
+- **Tax Statement System**: Comprehensive tax statement generation (PDF & CSV) including DriverTaxProfile, DriverTaxYearSummary, DriverTaxDocument, and TaxGenerationAuditLog. Features country-specific tax compliance configurations.
 - **Driver Identity & Withdrawal Verification**: Requires verified identity and country-specific documents for withdrawals.
-- **Cash & Card Payment System**: Riders can pay via Cash, Wallet, or Card. Cash trips: rider pays driver directly, driver collects 100% of fare, platform share deferred to `cashSettlementLedger` table for period-based async settlement. Card/wallet trips: handled internally with immediate wallet credits. Period-based settlement ledger groups cash trips by weekly/monthly cycle per country config (`countryCashConfig`). Settlement execution: offset from future card earnings, then wallet balance, then defer (never block driver). Driver wallet shows "Platform Service Settlement (Summary)" with calm period-based copy. Trip cards show "Cash collected" with "Cash Trip" label. Help center includes cash payment FAQ. Admin Cash Settlements panel with defer/waive/settle controls and abuse flag monitoring. Anti-abuse controls: consecutive cash-trip threshold (50), deferred balance caps, admin review flags (no auto-suspension). Driver ledger endpoint strips `totalPlatformShareDue` (visibility rule). Variable driver commission (70-80%) tracked via `driver_standing` table based on trips completed, rating, and account age.
-- **Financial Engine**: Rides locked to `currencyCode`, 70-80% driver / 20-30% platform revenue split based on driver standing, using integer-safe math and append-only ledger entries.
+- **Cash & Card Payment System**: Riders can pay via Cash, Wallet, or Card, with a period-based settlement ledger for cash trips and anti-abuse controls.
 - **Navigation Architecture**: Internal distance/duration calculations; deep links to native GPS apps.
-- **Universal Identity Framework**: Country-aware identity verification for all users.
-- **Driver GPS & Navigation Enforcement**: Mandates GPS permissions and background execution consent for drivers.
-- **Ratings, Behavior Signals & Trust Scoring**: Bidirectional rating system, capture of passive behavior signals, and trust score calculation with anti-manipulation guards.
+- **Universal Identity Framework**: Country-aware identity verification.
+- **Driver GPS & Navigation Enforcement**: Mandates GPS permissions and background execution consent.
+- **Ratings, Behavior Signals & Trust Scoring**: Bidirectional rating system, passive behavior signal capture, and trust score calculation with anti-manipulation guards.
 - **Safety & Incident Intelligence**: SOS trigger system, incident reporting, auto-escalation rules, and suspension management.
 - **Disputes, Refunds & Legal Resolution**: Formal dispute filing, refund engine, chargeback tracking, and immutable audit trail.
 - **Pre-Launch Compliance & Store Readiness**: Versioned legal documents, user consent tracking, kill switch system, and test mode isolation.
@@ -68,11 +61,15 @@ Preferred communication style: Simple, everyday language.
 - **Driver Acquisition Automation**: Structured driver supply growth with multiple channels and onboarding stages.
 - **In-App Q&A & Help Center**: Full-featured help center with FAQ system for all user roles.
 - **Rider & Driver Trust, Safety & Incident Management**: Full safety UI layer for SOS, incident reporting, trusted contacts, and trip sharing.
-- **Growth, Marketing & Virality Systems (Phase 11A)**: Sustainable growth loops with rider referral rewards (reward after first ride completion), shareable moments (celebratory prompts at first ride, milestone earnings, high ratings), enhanced campaign engine (target audience, country/subregion, incentive rules, redemption tracking), reactivation automation rules (configurable inactive thresholds with gentle reminders), marketing attribution tracking (REFERRAL, CAMPAIGN, ORGANIC, ADMIN_INVITE sources), and growth safety controls (admin toggles for virality, share moments, reactivation; referral reward caps; per-country overrides). Admin Growth tab enhanced with campaign details, reactivation rules management, attribution stats, and safety controls panel.
-- **Cancellation Fee System**: Configurable cancellation fees deducted from rider wallet after 3-minute grace period. Standard fee when driver is en route, higher fee when driver has arrived. Rider sees confirmation dialog with fee warning before cancelling. Audit logs capture acceptance time, cancellation time, fee amount, grace period status, and wallet debit result. Cancellation fees documented in Help Center.
-- **Wallet Auto Top-Up**: Riders can configure automatic wallet funding when balance drops below a threshold. Settings: enabled toggle, threshold amount (min 100), top-up amount (min 200). 5-minute cooldown between attempts, max 3 consecutive failures before auto-disable. Triggers asynchronously after any wallet debit (trip payment or cancellation fee). UI in rider Wallet page with toggle, threshold/amount inputs, and failure indicator. Help Center FAQ included.
-- **Support Ticket Wallet Context**: Support ticket detail endpoint enriched with wallet balance, currency, frozen status, and auto top-up settings for support agents and admins.
-- **Driver Hub Structure**: Restructured driver app with 5-tab bottom navigation (Home, Trips, Earnings, Wallet, Help). Home tab shows driver photo, trust score gauge, tier badge, online/offline toggle, today's summary, welcome-back greeting, and system messages. Trips tab with detail modal showing fare breakdown and report functionality. Earnings tab with Today/Week/30-Day periods, acceptance/cancellation rates, and supportive insight messages. Wallet tab with available/pending balances, transaction history, platform fee visibility, and bank account management. Help tab with categorized help cards (Getting Paid, Trips & Ratings, Safety, App Usage, Incentives) and Safety Center with SOS button and incident reporting. Behavior advisory system shows encouraging messages when driver performance dips. Admin overrides for trust score, cancellation metrics, disputes, and pairing blocks. Driver analytics endpoint tracking new/returning drivers, daily active, tip frequency, and incentive effectiveness.
+- **Growth, Marketing & Virality Systems**: Includes rider referral rewards, shareable moments, enhanced campaign engine, reactivation automation rules, marketing attribution tracking, and growth safety controls.
+- **Cancellation Fee System**: Configurable cancellation fees deducted from rider wallet, with grace periods and audit logs.
+- **Saved Places (Home/Work)**: Riders can save and manage Home and Work addresses.
+- **Rider Inbox System**: In-app message inbox for riders with various message types.
+- **Notification Preferences**: Per-user notification toggles.
+- **Marketing Tip Banner**: Rate-limited, dismissible marketing tips on the rider home page.
+- **Wallet Auto Top-Up**: Riders can configure automatic wallet funding when the balance drops below a threshold.
+- **Support Ticket Wallet Context**: Support ticket details are enriched with wallet information for agents.
+- **Driver Hub Structure**: Restructured driver app with 5-tab bottom navigation (Home, Trips, Earnings, Wallet, Help), including performance insights and admin override capabilities.
 
 ## External Dependencies
 
@@ -81,8 +78,7 @@ Preferred communication style: Simple, everyday language.
 - **PostgreSQL**: Primary relational database.
 - **Paystack**: Payment gateway for driver payouts in Nigeria.
 - **Flutterwave**: Fallback payment gateway for driver payouts in Nigeria.
-
-- **Simulation Center**: System-level simulation mode controlled by `SIMULATION_MODE_ENABLED` env var (`server/simulation-config.ts`). Configurable `SIMULATION_CODE_LENGTH` (default 9) and `SIMULATION_EXPIRES_MINUTES` (default 60). Public `GET /api/simulation/system-status` endpoint. All simulation routes guarded by `requireSimulationEnabled` middleware. Startup log prints "Simulation Mode: ENABLED/DISABLED". Admin UI reads system status and shows disabled message when off. Landing page hides simulation entry when disabled. SIMULATION_ENGINE_LOCKED.
+- **Simulation Center**: System-level simulation mode for testing, controlled by environment variables.
 
 ### Key NPM Packages
 - `drizzle-orm` / `drizzle-kit`: ORM and migration tools.
