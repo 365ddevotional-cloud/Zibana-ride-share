@@ -4474,6 +4474,14 @@ export const lostItemReports = pgTable("lost_item_reports", {
   meetupLocation: text("meetup_location"),
   returnCompletedAt: timestamp("return_completed_at"),
   adminNotes: text("admin_notes"),
+  communicationUnlocked: boolean("communication_unlocked").notNull().default(false),
+  communicationUnlockedAt: timestamp("communication_unlocked_at"),
+  communicationUnlockedBy: varchar("communication_unlocked_by"),
+  riderPhoneVisible: boolean("rider_phone_visible").notNull().default(false),
+  driverPhoneVisible: boolean("driver_phone_visible").notNull().default(false),
+  disputeReason: text("dispute_reason"),
+  resolvedByAdminId: varchar("resolved_by_admin_id"),
+  resolvedAt: timestamp("resolved_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -4485,6 +4493,55 @@ export const insertLostItemReportSchema = createInsertSchema(lostItemReports).om
 });
 export type InsertLostItemReport = z.infer<typeof insertLostItemReportSchema>;
 export type LostItemReport = typeof lostItemReports.$inferSelect;
+
+// Lost Item Messages (in-app chat for lost item recovery)
+export const lostItemMessages = pgTable("lost_item_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  lostItemReportId: varchar("lost_item_report_id").notNull(),
+  senderId: varchar("sender_id").notNull(),
+  senderRole: varchar("sender_role", { length: 20 }).notNull(),
+  message: text("message").notNull(),
+  isSystemMessage: boolean("is_system_message").notNull().default(false),
+  readAt: timestamp("read_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertLostItemMessageSchema = createInsertSchema(lostItemMessages).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertLostItemMessage = z.infer<typeof insertLostItemMessageSchema>;
+export type LostItemMessage = typeof lostItemMessages.$inferSelect;
+
+// Lost Item Analytics (data intelligence logging)
+export const lostItemAnalytics = pgTable("lost_item_analytics", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  lostItemReportId: varchar("lost_item_report_id").notNull(),
+  riderId: varchar("rider_id").notNull(),
+  driverId: varchar("driver_id"),
+  tripId: varchar("trip_id").notNull(),
+  itemCategory: varchar("item_category", { length: 50 }).notNull(),
+  outcome: varchar("outcome", { length: 30 }).notNull(),
+  reportToResolutionHours: decimal("report_to_resolution_hours", { precision: 10, scale: 2 }),
+  returnFeeApplied: decimal("return_fee_applied", { precision: 10, scale: 2 }),
+  driverEarnings: decimal("driver_earnings", { precision: 10, scale: 2 }),
+  areaCluster: varchar("area_cluster", { length: 100 }),
+  countryCode: varchar("country_code", { length: 2 }),
+  riderLostItemCount: integer("rider_lost_item_count"),
+  driverReturnCount: integer("driver_return_count"),
+  driverDenialCount: integer("driver_denial_count"),
+  ageBracket: varchar("age_bracket", { length: 20 }),
+  chatMessageCount: integer("chat_message_count").notNull().default(0),
+  fraudSignalCount: integer("fraud_signal_count").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertLostItemAnalyticsSchema = createInsertSchema(lostItemAnalytics).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertLostItemAnalytics = z.infer<typeof insertLostItemAnalyticsSchema>;
+export type LostItemAnalytics = typeof lostItemAnalytics.$inferSelect;
 
 // Lost Item Fee Config table
 export const lostItemFeeConfig = pgTable("lost_item_fee_config", {

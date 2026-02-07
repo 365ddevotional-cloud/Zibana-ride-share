@@ -1,0 +1,246 @@
+You are working on the ZIBA Ride Share Platform (Rider App, Driver App, Admin Dashboard).
+
+CRITICAL INSTRUCTION:
+Before implementing anything new, AUDIT the existing codebase and features.
+- If a feature already exists, FIX or COMPLETE it.
+- If partially implemented, FINISH it.
+- If missing, ADD it.
+- Do NOT break existing logic, pricing splits, commissions, wallets, or simulations.
+- Confirm each section works end-to-end before marking complete.
+
+====================================
+A) DRIVER APPROVAL & TRAINEE APPROVAL (CRITICAL FIX)
+====================================
+
+BUG:
+- Driver trainees can be added in Admin → Training Management
+- Driver logs in but remains stuck at "Pending Approval"
+- Admin currently has NO visible place to approve:
+  • Driver trainees
+  • New driver sign-ups
+
+REQUIRED FIX:
+1. Restore / Add Admin approval flows:
+   - Admin → Drivers → Pending Approvals
+   - Admin → Training → Trainee Approvals
+2. Approval actions:
+   - Approve
+   - Reject
+   - Request more info
+3. When approved:
+   - Driver status updates to "Approved"
+   - Driver can go online immediately
+4. Ensure:
+   - Trainee drivers and normal driver sign-ups use SAME approval engine
+   - Admin can filter by:
+     • Trainee
+     • New signup
+     • City
+     • Status
+
+VALIDATION:
+- Add trainee → approve in Admin → driver goes online
+
+====================================
+B) SAVED ADDRESSES (HOME / WORK) — FINAL SAVE FIX
+====================================
+
+BUG:
+- Home / Work forms open correctly
+- Input works
+- SAVE fails with “Failed to save address”
+
+FIX:
+- Verify backend endpoint for saved addresses exists and persists:
+  fields:
+  - user_id
+  - label (home | work | custom)
+  - address
+  - notes
+  - latitude
+  - longitude
+- Ensure frontend POSTs correct payload
+- On success:
+  - Navigate back to Home screen
+  - Display saved address immediately
+
+====================================
+C) WALLET AUTO TOP-UP TOGGLE FIX
+====================================
+
+BUG:
+- Auto Top-Up toggle cannot be turned ON
+- Error: “Failed to update auto top-up”
+
+FIX:
+- Ensure wallet auto-top-up config exists server-side
+- Fields:
+  - enabled
+  - threshold_amount
+  - topup_amount
+  - funding_source
+- Toggle must persist and reflect immediately
+- Auto top-up is ON by default for new users
+- User may turn it OFF manually
+
+====================================
+D) INBOX ERROR FIX + FULL INBOX SYSTEM
+====================================
+
+BUG:
+- Rider Inbox opens error page (“Something went wrong”)
+
+FIX:
+1. Ensure inbox messages table exists
+2. Add default WELCOME MESSAGE from ZIBA:
+   “Welcome to ZIBA 🎉 We’re glad to have you. Safe rides ahead.”
+3. Inbox features:
+   - Trip updates
+   - Wallet alerts
+   - Lost item messages
+   - Accident updates
+   - Promotions
+4. Inbox badge:
+   - Red badge on Inbox icon
+   - White bold number = unread count
+5. Admin & Support:
+   - Can view rider inbox messages
+   - Can send system messages
+
+====================================
+E) NOTIFICATIONS (POWERFUL + DEFAULT ON)
+====================================
+
+IMPLEMENT:
+- Notifications enabled by default
+- User can disable in Settings
+- Notification types:
+  - Driver assigned
+  - Driver arriving
+  - Scheduled ride reminder
+  - Cancellation penalties
+  - Lost item updates
+  - Accident status updates
+- Notifications should:
+  - Appear in-app
+  - Trigger mobile push (SMS-like behavior)
+
+====================================
+F) UI / UX UPGRADE (MATCH WELCOME PAGE QUALITY)
+====================================
+
+ISSUES:
+- Rider app fonts are smaller and dull
+- Theme switch (Light / Dark / Auto) missing after login
+
+FIX:
+1. Apply same typography system from Welcome page to Rider & Driver apps
+2. Restore Theme Switch in authenticated views
+3. Improve spacing, font weight, and headers
+4. Keep ZIBA branding (do NOT copy Uber)
+
+====================================
+G) ACCOUNT / SETTINGS / ACTIVITY HUB (RIDER & DRIVER)
+====================================
+
+ADD:
+- Account tab:
+  - Profile
+  - Trust score
+  - Verification status
+- Activity tab:
+  - Trip history
+  - Wallet activity
+  - Penalties & bonuses
+- Settings:
+  - Appearance (Light/Dark)
+  - Notifications
+  - Privacy
+  - Saved places
+  - Communication preferences
+
+====================================
+H) LOST ITEM PROTOCOL (PROFITABLE & SAFE)
+====================================
+
+FLOW:
+1. Rider reports lost item
+2. Driver receives alert
+3. Driver confirms FOUND:
+   - Driver sees rider phone number
+   - In-app chat opens
+4. Rider does NOT see driver number until item is returned
+5. After return:
+   - Driver receives LOST ITEM REWARD
+   - Trust score increases
+6. System records:
+   - Rider: Lost item history
+   - Driver: Found & returned history
+
+ADMIN:
+- Lost item dashboard
+- Fraud detection for abuse
+- Trend analytics:
+  - Location
+  - Rider age bracket
+  - Item type
+
+====================================
+I) ACCIDENT REPORT PROTOCOL
+====================================
+
+ADD:
+- Driver accident report button
+- Rider accident report option
+- Incident severity levels
+- Photo upload
+- Admin review panel
+- Accident Relief Fund for drivers
+- Optional insurance partner integration
+
+====================================
+J) TRUST SCORE ENGINE
+====================================
+
+INTEGRATE:
+- Lost item returns → increase trust
+- Cancellations → reduce trust
+- Fraud flags → heavy penalty
+- Accidents → neutral unless fault confirmed
+
+====================================
+K) ADMIN DASHBOARDS
+====================================
+
+CREATE / COMPLETE:
+- Driver approvals
+- Trainee approvals
+- Lost items
+- Accidents
+- Trust scores
+- Insurance cases
+- Cancellation penalties
+- Notifications & inbox messages
+
+====================================
+L) TERMS & DRIVER ONBOARDING
+====================================
+
+DELIVER:
+- Store-ready Terms & Conditions
+- Driver onboarding explanation:
+  - Lost items
+  - Accident flow
+  - Trust score
+  - Rewards for honesty
+
+====================================
+FINAL RULES
+====================================
+
+✔ Audit first
+✔ Add only what’s missing
+✔ Fix broken flows
+✔ Test end-to-end
+✔ Do NOT break pricing or commissions
+✔ Confirm completion per section
