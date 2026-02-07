@@ -48,6 +48,7 @@ Preferred communication style: Simple, everyday language.
 - **Universal Identity Framework**: Country-aware identity verification for drivers and riders.
 - **Driver Training Module**: Interactive training for key protocols.
 - **Driver Accident Relief Fund**: Financial support for drivers involved in verified accidents.
+- **Director Logic System**: Comprehensive contract/employed director management with daily commission eligibility (77% active ratio, 1000 commissionable cap, 1300 cell cap), cell management, driver suspend/activate authority (contract only), ZIBRA director mode (23 templates), and Super Admin director settings panel with immutable audit logging. Validated with 326 automated tests across 6 phases (daily simulations, edge cases, ZIBRA stress-tests, permission checks, audit verification, acceptance checks). Bug fixes applied: contract-type enforcement on suspend/activate routes, ZIBRA keyword gaps for "cheating" and "deactivate" queries.
 
 ## External Dependencies
 
