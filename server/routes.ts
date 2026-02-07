@@ -13427,7 +13427,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Status is required" });
       }
 
-      const validStatuses = ["reported", "found", "returned", "disputed", "resolved_by_admin", "driver_denied", "closed"];
+      const validStatuses = ["reported", "found", "en_route_to_hub", "at_hub", "returned", "disputed", "resolved_by_admin", "driver_denied", "closed"];
       if (!validStatuses.includes(status)) {
         return res.status(400).json({ message: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
       }
@@ -13783,6 +13783,281 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error getting analytics records:", error);
       return res.status(500).json({ message: "Failed to get records" });
+    }
+  });
+
+  // =============================================
+  // SAFE RETURN HUB SYSTEM
+  // =============================================
+
+  // Admin: Create a new Safe Return Hub
+  app.post("/api/admin/safe-return-hubs", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const adminId = req.user!.claims.sub;
+      const { name, type, address, city, countryCode, latitude, longitude, operatingHoursStart, operatingHoursEnd, contactPerson, contactPhone, hasCctv, hubServiceFee, driverBonusReward } = req.body;
+      if (!name || !address || !city) {
+        return res.status(400).json({ message: "Name, address, and city are required" });
+      }
+      const hub = await storage.createSafeReturnHub({
+        name, type: type || "partner_station", address, city,
+        countryCode: countryCode || "NG",
+        latitude: latitude || null, longitude: longitude || null,
+        operatingHoursStart: operatingHoursStart || "08:00",
+        operatingHoursEnd: operatingHoursEnd || "20:00",
+        contactPerson: contactPerson || null, contactPhone: contactPhone || null,
+        hasCctv: hasCctv || false, isActive: true,
+        hubServiceFee: hubServiceFee || "0.00",
+        driverBonusReward: driverBonusReward || "200.00",
+        createdBy: adminId,
+      });
+      return res.status(201).json(hub);
+    } catch (error) {
+      console.error("Error creating safe return hub:", error);
+      return res.status(500).json({ message: "Failed to create hub" });
+    }
+  });
+
+  // Admin: Get all Safe Return Hubs
+  app.get("/api/admin/safe-return-hubs", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const hubs = await storage.getAllSafeReturnHubs();
+      return res.json(hubs);
+    } catch (error) {
+      console.error("Error getting safe return hubs:", error);
+      return res.status(500).json({ message: "Failed to get hubs" });
+    }
+  });
+
+  // Admin: Update a Safe Return Hub
+  app.patch("/api/admin/safe-return-hubs/:id", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const hub = await storage.getSafeReturnHub(req.params.id);
+      if (!hub) {
+        return res.status(404).json({ message: "Hub not found" });
+      }
+      const updated = await storage.updateSafeReturnHub(req.params.id, req.body);
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error updating safe return hub:", error);
+      return res.status(500).json({ message: "Failed to update hub" });
+    }
+  });
+
+  // Admin: Delete a Safe Return Hub
+  app.delete("/api/admin/safe-return-hubs/:id", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const deleted = await storage.deleteSafeReturnHub(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Hub not found" });
+      }
+      return res.json({ message: "Hub deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting safe return hub:", error);
+      return res.status(500).json({ message: "Failed to delete hub" });
+    }
+  });
+
+  // Driver: Get active Safe Return Hubs (for selecting drop-off point)
+  app.get("/api/safe-return-hubs", isAuthenticated, async (req, res) => {
+    try {
+      const { countryCode } = req.query;
+      const hubs = await storage.getActiveSafeReturnHubs(countryCode as string | undefined);
+      return res.json(hubs);
+    } catch (error) {
+      console.error("Error getting active hubs:", error);
+      return res.status(500).json({ message: "Failed to get hubs" });
+    }
+  });
+
+  // Driver: Select return method and hub for a lost item
+  app.patch("/api/lost-items/:id/return-method", isAuthenticated, async (req, res) => {
+    try {
+      const driverId = req.user!.claims.sub;
+      const { returnMethod, hubId, expectedDropOffTime } = req.body;
+      if (!returnMethod || !["direct", "hub"].includes(returnMethod)) {
+        return res.status(400).json({ message: "Return method must be 'direct' or 'hub'" });
+      }
+      const report = await storage.getLostItemReport(req.params.id);
+      if (!report) {
+        return res.status(404).json({ message: "Report not found" });
+      }
+      if (report.driverId !== driverId) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      if (report.status !== "found") {
+        return res.status(400).json({ message: "Item must be in 'found' status to select return method" });
+      }
+      const updateData: any = { returnMethod };
+      if (returnMethod === "hub") {
+        if (!hubId) {
+          return res.status(400).json({ message: "Hub ID is required for hub return method" });
+        }
+        const hub = await storage.getSafeReturnHub(hubId);
+        if (!hub || !hub.isActive) {
+          return res.status(404).json({ message: "Hub not found or inactive" });
+        }
+        updateData.hubId = hubId;
+        updateData.status = "en_route_to_hub";
+        updateData.driverHubBonus = hub.driverBonusReward;
+        updateData.hubServiceFee = hub.hubServiceFee;
+        if (expectedDropOffTime) {
+          updateData.expectedDropOffTime = new Date(expectedDropOffTime);
+        }
+        await storage.createLostItemMessage({
+          lostItemReportId: req.params.id,
+          senderId: "system",
+          senderRole: "system",
+          message: `Driver is delivering the item to Safe Return Hub: ${hub.name} (${hub.address}). You will be notified when the item arrives.`,
+          isSystemMessage: true,
+        });
+      } else {
+        updateData.status = "found";
+        await storage.createLostItemMessage({
+          lostItemReportId: req.params.id,
+          senderId: "system",
+          senderRole: "system",
+          message: "Driver will return the item directly. Please coordinate via chat.",
+          isSystemMessage: true,
+        });
+      }
+      const updated = await storage.updateLostItemReport(req.params.id, updateData);
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error setting return method:", error);
+      return res.status(500).json({ message: "Failed to set return method" });
+    }
+  });
+
+  // Driver: Confirm drop-off at hub
+  app.patch("/api/lost-items/:id/hub-dropoff", isAuthenticated, async (req, res) => {
+    try {
+      const driverId = req.user!.claims.sub;
+      const { photoUrl } = req.body;
+      const report = await storage.getLostItemReport(req.params.id);
+      if (!report) {
+        return res.status(404).json({ message: "Report not found" });
+      }
+      if (report.driverId !== driverId) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      if (report.status !== "en_route_to_hub") {
+        return res.status(400).json({ message: "Item must be en route to hub" });
+      }
+      const updateData: any = {
+        status: "at_hub",
+        hubConfirmedAt: new Date(),
+      };
+      if (photoUrl) {
+        updateData.hubDropOffPhotoUrl = photoUrl;
+      }
+      const updated = await storage.updateLostItemReport(req.params.id, updateData);
+      const hub = report.hubId ? await storage.getSafeReturnHub(report.hubId) : null;
+      await storage.createLostItemMessage({
+        lostItemReportId: req.params.id,
+        senderId: "system",
+        senderRole: "system",
+        message: `Item has been dropped off at ${hub?.name || "the Safe Return Hub"}. ${hub ? `Address: ${hub.address}. Operating hours: ${hub.operatingHoursStart}-${hub.operatingHoursEnd}.` : ""} Please visit the hub to pick up your item.`,
+        isSystemMessage: true,
+      });
+      // Capture trust signal for hub drop-off
+      try {
+        const { captureBehaviorSignal } = await import("./trust-guards");
+        await captureBehaviorSignal(driverId, "LOST_ITEM_HUB_DROPOFF", "driver", report.tripId, { lostItemId: req.params.id, hubId: report.hubId });
+      } catch (signalErr) {
+        console.error("Trust signal capture failed (non-blocking):", signalErr);
+      }
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error confirming hub drop-off:", error);
+      return res.status(500).json({ message: "Failed to confirm drop-off" });
+    }
+  });
+
+  // Rider: Confirm pickup from hub
+  app.patch("/api/lost-items/:id/hub-pickup", isAuthenticated, async (req, res) => {
+    try {
+      const riderId = req.user!.claims.sub;
+      const report = await storage.getLostItemReport(req.params.id);
+      if (!report) {
+        return res.status(404).json({ message: "Report not found" });
+      }
+      if (report.riderId !== riderId) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      if (report.status !== "at_hub") {
+        return res.status(400).json({ message: "Item must be at the hub to confirm pickup" });
+      }
+      const updated = await storage.updateLostItemReport(req.params.id, {
+        status: "returned",
+        hubPickedUpAt: new Date(),
+        returnCompletedAt: new Date(),
+      });
+      await storage.createLostItemMessage({
+        lostItemReportId: req.params.id,
+        senderId: "system",
+        senderRole: "system",
+        message: "Rider has picked up the item from the hub. Case resolved successfully.",
+        isSystemMessage: true,
+      });
+      // Apply driver bonus for hub usage
+      if (report.driverId && report.driverHubBonus) {
+        try {
+          const bonus = parseFloat(report.driverHubBonus);
+          if (bonus > 0) {
+            const wallet = await storage.getWallet(report.driverId);
+            if (wallet) {
+              await storage.updateWallet(report.driverId, {
+                balance: (parseFloat(wallet.balance || "0") + bonus).toFixed(2),
+              });
+              await storage.createLostItemMessage({
+                lostItemReportId: req.params.id,
+                senderId: "system",
+                senderRole: "system",
+                message: `Driver bonus of ${bonus.toFixed(2)} credited for using Safe Return Hub.`,
+                isSystemMessage: true,
+              });
+            }
+          }
+        } catch (bonusErr) {
+          console.error("Driver hub bonus failed (non-blocking):", bonusErr);
+        }
+      }
+      // Log analytics
+      try {
+        const messages = await storage.getLostItemMessages(req.params.id);
+        const riderReports = await storage.getLostItemReportsByRider(report.riderId);
+        const driverReports = report.driverId ? await storage.getLostItemReportsByDriver(report.driverId) : [];
+        const driverReturns = driverReports.filter(r => r.status === "returned").length;
+        const createdAt = new Date(report.createdAt);
+        const resolutionHours = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60);
+        await storage.createLostItemAnalytics({
+          lostItemReportId: req.params.id,
+          riderId: report.riderId,
+          driverId: report.driverId || undefined,
+          tripId: report.tripId,
+          itemCategory: report.itemType,
+          outcome: "returned_via_hub",
+          reportToResolutionHours: resolutionHours.toFixed(2),
+          returnFeeApplied: report.returnFeeAmount || undefined,
+          driverEarnings: report.driverHubBonus || undefined,
+          riderLostItemCount: riderReports.length,
+          driverReturnCount: driverReturns,
+          chatMessageCount: messages.filter(m => !m.isSystemMessage).length,
+        });
+      } catch (analyticsErr) {
+        console.error("Analytics logging failed (non-blocking):", analyticsErr);
+      }
+      // Trust signal
+      try {
+        const { captureBehaviorSignal } = await import("./trust-guards");
+        await captureBehaviorSignal(report.riderId, "LOST_ITEM_RESOLVED", "rider", report.tripId, { lostItemId: req.params.id, viaHub: true });
+      } catch (signalErr) {
+        console.error("Trust signal capture failed (non-blocking):", signalErr);
+      }
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error confirming hub pickup:", error);
+      return res.status(500).json({ message: "Failed to confirm pickup" });
     }
   });
 

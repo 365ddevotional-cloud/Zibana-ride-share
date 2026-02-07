@@ -464,6 +464,9 @@ import {
   lostItemAnalytics,
   type LostItemAnalytics,
   type InsertLostItemAnalytics,
+  safeReturnHubs,
+  type SafeReturnHub,
+  type InsertSafeReturnHub,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull } from "drizzle-orm";
@@ -1425,6 +1428,14 @@ export interface IStorage {
   getLostItemFraudSignalsByReport(reportId: string): Promise<LostItemFraudSignal[]>;
   updateLostItemFraudSignal(id: string, data: Partial<LostItemFraudSignal>): Promise<LostItemFraudSignal | null>;
   getUserLostItemRiskScore(userId: string): Promise<number>;
+
+  // Safe Return Hubs
+  createSafeReturnHub(data: InsertSafeReturnHub): Promise<SafeReturnHub>;
+  getSafeReturnHub(id: string): Promise<SafeReturnHub | null>;
+  getAllSafeReturnHubs(): Promise<SafeReturnHub[]>;
+  getActiveSafeReturnHubs(countryCode?: string): Promise<SafeReturnHub[]>;
+  updateSafeReturnHub(id: string, data: Partial<SafeReturnHub>): Promise<SafeReturnHub | null>;
+  deleteSafeReturnHub(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -10703,6 +10714,38 @@ export class DatabaseStorage implements IStorage {
       )
     );
     return Number(result[0]?.totalRisk || 0);
+  }
+
+  // Safe Return Hubs
+  async createSafeReturnHub(data: InsertSafeReturnHub): Promise<SafeReturnHub> {
+    const [hub] = await db.insert(safeReturnHubs).values(data).returning();
+    return hub;
+  }
+
+  async getSafeReturnHub(id: string): Promise<SafeReturnHub | null> {
+    const [hub] = await db.select().from(safeReturnHubs).where(eq(safeReturnHubs.id, id));
+    return hub || null;
+  }
+
+  async getAllSafeReturnHubs(): Promise<SafeReturnHub[]> {
+    return db.select().from(safeReturnHubs).orderBy(desc(safeReturnHubs.createdAt));
+  }
+
+  async getActiveSafeReturnHubs(countryCode?: string): Promise<SafeReturnHub[]> {
+    if (countryCode) {
+      return db.select().from(safeReturnHubs).where(and(eq(safeReturnHubs.isActive, true), eq(safeReturnHubs.countryCode, countryCode))).orderBy(safeReturnHubs.name);
+    }
+    return db.select().from(safeReturnHubs).where(eq(safeReturnHubs.isActive, true)).orderBy(safeReturnHubs.name);
+  }
+
+  async updateSafeReturnHub(id: string, data: Partial<SafeReturnHub>): Promise<SafeReturnHub | null> {
+    const [updated] = await db.update(safeReturnHubs).set({ ...data, updatedAt: new Date() }).where(eq(safeReturnHubs.id, id)).returning();
+    return updated || null;
+  }
+
+  async deleteSafeReturnHub(id: string): Promise<boolean> {
+    const result = await db.delete(safeReturnHubs).where(eq(safeReturnHubs.id, id)).returning();
+    return result.length > 0;
   }
 }
 
