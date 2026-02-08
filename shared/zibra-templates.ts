@@ -391,8 +391,15 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     id: "r-ride-corporate",
     role: "rider",
     category: "booking",
-    keywords: ["corporate ride", "business ride", "company ride", "corporate account", "business account", "how corporate works", "corporate policy", "business travel", "corporate setup"],
-    response: "ZIBA helps facilitate corporate ride options for business travel. Corporate rides allow billing to a business account. Based on your situation, check with your company administrator for corporate ride setup and policies. I can guide you through this if you want."
+    keywords: ["corporate ride", "business ride", "company ride", "corporate account", "business account", "how corporate works", "corporate policy", "business travel", "corporate setup", "join corporate", "company code", "corporate access"],
+    response: "Corporate Rides let you travel on your company's account — they handle billing, you just ride. To get started, you can either enter a company code provided by your admin, or request access by sharing your company's name. Your company admin will review and approve your request. I can't promise approval or timelines, but I'm here to help you through the process. Visit the Corporate Rides page under Services to begin."
+  },
+  {
+    id: "r-ride-special",
+    role: "rider",
+    category: "booking",
+    keywords: ["special ride", "group ride", "event ride", "premium ride", "long distance", "charter", "special rides available", "group trip", "event transport", "luxury ride"],
+    response: "Special Rides are unique ride types beyond your everyday commute. You can explore Group Rides for traveling with friends or family, Event Transportation for coordinating rides for gatherings, and more options on the way. Each type has its own availability and eligibility — tap on any ride type to learn the details. I can't guarantee access or approval, but I can help explain what's available. Visit the Special Rides page under Services to explore."
   },
   {
     id: "a-corporate-config",

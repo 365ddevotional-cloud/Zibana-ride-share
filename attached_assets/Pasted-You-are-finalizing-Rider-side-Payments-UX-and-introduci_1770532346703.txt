@@ -1,0 +1,158 @@
+You are finalizing Rider-side Payments UX and introducing controlled third-party wallet funding
+inside the ZIBA platform.
+
+GOALS:
+- Remove all dead payment UI
+- Make every payment-related card clickable
+- Introduce “Fund Another User” safely
+- Keep platform legally protected
+- Do NOT expose internal commissions or balances
+
+================================================
+PHASE 1 — PAYMENT CARD CLICKABILITY (RIDER HOME)
+================================================
+
+1) PAYMENT METHOD CARD FIX
+
+On Rider Home:
+- Make the “Cash” / “Payment” card clickable
+
+Route:
+- /rider/payments
+
+No disabled or dead cards allowed.
+
+================================================
+PHASE 2 — PAYMENTS OVERVIEW PAGE
+================================================
+
+2) PAYMENTS OVERVIEW PAGE
+
+Route:
+- /rider/payments
+
+Sections:
+- Current payment method (Cash / Wallet)
+- Wallet balance
+- Auto top-up status
+- Payment help
+- Fund another user (NEW)
+
+Buttons:
+- Switch payment method
+- Manage wallet
+- Fund another user
+- Payment help
+
+================================================
+PHASE 3 — FUND ANOTHER USER (RIDER → RIDER)
+================================================
+
+3) FUND ANOTHER USER ENTRY
+
+Route:
+- /rider/payments/fund-user
+
+Purpose:
+Allow one user to add funds to another user’s wallet.
+
+Use cases:
+- Parent → child
+- Spouse → spouse
+- Employer → staff
+- Friend → friend
+
+------------------------------------------------
+
+4) FUNDING RULES (STRICT)
+
+- Funder must be a verified ZIBA user
+- Recipient must be an existing ZIBA user
+- Funding is wallet-only (no cash)
+- Funds are non-refundable once transferred
+- ZIBA is not responsible for disputes between users
+
+------------------------------------------------
+
+5) FUNDING FLOW
+
+Steps:
+1. Enter recipient email or phone
+2. System validates recipient
+3. Enter amount
+4. Confirm funding
+5. Show success receipt
+
+Receipt includes:
+- Amount
+- Date/time
+- Recipient masked ID
+- Transaction ID
+
+================================================
+PHASE 4 — DIRECTOR FUNDING DRIVERS (CONTROLLED)
+================================================
+
+6) DIRECTOR FUNDING ENTRY (PRIVATE)
+
+Route:
+- /director/wallet/fund-driver
+
+Rules:
+- Director can fund ONLY drivers assigned to their cell
+- Funds go to driver wallet
+- Funds can be restricted to ride usage (optional flag)
+- Admin/Super Admin can view all transactions
+
+------------------------------------------------
+
+7) DIRECTOR FUNDING LIMITS
+
+- Daily funding cap (admin-configurable)
+- Abuse detection:
+  - repeated funding to inactive drivers
+  - circular funding patterns
+- ZIBRA flags anomalies to Admin
+
+================================================
+PHASE 5 — ZIBRA SUPPORT RESPONSES
+================================================
+
+8) ZIBRA RESPONSE RULES (PAYMENTS)
+
+ZIBRA may say:
+- “ZIBA allows users to support others by funding wallets.”
+- “Once funds are transferred, they are not reversible.”
+- “ZIBA facilitates wallet transfers but does not mediate personal disputes.”
+
+ZIBRA must never say:
+- “We can reverse this”
+- “We guarantee refund”
+- “ZIBA is responsible for misuse”
+
+================================================
+PHASE 6 — LEGAL PROTECTION
+================================================
+
+9) TERMS INSERTION (LIGHT)
+
+Show acknowledgment before funding:
+“Wallet transfers are voluntary. ZIBA facilitates transfers but is not responsible for agreements between users.”
+
+Must be accepted before completion.
+
+================================================
+PHASE 7 — TESTING
+================================================
+
+10) CONFIRM:
+✔ Payment card clickable
+✔ Payments page loads
+✔ Wallet works
+✔ Funding another user works
+✔ Director funding respects limits
+✔ ZIBRA guidance correct
+✔ No dead UI
+✔ No legal exposure
+
+Proceed step-by-step and confirm completion.
