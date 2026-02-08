@@ -2135,6 +2135,31 @@ export async function registerRoutes(
         });
       }
 
+      // DRIVER PREFERENCE MATCHING: Validate ride against driver preferences
+      const driverProfile = profile as any;
+      
+      // Check ride class preference
+      const tripRideClass = (tripToCheck as any).rideClass || "go";
+      const acceptedClasses = driverProfile.acceptedRideClasses || ["go"];
+      if (!acceptedClasses.includes(tripRideClass)) {
+        return res.status(403).json({
+          message: "This ride class is not in your accepted preferences.",
+          code: "RIDE_CLASS_NOT_ACCEPTED",
+        });
+      }
+
+      // Check cash acceptance preference
+      const paymentMethod = (tripToCheck as any).paymentMethod || "WALLET";
+      if (paymentMethod === "CASH" && driverProfile.cashAcceptance === false) {
+        return res.status(403).json({
+          message: "This is a cash ride and you have disabled cash acceptance.",
+          code: "CASH_NOT_ACCEPTED",
+        });
+      }
+
+      // Track decline count for preference abuse prevention
+      // (Decline recording happens via separate endpoint POST /api/driver/record-decline)
+
       const trip = await storage.acceptTrip(tripId, userId);
       if (!trip) {
         return res.status(404).json({ message: "Trip not found or already accepted" });
