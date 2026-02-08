@@ -5207,85 +5207,163 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                                     <TableHead>Rate</TableHead>
                                     <TableHead>Earnings</TableHead>
                                     <TableHead>Cap</TableHead>
-                                    <TableHead>Fraud</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    {isSuperAdmin && <TableHead>Actions</TableHead>}
+                                    <TableHead>Flags</TableHead>
+                                    <TableHead>State</TableHead>
+                                    <TableHead>Dispute</TableHead>
+                                    <TableHead>Actions</TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                  {directorEarnings.history.slice(0, 15).map((row: any, i: number) => (
-                                    <TableRow key={row.date} data-testid={`row-admin-earnings-${i}`}>
-                                      <TableCell className="text-xs">{row.date}</TableCell>
-                                      <TableCell>{row.totalDrivers}</TableCell>
-                                      <TableCell>{row.activeDrivers}</TableCell>
-                                      <TableCell>{row.commissionableDrivers}</TableCell>
-                                      <TableCell>{row.commissionRate}</TableCell>
-                                      <TableCell className="font-medium">{row.estimatedEarnings}</TableCell>
-                                      <TableCell>{row.capEnforced ? <Badge variant="outline">Cap</Badge> : "-"}</TableCell>
-                                      <TableCell>{row.fraudFlagged ? <Badge variant="destructive">Flag</Badge> : "-"}</TableCell>
-                                      <TableCell>
-                                        <Badge variant={row.payoutStatus === "released" ? "default" : row.payoutStatus === "on_hold" ? "destructive" : "secondary"}>
-                                          {row.payoutStatus}
-                                        </Badge>
-                                      </TableCell>
-                                      {isSuperAdmin && (
+                                  {directorEarnings.history.slice(0, 20).map((row: any, i: number) => {
+                                    const stateLabel: Record<string, string> = {
+                                      calculating: "Calculating", pending_review: "Pending Review", approved: "Approved",
+                                      scheduled: "Scheduled", released: "Released", held: "Held", reversed: "Reversed",
+                                    };
+                                    const stateVariant = (s: string) => s === "released" ? "default" as const : s === "held" || s === "reversed" ? "destructive" as const : s === "approved" || s === "scheduled" ? "outline" as const : "secondary" as const;
+                                    const payoutAction = async (action: string, extra: Record<string, any> = {}) => {
+                                      const reason = prompt(`Reason for ${action} action:`);
+                                      if (!reason) return;
+                                      try {
+                                        await apiRequest("POST", `/api/admin/directors/${selectedDirectorId}/payout`, {
+                                          action, payoutId: row.payoutId, reason, ...extra,
+                                        });
+                                        queryClient.invalidateQueries({ queryKey: ["/api/admin/directors", selectedDirectorId, "earnings"] });
+                                        toast({ title: `Payout ${action} successful` });
+                                      } catch (e: any) {
+                                        toast({ title: e?.message || `Failed: ${action}`, variant: "destructive" });
+                                      }
+                                    };
+                                    return (
+                                      <TableRow key={row.date} data-testid={`row-admin-earnings-${i}`}>
+                                        <TableCell className="text-xs">{row.date}</TableCell>
+                                        <TableCell>{row.totalDrivers}</TableCell>
+                                        <TableCell>{row.activeDrivers}</TableCell>
+                                        <TableCell>{row.commissionableDrivers}</TableCell>
+                                        <TableCell>{row.commissionRate}</TableCell>
+                                        <TableCell className="font-medium">
+                                          {row.estimatedEarnings}
+                                          {row.partialReleaseAmount && <span className="text-xs text-muted-foreground ml-1">(partial: {row.partialReleaseAmount})</span>}
+                                        </TableCell>
+                                        <TableCell>{row.capEnforced ? <Badge variant="outline">Cap</Badge> : "-"}</TableCell>
                                         <TableCell>
-                                          <div className="flex items-center gap-1">
-                                            {row.payoutId && row.payoutStatus === "pending" && (
-                                              <>
-                                                <Button
-                                                  size="sm"
-                                                  variant="default"
-                                                  data-testid={`button-release-payout-${i}`}
-                                                  onClick={async () => {
-                                                    const reason = prompt("Reason for releasing this payout:");
-                                                    if (!reason) return;
-                                                    try {
-                                                      await apiRequest("POST", `/api/admin/directors/${selectedDirectorId}/payout`, {
-                                                        action: "release",
-                                                        payoutId: row.payoutId,
-                                                        reason,
-                                                      });
-                                                      queryClient.invalidateQueries({ queryKey: ["/api/admin/directors", selectedDirectorId, "earnings"] });
-                                                      toast({ title: "Payout released" });
-                                                    } catch (e) {
-                                                      toast({ title: "Failed to release payout", variant: "destructive" });
-                                                    }
-                                                  }}
-                                                >
-                                                  Release
-                                                </Button>
-                                                <Button
-                                                  size="sm"
-                                                  variant="outline"
-                                                  data-testid={`button-hold-payout-${i}`}
-                                                  onClick={async () => {
-                                                    const reason = prompt("Reason for holding this payout:");
-                                                    if (!reason) return;
-                                                    try {
-                                                      await apiRequest("POST", `/api/admin/directors/${selectedDirectorId}/payout`, {
-                                                        action: "hold",
-                                                        payoutId: row.payoutId,
-                                                        reason,
-                                                      });
-                                                      queryClient.invalidateQueries({ queryKey: ["/api/admin/directors", selectedDirectorId, "earnings"] });
-                                                      toast({ title: "Payout placed on hold" });
-                                                    } catch (e) {
-                                                      toast({ title: "Failed to hold payout", variant: "destructive" });
-                                                    }
-                                                  }}
-                                                >
-                                                  Hold
-                                                </Button>
-                                              </>
-                                            )}
+                                          <div className="flex flex-wrap gap-1">
+                                            {row.fraudFlagged && <Badge variant="destructive">Fraud</Badge>}
+                                            {row.zibraFlagged && <Badge variant="secondary">ZIBRA</Badge>}
+                                            {!row.fraudFlagged && !row.zibraFlagged && "-"}
                                           </div>
                                         </TableCell>
-                                      )}
-                                    </TableRow>
-                                  ))}
+                                        <TableCell>
+                                          <Badge variant={stateVariant(row.payoutState || row.payoutStatus)} data-testid={`badge-admin-state-${i}`}>
+                                            {stateLabel[row.payoutState] || row.payoutStatus}
+                                          </Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                          {row.disputeSubmitted ? (
+                                            <Badge variant="outline" data-testid={`badge-dispute-${i}`}>
+                                              {row.disputeReviewedBy ? "Reviewed" : "Pending"}
+                                            </Badge>
+                                          ) : "-"}
+                                        </TableCell>
+                                        <TableCell>
+                                          {row.payoutId && (
+                                            <div className="flex flex-wrap items-center gap-1">
+                                              {["pending_review", "calculating"].includes(row.payoutState) && (
+                                                <Button size="sm" variant="default" data-testid={`button-approve-payout-${i}`} onClick={() => payoutAction("approve")}>
+                                                  Approve
+                                                </Button>
+                                              )}
+                                              {row.payoutState === "approved" && (
+                                                <>
+                                                  <Button size="sm" variant="default" data-testid={`button-release-payout-${i}`} onClick={() => payoutAction("release")}>
+                                                    Release
+                                                  </Button>
+                                                  <Button size="sm" variant="outline" data-testid={`button-schedule-payout-${i}`} onClick={() => {
+                                                    const date = prompt("Scheduled release date (YYYY-MM-DD):");
+                                                    if (date) payoutAction("schedule", { scheduledDate: date });
+                                                  }}>
+                                                    Schedule
+                                                  </Button>
+                                                  <Button size="sm" variant="outline" data-testid={`button-partial-release-${i}`} onClick={() => {
+                                                    const amt = prompt(`Partial release amount (max ${row.estimatedEarnings}):`);
+                                                    if (amt) payoutAction("partial_release", { partialAmount: amt });
+                                                  }}>
+                                                    Partial
+                                                  </Button>
+                                                </>
+                                              )}
+                                              {row.payoutState === "scheduled" && (
+                                                <Button size="sm" variant="default" data-testid={`button-release-scheduled-${i}`} onClick={() => payoutAction("release")}>
+                                                  Release
+                                                </Button>
+                                              )}
+                                              {!["released", "reversed"].includes(row.payoutState) && (
+                                                <Button size="sm" variant="outline" data-testid={`button-hold-payout-${i}`} onClick={() => payoutAction("hold")}>
+                                                  Hold
+                                                </Button>
+                                              )}
+                                              {isSuperAdmin && ["pending_review", "approved", "scheduled"].includes(row.payoutState) && (
+                                                <Button size="sm" variant="destructive" data-testid={`button-reverse-payout-${i}`} onClick={() => payoutAction("reverse")}>
+                                                  Reverse
+                                                </Button>
+                                              )}
+                                              {isSuperAdmin && row.payoutState === "held" && (
+                                                <Button size="sm" variant="default" data-testid={`button-force-release-${i}`} onClick={() => payoutAction("force_release")}>
+                                                  Force Release
+                                                </Button>
+                                              )}
+                                              {row.disputeSubmitted && !row.disputeReviewedBy && (
+                                                <Button size="sm" variant="outline" data-testid={`button-resolve-dispute-${i}`} onClick={async () => {
+                                                  const notes = prompt("Dispute review notes:");
+                                                  if (!notes) return;
+                                                  const approve = confirm("Approve the dispute and move payout to approved state?");
+                                                  try {
+                                                    await apiRequest("POST", `/api/admin/directors/${selectedDirectorId}/payout/${row.payoutId}/resolve-dispute`, {
+                                                      reviewNotes: notes,
+                                                      newState: approve ? "approved" : "unchanged",
+                                                    });
+                                                    queryClient.invalidateQueries({ queryKey: ["/api/admin/directors", selectedDirectorId, "earnings"] });
+                                                    toast({ title: "Dispute resolved" });
+                                                  } catch (e) {
+                                                    toast({ title: "Failed to resolve dispute", variant: "destructive" });
+                                                  }
+                                                }}>
+                                                  Review Dispute
+                                                </Button>
+                                              )}
+                                            </div>
+                                          )}
+                                        </TableCell>
+                                      </TableRow>
+                                    );
+                                  })}
                                 </TableBody>
                               </Table>
+                            </div>
+                          )}
+
+                          {directorEarnings.history?.some((r: any) => r.zibraFlagged || r.fraudFlagged) && (
+                            <div className="p-3 rounded-md border border-yellow-500/30 bg-yellow-500/5 text-sm">
+                              <p className="font-medium flex items-center gap-2" data-testid="text-admin-flag-notice">
+                                <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                                Flagged Payouts Detected
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {directorEarnings.history.filter((r: any) => r.zibraFlagged).length} ZIBRA flagged,{" "}
+                                {directorEarnings.history.filter((r: any) => r.fraudFlagged).length} fraud flagged.
+                                Review before releasing.
+                              </p>
+                            </div>
+                          )}
+
+                          {directorEarnings.history?.some((r: any) => r.disputeSubmitted && !r.disputeReviewedBy) && (
+                            <div className="p-3 rounded-md border border-destructive/30 bg-destructive/5 text-sm">
+                              <p className="font-medium flex items-center gap-2" data-testid="text-admin-dispute-notice">
+                                <Shield className="h-4 w-4 text-destructive" />
+                                Pending Disputes
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {directorEarnings.history.filter((r: any) => r.disputeSubmitted && !r.disputeReviewedBy).length} dispute(s) require review.
+                              </p>
                             </div>
                           )}
 
