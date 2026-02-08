@@ -4194,6 +4194,42 @@ export async function registerRoutes(
         metadata: JSON.stringify({ reason: reason || "Director action" }),
       });
 
+      // Anti-retaliation detection: Check if this driver filed a dispute recently
+      const recentDriverDisputes = await db.select().from(directorDisputes)
+        .where(and(
+          eq(directorDisputes.directorUserId, req.user.claims.sub),
+          inArray(directorDisputes.status, ["submitted", "under_review", "clarification_requested", "resolved"]),
+          gte(directorDisputes.createdAt, new Date(Date.now() - 14 * 24 * 60 * 60 * 1000))
+        ));
+
+      if (recentDriverDisputes.length > 0) {
+        await db.insert(directorActionLogs).values({
+          actorId: "system",
+          actorRole: "system",
+          action: "retaliation_flag",
+          targetType: "director",
+          targetId: req.user.claims.sub,
+          afterState: JSON.stringify({
+            suspendedDriverId: driverUserId,
+            recentDisputeCount: recentDriverDisputes.length,
+            warning: "Director suspended a driver while having active disputes. Possible retaliation."
+          }),
+        });
+
+        const admins = await db.select().from(users);
+        for (const admin of admins) {
+          const roles = await storage.getUserRoles(admin.id);
+          if (roles.includes("admin") || roles.includes("super_admin")) {
+            await storage.createNotification({
+              userId: admin.id,
+              type: "warning",
+              title: "Potential Retaliation Flag",
+              message: `Director ${req.user.claims.sub} suspended a driver while having ${recentDriverDisputes.length} active dispute(s). Possible retaliation — review recommended.`,
+            });
+          }
+        }
+      }
+
       return res.json({ message: "Driver suspended" });
     } catch (error) {
       console.error("Error suspending driver:", error);
@@ -24842,6 +24878,17 @@ export async function registerRoutes(
         return res.status(403).json({ error: "Terminated directors cannot submit new disputes" });
       }
 
+      // Duplicate dispute detection
+      const existingDisputes = await db.select().from(directorDisputes)
+        .where(and(
+          eq(directorDisputes.directorUserId, userId),
+          eq(directorDisputes.disputeType, disputeType),
+          inArray(directorDisputes.status, ["submitted", "under_review", "clarification_requested"])
+        ));
+      if (existingDisputes.length > 0) {
+        return res.status(400).json({ error: "You already have an open dispute of this type. Please wait for the existing dispute to be resolved before submitting another." });
+      }
+
       const zibraSummary = `Director ${director.fullName || userId} has submitted a ${disputeType} dispute regarding: "${subject}". The dispute requires admin review and resolution.`;
 
       const [dispute] = await db.insert(directorDisputes).values({
@@ -25008,6 +25055,11 @@ export async function registerRoutes(
       const { reviewNotes, newStatus } = req.body;
       if (!reviewNotes) return res.status(400).json({ error: "Review notes required" });
 
+      const validStatuses = ["under_review", "clarification_requested", "resolved", "rejected", "closed"];
+      if (newStatus && !validStatuses.includes(newStatus) && newStatus !== "escalated") {
+        return res.status(400).json({ error: `Invalid status. Must be one of: ${validStatuses.join(", ")}, escalated` });
+      }
+
       const [dispute] = await db.select().from(directorDisputes)
         .where(eq(directorDisputes.id, disputeId));
       if (!dispute) return res.status(404).json({ error: "Dispute not found" });
@@ -25023,6 +25075,18 @@ export async function registerRoutes(
 
       if (newStatus === "escalated" && !isSuperAdmin) {
         updates.status = "escalated";
+      } else if (newStatus === "clarification_requested") {
+        updates.status = "clarification_requested";
+      } else if (newStatus === "rejected") {
+        if (isSuperAdmin) {
+          updates.status = "rejected";
+          updates.superAdminDecision = reviewNotes;
+          updates.superAdminDecisionBy = adminUserId;
+          updates.superAdminDecisionAt = new Date();
+          updates.closedAt = new Date();
+        } else {
+          updates.status = "admin_reviewed";
+        }
       } else if (newStatus === "resolved" || newStatus === "closed") {
         if (isSuperAdmin) {
           updates.status = newStatus;
@@ -25057,6 +25121,76 @@ export async function registerRoutes(
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to review dispute" });
+    }
+  });
+
+  // Director appeal on resolved/rejected dispute
+  app.post("/api/director/disputes/:disputeId/appeal", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { disputeId } = req.params;
+      const { appealReason } = req.body;
+
+      if (!appealReason || appealReason.trim().length < 20) {
+        return res.status(400).json({ error: "Appeal reason must be at least 20 characters and include new information." });
+      }
+
+      const [dispute] = await db.select().from(directorDisputes)
+        .where(and(
+          eq(directorDisputes.id, disputeId),
+          eq(directorDisputes.directorUserId, userId)
+        ));
+      if (!dispute) return res.status(404).json({ error: "Dispute not found" });
+
+      if (!["resolved", "rejected"].includes(dispute.status)) {
+        return res.status(400).json({ error: "Only resolved or rejected disputes can be appealed." });
+      }
+
+      if (dispute.appealSubmitted) {
+        return res.status(400).json({ error: "You have already appealed this dispute. Appeals are limited to one per dispute." });
+      }
+
+      await db.update(directorDisputes).set({
+        status: "appealed",
+        appealSubmitted: true,
+        appealReason,
+        appealedAt: new Date(),
+      }).where(eq(directorDisputes.id, disputeId));
+
+      await db.insert(directorDisputeMessages).values({
+        disputeId,
+        senderId: userId,
+        senderRole: "director",
+        message: `[APPEAL] ${appealReason}`,
+      });
+
+      const admins = await db.select().from(users);
+      for (const admin of admins) {
+        const roles = await storage.getUserRoles(admin.id);
+        if (roles.includes("super_admin")) {
+          await storage.createNotification({
+            userId: admin.id,
+            type: "warning",
+            title: "Director Dispute Appeal",
+            message: `Director has appealed dispute #${disputeId}. Super Admin review required. Appeals go directly to Super Admin.`,
+          });
+        }
+      }
+
+      await db.insert(directorActionLogs).values({
+        actorId: userId,
+        actorRole: "director",
+        action: "dispute_appealed",
+        targetType: "dispute",
+        targetId: disputeId,
+        afterState: JSON.stringify({ status: "appealed", appealReason }),
+        ipAddress: req.ip || req.connection?.remoteAddress || null,
+      });
+
+      res.json({ success: true, message: "Appeal submitted. Super Admin will review." });
+    } catch (error) {
+      console.error("Dispute appeal error:", error);
+      res.status(500).json({ error: "Failed to submit appeal" });
     }
   });
 

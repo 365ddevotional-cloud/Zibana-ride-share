@@ -5362,7 +5362,7 @@ export const directorDisputeTypeEnum = pgEnum("director_dispute_type", [
 ]);
 
 export const directorDisputeStatusEnum = pgEnum("director_dispute_status", [
-  "submitted", "under_review", "admin_reviewed", "escalated", "resolved", "closed"
+  "submitted", "under_review", "admin_reviewed", "escalated", "clarification_requested", "resolved", "rejected", "appealed", "closed"
 ]);
 
 export const directorDisputes = pgTable("director_disputes", {
@@ -5382,6 +5382,9 @@ export const directorDisputes = pgTable("director_disputes", {
   zibraSummary: text("zibra_summary"),
   relatedEntityType: varchar("related_entity_type", { length: 50 }),
   relatedEntityId: varchar("related_entity_id"),
+  appealSubmitted: boolean("appeal_submitted").default(false),
+  appealReason: text("appeal_reason"),
+  appealedAt: timestamp("appealed_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   closedAt: timestamp("closed_at"),
 });

@@ -1,0 +1,153 @@
+You are implementing the Director Disputes & Appeals system in the ZIBA platform.
+
+GOAL:
+- Give Directors fair due-process
+- Protect Admin / Super Admin authority
+- Prevent abuse or intimidation
+- Keep legal exposure minimal
+- Ensure every action is logged and reviewable
+
+================================================
+PHASE 1 — DIRECTOR DISPUTE TYPES
+================================================
+
+1) DISPUTE CATEGORIES
+
+Allow Directors to submit disputes for:
+- Commission calculation dispute (counts/eligibility only)
+- Driver reassignment dispute
+- Suspension dispute
+- Staff action dispute
+- ZIBRA performance flag dispute
+
+Directors CANNOT dispute:
+- Platform pricing
+- Rider fares
+- Platform commission structure
+- Legal policy
+
+================================================
+PHASE 2 — DISPUTE SUBMISSION (DIRECTOR)
+================================================
+
+2) DIRECTOR DISPUTE FORM
+
+Route:
+- /director/disputes/new
+
+Fields:
+- Dispute type
+- Related entity (driver, cell, date range)
+- Description (free text)
+- Supporting notes (optional)
+
+Rules:
+- One dispute per issue
+- Duplicate disputes auto-merged
+- Abuse flagged by ZIBRA
+
+================================================
+PHASE 3 — DISPUTE STATUS FLOW
+================================================
+
+3) DISPUTE STATES
+
+Statuses:
+- Submitted
+- Under Review
+- Clarification Requested
+- Resolved
+- Rejected
+
+Only Admin / Super Admin can change status.
+
+================================================
+PHASE 4 — ADMIN & SUPER ADMIN REVIEW
+================================================
+
+4) ADMIN REVIEW PANEL
+
+Route:
+- /admin/director-disputes
+
+Admin can:
+- View disputes
+- Request clarification
+- Add internal notes
+- Recommend resolution
+
+Super Admin can:
+- Resolve
+- Reject
+- Override previous actions
+
+================================================
+PHASE 5 — APPEAL RULES
+================================================
+
+5) APPEALS
+
+- Directors may appeal a resolved dispute ONCE
+- Appeals go directly to Super Admin
+- Appeal must include new information
+- Super Admin decision is FINAL
+
+================================================
+PHASE 6 — ZIBRA ROLE (NEUTRAL)
+================================================
+
+6) ZIBRA DISPUTE ASSISTANCE
+
+ZIBRA may:
+- Explain dispute process
+- Explain status meanings
+- Suggest what information is needed
+
+ZIBRA must NOT:
+- Take sides
+- Promise outcomes
+- Override Admin/Super Admin decisions
+
+================================================
+PHASE 7 — DISCIPLINE & RETALIATION SAFETY
+================================================
+
+7) ANTI-RETALIATION RULES
+
+- Directors cannot discipline drivers for disputes
+- Directors cannot retaliate against staff
+- Retaliation flags auto-escalate to Admin
+- Repeated abuse reduces Director trust score
+
+================================================
+PHASE 8 — AUDIT & LEGAL SAFETY
+================================================
+
+8) FULL AUDIT LOGGING
+
+Log:
+- Dispute submissions
+- Admin notes
+- Status changes
+- Final decisions
+- Appeals
+
+Each log includes:
+- Actor
+- Timestamp
+- Reason
+- Affected records
+
+================================================
+PHASE 9 — TESTING
+================================================
+
+9) CONFIRM:
+✔ Disputes submit correctly
+✔ Status flow works
+✔ Appeals limited to one
+✔ Admin & Super Admin roles enforced
+✔ No leakage of financial data
+✔ Audit trail complete
+
+Proceed step-by-step and confirm completion.

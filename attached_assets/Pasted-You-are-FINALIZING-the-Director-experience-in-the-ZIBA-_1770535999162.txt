@@ -1,0 +1,144 @@
+You are FINALIZING the Director experience in the ZIBA platform.
+
+GOAL:
+- Properly onboard Directors (Contract & Employee)
+- Lock legal Terms
+- Implement Director trust scoring
+- Enable ZIBRA coaching & performance nudges
+- Prepare Director system for production
+
+================================================
+PHASE 1 — DIRECTOR ONBOARDING FLOW
+================================================
+
+1) DIRECTOR ONBOARDING ENTRY
+
+Route:
+- /director/onboarding
+
+Triggered when:
+- Director is newly appointed
+- Director logs in for the first time
+- Director status changes from pending → active
+
+Steps:
+1. Welcome screen (role explanation)
+2. Director responsibilities
+3. Driver management rules
+4. Commission rules (high-level, no amounts)
+5. Staff & permissions rules
+6. Compliance & conduct
+7. Terms acceptance
+8. Dashboard access granted
+
+Director must complete onboarding before full access.
+
+================================================
+PHASE 2 — DIRECTOR TRAINING MODULES
+================================================
+
+2) TRAINING CONTENT (READ-ONLY)
+
+Modules:
+- Managing drivers responsibly
+- Suspension vs escalation
+- Staff management best practices
+- Avoiding abuse & retaliation
+- Understanding trust score
+- Working with ZIBRA insights
+
+Rules:
+- Training completion logged
+- Admin/Super Admin can see completion status
+- Refusal to complete → dashboard access limited
+
+================================================
+PHASE 3 — DIRECTOR TERMS & CONDITIONS
+================================================
+
+3) DIRECTOR TERMS (STORE-READY)
+
+Key points:
+- Director is NOT an employee unless explicitly designated
+- Director does NOT control pricing or payouts
+- Director earns commission only from ZIBA earnings
+- Appointment is revocable
+- ZIBA may suspend/terminate at discretion
+- No guarantee of earnings
+- Directors responsible for staff actions
+- Dispute process defined
+- Governing law configurable per country
+
+Acceptance required before activation.
+
+================================================
+PHASE 4 — DIRECTOR TRUST SCORE
+================================================
+
+4) TRUST SCORE MODEL (INTERNAL)
+
+Inputs:
+- Driver complaints under Director
+- Excessive suspensions
+- Staff abuse flags
+- Missed compliance actions
+- ZIBRA risk alerts
+- Admin warnings
+
+Outputs:
+- Trust score (internal only)
+- Risk level: Low / Medium / High
+
+Rules:
+- Directors cannot see numeric score
+- Admin & Super Admin see full details
+- Low trust triggers ZIBRA coaching
+- High risk triggers Admin review
+
+================================================
+PHASE 5 — ZIBRA COACHING (DIRECTORS)
+================================================
+
+5) ZIBRA COACHING PROMPTS
+
+ZIBRA may:
+- Suggest performance improvements
+- Warn about policy drift
+- Encourage compliance
+- Highlight positive behavior
+
+ZIBRA must NOT:
+- Threaten
+- Promise earnings
+- Override Admin authority
+
+Examples:
+- “You have a higher-than-average suspension rate.”
+- “Several drivers under your cell are inactive.”
+
+================================================
+PHASE 6 — AUDIT & SECURITY
+================================================
+
+6) AUDIT LOGGING
+
+Log:
+- Onboarding completion
+- Training completion
+- Terms acceptance
+- Trust score changes
+- ZIBRA coaching events
+
+================================================
+PHASE 7 — TESTING
+================================================
+
+7) CONFIRM:
+✔ Onboarding blocks access until complete
+✔ Training status visible to Admin
+✔ Terms enforced
+✔ Trust score updates correctly
+✔ ZIBRA coaching visible
+✔ Audit logs complete
+
+Proceed step-by-step and confirm completion.

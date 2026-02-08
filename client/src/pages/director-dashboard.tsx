@@ -844,6 +844,8 @@ export default function DirectorDashboard() {
   const [disputeEvidenceNotes, setDisputeEvidenceNotes] = useState("");
   const [expandedDisputeId, setExpandedDisputeId] = useState<string | null>(null);
   const [disputeReplyText, setDisputeReplyText] = useState<Record<string, string>>({});
+  const [appealText, setAppealText] = useState<Record<string, string>>({});
+  const [showAppealForm, setShowAppealForm] = useState<string | null>(null);
 
   const { data: dashboard, isLoading } = useQuery<DashboardData>({
     queryKey: ["/api/director/dashboard/full"],
@@ -993,6 +995,22 @@ export default function DirectorDashboard() {
     },
     onError: (err: Error) => {
       toast({ title: "Reply Failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const appealDisputeMutation = useMutation({
+    mutationFn: async ({ disputeId, appealReason }: { disputeId: string; appealReason: string }) => {
+      await apiRequest("POST", `/api/director/disputes/${disputeId}/appeal`, { appealReason });
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/director/disputes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/director/disputes", variables.disputeId] });
+      setAppealText((prev) => ({ ...prev, [variables.disputeId]: "" }));
+      setShowAppealForm(null);
+      toast({ title: "Appeal Submitted", description: "Your appeal has been sent to Super Admin for review." });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Appeal Failed", description: err.message, variant: "destructive" });
     },
   });
 
@@ -2411,13 +2429,13 @@ export default function DirectorDashboard() {
                     <SelectValue placeholder="Select dispute type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="payout_hold">Payout Hold</SelectItem>
-                    <SelectItem value="suspension">Suspension</SelectItem>
+                    <SelectItem value="commission_calculation">Commission Calculation</SelectItem>
                     <SelectItem value="driver_reassignment">Driver Reassignment</SelectItem>
-                    <SelectItem value="staff_restriction">Staff Restriction</SelectItem>
-                    <SelectItem value="commission_adjustment">Commission Adjustment</SelectItem>
+                    <SelectItem value="suspension">Suspension Dispute</SelectItem>
+                    <SelectItem value="staff_action">Staff Action Dispute</SelectItem>
+                    <SelectItem value="performance_flag">Performance Flag Dispute</SelectItem>
+                    <SelectItem value="payout_hold">Payout Hold</SelectItem>
                     <SelectItem value="cell_limit">Cell Limit</SelectItem>
-                    <SelectItem value="termination">Termination</SelectItem>
                     <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>
@@ -2495,14 +2513,18 @@ export default function DirectorDashboard() {
               ) : (
                 disputesData.disputes.map((dispute) => {
                   const isExpanded = expandedDisputeId === dispute.id;
-                  const isClosed = dispute.status === "resolved" || dispute.status === "closed";
+                  const isClosed = ["resolved", "rejected", "closed", "appealed"].includes(dispute.status);
+                  const canAppeal = ["resolved", "rejected"].includes(dispute.status) && !(dispute as any).appealSubmitted;
                   const statusBadgeVariant = (() => {
                     switch (dispute.status) {
                       case "submitted": return "secondary" as const;
                       case "under_review": return "outline" as const;
+                      case "clarification_requested": return "outline" as const;
                       case "admin_reviewed": return "outline" as const;
                       case "escalated": return "destructive" as const;
                       case "resolved": return "default" as const;
+                      case "rejected": return "destructive" as const;
+                      case "appealed": return "outline" as const;
                       case "closed": return "secondary" as const;
                       default: return "secondary" as const;
                     }
@@ -2561,8 +2583,51 @@ export default function DirectorDashboard() {
                           )}
 
                           {isClosed ? (
-                            <div className="p-3 rounded-md border bg-muted/50 text-sm text-muted-foreground" data-testid={`text-dispute-closed-${dispute.id}`}>
-                              This dispute is closed and read-only.
+                            <div className="space-y-3">
+                              <div className="p-3 rounded-md border bg-muted/50 text-sm text-muted-foreground" data-testid={`text-dispute-closed-${dispute.id}`}>
+                                {dispute.status === "appealed"
+                                  ? "This dispute is under appeal review by Super Admin."
+                                  : dispute.status === "rejected"
+                                  ? "This dispute has been rejected."
+                                  : "This dispute has been resolved."}
+                              </div>
+                              {canAppeal && !isReadOnly && (
+                                showAppealForm === dispute.id ? (
+                                  <div className="space-y-2" data-testid={`form-appeal-${dispute.id}`}>
+                                    <p className="text-xs text-muted-foreground">
+                                      You may appeal once. Include new information not in your original submission. This appeal goes directly to Super Admin — their decision is final.
+                                    </p>
+                                    <Textarea
+                                      placeholder="Explain why you are appealing and include any new information (min 20 characters)..."
+                                      value={appealText[dispute.id] || ""}
+                                      onChange={(e) => setAppealText((prev) => ({ ...prev, [dispute.id]: e.target.value }))}
+                                      data-testid={`textarea-appeal-${dispute.id}`}
+                                    />
+                                    <div className="flex gap-2 flex-wrap">
+                                      <Button
+                                        onClick={() => appealDisputeMutation.mutate({ disputeId: dispute.id, appealReason: appealText[dispute.id] || "" })}
+                                        disabled={(appealText[dispute.id] || "").length < 20 || appealDisputeMutation.isPending}
+                                        data-testid={`button-submit-appeal-${dispute.id}`}
+                                      >
+                                        {appealDisputeMutation.isPending ? "Submitting..." : "Submit Appeal"}
+                                      </Button>
+                                      <Button variant="outline" onClick={() => setShowAppealForm(null)} data-testid={`button-cancel-appeal-${dispute.id}`}>
+                                        Cancel
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setShowAppealForm(dispute.id)}
+                                    data-testid={`button-appeal-${dispute.id}`}
+                                  >
+                                    <AlertTriangle className="h-3 w-3 mr-1" />
+                                    Appeal This Decision
+                                  </Button>
+                                )
+                              )}
                             </div>
                           ) : (
                             <div className="flex gap-2" data-testid={`form-dispute-reply-${dispute.id}`}>

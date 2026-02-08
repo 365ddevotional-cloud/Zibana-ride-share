@@ -1421,9 +1421,12 @@ function DirectorDisputesPanel() {
     switch (status) {
       case "submitted": return "secondary" as const;
       case "under_review": return "outline" as const;
+      case "clarification_requested": return "outline" as const;
       case "admin_reviewed": return "outline" as const;
       case "escalated": return "destructive" as const;
       case "resolved": return "default" as const;
+      case "rejected": return "destructive" as const;
+      case "appealed": return "outline" as const;
       case "closed": return "secondary" as const;
       default: return "secondary" as const;
     }
@@ -1610,9 +1613,11 @@ function DirectorDisputesPanel() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="under_review">Under Review</SelectItem>
+                  <SelectItem value="clarification_requested">Clarification Requested</SelectItem>
                   <SelectItem value="admin_reviewed">Admin Reviewed</SelectItem>
                   <SelectItem value="escalated">Escalated</SelectItem>
                   <SelectItem value="resolved">Resolved</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
                   <SelectItem value="closed">Closed</SelectItem>
                 </SelectContent>
               </Select>
