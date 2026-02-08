@@ -45,7 +45,7 @@ export default function RiderSettings() {
 
   const updateThemeMutation = useMutation({
     mutationFn: async (newTheme: string) => {
-      await apiRequest("PATCH", "/api/user/theme-preference", { themePreference: newTheme });
+      await apiRequest("POST", "/api/user/theme-preference", { themePreference: newTheme });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user/theme-preference"] });
