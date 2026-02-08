@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Progress } from "@/components/ui/progress";
 import {
   Users, Shield, Clock, AlertTriangle, Activity, UserPlus, ChevronRight,
   Calendar, Bell, X, RefreshCw, Wallet, Send, Ban, History, DollarSign,
@@ -175,6 +176,26 @@ function driverStatusVariant(status: string): "default" | "secondary" | "destruc
       return "outline";
     default:
       return "secondary";
+  }
+}
+
+function tierVariant(tier: string): "default" | "secondary" | "destructive" | "outline" {
+  switch (tier) {
+    case "gold": return "default";
+    case "silver": return "secondary";
+    case "bronze": return "outline";
+    case "at_risk": return "destructive";
+    default: return "secondary";
+  }
+}
+
+function tierLabel(tier: string): string {
+  switch (tier) {
+    case "gold": return "Gold";
+    case "silver": return "Silver";
+    case "bronze": return "Bronze";
+    case "at_risk": return "At Risk";
+    default: return tier;
   }
 }
 
@@ -799,6 +820,7 @@ export default function DirectorDashboard() {
     if (location === "/director/staff") return "staff";
     if (location === "/director/activity") return "activity";
     if (location === "/director/earnings") return "earnings";
+    if (location === "/director/performance") return "performance";
     if (location === "/director/disputes") return "disputes";
     return "overview";
   };
@@ -888,6 +910,19 @@ export default function DirectorDashboard() {
   }>({
     queryKey: ["/api/director/earnings"],
     enabled: activeTab === "earnings" || activeTab === "overview",
+  });
+
+  const { data: performanceData, isLoading: perfLoading } = useQuery<any>({
+    queryKey: ["/api/director/performance"],
+    enabled: activeTab === "performance",
+  });
+
+  const calcPerformanceMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/director/performance/calculate"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/director/performance"] });
+      toast({ title: "Score recalculated", description: "Your performance score has been updated" });
+    },
   });
 
   const { data: acceptanceData } = useQuery<{ accepted: boolean }>({
@@ -1121,6 +1156,10 @@ export default function DirectorDashboard() {
           <TabsTrigger value="staff" data-testid="tab-staff">Staff</TabsTrigger>
           <TabsTrigger value="activity" data-testid="tab-activity">Activity Log</TabsTrigger>
           <TabsTrigger value="earnings" data-testid="tab-earnings">Earnings</TabsTrigger>
+          <TabsTrigger value="performance" data-testid="tab-performance">
+            <TrendingUp className="h-4 w-4 mr-1" />
+            Performance
+          </TabsTrigger>
           <TabsTrigger value="disputes" data-testid="tab-disputes">
             <Shield className="h-4 w-4 mr-1" />
             Disputes
@@ -2109,6 +2148,214 @@ export default function DirectorDashboard() {
                 <p>Unable to load earnings data.</p>
               </CardContent>
             </Card>
+          )}
+        </TabsContent>
+
+        {/* PERFORMANCE TAB */}
+        <TabsContent value="performance" className="space-y-4">
+          {perfLoading ? (
+            <div className="space-y-4">
+              <Skeleton className="h-32" />
+              <Skeleton className="h-48" />
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card data-testid="card-perf-score">
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Performance Score</CardTitle>
+                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    {performanceData?.current ? (
+                      <div className="flex items-center gap-4">
+                        <div className="text-4xl font-bold" data-testid="text-perf-score">
+                          {performanceData.current.score}
+                        </div>
+                        <div className="space-y-1">
+                          <Badge variant={tierVariant(performanceData.current.tier)} data-testid="badge-perf-tier">
+                            {tierLabel(performanceData.current.tier)}
+                          </Badge>
+                          <p className="text-xs text-muted-foreground" data-testid="text-perf-calculated">
+                            Calculated {formatDate(performanceData.current.calculatedAt)}
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground" data-testid="text-perf-not-calculated">Not yet calculated</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card data-testid="card-perf-thresholds">
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Tier Thresholds</CardTitle>
+                    <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    {performanceData?.thresholds ? (
+                      <div className="space-y-2 text-sm">
+                        <div className="flex items-center justify-between gap-2">
+                          <Badge variant="default">Gold</Badge>
+                          <span className="text-muted-foreground">{performanceData.thresholds.gold}+</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-2">
+                          <Badge variant="secondary">Silver</Badge>
+                          <span className="text-muted-foreground">{performanceData.thresholds.silver}+</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-2">
+                          <Badge variant="outline">Bronze</Badge>
+                          <span className="text-muted-foreground">{performanceData.thresholds.bronze}+</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No threshold data</p>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {performanceData?.current && (
+                <Card data-testid="card-perf-breakdown">
+                  <CardHeader>
+                    <CardTitle className="text-sm font-medium">Component Breakdown</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                      <Card data-testid="card-perf-activity">
+                        <CardContent className="pt-4 space-y-2">
+                          <p className="text-xs font-medium text-muted-foreground">Driver Activity</p>
+                          <div className="text-lg font-bold" data-testid="text-perf-activity-score">{performanceData.current.driverActivityScore}</div>
+                          <Progress value={performanceData.current.driverActivityScore} className="h-2" />
+                        </CardContent>
+                      </Card>
+                      <Card data-testid="card-perf-quality">
+                        <CardContent className="pt-4 space-y-2">
+                          <p className="text-xs font-medium text-muted-foreground">Driver Quality</p>
+                          <div className="text-lg font-bold" data-testid="text-perf-quality-score">{performanceData.current.driverQualityScore}</div>
+                          <Progress value={performanceData.current.driverQualityScore} className="h-2" />
+                        </CardContent>
+                      </Card>
+                      <Card data-testid="card-perf-retention">
+                        <CardContent className="pt-4 space-y-2">
+                          <p className="text-xs font-medium text-muted-foreground">Driver Retention</p>
+                          <div className="text-lg font-bold" data-testid="text-perf-retention-score">{performanceData.current.driverRetentionScore}</div>
+                          <Progress value={performanceData.current.driverRetentionScore} className="h-2" />
+                        </CardContent>
+                      </Card>
+                      <Card data-testid="card-perf-compliance">
+                        <CardContent className="pt-4 space-y-2">
+                          <p className="text-xs font-medium text-muted-foreground">Compliance & Safety</p>
+                          <div className="text-lg font-bold" data-testid="text-perf-compliance-score">{performanceData.current.complianceSafetyScore}</div>
+                          <Progress value={performanceData.current.complianceSafetyScore} className="h-2" />
+                        </CardContent>
+                      </Card>
+                      <Card data-testid="card-perf-feedback">
+                        <CardContent className="pt-4 space-y-2">
+                          <p className="text-xs font-medium text-muted-foreground">Admin Feedback</p>
+                          <div className="text-lg font-bold" data-testid="text-perf-feedback-score">{performanceData.current.adminFeedbackScore}</div>
+                          <Progress value={performanceData.current.adminFeedbackScore} className="h-2" />
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {performanceData?.history && performanceData.history.length > 0 && (
+                <Card data-testid="card-perf-history">
+                  <CardHeader>
+                    <CardTitle className="text-sm font-medium">Score History</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Score</TableHead>
+                          <TableHead>Tier</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {performanceData.history.slice(0, 10).map((entry: any, idx: number) => (
+                          <TableRow key={idx} data-testid={`row-perf-history-${idx}`}>
+                            <TableCell data-testid={`text-perf-history-date-${idx}`}>{formatDate(entry.calculatedAt)}</TableCell>
+                            <TableCell data-testid={`text-perf-history-score-${idx}`}>{entry.score}</TableCell>
+                            <TableCell>
+                              <Badge variant={tierVariant(entry.tier)} data-testid={`badge-perf-history-tier-${idx}`}>
+                                {tierLabel(entry.tier)}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              )}
+
+              <Card data-testid="card-perf-incentives">
+                <CardHeader>
+                  <CardTitle className="text-sm font-medium">Active Incentives</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {performanceData?.incentives && performanceData.incentives.filter((i: any) => i.isActive).length > 0 ? (
+                    <div className="space-y-3">
+                      {performanceData.incentives.filter((i: any) => i.isActive).map((incentive: any) => (
+                        <div key={incentive.id} className="flex flex-wrap items-start justify-between gap-2 p-3 rounded-md border" data-testid={`card-perf-incentive-${incentive.id}`}>
+                          <div className="space-y-1">
+                            <Badge variant="secondary" data-testid={`badge-incentive-type-${incentive.id}`}>{incentive.incentiveType}</Badge>
+                            <p className="text-sm" data-testid={`text-incentive-desc-${incentive.id}`}>{incentive.description}</p>
+                          </div>
+                          <div className="text-xs text-muted-foreground text-right space-y-0.5">
+                            <div data-testid={`text-incentive-applied-${incentive.id}`}>Applied: {formatDate(incentive.appliedAt)}</div>
+                            {incentive.expiresAt && <div data-testid={`text-incentive-expires-${incentive.id}`}>Expires: {formatDate(incentive.expiresAt)}</div>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground" data-testid="text-no-incentives">No active incentives</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card data-testid="card-perf-restrictions">
+                <CardHeader>
+                  <CardTitle className="text-sm font-medium">Active Restrictions</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {performanceData?.restrictions && performanceData.restrictions.filter((r: any) => r.isActive).length > 0 ? (
+                    <div className="space-y-3">
+                      {performanceData.restrictions.filter((r: any) => r.isActive).map((restriction: any) => (
+                        <div key={restriction.id} className="flex flex-wrap items-start justify-between gap-2 p-3 rounded-md border border-destructive/30" data-testid={`card-perf-restriction-${restriction.id}`}>
+                          <div className="space-y-1">
+                            <Badge variant="destructive" data-testid={`badge-restriction-type-${restriction.id}`}>{restriction.restrictionType}</Badge>
+                            <p className="text-sm" data-testid={`text-restriction-desc-${restriction.id}`}>{restriction.description}</p>
+                          </div>
+                          <div className="text-xs text-muted-foreground" data-testid={`text-restriction-applied-${restriction.id}`}>
+                            Applied: {formatDate(restriction.appliedAt)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground" data-testid="text-no-restrictions">No active restrictions</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <div className="flex justify-end">
+                <Button
+                  onClick={() => calcPerformanceMutation.mutate()}
+                  disabled={calcPerformanceMutation.isPending}
+                  data-testid="button-recalculate-score"
+                >
+                  <RefreshCw className={`h-4 w-4 mr-1 ${calcPerformanceMutation.isPending ? "animate-spin" : ""}`} />
+                  {calcPerformanceMutation.isPending ? "Recalculating..." : "Recalculate Score"}
+                </Button>
+              </div>
+            </>
           )}
         </TabsContent>
 
