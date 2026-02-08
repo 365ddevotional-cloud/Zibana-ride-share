@@ -1,0 +1,159 @@
+You are fixing and completing the ZIBA Welcome / Landing Page UX.
+
+OBJECTIVE:
+Make every visible box, card, button, and section on the ZIBA welcome page clickable,
+functional, and consistent with the ZIBA platform experience.
+
+No dead UI.
+No placeholder cards.
+No broken navigation.
+
+If a destination page does not exist, CREATE it.
+All routes must be safe for unauthenticated users unless explicitly stated.
+
+=====================================================
+PHASE 1 — AUDIT THE WELCOME PAGE
+=====================================================
+
+1) Identify ALL non-clickable elements on the welcome page, including:
+- Feature cards
+- Info boxes
+- Sections
+- CTA buttons
+- Icons
+- Badges
+
+2) List them under:
+- Existing route available
+- Route missing (must be created)
+
+=====================================================
+PHASE 2 — MAKE EVERYTHING CLICKABLE
+=====================================================
+
+For EACH of the following sections, ensure full card clickability
+(not just buttons or text):
+
+A) HERO SECTION
+- “Get Started” → /signup
+- “Learn More” → scroll to “Why choose ZIBA Ride” OR /about
+
+B) WHY CHOOSE ZIBA RIDE
+Each card must be clickable:
+
+1) Verified Drivers
+→ /safety/verified-drivers
+(Create page if missing)
+
+2) Quick Pickup
+→ /how-it-works#pickup
+(Create page if missing)
+
+3) Easy Booking
+→ /how-it-works#booking
+(Create page if missing)
+
+C) EVERYTHING YOU NEED
+Each feature card must be clickable:
+
+1) Live Tracking
+→ /features/live-tracking
+(Create page if missing)
+
+2) Flexible Payments
+→ /features/payments
+(Create page if missing)
+
+3) Rate Your Trip
+→ /features/ratings
+(Create page if missing)
+
+4) Safety First
+→ /safety
+(Create page if missing)
+
+D) READY TO RIDE SECTION
+- “Get Started” → /signup
+
+=====================================================
+PHASE 3 — CREATE MISSING PAGES (LIGHTWEIGHT)
+=====================================================
+
+If a destination page does not exist, create a clean, simple public page with:
+- ZIBA branding
+- Clear heading
+- Short explanation
+- Relevant icons
+- CTA to Sign Up
+
+Pages to create if missing:
+- /about
+- /how-it-works
+- /features/live-tracking
+- /features/payments
+- /features/ratings
+- /safety
+- /safety/verified-drivers
+
+Do NOT include login-gated data.
+Do NOT expose internal processes.
+Do NOT promise outcomes.
+
+=====================================================
+PHASE 4 — CONSISTENCY & DESIGN RULES
+=====================================================
+
+1) Use the SAME:
+- Font family
+- Typography scale
+- Card radius
+- Shadow depth
+- Color tokens
+as the rest of ZIBA
+
+2) Entire card should be clickable:
+- Cursor: pointer
+- Hover state
+- Tap feedback on mobile
+
+3) Accessibility:
+- Proper <a> or router links
+- Keyboard navigable
+- ARIA labels where appropriate
+
+=====================================================
+PHASE 5 — ROUTING & FALLBACK SAFETY
+=====================================================
+
+- All welcome-page routes must be public
+- If a route errors:
+  - Show friendly fallback page
+  - Offer “Back to Home” and “Get Started”
+
+=====================================================
+PHASE 6 — QA CHECKLIST (MUST PASS)
+=====================================================
+
+Confirm:
+✔ Every box is clickable
+✔ No dead UI
+✔ No 404 routes
+✔ Mobile & desktop tested
+✔ Navigation feels intentional
+✔ Branding is consistent
+✔ No legal promises added
+
+=====================================================
+DELIVERABLES
+=====================================================
+
+After completion, report:
+1) Which elements were fixed
+2) Which pages were created
+3) Routes added
+4) Screens tested
+5) Any deferred improvements
+
+Proceed carefully.
+Do NOT break existing auth flows.
+Do NOT introduce placeholders.

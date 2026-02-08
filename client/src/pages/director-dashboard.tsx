@@ -799,6 +799,7 @@ export default function DirectorDashboard() {
     if (location === "/director/staff") return "staff";
     if (location === "/director/activity") return "activity";
     if (location === "/director/earnings") return "earnings";
+    if (location === "/director/disputes") return "disputes";
     return "overview";
   };
   const [activeTab, setActiveTab] = useState(getInitialTab);
@@ -813,6 +814,12 @@ export default function DirectorDashboard() {
   const [logDateFilter, setLogDateFilter] = useState("");
   const [logActionFilter, setLogActionFilter] = useState("all");
   const [logUserFilter, setLogUserFilter] = useState("");
+  const [disputeType, setDisputeType] = useState("");
+  const [disputeSubject, setDisputeSubject] = useState("");
+  const [disputeDescription, setDisputeDescription] = useState("");
+  const [disputeEvidenceNotes, setDisputeEvidenceNotes] = useState("");
+  const [expandedDisputeId, setExpandedDisputeId] = useState<string | null>(null);
+  const [disputeReplyText, setDisputeReplyText] = useState<Record<string, string>>({});
 
   const { data: dashboard, isLoading } = useQuery<DashboardData>({
     queryKey: ["/api/director/dashboard/full"],
@@ -885,6 +892,71 @@ export default function DirectorDashboard() {
 
   const { data: acceptanceData } = useQuery<{ accepted: boolean }>({
     queryKey: ["/api/director/funding/acceptance"],
+  });
+
+  const { data: disputesData, isLoading: disputesLoading } = useQuery<{
+    disputes: Array<{
+      id: string;
+      disputeType: string;
+      subject: string;
+      description: string;
+      status: string;
+      evidenceNotes: string | null;
+      createdAt: string;
+    }>;
+  }>({
+    queryKey: ["/api/director/disputes"],
+    enabled: activeTab === "disputes",
+  });
+
+  const { data: disputeDetail } = useQuery<{
+    dispute: any;
+    messages: Array<{
+      id: string;
+      senderRole: string;
+      content: string;
+      createdAt: string;
+    }>;
+  }>({
+    queryKey: ["/api/director/disputes", expandedDisputeId],
+    enabled: !!expandedDisputeId,
+  });
+
+  const submitDisputeMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/director/disputes", {
+        disputeType,
+        subject: disputeSubject,
+        description: disputeDescription,
+        evidenceNotes: disputeEvidenceNotes || undefined,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/director/disputes"] });
+      toast({ title: "Dispute Submitted", description: "Your dispute has been submitted for review." });
+      setDisputeType("");
+      setDisputeSubject("");
+      setDisputeDescription("");
+      setDisputeEvidenceNotes("");
+    },
+    onError: (err: Error) => {
+      toast({ title: "Submission Failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const replyDisputeMutation = useMutation({
+    mutationFn: async ({ disputeId, content }: { disputeId: string; content: string }) => {
+      await apiRequest("POST", `/api/director/disputes/${disputeId}/message`, { content });
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/director/disputes", variables.disputeId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/director/disputes"] });
+      setDisputeReplyText((prev) => ({ ...prev, [variables.disputeId]: "" }));
+      toast({ title: "Message Sent", description: "Your reply has been sent." });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Reply Failed", description: err.message, variant: "destructive" });
+    },
   });
 
   const acceptMutation = useMutation({
@@ -1049,6 +1121,10 @@ export default function DirectorDashboard() {
           <TabsTrigger value="staff" data-testid="tab-staff">Staff</TabsTrigger>
           <TabsTrigger value="activity" data-testid="tab-activity">Activity Log</TabsTrigger>
           <TabsTrigger value="earnings" data-testid="tab-earnings">Earnings</TabsTrigger>
+          <TabsTrigger value="disputes" data-testid="tab-disputes">
+            <Shield className="h-4 w-4 mr-1" />
+            Disputes
+          </TabsTrigger>
         </TabsList>
 
         {/* OVERVIEW TAB */}
@@ -2034,6 +2110,218 @@ export default function DirectorDashboard() {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        {/* DISPUTES TAB */}
+        <TabsContent value="disputes" className="space-y-4">
+          <Card data-testid="card-dispute-form">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-4 w-4" />
+                Submit New Dispute
+              </CardTitle>
+              <CardDescription>Raise a concern or dispute for administrator review</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label>Dispute Type</Label>
+                <Select value={disputeType} onValueChange={setDisputeType}>
+                  <SelectTrigger data-testid="select-dispute-type">
+                    <SelectValue placeholder="Select dispute type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="payout_hold">Payout Hold</SelectItem>
+                    <SelectItem value="suspension">Suspension</SelectItem>
+                    <SelectItem value="driver_reassignment">Driver Reassignment</SelectItem>
+                    <SelectItem value="staff_restriction">Staff Restriction</SelectItem>
+                    <SelectItem value="commission_adjustment">Commission Adjustment</SelectItem>
+                    <SelectItem value="cell_limit">Cell Limit</SelectItem>
+                    <SelectItem value="termination">Termination</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="dispute-subject">Subject</Label>
+                <Input
+                  id="dispute-subject"
+                  placeholder="Brief summary of the dispute"
+                  value={disputeSubject}
+                  onChange={(e) => setDisputeSubject(e.target.value.slice(0, 200))}
+                  maxLength={200}
+                  data-testid="input-dispute-subject"
+                />
+                <p className="text-xs text-muted-foreground mt-1">{disputeSubject.length}/200</p>
+              </div>
+              <div>
+                <Label htmlFor="dispute-description">Description</Label>
+                <Textarea
+                  id="dispute-description"
+                  placeholder="Describe the issue in detail (minimum 20 characters)"
+                  value={disputeDescription}
+                  onChange={(e) => setDisputeDescription(e.target.value)}
+                  data-testid="textarea-dispute-description"
+                />
+                {disputeDescription.length > 0 && disputeDescription.length < 20 && (
+                  <p className="text-xs text-destructive mt-1">Description must be at least 20 characters.</p>
+                )}
+              </div>
+              <div>
+                <Label htmlFor="dispute-evidence">Evidence Notes (optional)</Label>
+                <Textarea
+                  id="dispute-evidence"
+                  placeholder="Any supporting information or references"
+                  value={disputeEvidenceNotes}
+                  onChange={(e) => setDisputeEvidenceNotes(e.target.value)}
+                  data-testid="textarea-dispute-evidence"
+                />
+              </div>
+              <Button
+                onClick={() => submitDisputeMutation.mutate()}
+                disabled={
+                  !disputeType ||
+                  !disputeSubject ||
+                  disputeDescription.length < 20 ||
+                  submitDisputeMutation.isPending
+                }
+                data-testid="button-submit-dispute"
+              >
+                {submitDisputeMutation.isPending ? "Submitting..." : "Submit Dispute"}
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card data-testid="card-disputes-list">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <History className="h-4 w-4" />
+                Your Disputes
+              </CardTitle>
+              <CardDescription>Track the status of your submitted disputes</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {disputesLoading ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-20" />
+                  <Skeleton className="h-20" />
+                </div>
+              ) : !disputesData?.disputes?.length ? (
+                <div className="py-8 text-center text-muted-foreground" data-testid="text-no-disputes">
+                  <Shield className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                  <p>No disputes submitted yet.</p>
+                </div>
+              ) : (
+                disputesData.disputes.map((dispute) => {
+                  const isExpanded = expandedDisputeId === dispute.id;
+                  const isClosed = dispute.status === "resolved" || dispute.status === "closed";
+                  const statusBadgeVariant = (() => {
+                    switch (dispute.status) {
+                      case "submitted": return "secondary" as const;
+                      case "under_review": return "outline" as const;
+                      case "admin_reviewed": return "outline" as const;
+                      case "escalated": return "destructive" as const;
+                      case "resolved": return "default" as const;
+                      case "closed": return "secondary" as const;
+                      default: return "secondary" as const;
+                    }
+                  })();
+
+                  return (
+                    <div
+                      key={dispute.id}
+                      className="border rounded-md p-3 space-y-2"
+                      data-testid={`card-dispute-${dispute.id}`}
+                    >
+                      <div
+                        className="flex flex-wrap items-center justify-between gap-2 cursor-pointer"
+                        onClick={() => setExpandedDisputeId(isExpanded ? null : dispute.id)}
+                        data-testid={`button-expand-dispute-${dispute.id}`}
+                      >
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-medium" data-testid={`text-dispute-subject-${dispute.id}`}>
+                            {dispute.subject}
+                          </span>
+                          <Badge variant="outline" className="text-xs" data-testid={`badge-dispute-type-${dispute.id}`}>
+                            {dispute.disputeType.replace(/_/g, " ")}
+                          </Badge>
+                          <Badge variant={statusBadgeVariant} data-testid={`badge-dispute-status-${dispute.id}`}>
+                            {dispute.status.replace(/_/g, " ")}
+                          </Badge>
+                        </div>
+                        <span className="text-xs text-muted-foreground" data-testid={`text-dispute-date-${dispute.id}`}>
+                          {formatDate(dispute.createdAt)}
+                        </span>
+                      </div>
+
+                      {isExpanded && (
+                        <div className="pt-2 border-t space-y-3">
+                          <p className="text-sm text-muted-foreground" data-testid={`text-dispute-desc-${dispute.id}`}>
+                            {dispute.description}
+                          </p>
+
+                          {disputeDetail?.messages && disputeDetail.messages.length > 0 && (
+                            <div className="space-y-2" data-testid={`list-dispute-messages-${dispute.id}`}>
+                              <p className="text-xs font-medium text-muted-foreground">Messages</p>
+                              {disputeDetail.messages.map((msg) => (
+                                <div key={msg.id} className="flex flex-wrap items-start gap-2 p-2 rounded-md bg-muted" data-testid={`message-${msg.id}`}>
+                                  <Badge variant="outline" className="text-xs" data-testid={`badge-sender-${msg.id}`}>
+                                    {msg.senderRole}
+                                  </Badge>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm" data-testid={`text-message-content-${msg.id}`}>{msg.content}</p>
+                                    <p className="text-xs text-muted-foreground mt-1" data-testid={`text-message-date-${msg.id}`}>
+                                      {formatDateTime(msg.createdAt)}
+                                    </p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {isClosed ? (
+                            <div className="p-3 rounded-md border bg-muted/50 text-sm text-muted-foreground" data-testid={`text-dispute-closed-${dispute.id}`}>
+                              This dispute is closed and read-only.
+                            </div>
+                          ) : (
+                            <div className="flex gap-2" data-testid={`form-dispute-reply-${dispute.id}`}>
+                              <Textarea
+                                placeholder="Type your reply..."
+                                value={disputeReplyText[dispute.id] || ""}
+                                onChange={(e) =>
+                                  setDisputeReplyText((prev) => ({ ...prev, [dispute.id]: e.target.value }))
+                                }
+                                className="flex-1"
+                                data-testid={`textarea-dispute-reply-${dispute.id}`}
+                              />
+                              <Button
+                                onClick={() =>
+                                  replyDisputeMutation.mutate({
+                                    disputeId: dispute.id,
+                                    content: disputeReplyText[dispute.id] || "",
+                                  })
+                                }
+                                disabled={
+                                  !(disputeReplyText[dispute.id] || "").trim() ||
+                                  replyDisputeMutation.isPending
+                                }
+                                data-testid={`button-reply-dispute-${dispute.id}`}
+                              >
+                                <Send className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </CardContent>
+          </Card>
+
+          <div className="p-3 rounded-md border bg-muted/50 text-xs text-muted-foreground" data-testid="text-disputes-disclaimer">
+            Director disputes are reviewed by administrators. Submissions are tracked and form part of your account record. ZIBA aims to resolve disputes fairly and promptly.
+          </div>
         </TabsContent>
       </Tabs>
 

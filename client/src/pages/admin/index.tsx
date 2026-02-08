@@ -628,6 +628,701 @@ function CancellationFeeSettings() {
   );
 }
 
+function FraudSignalPanel({ directorUserId, isSuperAdmin }: { directorUserId: string; isSuperAdmin: boolean }) {
+  const { toast } = useToast();
+  const [scanResults, setScanResults] = useState<any[] | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [signalType, setSignalType] = useState("");
+  const [responseLevel, setResponseLevel] = useState("");
+  const [signalDescription, setSignalDescription] = useState("");
+  const [signalEvidence, setSignalEvidence] = useState("");
+  const [submittingSignal, setSubmittingSignal] = useState(false);
+
+  const { data: existingSignals = [], refetch: refetchSignals } = useQuery<any[]>({
+    queryKey: ["/api/admin/directors/fraud-signals", directorUserId],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/directors/fraud-signals?directorId=${directorUserId}`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!directorUserId,
+  });
+
+  const handleFraudScan = async () => {
+    setScanning(true);
+    try {
+      const res = await fetch(`/api/admin/directors/${directorUserId}/fraud-scan`, { credentials: "include" });
+      if (!res.ok) throw new Error("Scan failed");
+      const data = await res.json();
+      setScanResults(data.signals || []);
+      toast({ title: "Scan complete", description: `${(data.signals || []).length} signal(s) detected` });
+    } catch {
+      toast({ title: "Scan failed", description: "Could not complete fraud scan", variant: "destructive" });
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const handleSubmitSignal = async () => {
+    if (!signalType || !responseLevel || !signalDescription) {
+      toast({ title: "Missing fields", description: "Please fill in signal type, response level, and description", variant: "destructive" });
+      return;
+    }
+    setSubmittingSignal(true);
+    try {
+      await apiRequest("POST", `/api/admin/directors/${directorUserId}/fraud-signal`, {
+        signalType,
+        responseLevel,
+        description: signalDescription,
+        evidence: signalEvidence || undefined,
+      });
+      toast({ title: "Signal reported", description: "Fraud signal has been recorded" });
+      setSignalType("");
+      setResponseLevel("");
+      setSignalDescription("");
+      setSignalEvidence("");
+      refetchSignals();
+    } catch {
+      toast({ title: "Failed to report signal", variant: "destructive" });
+    } finally {
+      setSubmittingSignal(false);
+    }
+  };
+
+  const handleReviewSignal = async (signalId: string) => {
+    const reviewNotes = prompt("Review notes:");
+    if (!reviewNotes) return;
+    const escalate = confirm("Escalate this signal?");
+    const resolve = confirm("Mark this signal as resolved?");
+    try {
+      await apiRequest("POST", `/api/admin/directors/fraud-signal/${signalId}/review`, {
+        reviewNotes,
+        escalationLevel: escalate ? "level_3_enforcement" : undefined,
+        resolve,
+      });
+      toast({ title: "Signal reviewed" });
+      refetchSignals();
+    } catch {
+      toast({ title: "Review failed", variant: "destructive" });
+    }
+  };
+
+  const signalTypeOptions = [
+    { value: "artificial_activation", label: "Artificial Activation" },
+    { value: "short_session_inflation", label: "Short Session Inflation" },
+    { value: "coordinated_cancellations", label: "Coordinated Cancellations" },
+    { value: "coercion_reports", label: "Coercion Reports" },
+    { value: "excessive_funding_leverage", label: "Excessive Funding Leverage" },
+    { value: "abnormal_referral_clustering", label: "Abnormal Referral Clustering" },
+    { value: "payout_spike_churn", label: "Payout Spike / Churn" },
+    { value: "identity_mismatch", label: "Identity Mismatch" },
+    { value: "suspicious_pattern", label: "Suspicious Pattern" },
+  ];
+
+  const responseLevelOptions = [
+    { value: "level_1_soft_flag", label: "Soft Flag" },
+    { value: "level_2_review_hold", label: "Review Hold" },
+    { value: "level_3_enforcement", label: "Enforcement" },
+  ];
+
+  return (
+    <Card data-testid="fraud-signal-panel">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <ShieldAlert className="h-5 w-5" />
+          Fraud Signal Review
+        </CardTitle>
+        <CardDescription>Scan for signals, report concerns, and review existing signals</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={handleFraudScan}
+            disabled={scanning}
+            data-testid="button-fraud-scan"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${scanning ? "animate-spin" : ""}`} />
+            {scanning ? "Scanning..." : "Run Fraud Scan"}
+          </Button>
+        </div>
+
+        {scanResults && scanResults.length > 0 && (
+          <div className="space-y-2" data-testid="fraud-scan-results">
+            <p className="text-sm font-medium">Scan Results</p>
+            {scanResults.map((sig: any, i: number) => (
+              <div key={i} className="flex flex-wrap items-center gap-2 p-2 rounded-md border text-sm" data-testid={`scan-result-${i}`}>
+                <Badge variant={sig.severity === "high" ? "destructive" : sig.severity === "medium" ? "outline" : "secondary"} className="text-xs">
+                  {sig.severity}
+                </Badge>
+                <span className="font-medium">{sig.type?.replace(/_/g, " ")}</span>
+                <span className="text-muted-foreground">{sig.description}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {scanResults && scanResults.length === 0 && (
+          <p className="text-sm text-muted-foreground" data-testid="text-no-scan-results">No signals detected in scan.</p>
+        )}
+
+        <div className="border-t pt-4 space-y-3">
+          <p className="text-sm font-medium">Report a Concern</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Signal Type</Label>
+              <Select value={signalType} onValueChange={setSignalType}>
+                <SelectTrigger data-testid="select-signal-type">
+                  <SelectValue placeholder="Select type..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {signalTypeOptions.map(o => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Response Level</Label>
+              <Select value={responseLevel} onValueChange={setResponseLevel}>
+                <SelectTrigger data-testid="select-response-level">
+                  <SelectValue placeholder="Select level..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {responseLevelOptions.map(o => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Description</Label>
+            <Textarea
+              value={signalDescription}
+              onChange={(e) => setSignalDescription(e.target.value)}
+              placeholder="Describe the observed concern..."
+              data-testid="textarea-signal-description"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Evidence (optional)</Label>
+            <Textarea
+              value={signalEvidence}
+              onChange={(e) => setSignalEvidence(e.target.value)}
+              placeholder="Additional evidence or reference IDs..."
+              data-testid="textarea-signal-evidence"
+            />
+          </div>
+          <Button
+            onClick={handleSubmitSignal}
+            disabled={submittingSignal}
+            data-testid="button-submit-fraud-signal"
+          >
+            {submittingSignal ? "Submitting..." : "Submit Signal Report"}
+          </Button>
+        </div>
+
+        {existingSignals.length > 0 && (
+          <div className="border-t pt-4 space-y-2">
+            <p className="text-sm font-medium" data-testid="text-existing-signals-title">Existing Signals ({existingSignals.length})</p>
+            {existingSignals.map((sig: any) => (
+              <div key={sig.id} className="flex flex-wrap items-center justify-between gap-2 p-2 rounded-md border text-sm" data-testid={`signal-row-${sig.id}`}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant={sig.responseLevel?.includes("3") ? "destructive" : sig.responseLevel?.includes("2") ? "outline" : "secondary"} className="text-xs">
+                    {sig.responseLevel?.replace(/_/g, " ")}
+                  </Badge>
+                  <span className="font-medium">{sig.signalType?.replace(/_/g, " ")}</span>
+                  <Badge variant={sig.status === "resolved" ? "default" : sig.status === "escalated" ? "destructive" : "outline"} className="text-xs">
+                    {sig.status}
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground max-w-[200px] truncate">{sig.description}</span>
+                  {sig.status !== "resolved" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleReviewSignal(sig.id)}
+                      data-testid={`button-review-signal-${sig.id}`}
+                    >
+                      Review
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function TerminationWindDownPanel({ directorUserId, directorLifecycle, isSuperAdmin }: { directorUserId: string; directorLifecycle: any; isSuperAdmin: boolean }) {
+  const { toast } = useToast();
+  const [showTerminationForm, setShowTerminationForm] = useState(false);
+  const [terminationReason, setTerminationReason] = useState("");
+  const [reassignToDirectorId, setReassignToDirectorId] = useState("");
+  const [terminating, setTerminating] = useState(false);
+  const [reinstating, setReinstating] = useState(false);
+
+  const isTerminated = directorLifecycle?.director?.lifecycleStatus === "terminated";
+
+  const { data: windDownHistory = [] } = useQuery<any[]>({
+    queryKey: ["/api/admin/directors", directorUserId, "wind-down"],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/directors/${directorUserId}/wind-down`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!directorUserId && isTerminated,
+  });
+
+  const handleTerminate = async () => {
+    if (!terminationReason.trim()) {
+      toast({ title: "Reason required", description: "Please provide a reason for termination", variant: "destructive" });
+      return;
+    }
+    setTerminating(true);
+    try {
+      await apiRequest("POST", `/api/admin/directors/${directorUserId}/terminate-winddown`, {
+        reason: terminationReason,
+        reassignToDirectorId: reassignToDirectorId || undefined,
+      });
+      toast({ title: "Termination initiated", description: "Director wind-down process has been started" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/directors", directorUserId, "lifecycle"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/directors"] });
+      setShowTerminationForm(false);
+      setTerminationReason("");
+      setReassignToDirectorId("");
+    } catch {
+      toast({ title: "Termination failed", description: "Could not initiate wind-down", variant: "destructive" });
+    } finally {
+      setTerminating(false);
+    }
+  };
+
+  const handleReinstate = async () => {
+    if (!confirm("Are you sure you want to reinstate this director?")) return;
+    setReinstating(true);
+    try {
+      await apiRequest("POST", `/api/admin/directors/${directorUserId}/reinstate`);
+      toast({ title: "Director reinstated", description: "Director has been reactivated" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/directors", directorUserId, "lifecycle"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/directors"] });
+    } catch {
+      toast({ title: "Reinstatement failed", variant: "destructive" });
+    } finally {
+      setReinstating(false);
+    }
+  };
+
+  if (!isSuperAdmin) return null;
+
+  return (
+    <Card data-testid="termination-winddown-panel">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <AlertTriangle className="h-5 w-5" />
+          Termination and Wind-Down
+        </CardTitle>
+        <CardDescription>Manage director termination, wind-down procedures, and reinstatement</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {isTerminated && (
+          <>
+            <div className="p-3 rounded-md border border-destructive/30 bg-destructive/5 text-sm" data-testid="text-terminated-notice">
+              <p className="font-medium flex items-center gap-2">
+                <XCircle className="h-4 w-4 text-destructive" />
+                This director has been terminated
+              </p>
+              {directorLifecycle?.director?.terminatedAt && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Terminated: {new Date(directorLifecycle.director.terminatedAt).toLocaleString()}
+                  {directorLifecycle.director.terminationReason && ` — ${directorLifecycle.director.terminationReason}`}
+                </p>
+              )}
+            </div>
+
+            <Button
+              variant="outline"
+              onClick={handleReinstate}
+              disabled={reinstating}
+              data-testid="button-reinstate-director"
+            >
+              <CheckCircle className="h-4 w-4 mr-2" />
+              {reinstating ? "Reinstating..." : "Reinstate Director"}
+            </Button>
+
+            {windDownHistory.length > 0 && (
+              <div className="space-y-2" data-testid="wind-down-history">
+                <p className="text-sm font-medium">Wind-Down Records</p>
+                {windDownHistory.map((record: any, i: number) => (
+                  <div key={record.id || i} className="p-2 rounded-md border text-sm space-y-1" data-testid={`wind-down-record-${i}`}>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="secondary" className="text-xs">{record.action || record.type || "wind-down"}</Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {record.createdAt ? new Date(record.createdAt).toLocaleString() : ""}
+                      </span>
+                    </div>
+                    {record.details && <p className="text-xs text-muted-foreground">{record.details}</p>}
+                    {record.reason && <p className="text-xs text-muted-foreground">{record.reason}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {!isTerminated && (
+          <>
+            {!showTerminationForm ? (
+              <Button
+                variant="destructive"
+                onClick={() => setShowTerminationForm(true)}
+                data-testid="button-show-termination-form"
+              >
+                <AlertTriangle className="h-4 w-4 mr-2" />
+                Initiate Termination and Wind-Down
+              </Button>
+            ) : (
+              <div className="space-y-3 p-3 rounded-md border border-destructive/30" data-testid="termination-form">
+                <div className="space-y-1">
+                  <Label className="text-xs">Reason for Termination</Label>
+                  <Textarea
+                    value={terminationReason}
+                    onChange={(e) => setTerminationReason(e.target.value)}
+                    placeholder="Provide a reason for this termination..."
+                    data-testid="textarea-termination-reason"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Reassign Drivers To (Director ID, optional)</Label>
+                  <Input
+                    value={reassignToDirectorId}
+                    onChange={(e) => setReassignToDirectorId(e.target.value)}
+                    placeholder="Director ID to receive reassigned drivers..."
+                    data-testid="input-reassign-director-id"
+                  />
+                </div>
+                <div className="p-3 rounded-md bg-muted text-xs text-muted-foreground space-y-1" data-testid="text-termination-warnings">
+                  <p className="font-medium">This will terminate the director, disable funding, revoke staff access, hold pending payouts, and reassign/unassign drivers.</p>
+                  <p>Director appointments are facilitation roles subject to review, suspension, or termination at ZIBA's discretion.</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="destructive"
+                    onClick={handleTerminate}
+                    disabled={terminating}
+                    data-testid="button-proceed-termination"
+                  >
+                    {terminating ? "Processing..." : "Proceed with Termination"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => { setShowTerminationForm(false); setTerminationReason(""); setReassignToDirectorId(""); }}
+                    data-testid="button-cancel-termination"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function DirectorDisputesPanel() {
+  const { toast } = useToast();
+  const [selectedDisputeId, setSelectedDisputeId] = useState<string | null>(null);
+  const [reviewNotes, setReviewNotes] = useState("");
+  const [newStatus, setNewStatus] = useState("");
+  const [replyMessage, setReplyMessage] = useState("");
+  const [internalNote, setInternalNote] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [sendingReply, setSendingReply] = useState(false);
+  const [sendingInternal, setSendingInternal] = useState(false);
+
+  const { data: directorDisputes = [], isLoading: disputesLoading, refetch: refetchDisputes } = useQuery<any[]>({
+    queryKey: ["/api/admin/directors/disputes"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/directors/disputes", { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  const { data: disputeDetail } = useQuery<any>({
+    queryKey: ["/api/director/disputes", selectedDisputeId],
+    queryFn: async () => {
+      const res = await fetch(`/api/director/disputes/${selectedDisputeId}`, { credentials: "include" });
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!selectedDisputeId,
+  });
+
+  const disputeStatusVariant = (status: string) => {
+    switch (status) {
+      case "submitted": return "secondary" as const;
+      case "under_review": return "outline" as const;
+      case "admin_reviewed": return "outline" as const;
+      case "escalated": return "destructive" as const;
+      case "resolved": return "default" as const;
+      case "closed": return "secondary" as const;
+      default: return "secondary" as const;
+    }
+  };
+
+  const handleSubmitReview = async () => {
+    if (!selectedDisputeId) return;
+    setSubmittingReview(true);
+    try {
+      await apiRequest("POST", `/api/admin/directors/disputes/${selectedDisputeId}/review`, {
+        reviewNotes,
+        newStatus: newStatus || undefined,
+      });
+      toast({ title: "Review submitted" });
+      setReviewNotes("");
+      setNewStatus("");
+      refetchDisputes();
+      queryClient.invalidateQueries({ queryKey: ["/api/director/disputes", selectedDisputeId] });
+    } catch {
+      toast({ title: "Review failed", variant: "destructive" });
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  const handleSendReply = async () => {
+    if (!selectedDisputeId || !replyMessage.trim()) return;
+    setSendingReply(true);
+    try {
+      await apiRequest("POST", `/api/director/disputes/${selectedDisputeId}/message`, {
+        content: replyMessage,
+      });
+      toast({ title: "Reply sent" });
+      setReplyMessage("");
+      queryClient.invalidateQueries({ queryKey: ["/api/director/disputes", selectedDisputeId] });
+    } catch {
+      toast({ title: "Failed to send reply", variant: "destructive" });
+    } finally {
+      setSendingReply(false);
+    }
+  };
+
+  const handleSendInternalNote = async () => {
+    if (!selectedDisputeId || !internalNote.trim()) return;
+    setSendingInternal(true);
+    try {
+      await apiRequest("POST", `/api/director/disputes/${selectedDisputeId}/message`, {
+        content: internalNote,
+        isInternal: true,
+      });
+      toast({ title: "Internal note added" });
+      setInternalNote("");
+      queryClient.invalidateQueries({ queryKey: ["/api/director/disputes", selectedDisputeId] });
+    } catch {
+      toast({ title: "Failed to add note", variant: "destructive" });
+    } finally {
+      setSendingInternal(false);
+    }
+  };
+
+  return (
+    <Card className="mt-4" data-testid="director-disputes-panel">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <ScrollText className="h-5 w-5" />
+          Director Disputes
+        </CardTitle>
+        <CardDescription>Review and manage disputes raised by or involving directors</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {disputesLoading ? (
+          <div className="py-4 text-center text-muted-foreground">Loading disputes...</div>
+        ) : directorDisputes.length === 0 ? (
+          <EmptyState icon={ScrollText} title="No director disputes" description="Director disputes will appear here when submitted" />
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Director</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Subject</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {directorDisputes.map((dispute: any) => (
+                  <TableRow key={dispute.id} data-testid={`row-director-dispute-${dispute.id}`}>
+                    <TableCell className="font-medium">{dispute.directorName || dispute.directorUserId || "-"}</TableCell>
+                    <TableCell className="text-sm">{dispute.type?.replace(/_/g, " ") || "-"}</TableCell>
+                    <TableCell className="text-sm max-w-[200px] truncate">{dispute.subject || "-"}</TableCell>
+                    <TableCell>
+                      <Badge variant={disputeStatusVariant(dispute.status)} className="text-xs" data-testid={`badge-dispute-status-${dispute.id}`}>
+                        {dispute.status?.replace(/_/g, " ")}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {dispute.createdAt ? new Date(dispute.createdAt).toLocaleDateString() : "-"}
+                    </TableCell>
+                    <TableCell>
+                      {dispute.status !== "resolved" && dispute.status !== "closed" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedDisputeId(dispute.id);
+                            setReviewNotes("");
+                            setNewStatus("");
+                            setReplyMessage("");
+                            setInternalNote("");
+                          }}
+                          data-testid={`button-review-dispute-${dispute.id}`}
+                        >
+                          Review
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+
+        {selectedDisputeId && disputeDetail && (
+          <div className="border-t pt-4 space-y-4" data-testid="dispute-review-section">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-medium">Reviewing Dispute</p>
+              <Button size="sm" variant="outline" onClick={() => setSelectedDisputeId(null)} data-testid="button-close-dispute-review">
+                Close
+              </Button>
+            </div>
+
+            <div className="p-3 rounded-md border space-y-2 text-sm">
+              <p><span className="font-medium">Subject:</span> {disputeDetail.dispute?.subject || disputeDetail.subject || "-"}</p>
+              <p><span className="font-medium">Description:</span> {disputeDetail.dispute?.description || disputeDetail.description || "-"}</p>
+              {(disputeDetail.dispute?.evidenceNotes || disputeDetail.evidenceNotes) && (
+                <p><span className="font-medium">Evidence Notes:</span> {disputeDetail.dispute?.evidenceNotes || disputeDetail.evidenceNotes}</p>
+              )}
+              {(disputeDetail.dispute?.zibraSummary || disputeDetail.zibraSummary) && (
+                <p><span className="font-medium">ZIBRA Summary:</span> {disputeDetail.dispute?.zibraSummary || disputeDetail.zibraSummary}</p>
+              )}
+            </div>
+
+            {(disputeDetail.messages || disputeDetail.dispute?.messages) && (
+              <div className="space-y-2" data-testid="dispute-messages">
+                <p className="text-sm font-medium">Message History</p>
+                <div className="max-h-48 overflow-y-auto space-y-2">
+                  {(disputeDetail.messages || disputeDetail.dispute?.messages || []).map((msg: any, i: number) => (
+                    <div key={msg.id || i} className="p-2 rounded-md border text-sm" data-testid={`dispute-message-${i}`}>
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <Badge variant={msg.senderRole === "admin" || msg.senderRole === "super_admin" ? "default" : "secondary"} className="text-xs">
+                          {msg.senderRole || "user"}
+                        </Badge>
+                        {msg.isInternal && <Badge variant="outline" className="text-xs">Internal</Badge>}
+                        <span className="text-xs text-muted-foreground">
+                          {msg.createdAt ? new Date(msg.createdAt).toLocaleString() : ""}
+                        </span>
+                      </div>
+                      <p className="text-sm">{msg.content}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label className="text-xs">Review Notes</Label>
+              <Textarea
+                value={reviewNotes}
+                onChange={(e) => setReviewNotes(e.target.value)}
+                placeholder="Add review notes..."
+                data-testid="textarea-dispute-review-notes"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">Update Status</Label>
+              <Select value={newStatus} onValueChange={setNewStatus}>
+                <SelectTrigger data-testid="select-dispute-status">
+                  <SelectValue placeholder="Select new status..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="under_review">Under Review</SelectItem>
+                  <SelectItem value="admin_reviewed">Admin Reviewed</SelectItem>
+                  <SelectItem value="escalated">Escalated</SelectItem>
+                  <SelectItem value="resolved">Resolved</SelectItem>
+                  <SelectItem value="closed">Closed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Button
+              onClick={handleSubmitReview}
+              disabled={submittingReview}
+              data-testid="button-submit-dispute-review"
+            >
+              {submittingReview ? "Submitting..." : "Submit Review"}
+            </Button>
+
+            <div className="border-t pt-3 space-y-2">
+              <Label className="text-xs">Reply to Director</Label>
+              <div className="flex gap-2">
+                <Textarea
+                  value={replyMessage}
+                  onChange={(e) => setReplyMessage(e.target.value)}
+                  placeholder="Type a reply to the director..."
+                  className="flex-1"
+                  data-testid="textarea-dispute-reply"
+                />
+                <Button
+                  size="sm"
+                  onClick={handleSendReply}
+                  disabled={sendingReply || !replyMessage.trim()}
+                  data-testid="button-send-dispute-reply"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs">Internal Notes</Label>
+              <div className="flex gap-2">
+                <Textarea
+                  value={internalNote}
+                  onChange={(e) => setInternalNote(e.target.value)}
+                  placeholder="Add an internal note (not visible to director)..."
+                  className="flex-1"
+                  data-testid="textarea-dispute-internal-note"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleSendInternalNote}
+                  disabled={sendingInternal || !internalNote.trim()}
+                  data-testid="button-send-internal-note"
+                >
+                  <Mail className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function AdminDashboard({ userRole = "admin" }: AdminDashboardProps) {
   const isSuperAdmin = userRole === "super_admin";
   const isDirector = userRole === "director";
@@ -4936,6 +5631,9 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                   )}
                 </CardContent>
               </Card>
+
+              {/* Director Disputes Management */}
+              <DirectorDisputesPanel />
             </TabsContent>
           )}
 
@@ -5396,6 +6094,19 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                       )}
                     </CardContent>
                   </Card>
+
+                  {/* Fraud Signal Panel */}
+                  <FraudSignalPanel
+                    directorUserId={selectedDirectorId!}
+                    isSuperAdmin={isSuperAdmin}
+                  />
+
+                  {/* Termination Wind-Down */}
+                  <TerminationWindDownPanel
+                    directorUserId={selectedDirectorId!}
+                    directorLifecycle={directorLifecycle}
+                    isSuperAdmin={isSuperAdmin}
+                  />
                 </div>
               ) : (
                 <div className="py-8 text-center text-muted-foreground">Unable to load lifecycle data.</div>

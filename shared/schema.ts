@@ -5320,3 +5320,96 @@ export const directorFundingSuspensions = pgTable("director_funding_suspensions"
 });
 
 export type DirectorFundingSuspension = typeof directorFundingSuspensions.$inferSelect;
+
+export const directorFraudSignalTypeEnum = pgEnum("director_fraud_signal_type", [
+  "artificial_activation", "short_session_inflation", "coordinated_cancellations",
+  "coercion_reports", "excessive_funding_leverage", "abnormal_referral_clustering",
+  "payout_spike_churn", "identity_mismatch", "suspicious_pattern"
+]);
+
+export const directorFraudResponseLevelEnum = pgEnum("director_fraud_response_level", [
+  "level_1_soft_flag", "level_2_review_hold", "level_3_enforcement"
+]);
+
+export const directorFraudSignals = pgTable("director_fraud_signals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  directorUserId: varchar("director_user_id").notNull(),
+  signalType: directorFraudSignalTypeEnum("signal_type").notNull(),
+  responseLevel: directorFraudResponseLevelEnum("response_level").notNull().default("level_1_soft_flag"),
+  description: text("description").notNull(),
+  evidence: text("evidence"),
+  detectedAt: timestamp("detected_at").defaultNow().notNull(),
+  detectedBy: varchar("detected_by").notNull().default("system"),
+  reviewedBy: varchar("reviewed_by"),
+  reviewNotes: text("review_notes"),
+  reviewedAt: timestamp("reviewed_at"),
+  actionTaken: text("action_taken"),
+  status: varchar("status", { length: 20 }).notNull().default("open"),
+  escalatedToLevel: directorFraudResponseLevelEnum("escalated_to_level"),
+  escalatedAt: timestamp("escalated_at"),
+  resolvedAt: timestamp("resolved_at"),
+});
+
+export type DirectorFraudSignal = typeof directorFraudSignals.$inferSelect;
+
+export const directorDisputeTypeEnum = pgEnum("director_dispute_type", [
+  "payout_hold", "suspension", "driver_reassignment", "staff_restriction",
+  "commission_adjustment", "cell_limit", "termination", "other"
+]);
+
+export const directorDisputeStatusEnum = pgEnum("director_dispute_status", [
+  "submitted", "under_review", "admin_reviewed", "escalated", "resolved", "closed"
+]);
+
+export const directorDisputes = pgTable("director_disputes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  directorUserId: varchar("director_user_id").notNull(),
+  disputeType: directorDisputeTypeEnum("dispute_type").notNull(),
+  subject: varchar("subject", { length: 200 }).notNull(),
+  description: text("description").notNull(),
+  evidenceNotes: text("evidence_notes"),
+  status: directorDisputeStatusEnum("status").notNull().default("submitted"),
+  assignedAdminId: varchar("assigned_admin_id"),
+  adminReviewNotes: text("admin_review_notes"),
+  adminReviewedAt: timestamp("admin_reviewed_at"),
+  superAdminDecision: text("super_admin_decision"),
+  superAdminDecisionBy: varchar("super_admin_decision_by"),
+  superAdminDecisionAt: timestamp("super_admin_decision_at"),
+  zibraSummary: text("zibra_summary"),
+  relatedEntityType: varchar("related_entity_type", { length: 50 }),
+  relatedEntityId: varchar("related_entity_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  closedAt: timestamp("closed_at"),
+});
+
+export type DirectorDispute = typeof directorDisputes.$inferSelect;
+
+export const directorDisputeMessages = pgTable("director_dispute_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  disputeId: varchar("dispute_id").notNull(),
+  senderId: varchar("sender_id").notNull(),
+  senderRole: varchar("sender_role", { length: 30 }).notNull(),
+  message: text("message").notNull(),
+  isInternal: boolean("is_internal").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type DirectorDisputeMessage = typeof directorDisputeMessages.$inferSelect;
+
+export const directorWindDowns = pgTable("director_wind_downs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  directorUserId: varchar("director_user_id").notNull(),
+  triggerReason: varchar("trigger_reason", { length: 100 }).notNull(),
+  initiatedBy: varchar("initiated_by").notNull(),
+  initiatedAt: timestamp("initiated_at").defaultNow().notNull(),
+  fundingDisabled: boolean("funding_disabled").notNull().default(true),
+  staffAccessRevoked: boolean("staff_access_revoked").notNull().default(true),
+  driversReassigned: boolean("drivers_reassigned").notNull().default(false),
+  driversUnassigned: boolean("drivers_unassigned").notNull().default(false),
+  pendingPayoutsResolved: boolean("pending_payouts_resolved").notNull().default(false),
+  auditSealed: boolean("audit_sealed").notNull().default(false),
+  driversAffectedCount: integer("drivers_affected_count").notNull().default(0),
+  reassignedToDirectorId: varchar("reassigned_to_director_id"),
+  completedAt: timestamp("completed_at"),
+  status: varchar("status", { length: 20 }).notNull().default("in_progress"),
+});
