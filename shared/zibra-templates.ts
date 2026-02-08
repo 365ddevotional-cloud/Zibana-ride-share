@@ -17,7 +17,7 @@ export type ZibraCategory =
   | "director_lifecycle" | "director_appeals" | "director_deescalation"
   | "director_coaching" | "director_termination" | "director_succession"
   | "driver_coaching"
-  | "rider_coaching";
+  | "rider_coaching" | "operations";
 
 export interface ZibraTemplate {
   id: string;
@@ -439,21 +439,21 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
   {
     id: "r-fund-user",
     role: "rider",
-    category: "payments",
+    category: "payment",
     keywords: ["fund another user", "send money", "send funds", "wallet transfer", "fund friend", "fund family", "fund child", "fund spouse", "fund colleague", "peer to peer", "transfer wallet"],
     response: "ZIBA allows you to support others by funding their wallets. You can send funds to a family member, friend, spouse, or colleague who is a registered ZIBA user. Once funds are transferred, they are not reversible. ZIBA facilitates wallet transfers but does not mediate personal disputes. You can start from the Payments page under 'Fund Another User'."
   },
   {
     id: "r-fund-refund",
     role: "rider",
-    category: "payments",
+    category: "payment",
     keywords: ["refund wallet transfer", "reverse transfer", "undo send", "get money back", "funding refund", "cancel transfer"],
     response: "Once a wallet transfer is completed, it cannot be reversed. ZIBA facilitates transfers between users but is not responsible for agreements between individuals. Please verify the recipient carefully before confirming any transfer. If you believe there is an error, you can contact support, but refunds on voluntary transfers are not guaranteed."
   },
   {
     id: "d-fund-driver",
     role: "director",
-    category: "payments",
+    category: "payment",
     keywords: ["fund driver", "send money driver", "driver wallet funding", "driver financial support", "fund my drivers", "driver fund limit"],
     response: "As a Director, you can fund wallets of drivers assigned to your cell. Funding is subject to daily caps set by Admin. You can optionally restrict funds to ride usage only. All funding transactions are logged, audited, and visible to Admin and Super Admin. Unusual patterns may be flagged by ZIBRA for review."
   },
