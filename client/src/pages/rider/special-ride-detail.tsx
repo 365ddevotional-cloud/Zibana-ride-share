@@ -157,7 +157,7 @@ export default function SpecialRideDetail() {
                   className={rideType.available ? "bg-green-600 text-white" : ""}
                   data-testid="badge-special-detail-status"
                 >
-                  {rideType.available ? "Available" : "Coming Soon"}
+                  {rideType.available ? "Available" : "Learn More"}
                 </Badge>
               </div>
             </div>
@@ -253,7 +253,7 @@ export default function SpecialRideDetail() {
                   data-testid="button-check-availability"
                 >
                   <Bell className="h-4 w-4 mr-2" />
-                  Check Availability
+                  Notify Me When Available
                 </Button>
               ) : (
                 <Card className="bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800">
@@ -276,7 +276,7 @@ export default function SpecialRideDetail() {
           <div className="flex items-start gap-2 p-3 rounded-lg bg-muted">
             <Shield className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
             <p className="text-xs text-muted-foreground" data-testid="text-special-disclaimer">
-              Availability and approval are subject to policy. ZIBA facilitates access but does not guarantee participation.
+              Availability and pricing may vary. ZIBA does not guarantee service availability.
             </p>
           </div>
 

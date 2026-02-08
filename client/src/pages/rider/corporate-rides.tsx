@@ -71,6 +71,42 @@ export default function CorporateRides() {
             </CardContent>
           </Card>
 
+          <Card>
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Info className="h-4 w-4 text-muted-foreground shrink-0" />
+                <p className="font-medium text-sm" data-testid="text-corporate-who-title">Who can use Corporate Rides?</p>
+              </div>
+              <p className="text-sm text-muted-foreground" data-testid="text-corporate-who-desc">
+                Riders who have been invited or approved by their company can use Corporate Rides. Your company controls spending limits and ride policies. Riders cannot self-approve — access is granted by a company admin.
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Briefcase className="h-4 w-4 text-muted-foreground shrink-0" />
+                <p className="font-medium text-sm" data-testid="text-corporate-billing-title">How billing works</p>
+              </div>
+              <p className="text-sm text-muted-foreground" data-testid="text-corporate-billing-desc">
+                Monthly invoicing is handled by ZIBA directly with your company. You ride, and your company pays. You cannot see company financials. ZIBA acts as a facilitator, not an employer.
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Link2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                <p className="font-medium text-sm" data-testid="text-corporate-join-title">How to join a corporate account</p>
+              </div>
+              <p className="text-sm text-muted-foreground" data-testid="text-corporate-join-desc">
+                Ask your company admin for a company code and enter it below, or request access and we'll reach out on your behalf. Corporate Rides are being activated across regions — you can request access or join an existing company.
+              </p>
+            </CardContent>
+          </Card>
+
           {hasCorporateAccount ? (
             <div className="space-y-4">
               <Card>
@@ -113,14 +149,14 @@ export default function CorporateRides() {
               <Button
                 className="w-full"
                 onClick={() => setLocation("/rider/home")}
-                data-testid="button-book-corporate-ride"
+                data-testid="button-request-corporate-ride"
               >
-                <Building2 className="h-4 w-4 mr-2" />
-                Book a Corporate Ride
+                <Send className="h-4 w-4 mr-2" />
+                Request Corporate Ride
               </Button>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               <Card
                 className="hover-elevate cursor-pointer"
                 onClick={() => setLocation("/rider/services/corporate/join")}
@@ -144,6 +180,26 @@ export default function CorporateRides() {
                 </CardContent>
               </Card>
 
+              <Button
+                className="w-full"
+                variant="outline"
+                onClick={() => setLocation("/rider/home")}
+                data-testid="button-request-corporate-ride"
+              >
+                <Send className="h-4 w-4 mr-2" />
+                Request Corporate Ride
+              </Button>
+
+              <Button
+                className="w-full"
+                variant="outline"
+                onClick={() => setLocation("/rider/support")}
+                data-testid="button-contact-corporate-admin"
+              >
+                <MessageCircle className="h-4 w-4 mr-2" />
+                Contact Corporate Admin
+              </Button>
+
               <Card
                 className="hover-elevate cursor-pointer"
                 onClick={() => setLocation("/rider/services/corporate/learn")}
@@ -156,9 +212,9 @@ export default function CorporateRides() {
                         <BookOpen className="h-5 w-5 text-primary" />
                       </div>
                       <div>
-                        <p className="font-medium">Learn How Corporate Rides Work</p>
+                        <p className="font-medium">Learn More</p>
                         <p className="text-sm text-muted-foreground">
-                          See how it benefits you and your company
+                          See how Corporate Rides benefit you and your company
                         </p>
                       </div>
                     </div>
@@ -168,6 +224,13 @@ export default function CorporateRides() {
               </Card>
             </div>
           )}
+
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-muted">
+            <Shield className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+            <p className="text-xs text-muted-foreground" data-testid="text-corporate-disclaimer">
+              Corporate rides are subject to company approval and billing rules.
+            </p>
+          </div>
 
           <div className="flex justify-center pt-2">
             <Button

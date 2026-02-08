@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft, Crown, Users, PartyPopper, Route, ChevronRight,
-  MessageCircle, Star
+  MessageCircle, Star, Shield
 } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -132,6 +132,13 @@ export default function SpecialRides() {
                 </Card>
               );
             })}
+          </div>
+
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-muted">
+            <Shield className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+            <p className="text-xs text-muted-foreground" data-testid="text-special-disclaimer">
+              Availability and pricing may vary. ZIBA does not guarantee service availability.
+            </p>
           </div>
 
           <div className="flex justify-center pt-2">
