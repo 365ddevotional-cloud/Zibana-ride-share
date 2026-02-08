@@ -1,0 +1,154 @@
+You are FIXING and ACTIVATING existing Rider features in the ZIBA app.
+This is NOT a new feature build — it is activation, routing, and UI repair.
+
+OBJECTIVE:
+- Remove all “Coming Soon” states for Corporate Rides and Special Rides
+- Make them fully clickable and functional
+- Ensure Rider Account boxes are clickable
+- Route users to real pages (existing or newly created placeholders)
+- Maintain ZIBA design, legal posture, and permissions
+
+DO NOT:
+- Change pricing logic
+- Change driver payouts
+- Expose admin-only data
+- Add new business rules
+
+====================================================
+PHASE 1 — REMOVE “COMING SOON” FEATURE FLAGS
+====================================================
+
+1) CORPORATE RIDES
+- Remove `comingSoon = true` or equivalent feature flag
+- Enable click interaction on:
+  - Services → Corporate Rides
+  - Rider Account → Corporate Rides (if listed)
+
+2) SPECIAL RIDES
+- Remove `comingSoon = true`
+- Enable click interaction on:
+  - Services → Special Rides
+  - Rider Account → Special Rides (if listed)
+
+These features are now ACTIVE, not hidden.
+
+====================================================
+PHASE 2 — ROUTING (NO DEAD LINKS)
+====================================================
+
+3) CORPORATE RIDES ROUTE
+Create or activate route:
+- /rider/corporate-rides
+
+Page content:
+- Title: Corporate Rides
+- Description: Ride on your company’s account with centralized billing
+- Sections:
+  - Request Corporate Ride
+  - Join a Company
+  - Company Wallet / Invoices (read-only for now)
+  - Contact Corporate Admin
+- CTA buttons must be clickable (even if actions are placeholders)
+
+4) SPECIAL RIDES ROUTE
+Create or activate route:
+- /rider/special-rides
+
+Page content:
+- Title: Special Rides
+- Ride types:
+  - Premium Ride
+  - Group Ride
+  - Event Ride
+- Each option clickable → routes to:
+  - /rider/special-rides/premium
+  - /rider/special-rides/group
+  - /rider/special-rides/event
+
+If logic is not implemented yet:
+- Show “Available soon” INSIDE page
+- Do NOT block navigation
+- Do NOT show “Coming Soon” on Services page anymore
+
+====================================================
+PHASE 3 — SERVICES PAGE FIX
+====================================================
+
+5) SERVICES PAGE UI
+On /rider/services:
+- Corporate Rides card:
+  - Fully clickable
+  - Remove disabled styling
+  - Remove “Coming Soon” badge
+- Special Rides card:
+  - Fully clickable
+  - Remove disabled styling
+  - Remove “Coming Soon” badge
+
+Cards must behave like “Schedule a Ride”.
+
+====================================================
+PHASE 4 — RIDER ACCOUNT CLICKABILITY FIX
+====================================================
+
+6) RIDER ACCOUNT PAGE
+On /rider/account:
+- Make ALL boxes clickable:
+  - Profile
+  - Email
+  - Phone
+  - Saved Places
+  - Notifications
+  - Marketing
+  - Data Usage
+  - Ride History
+  - Trusted Contacts
+  - Ride PIN
+  - Emergency
+  - Help Center
+
+Each must route to its relevant page.
+
+7) BACK NAVIGATION
+Every destination page must include:
+- Page title
+- Back arrow → returns to Rider Account
+- No dead ends
+
+====================================================
+PHASE 5 — CONSISTENCY & UX
+====================================================
+
+8) UI CONSISTENCY
+- Corporate & Special Rides pages must:
+  - Match ZIBA dark theme
+  - Use same typography scale as Welcome page
+  - Use standard card and button styles
+
+====================================================
+PHASE 6 — SAFETY & LEGAL
+====================================================
+
+9) LEGAL LANGUAGE (PASSIVE)
+On Corporate & Special Ride pages, include soft footer text:
+“ZIBA facilitates ride access. Availability and eligibility may vary.”
+
+No guarantees.
+No promises.
+No liability language.
+
+====================================================
+PHASE 7 — FINAL VERIFICATION
+====================================================
+
+10) CONFIRM ALL:
+✔ Corporate Rides clickable
+✔ Special Rides clickable
+✔ No “Coming Soon” labels remain
+✔ Rider Account boxes clickable
+✔ All routes load without error
+✔ Back navigation works everywhere
+✔ UI consistent with ZIBA brand
+
+This is an ACTIVATION & FIX task — not a redesign.
+Proceed carefully and confirm completion.

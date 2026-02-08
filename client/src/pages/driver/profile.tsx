@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -8,13 +8,18 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
 import { DriverLayout } from "@/components/driver/DriverLayout";
+import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
 import { FullPageLoading } from "@/components/loading-spinner";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { isUnauthorizedError } from "@/lib/auth-utils";
-import { Car, Phone, User } from "lucide-react";
+import { ArrowLeft, Camera, Car, Phone, User } from "lucide-react";
 import type { DriverProfile } from "@shared/schema";
 
 const driverProfileSchema = z.object({
@@ -31,6 +36,9 @@ export default function DriverProfilePage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const { user, isLoading: authLoading } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
   const { data: profile, isLoading: profileLoading } = useQuery<DriverProfile>({
     queryKey: ["/api/driver/profile"],
@@ -71,7 +79,7 @@ export default function DriverProfilePage() {
         title: "Profile updated!",
         description: "Your changes have been saved.",
       });
-      setLocation("/driver/dashboard");
+      setLocation("/driver/account");
     },
     onError: (error: Error) => {
       if (isUnauthorizedError(error)) {
@@ -87,8 +95,65 @@ export default function DriverProfilePage() {
     },
   });
 
+  const uploadPhotoMutation = useMutation({
+    mutationFn: async (photoData: string) => {
+      await apiRequest("POST", "/api/profile/photo", { photoData });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/driver/profile"] });
+      toast({ title: "Photo updated" });
+      setAvatarDialogOpen(false);
+      setAvatarPreview(null);
+    },
+    onError: () => {
+      toast({ title: "Upload failed", variant: "destructive" });
+    },
+  });
+
+  const removePhotoMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/profile/photo", { photoData: "" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/driver/profile"] });
+      toast({ title: "Photo removed" });
+      setAvatarDialogOpen(false);
+    },
+  });
+
   const onSubmit = (data: DriverProfileForm) => {
     updateProfileMutation.mutate(data);
+  };
+
+  const displayName = profile?.fullName || user?.firstName
+    ? `${user?.firstName || ""} ${user?.lastName || ""}`.trim()
+    : "Driver";
+
+  const getInitials = (name: string) => {
+    return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+  };
+
+  const avatarSrc = (profile as any)?.profilePhoto || user?.profileImageUrl || undefined;
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const validTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!validTypes.includes(file.type)) {
+      toast({ title: "Invalid file type", description: "Please select a JPG, PNG, or WebP image.", variant: "destructive" });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Please select an image under 5MB.", variant: "destructive" });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setAvatarPreview(reader.result as string);
+      setAvatarDialogOpen(true);
+    };
+    reader.readAsDataURL(file);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   if (authLoading || profileLoading) {
@@ -97,13 +162,109 @@ export default function DriverProfilePage() {
 
   return (
     <DriverLayout>
-      <div className="p-4">
+      <div className="p-4 space-y-5 max-w-lg mx-auto">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setLocation("/driver/account")}
+            data-testid="button-back"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-xl font-bold">Edit Profile</h1>
+        </div>
+
         <Card>
-          <CardHeader className="text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30">
-              <Car className="h-7 w-7 text-emerald-600" />
+          <CardContent className="p-6 flex flex-col items-center gap-4">
+            <div className="relative">
+              <button
+                className="relative group cursor-pointer"
+                onClick={() => {
+                  if (avatarSrc) {
+                    setAvatarDialogOpen(true);
+                    setAvatarPreview(null);
+                  } else {
+                    fileInputRef.current?.click();
+                  }
+                }}
+                data-testid="button-avatar"
+              >
+                <Avatar className="h-24 w-24">
+                  <AvatarImage src={avatarSrc} />
+                  <AvatarFallback className="text-2xl bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600">
+                    {getInitials(displayName)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Camera className="h-6 w-6 text-white" />
+                </div>
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={handleFileSelect}
+                data-testid="input-avatar-file"
+              />
             </div>
-            <CardTitle className="text-2xl">Edit Profile</CardTitle>
+            <p className="text-sm text-muted-foreground">Tap to change photo</p>
+          </CardContent>
+        </Card>
+
+        <Dialog open={avatarDialogOpen} onOpenChange={setAvatarDialogOpen}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Profile Picture</DialogTitle>
+            </DialogHeader>
+            <div className="flex flex-col items-center gap-4 py-4">
+              <Avatar className="h-32 w-32">
+                <AvatarImage src={avatarPreview || avatarSrc} />
+                <AvatarFallback className="text-3xl bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600">
+                  {getInitials(displayName)}
+                </AvatarFallback>
+              </Avatar>
+            </div>
+            <DialogFooter className="flex flex-col gap-2 sm:flex-col">
+              {avatarPreview ? (
+                <>
+                  <Button
+                    onClick={() => uploadPhotoMutation.mutate(avatarPreview)}
+                    disabled={uploadPhotoMutation.isPending}
+                    data-testid="button-save-avatar"
+                  >
+                    {uploadPhotoMutation.isPending ? "Saving..." : "Save Photo"}
+                  </Button>
+                  <Button variant="outline" onClick={() => { setAvatarPreview(null); setAvatarDialogOpen(false); }} data-testid="button-cancel-avatar">
+                    Cancel
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button onClick={() => fileInputRef.current?.click()} data-testid="button-change-avatar">
+                    {avatarSrc ? "Change Photo" : "Upload Photo"}
+                  </Button>
+                  {avatarSrc && (
+                    <Button
+                      variant="outline"
+                      className="text-destructive"
+                      onClick={() => removePhotoMutation.mutate()}
+                      disabled={removePhotoMutation.isPending}
+                      data-testid="button-remove-avatar"
+                    >
+                      {removePhotoMutation.isPending ? "Removing..." : "Remove Photo"}
+                    </Button>
+                  )}
+                </>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Personal & Vehicle Info</CardTitle>
             <CardDescription>
               Update your personal and vehicle information
             </CardDescription>
@@ -216,14 +377,14 @@ export default function DriverProfilePage() {
                     type="button" 
                     variant="outline" 
                     className="flex-1"
-                    onClick={() => setLocation("/driver/dashboard")}
+                    onClick={() => setLocation("/driver/account")}
                     data-testid="button-cancel"
                   >
                     Cancel
                   </Button>
                   <Button 
                     type="submit" 
-                    className="flex-1 bg-emerald-600 hover:bg-emerald-700" 
+                    className="flex-1 bg-emerald-600" 
                     disabled={updateProfileMutation.isPending}
                     data-testid="button-save-profile"
                   >
@@ -234,6 +395,7 @@ export default function DriverProfilePage() {
             </Form>
           </CardContent>
         </Card>
+        <ZibraFloatingButton />
       </div>
     </DriverLayout>
   );
