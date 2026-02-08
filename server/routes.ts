@@ -11853,9 +11853,19 @@ export async function registerRoutes(
       }
 
       // Create the ride with payment source snapshot
-      const { getRideClassMultiplier, isValidRideClass } = await import("@shared/ride-classes");
+      const { getRideClassMultiplier, isValidRideClass, getRideClass } = await import("@shared/ride-classes");
       const selectedRideClass = req.body.rideClass && isValidRideClass(req.body.rideClass) ? req.body.rideClass : "go";
       const rideClassMultiplier = getRideClassMultiplier(selectedRideClass);
+
+      // Edge case: Verify class is still active
+      const classConfig = getRideClass(selectedRideClass);
+      if (!classConfig.isActive) {
+        return res.status(400).json({
+          message: "This ride class is currently unavailable in your area. Please choose a different ride class.",
+          code: "RIDE_CLASS_DISABLED",
+          rideClass: selectedRideClass,
+        });
+      }
 
       const ride = await storage.createRide({
         riderId: userId,

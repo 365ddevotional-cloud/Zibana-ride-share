@@ -19,6 +19,7 @@ import { MarketingTipBanner } from "@/components/rider/marketing-tip";
 import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
 import { RideClassSelector } from "@/components/rider/RideClassSelector";
 import type { RideClassId } from "@shared/ride-classes";
+import { getRideClass } from "@shared/ride-classes";
 
 interface WalletInfo {
   mainBalance: string;
@@ -79,6 +80,17 @@ export default function RiderHome() {
 
   const handleRequestRide = () => {
     if (!destination.trim()) return;
+
+    // Edge case: Validate selected ride class is still active
+    const selectedClassConfig = getRideClass(selectedRideClass);
+    if (!selectedClassConfig.isActive) {
+      toast({
+        title: "Ride Class Unavailable",
+        description: "The selected ride class is currently unavailable. Please choose a different ride class.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     if (hasLowBalance) {
       toast({

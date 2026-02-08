@@ -2225,6 +2225,55 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     keywords: ["safeteen", "safe teen", "ziba safeteen", "teen ride", "ride for teenager", "child ride", "minor ride", "teen safety", "guardian ride", "teen transport"],
     response: "ZIBA SafeTeen provides safe rides specifically designed for teen passengers. SafeTeen drivers are verified with enhanced background checks and maintain a minimum 4.7 rating. Features include live trip sharing and automatic guardian alerts so parents or guardians can monitor the ride in real time. The fare uses a 1.4x multiplier to reflect the additional safety measures. Up to 3 passengers per ride. You can select SafeTeen when booking if eligible drivers are available in your area. Let me know if you'd like help with the next step."
   },
+  {
+    id: "r-rideclass-comfort",
+    role: "rider",
+    category: "booking",
+    keywords: ["comfort ride", "ziba comfort", "comfortable ride", "newer car", "quiet ride", "smooth ride", "comfort class"],
+    response: "ZIBA Comfort offers newer vehicles (2020 or newer) with drivers rated 4.5 or higher. Enjoy a smoother, quieter ride with temperature control. The fare uses a 1.5x multiplier reflecting the higher vehicle standard. Comfort is ideal for longer trips or when you want a more relaxed experience. Select Comfort when booking if drivers are available in your area."
+  },
+  {
+    id: "r-rideclass-plus",
+    role: "rider",
+    category: "booking",
+    keywords: ["plus ride", "ziba plus", "bigger car", "larger vehicle", "group ride", "more seats", "6 seats", "7 seats", "family ride"],
+    response: "ZIBA Plus provides larger vehicles with 6-7 seats, perfect for group trips or family outings. Drivers need a minimum 4.3 rating. The fare uses a 1.3x multiplier. Plus vehicles include SUVs, minivans, and vans. Select Plus when booking if you need extra space for passengers or luggage."
+  },
+  {
+    id: "r-rideclass-recommend-cheaper",
+    role: "rider",
+    category: "booking",
+    keywords: ["cheaper option", "save money", "cheapest ride", "budget ride", "lower fare", "less expensive", "affordable option", "reduce cost", "spend less"],
+    response: "If you're looking for the most affordable option, ZIBA Go is our cheapest ride class with a standard 1.0x fare. It offers quick pickup and 4 seats for everyday travel. You can always compare fares across all available classes when booking — the fare estimate updates in real time as you switch between classes. Remember, availability depends on drivers in your area."
+  },
+  {
+    id: "r-rideclass-recommend-faster",
+    role: "rider",
+    category: "booking",
+    keywords: ["faster ride", "quick pickup", "fastest option", "shortest wait", "hurry", "urgent ride", "need ride now", "quickest"],
+    response: "For the fastest pickup, choose the ride class with the most drivers available in your area. ZIBA Go typically has the shortest wait times since more drivers are eligible. When booking, you'll see estimated wait times for each class — pick the one with the lowest wait. Higher-tier classes like Elite may have longer wait times due to fewer eligible drivers."
+  },
+  {
+    id: "d-rideclass-eligibility",
+    role: "driver",
+    category: "booking",
+    keywords: ["ride class", "eligible class", "which class", "my classes", "qualify for", "ride type", "class eligibility", "available classes"],
+    response: "Your ride class eligibility depends on your driver rating, vehicle year, and special approvals. Here's what's needed:\n\n- **Go** — All drivers qualify.\n- **Plus** — Rating 4.3+, larger vehicle (SUV, minivan, van).\n- **Comfort** — Rating 4.5+, vehicle year 2020+.\n- **PetRide** — Rating 4.3+, pet approval from admin.\n- **SafeTeen** — Rating 4.7+, verified background check.\n- **Elite** — Rating 4.8+, vehicle year 2022+, elite approval.\n\nYou can view and toggle your accepted classes in your Account page under Ride Class Preferences."
+  },
+  {
+    id: "d-rideclass-preferences",
+    role: "driver",
+    category: "booking",
+    keywords: ["class preference", "turn off class", "disable class", "stop accepting", "ride preference", "choose class", "select class", "toggle class"],
+    response: "You can manage which ride classes you accept from your Account page. Go to Account > Ride Class Preferences to see your eligible classes and toggle each one on or off. Note that ZIBA Go is always enabled as the default class. Your preferences affect which ride requests you receive — disabling a class means you won't get matched with those rides."
+  },
+  {
+    id: "d-rideclass-qualify-higher",
+    role: "driver",
+    category: "booking",
+    keywords: ["qualify higher", "upgrade class", "better class", "elite approval", "background check", "pet approval", "how to qualify", "improve class", "higher tier"],
+    response: "To qualify for higher ride classes:\n\n1. **Improve your rating** — Provide excellent service to maintain a high rating.\n2. **Upgrade your vehicle** — Newer vehicles unlock Comfort (2020+) and Elite (2022+).\n3. **Get certifications** — Contact your director or admin for Pet Approval, Background Check verification, or Elite Approval.\n\nOnce you meet the requirements, the class will automatically appear in your Account > Ride Class Preferences."
+  },
 
   {
     id: "x-general-help",

@@ -1,10 +1,14 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { MapPin, User, Car, Clock, DollarSign, XCircle, Banknote } from "lucide-react";
 import { RatingForm } from "./rating-form";
 import { DisputeForm } from "./dispute-form";
 import { CashTripConfirmation } from "./cash-trip-confirmation";
+import { RideClassIcon, getRideClassLabel } from "@/components/ride-class-icon";
+import { RIDE_CLASSES } from "@shared/ride-classes";
+import type { RideClassId } from "@shared/ride-classes";
 
 interface TripDetailModalProps {
   trip: any | null;
@@ -42,11 +46,17 @@ export function TripDetailModal({ trip, open, onOpenChange, userRole }: TripDeta
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg" data-testid="modal-trip-detail">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 flex-wrap">
             Trip Details
             <Badge className={getStatusColor(trip.status)} data-testid="badge-trip-status">
               {trip.status?.replace("_", " ")}
             </Badge>
+            {(trip as any).rideClass && (
+              <Badge variant="secondary" className="text-xs gap-1" data-testid="badge-trip-ride-class">
+                <RideClassIcon rideClass={(trip as any).rideClass} size="sm" showBg={false} />
+                {getRideClassLabel((trip as any).rideClass)}
+              </Badge>
+            )}
           </DialogTitle>
         </DialogHeader>
 
@@ -157,6 +167,64 @@ export function TripDetailModal({ trip, open, onOpenChange, userRole }: TripDeta
               </CardContent>
             </Card>
           )}
+
+          {(trip as any).rideClass && trip.fareAmount && (() => {
+            const rideClassId = (trip as any).rideClass as RideClassId;
+            const classDef = RIDE_CLASSES[rideClassId];
+            if (!classDef) return null;
+            const pricing = classDef.pricing;
+            const totalFare = parseFloat(trip.fareAmount || "0");
+            const surcharge = pricing.surcharge;
+            const baseFare = pricing.baseFare;
+            const remaining = Math.max(0, totalFare - baseFare - surcharge);
+            const distanceRatio = pricing.perKmRate / (pricing.perKmRate + pricing.perMinuteRate * 2);
+            const distanceFare = Math.round(remaining * distanceRatio * 100) / 100;
+            const timeFare = Math.round((remaining - distanceFare) * 100) / 100;
+
+            const symbols: Record<string, string> = { NGN: "\u20A6", USD: "$", ZAR: "R" };
+            const sym = symbols[trip.currencyCode] || trip.currencyCode || "$";
+            const fmt = (v: number) => `${sym}${v.toFixed(2)}`;
+
+            return (
+              <Card data-testid="card-fare-breakdown">
+                <CardContent className="pt-4 space-y-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <RideClassIcon rideClass={rideClassId} size="sm" />
+                    <div>
+                      <p className="font-medium text-sm" data-testid="text-fare-class-name">{classDef.name}</p>
+                      <p className="text-xs text-muted-foreground">Fare Breakdown</p>
+                    </div>
+                  </div>
+                  <Separator />
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between gap-2">
+                      <span className="text-muted-foreground">Base fare</span>
+                      <span data-testid="text-base-fare">{fmt(baseFare)}</span>
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <span className="text-muted-foreground">Distance fare</span>
+                      <span data-testid="text-distance-fare">{fmt(distanceFare)}</span>
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <span className="text-muted-foreground">Time fare</span>
+                      <span data-testid="text-time-fare">{fmt(timeFare)}</span>
+                    </div>
+                    {surcharge > 0 && (
+                      <div className="flex justify-between gap-2">
+                        <span className="text-muted-foreground">Surcharge</span>
+                        <span data-testid="text-surcharge">{fmt(surcharge)}</span>
+                      </div>
+                    )}
+                    <Separator />
+                    <div className="flex justify-between gap-2 font-semibold">
+                      <span>Total</span>
+                      <span data-testid="text-total-fare">{fmt(totalFare)}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })()}
 
           {trip.status === "completed" && trip.paymentSource === "CASH" && (userRole === "rider" || userRole === "driver") && (
             <CashTripConfirmation

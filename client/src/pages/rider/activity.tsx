@@ -11,6 +11,7 @@ import { Car, XCircle, AlertTriangle, Clock, MapPin, ChevronRight } from "lucide
 import { formatDistanceToNow } from "date-fns";
 import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
 import { RideClassIcon, getRideClassLabel } from "@/components/ride-class-icon";
+import { TripDetailModal } from "@/components/trip-detail-modal";
 
 interface Trip {
   id: string;
@@ -52,6 +53,7 @@ const getStatusColor = (status: string) => {
 export default function RiderActivity() {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<"history" | "cancelled" | "penalties">("history");
+  const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
 
   const { data: trips, isLoading } = useQuery<Trip[]>({
     queryKey: ["/api/rider/trip-history"],
@@ -62,7 +64,7 @@ export default function RiderActivity() {
   const penaltyTrips = trips?.filter((t) => t.cancellationFeeApplied && t.cancellationFeeDeducted) || [];
 
   const renderTripCard = (trip: Trip, isPenalty: boolean = false) => (
-    <Card key={trip.id} className="hover-elevate cursor-pointer" data-testid={`card-trip-${trip.id}`}>
+    <Card key={trip.id} className="hover-elevate cursor-pointer" data-testid={`card-trip-${trip.id}`} onClick={() => setSelectedTrip(trip)}>
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex gap-3 flex-1 min-w-0">
@@ -245,6 +247,12 @@ export default function RiderActivity() {
           )}
         </div>
         <ZibraFloatingButton />
+        <TripDetailModal
+          trip={selectedTrip}
+          open={!!selectedTrip}
+          onOpenChange={(open) => { if (!open) setSelectedTrip(null); }}
+          userRole="rider"
+        />
       </RiderLayout>
     </RiderRouteGuard>
   );
