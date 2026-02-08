@@ -1494,6 +1494,42 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
     enabled: !!user && isSuperAdmin && activeTab === "director-settings",
   });
 
+  const { data: directorPerfOverview = [], refetch: refetchPerfOverview } = useQuery<any[]>({
+    queryKey: ["/api/admin/director-performance/all"],
+    enabled: !!user && isSuperAdmin && activeTab === "director-performance",
+  });
+
+  const { data: perfWeights, refetch: refetchPerfWeights } = useQuery<any>({
+    queryKey: ["/api/admin/director-performance/weights"],
+    enabled: !!user && isSuperAdmin && activeTab === "director-performance",
+  });
+
+  const [perfWeightsForm, setPerfWeightsForm] = useState({
+    driverActivityWeight: 0,
+    driverQualityWeight: 0,
+    driverRetentionWeight: 0,
+    complianceSafetyWeight: 0,
+    adminFeedbackWeight: 0,
+    goldThreshold: 0,
+    silverThreshold: 0,
+    bronzeThreshold: 0,
+  });
+
+  useEffect(() => {
+    if (perfWeights) {
+      setPerfWeightsForm({
+        driverActivityWeight: perfWeights.driverActivityWeight ?? 0,
+        driverQualityWeight: perfWeights.driverQualityWeight ?? 0,
+        driverRetentionWeight: perfWeights.driverRetentionWeight ?? 0,
+        complianceSafetyWeight: perfWeights.complianceSafetyWeight ?? 0,
+        adminFeedbackWeight: perfWeights.adminFeedbackWeight ?? 0,
+        goldThreshold: perfWeights.goldThreshold ?? 0,
+        silverThreshold: perfWeights.silverThreshold ?? 0,
+        bronzeThreshold: perfWeights.bronzeThreshold ?? 0,
+      });
+    }
+  }, [perfWeights]);
+
   // Phase 11 - Wallet queries
   const [walletPayoutStatusFilter, setWalletPayoutStatusFilter] = useState<string>("all");
   const [selectedWalletPayout, setSelectedWalletPayout] = useState<WalletPayoutWithDetails | null>(null);
@@ -3434,6 +3470,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <TabsTrigger value="director-settings" className="admin-nav-trigger rounded-md" data-testid="tab-director-settings">
                 <Settings2 className="h-4 w-4 mr-2" />
                 Director Settings
+              </TabsTrigger>
+            )}
+            {isSuperAdmin && (
+              <TabsTrigger value="director-performance" className="admin-nav-trigger rounded-md" data-testid="tab-director-performance">
+                <Award className="h-4 w-4 mr-2" />
+                Director Performance
               </TabsTrigger>
             )}
             {(isSuperAdmin || userRole === "admin") && (
@@ -9000,6 +9042,275 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                                 <TableCell>{log.newValue}</TableCell>
                                 <TableCell className="max-w-[200px] truncate">{log.reason}</TableCell>
                                 <TableCell>{new Date(log.createdAt).toLocaleString()}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+          )}
+          {isSuperAdmin && (
+            <TabsContent value="director-performance">
+              <div className="space-y-6" data-testid="director-performance-section">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <Card data-testid="card-total-directors">
+                    <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Total Directors</CardTitle>
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold" data-testid="text-total-directors">{directorPerfOverview.length}</div>
+                    </CardContent>
+                  </Card>
+                  <Card data-testid="card-avg-score">
+                    <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Average Score</CardTitle>
+                      <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold" data-testid="text-avg-score">
+                        {directorPerfOverview.length > 0
+                          ? (directorPerfOverview.reduce((sum: number, d: any) => sum + (Number(d.score) || 0), 0) / directorPerfOverview.length).toFixed(1)
+                          : "0"}
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card data-testid="card-at-risk-count">
+                    <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">At Risk</CardTitle>
+                      <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold" data-testid="text-at-risk-count">
+                        {directorPerfOverview.filter((d: any) => d.tier === "at_risk").length}
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card data-testid="card-gold-count">
+                    <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Gold Tier</CardTitle>
+                      <Award className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold" data-testid="text-gold-count">
+                        {directorPerfOverview.filter((d: any) => d.tier === "gold").length}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <Card data-testid="card-performance-weights">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2" data-testid="text-weights-title">
+                      <Settings2 className="h-5 w-5" />
+                      Performance Weights Configuration
+                    </CardTitle>
+                    <CardDescription>Configure scoring weights (must sum to 100) and tier thresholds</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      <div className="space-y-1">
+                        <Label htmlFor="weight-activity">Driver Activity</Label>
+                        <Input
+                          id="weight-activity"
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={perfWeightsForm.driverActivityWeight}
+                          onChange={(e) => setPerfWeightsForm(f => ({ ...f, driverActivityWeight: Number(e.target.value) }))}
+                          data-testid="input-weight-activity"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="weight-quality">Driver Quality</Label>
+                        <Input
+                          id="weight-quality"
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={perfWeightsForm.driverQualityWeight}
+                          onChange={(e) => setPerfWeightsForm(f => ({ ...f, driverQualityWeight: Number(e.target.value) }))}
+                          data-testid="input-weight-quality"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="weight-retention">Driver Retention</Label>
+                        <Input
+                          id="weight-retention"
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={perfWeightsForm.driverRetentionWeight}
+                          onChange={(e) => setPerfWeightsForm(f => ({ ...f, driverRetentionWeight: Number(e.target.value) }))}
+                          data-testid="input-weight-retention"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="weight-compliance">Compliance & Safety</Label>
+                        <Input
+                          id="weight-compliance"
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={perfWeightsForm.complianceSafetyWeight}
+                          onChange={(e) => setPerfWeightsForm(f => ({ ...f, complianceSafetyWeight: Number(e.target.value) }))}
+                          data-testid="input-weight-compliance"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="weight-feedback">Admin Feedback</Label>
+                        <Input
+                          id="weight-feedback"
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={perfWeightsForm.adminFeedbackWeight}
+                          onChange={(e) => setPerfWeightsForm(f => ({ ...f, adminFeedbackWeight: Number(e.target.value) }))}
+                          data-testid="input-weight-feedback"
+                        />
+                      </div>
+                    </div>
+                    <div className="text-sm" data-testid="text-weights-total">
+                      Total: <span className={
+                        (perfWeightsForm.driverActivityWeight + perfWeightsForm.driverQualityWeight + perfWeightsForm.driverRetentionWeight + perfWeightsForm.complianceSafetyWeight + perfWeightsForm.adminFeedbackWeight) === 100
+                          ? "font-bold text-green-600"
+                          : "font-bold text-destructive"
+                      }>
+                        {perfWeightsForm.driverActivityWeight + perfWeightsForm.driverQualityWeight + perfWeightsForm.driverRetentionWeight + perfWeightsForm.complianceSafetyWeight + perfWeightsForm.adminFeedbackWeight}
+                      </span> / 100
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-3">
+                      <div className="space-y-1">
+                        <Label htmlFor="threshold-gold">Gold Threshold</Label>
+                        <Input
+                          id="threshold-gold"
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={perfWeightsForm.goldThreshold}
+                          onChange={(e) => setPerfWeightsForm(f => ({ ...f, goldThreshold: Number(e.target.value) }))}
+                          data-testid="input-threshold-gold"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="threshold-silver">Silver Threshold</Label>
+                        <Input
+                          id="threshold-silver"
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={perfWeightsForm.silverThreshold}
+                          onChange={(e) => setPerfWeightsForm(f => ({ ...f, silverThreshold: Number(e.target.value) }))}
+                          data-testid="input-threshold-silver"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="threshold-bronze">Bronze Threshold</Label>
+                        <Input
+                          id="threshold-bronze"
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={perfWeightsForm.bronzeThreshold}
+                          onChange={(e) => setPerfWeightsForm(f => ({ ...f, bronzeThreshold: Number(e.target.value) }))}
+                          data-testid="input-threshold-bronze"
+                        />
+                      </div>
+                    </div>
+                    <Button
+                      onClick={async () => {
+                        const total = perfWeightsForm.driverActivityWeight + perfWeightsForm.driverQualityWeight + perfWeightsForm.driverRetentionWeight + perfWeightsForm.complianceSafetyWeight + perfWeightsForm.adminFeedbackWeight;
+                        if (total !== 100) {
+                          toast({ title: "Invalid weights", description: "Weights must sum to 100", variant: "destructive" });
+                          return;
+                        }
+                        try {
+                          await apiRequest("PUT", "/api/admin/director-performance/weights", perfWeightsForm);
+                          toast({ title: "Weights saved", description: "Performance weights updated successfully" });
+                          refetchPerfWeights();
+                        } catch {
+                          toast({ title: "Error", description: "Failed to save weights", variant: "destructive" });
+                        }
+                      }}
+                      data-testid="button-save-perf-weights"
+                    >
+                      Save Weights
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                <Card data-testid="card-director-perf-overview">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2" data-testid="text-perf-overview-title">
+                      <Activity className="h-5 w-5" />
+                      Director Performance Overview
+                    </CardTitle>
+                    <CardDescription>Performance scores and tier assignments for all directors</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {directorPerfOverview.length === 0 ? (
+                      <p className="text-sm text-muted-foreground" data-testid="text-no-perf-data">No data</p>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <Table data-testid="table-director-performance">
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Director Name</TableHead>
+                              <TableHead>Type</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead>Score</TableHead>
+                              <TableHead>Tier</TableHead>
+                              <TableHead>Incentives</TableHead>
+                              <TableHead>Restrictions</TableHead>
+                              <TableHead>Last Calculated</TableHead>
+                              <TableHead>Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {directorPerfOverview.map((d: any) => (
+                              <TableRow key={d.directorUserId} data-testid={`row-director-perf-${d.directorUserId}`}>
+                                <TableCell className="font-medium" data-testid={`text-director-name-${d.directorUserId}`}>{d.fullName || "Unknown"}</TableCell>
+                                <TableCell data-testid={`text-director-type-${d.directorUserId}`}>{d.directorType || "-"}</TableCell>
+                                <TableCell data-testid={`text-director-status-${d.directorUserId}`}>{d.status || "-"}</TableCell>
+                                <TableCell data-testid={`text-director-score-${d.directorUserId}`}>{d.score != null ? Number(d.score).toFixed(1) : "-"}</TableCell>
+                                <TableCell data-testid={`badge-director-tier-${d.directorUserId}`}>
+                                  <Badge variant={
+                                    d.tier === "gold" ? "default" :
+                                    d.tier === "silver" ? "secondary" :
+                                    d.tier === "bronze" ? "outline" :
+                                    d.tier === "at_risk" ? "destructive" : "secondary"
+                                  }>
+                                    {d.tier || "unranked"}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell data-testid={`text-director-incentives-${d.directorUserId}`}>{d.activeIncentives ?? 0}</TableCell>
+                                <TableCell data-testid={`text-director-restrictions-${d.directorUserId}`}>{d.activeRestrictions ?? 0}</TableCell>
+                                <TableCell data-testid={`text-director-last-calc-${d.directorUserId}`}>
+                                  {d.lastCalculated ? new Date(d.lastCalculated).toLocaleString() : "Never"}
+                                </TableCell>
+                                <TableCell>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={async () => {
+                                      try {
+                                        await apiRequest("POST", `/api/admin/director-performance/${d.directorUserId}/calculate`);
+                                        toast({ title: "Recalculated", description: `Score recalculated for ${d.fullName || "director"}` });
+                                        refetchPerfOverview();
+                                      } catch {
+                                        toast({ title: "Error", description: "Failed to recalculate", variant: "destructive" });
+                                      }
+                                    }}
+                                    data-testid={`button-recalculate-${d.directorUserId}`}
+                                  >
+                                    <RefreshCw className="h-4 w-4 mr-1" />
+                                    Recalculate
+                                  </Button>
+                                </TableCell>
                               </TableRow>
                             ))}
                           </TableBody>
