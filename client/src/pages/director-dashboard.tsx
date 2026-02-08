@@ -369,12 +369,23 @@ function CreateStaffDialog({
   const [staffRole, setStaffRole] = useState("");
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
 
+  const rolePermissionDefaults: Record<string, string[]> = {
+    recruiter: ["view_drivers", "manage_drivers"],
+    analyst: ["view_reports", "view_drivers"],
+    operations: ["view_drivers", "manage_drivers", "view_funding", "view_reports"],
+  };
+
   const permissionOptions = [
     { key: "view_drivers", label: "View Drivers" },
     { key: "view_funding", label: "View Funding History" },
     { key: "manage_drivers", label: "Manage Drivers" },
     { key: "view_reports", label: "View Reports" },
   ];
+
+  const handleRoleChange = (role: string) => {
+    setStaffRole(role);
+    setSelectedPermissions(rolePermissionDefaults[role] || []);
+  };
 
   const createStaffMutation = useMutation({
     mutationFn: async () => {
@@ -427,14 +438,14 @@ function CreateStaffDialog({
           </div>
           <div>
             <Label>Staff Role</Label>
-            <Select value={staffRole} onValueChange={setStaffRole}>
+            <Select value={staffRole} onValueChange={handleRoleChange}>
               <SelectTrigger data-testid="select-staff-role">
                 <SelectValue placeholder="Select a role" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="viewer">Viewer</SelectItem>
-                <SelectItem value="coordinator">Coordinator</SelectItem>
-                <SelectItem value="manager">Manager</SelectItem>
+                <SelectItem value="recruiter">Recruiter</SelectItem>
+                <SelectItem value="analyst">Analyst</SelectItem>
+                <SelectItem value="operations">Operations</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -814,12 +825,141 @@ function DisputeSection({ disputeablePayouts }: { disputeablePayouts: Array<{ id
   );
 }
 
+function CellCard({ cell }: { cell: { cellNumber: number; cellName: string; driverCount: number; maxDrivers: number } }) {
+  const maxDrivers = cell.maxDrivers || 1300;
+  const capacityPercent = Math.min((cell.driverCount / maxDrivers) * 100, 100);
+
+  const { data: cellMetrics } = useQuery<{
+    activeDriversToday: number;
+    commissionableDrivers: number;
+    suspendedDrivers: number;
+  }>({
+    queryKey: ["/api/director/cells", cell.cellNumber, "metrics"],
+  });
+
+  return (
+    <Card data-testid={`card-cell-${cell.cellNumber}`}>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium" data-testid={`text-cell-name-${cell.cellNumber}`}>
+          {cell.cellName}
+        </CardTitle>
+        <CardDescription data-testid={`text-cell-number-${cell.cellNumber}`}>
+          Cell #{cell.cellNumber}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex items-center justify-between gap-2 text-sm">
+          <span className="text-muted-foreground">Drivers</span>
+          <span className="font-medium" data-testid={`text-cell-driver-count-${cell.cellNumber}`}>
+            {cell.driverCount} / {maxDrivers}
+          </span>
+        </div>
+        <Progress value={capacityPercent} className="h-2" data-testid={`progress-cell-capacity-${cell.cellNumber}`} />
+        <p className="text-xs text-muted-foreground text-right" data-testid={`text-cell-capacity-percent-${cell.cellNumber}`}>
+          {Math.round(capacityPercent)}% capacity
+        </p>
+        {cellMetrics && (
+          <div className="grid grid-cols-3 gap-2 pt-2 border-t">
+            <div className="text-center">
+              <p className="text-lg font-bold" data-testid={`text-cell-active-${cell.cellNumber}`}>{cellMetrics.activeDriversToday}</p>
+              <p className="text-xs text-muted-foreground">Active Today</p>
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-bold" data-testid={`text-cell-commissionable-${cell.cellNumber}`}>{cellMetrics.commissionableDrivers}</p>
+              <p className="text-xs text-muted-foreground">Commissionable</p>
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-bold" data-testid={`text-cell-suspended-${cell.cellNumber}`}>{cellMetrics.suspendedDrivers}</p>
+              <p className="text-xs text-muted-foreground">Suspended</p>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function RecommendTerminationDialog({
+  driver,
+  open,
+  onOpenChange,
+  onSubmit,
+  isPending,
+}: {
+  driver: EligibleDriver | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSubmit: (driverUserId: string, reason: string) => void;
+  isPending: boolean;
+}) {
+  const [reason, setReason] = useState("");
+
+  const handleClose = () => {
+    setReason("");
+    onOpenChange(false);
+  };
+
+  if (!driver) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle data-testid="text-recommend-termination-title">Recommend Termination</DialogTitle>
+          <DialogDescription>
+            Recommend termination for {driver.fullName}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label>Driver</Label>
+            <div className="flex items-center gap-2 mt-1 p-2 rounded-md bg-muted">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium" data-testid="text-termination-driver-name">{driver.fullName}</span>
+            </div>
+          </div>
+          <div>
+            <Label htmlFor="termination-reason">Reason for Termination</Label>
+            <Textarea
+              id="termination-reason"
+              placeholder="Enter the reason for recommending termination..."
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              className="mt-1"
+              data-testid="textarea-termination-reason"
+            />
+            {reason.length > 0 && reason.length < 10 && (
+              <p className="text-xs text-destructive mt-1">Reason must be at least 10 characters.</p>
+            )}
+          </div>
+          <div className="p-3 rounded-md border border-destructive/30 bg-destructive/5 text-xs text-muted-foreground" data-testid="text-termination-warning">
+            <AlertTriangle className="h-4 w-4 text-destructive inline mr-1" />
+            This recommendation will be sent to Admin for review. The driver will not be terminated immediately. Admin will evaluate and make the final decision.
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={handleClose} data-testid="button-termination-cancel">Cancel</Button>
+          <Button
+            variant="destructive"
+            onClick={() => onSubmit(driver.userId, reason)}
+            disabled={reason.length < 10 || isPending}
+            data-testid="button-termination-submit"
+          >
+            {isPending ? "Submitting..." : "Recommend Termination"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function DirectorDashboard() {
   const { toast } = useToast();
   const [location, setLocation] = useLocation();
   const { t, language } = useTranslation();
   const currentLang = LANGUAGES.find((l) => l.code === language);
   const getInitialTab = () => {
+    if (location === "/director/cells") return "cells";
     if (location === "/director/drivers") return "drivers";
     if (location === "/director/funding") return "funding";
     if (location === "/director/staff") return "staff";
@@ -838,6 +978,10 @@ export default function DirectorDashboard() {
   const [createStaffOpen, setCreateStaffOpen] = useState(false);
   const [removeStaffOpen, setRemoveStaffOpen] = useState(false);
   const [removeStaffId, setRemoveStaffId] = useState<string | null>(null);
+  const [terminationDialogOpen, setTerminationDialogOpen] = useState(false);
+  const [terminationDriver, setTerminationDriver] = useState<EligibleDriver | null>(null);
+  const [createCellDialogOpen, setCreateCellDialogOpen] = useState(false);
+  const [newCellName, setNewCellName] = useState("");
   const [logDateFilter, setLogDateFilter] = useState("");
   const [logActionFilter, setLogActionFilter] = useState("all");
   const [logUserFilter, setLogUserFilter] = useState("");
@@ -876,6 +1020,21 @@ export default function DirectorDashboard() {
   const { data: suspensionStatus } = useQuery<{ suspended: boolean; suspension: any }>({
     queryKey: ["/api/director/funding/suspension-status"],
     enabled: activeTab === "funding",
+  });
+
+  const { data: cellsData, isLoading: cellsLoading } = useQuery<Array<{
+    cellNumber: number;
+    cellName: string;
+    driverCount: number;
+    maxDrivers: number;
+  }>>({
+    queryKey: ["/api/director/cells"],
+    enabled: activeTab === "cells",
+  });
+
+  const { data: referralCodeData } = useQuery<{ referralCode: string }>({
+    queryKey: ["/api/director/referral-code"],
+    enabled: activeTab === "cells",
   });
 
   const { data: analytics } = useQuery<{
@@ -1028,6 +1187,51 @@ export default function DirectorDashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/director/funding/acceptance"] });
       toast({ title: "Terms Accepted", description: "You have accepted the director funding terms." });
+    },
+  });
+
+  const createCellMutation = useMutation({
+    mutationFn: async (cellName: string) => {
+      await apiRequest("POST", "/api/director/cells", { cellName });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/director/cells"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/director/dashboard/full"] });
+      toast({ title: "Cell Created", description: "New driver cell has been created successfully." });
+      setNewCellName("");
+      setCreateCellDialogOpen(false);
+    },
+    onError: (err: Error) => {
+      toast({ title: "Failed to Create Cell", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const recommendTerminationMutation = useMutation({
+    mutationFn: async ({ driverUserId, reason }: { driverUserId: string; reason: string }) => {
+      await apiRequest("POST", `/api/director/drivers/${driverUserId}/recommend-termination`, { reason });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/director/funding/eligible-drivers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/director/dashboard/full"] });
+      toast({ title: "Termination Recommended", description: "Your recommendation has been sent to Admin for review." });
+      setTerminationDialogOpen(false);
+      setTerminationDriver(null);
+    },
+    onError: (err: Error) => {
+      toast({ title: "Recommendation Failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const acceptTermsMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/director/terms/accept");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/director/dashboard/full"] });
+      toast({ title: "Terms Accepted", description: "You have accepted the director terms and agreements." });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Failed to Accept Terms", description: err.message, variant: "destructive" });
     },
   });
 
@@ -1224,11 +1428,14 @@ export default function DirectorDashboard() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex flex-wrap gap-1" data-testid="tabs-director">
           <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
+          <TabsTrigger value="cells" disabled={trainingStatus && !trainingStatus.allCompleted && !isReadOnly} data-testid="tab-cells">Driver Cells</TabsTrigger>
           <TabsTrigger value="drivers" disabled={trainingStatus && !trainingStatus.allCompleted && !isReadOnly} data-testid="tab-drivers">Drivers</TabsTrigger>
           <TabsTrigger value="funding" disabled={trainingStatus && !trainingStatus.allCompleted && !isReadOnly} data-testid="tab-funding">Funding</TabsTrigger>
           <TabsTrigger value="staff" disabled={trainingStatus && !trainingStatus.allCompleted && !isReadOnly} data-testid="tab-staff">Staff</TabsTrigger>
           <TabsTrigger value="activity" data-testid="tab-activity">Activity Log</TabsTrigger>
-          <TabsTrigger value="earnings" disabled={trainingStatus && !trainingStatus.allCompleted && !isReadOnly} data-testid="tab-earnings">Earnings</TabsTrigger>
+          {profile?.directorType === "contract" && (
+            <TabsTrigger value="earnings" disabled={trainingStatus && !trainingStatus.allCompleted && !isReadOnly} data-testid="tab-earnings">Earnings</TabsTrigger>
+          )}
           <TabsTrigger value="performance" data-testid="tab-performance">
             <TrendingUp className="h-4 w-4 mr-1" />
             Performance
@@ -1678,6 +1885,93 @@ export default function DirectorDashboard() {
           </Card>
         </TabsContent>
 
+        {/* DRIVER CELLS TAB */}
+        <TabsContent value="cells" className="space-y-4">
+          {referralCodeData?.referralCode && (
+            <Card data-testid="card-referral-code">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Your Referral Code</CardTitle>
+                <UserPlus className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-3">
+                  <div className="text-2xl font-bold tracking-wider" data-testid="text-referral-code">
+                    {referralCodeData.referralCode}
+                  </div>
+                  <Badge variant="outline" data-testid="badge-referral-info">Share with drivers to join your cell</Badge>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          <Card data-testid="card-driver-cells">
+            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
+              <div>
+                <CardTitle>Driver Cells</CardTitle>
+                <CardDescription>Manage your driver cells and capacity</CardDescription>
+              </div>
+              {profile?.directorType === "contract" && (cellsData || []).length < 3 && (
+                <Button
+                  size="sm"
+                  onClick={() => setCreateCellDialogOpen(true)}
+                  disabled={isReadOnly}
+                  data-testid="button-create-new-cell"
+                >
+                  <UserPlus className="h-3.5 w-3.5 mr-1.5" />
+                  Create New Cell
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent>
+              {cellsLoading ? (
+                <div className="py-8 text-center text-muted-foreground">Loading cells...</div>
+              ) : !cellsData || cellsData.length === 0 ? (
+                <div className="py-8 text-center text-muted-foreground" data-testid="text-no-cells">
+                  <Users className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                  No driver cells created yet.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {cellsData.map((cell) => (
+                    <CellCard key={cell.cellNumber} cell={cell} />
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Dialog open={createCellDialogOpen} onOpenChange={setCreateCellDialogOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle data-testid="text-create-cell-title">Create New Cell</DialogTitle>
+                <DialogDescription>Create a new driver cell (max 3 cells)</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="cell-name">Cell Name</Label>
+                  <Input
+                    id="cell-name"
+                    placeholder="Enter cell name"
+                    value={newCellName}
+                    onChange={(e) => setNewCellName(e.target.value)}
+                    data-testid="input-cell-name"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => { setCreateCellDialogOpen(false); setNewCellName(""); }} data-testid="button-create-cell-cancel">Cancel</Button>
+                <Button
+                  onClick={() => createCellMutation.mutate(newCellName)}
+                  disabled={!newCellName.trim() || createCellMutation.isPending}
+                  data-testid="button-create-cell-submit"
+                >
+                  {createCellMutation.isPending ? "Creating..." : "Create Cell"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </TabsContent>
+
         {/* DRIVERS TAB */}
         <TabsContent value="drivers" className="space-y-4">
           <Card>
@@ -1740,6 +2034,19 @@ export default function DirectorDashboard() {
                         >
                           <Ban className="h-3.5 w-3.5 mr-1.5" />
                           Suspend
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => {
+                            setTerminationDriver(driver);
+                            setTerminationDialogOpen(true);
+                          }}
+                          disabled={isReadOnly}
+                          data-testid={`button-recommend-termination-${driver.userId}`}
+                        >
+                          <XCircle className="h-3.5 w-3.5 mr-1.5" />
+                          Recommend Termination
                         </Button>
                       </div>
                     </div>
@@ -2018,8 +2325,8 @@ export default function DirectorDashboard() {
           </Card>
         </TabsContent>
 
-        {/* EARNINGS TAB */}
-        <TabsContent value="earnings" className="space-y-4">
+        {/* EARNINGS TAB - Contract Directors Only */}
+        {profile?.directorType === "contract" && <TabsContent value="earnings" className="space-y-4">
           {earningsLoading ? (
             <div className="py-8 text-center text-muted-foreground" data-testid="text-earnings-loading">Loading earnings data...</div>
           ) : earningsData ? (
@@ -2237,7 +2544,7 @@ export default function DirectorDashboard() {
               </CardContent>
             </Card>
           )}
-        </TabsContent>
+        </TabsContent>}
 
         {/* PERFORMANCE TAB */}
         <TabsContent value="performance" className="space-y-4">
@@ -2752,6 +3059,48 @@ export default function DirectorDashboard() {
               </div>
             </CardContent>
           </Card>
+
+          <Card data-testid="card-director-terms">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                Director Terms & Agreements
+              </CardTitle>
+              <CardDescription>Review and accept the terms governing your director role</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2 text-xs text-muted-foreground p-4 rounded-md border" data-testid="text-director-terms-content">
+                <p><strong>No Employment Guarantee:</strong> {profile?.directorType === "contract" ? "As a contract director, your engagement does not constitute employment. You operate as an independent facilitator within the ZIBA platform." : "Your director role is subject to the terms of your employment agreement and platform policies."}</p>
+                <p><strong>Commission is Conditional & Revocable:</strong> Any commission or earnings are conditional upon meeting platform eligibility criteria, compliance requirements, and activity thresholds. ZIBA reserves the right to revoke, adjust, or withhold commissions at its discretion.</p>
+                <p><strong>Platform Rules May Change:</strong> ZIBA may update, modify, or introduce new rules, policies, commission structures, or operational requirements at any time. Continued use of the platform constitutes acceptance of updated terms.</p>
+                <p><strong>Fraud Leads to Forfeiture:</strong> Any fraudulent activity, misrepresentation, or abuse of the platform will result in immediate forfeiture of all pending earnings, suspension or termination of your director account, and potential legal action.</p>
+                <p><strong>No Entitlement to Platform Revenue Data:</strong> Directors are not entitled to access, audit, or receive detailed platform revenue, financial, or operational data beyond what is provided in the director dashboard.</p>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  {(dashboard as any)?.termsAccepted ? (
+                    <Badge variant="default" data-testid="badge-terms-accepted">
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      Terms Accepted
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary" data-testid="badge-terms-pending">
+                      Pending Acceptance
+                    </Badge>
+                  )}
+                </div>
+                {!(dashboard as any)?.termsAccepted && (
+                  <Button
+                    onClick={() => acceptTermsMutation.mutate()}
+                    disabled={isReadOnly || acceptTermsMutation.isPending}
+                    data-testid="button-accept-director-terms"
+                  >
+                    {acceptTermsMutation.isPending ? "Accepting..." : "Accept Terms"}
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 
@@ -2777,6 +3126,14 @@ export default function DirectorDashboard() {
         staffId={removeStaffId}
         open={removeStaffOpen}
         onOpenChange={setRemoveStaffOpen}
+      />
+
+      <RecommendTerminationDialog
+        driver={terminationDriver}
+        open={terminationDialogOpen}
+        onOpenChange={setTerminationDialogOpen}
+        onSubmit={(driverUserId, reason) => recommendTerminationMutation.mutate({ driverUserId, reason })}
+        isPending={recommendTerminationMutation.isPending}
       />
     </div>
   );

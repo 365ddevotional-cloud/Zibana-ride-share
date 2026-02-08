@@ -1,0 +1,167 @@
+YOU ARE CONTINUING WORK ON THE ZIBA PLATFORM.
+
+IMPORTANT MODE:
+⚠️ UPDATE / PATCH MODE ONLY
+⚠️ DO NOT REBUILD EXISTING FEATURES
+⚠️ DO NOT DUPLICATE SCREENS, MODELS, OR LOGIC
+
+GOAL:
+Audit all previously implemented Director systems and APPLY ONLY MISSING, BROKEN, OR INACTIVE PARTS.
+If a feature already exists, KEEP IT and FIX/ACTIVATE IT.
+If partially implemented, COMPLETE IT.
+If hidden behind “Coming Soon”, ACTIVATE IT.
+
+====================================================
+PHASE A — DIRECTOR SYSTEM AUDIT (MANDATORY FIRST)
+====================================================
+
+1) AUDIT EXISTING IMPLEMENTATION
+Search the repo for:
+- Director role definitions
+- Contract Director logic
+- Employee Director logic
+- Driver referral codes
+- Driver cell models
+- Commission calculation services
+- Director dashboard routes/components
+- Admin director controls
+- ZIBRA support rules for directors
+
+Create an internal checklist:
+- EXISTS & WORKING
+- EXISTS BUT BROKEN
+- EXISTS BUT DISABLED
+- MISSING
+
+DO NOT CODE until this audit is complete.
+
+====================================================
+PHASE B — ACTIVATE & FIX (NO DUPLICATION)
+====================================================
+
+2) DIRECTOR DASHBOARD
+IF dashboard exists:
+- Ensure it is accessible to:
+  - Director
+  - Admin
+  - Super Admin
+- Ensure visibility rules are enforced
+- Ensure all boxes/cards are CLICKABLE
+- Remove all “Coming Soon” blockers
+- Route each card to its correct page
+
+IF missing sections:
+- Add ONLY missing sections
+
+====================================================
+PHASE C — COMMISSION & CELL LOGIC (VERIFY ONLY)
+====================================================
+
+3) COMMISSION ENGINE
+IF logic exists:
+- Verify enforcement of:
+  - 77% daily active driver rule
+  - 1000 commissionable driver hard cap
+  - Max 1300 drivers per cell
+  - Commission based ONLY on platform earnings
+- Ensure commission % is adjustable by Super Admin
+- Ensure NO commission numbers are exposed in UI
+
+FIX ONLY IF CALCULATION IS WRONG.
+
+====================================================
+PHASE D — DIRECTOR APPROVAL & LIFESPAN
+====================================================
+
+4) DIRECTOR APPOINTMENTS
+Verify:
+- Super Admin can appoint directors
+- Contract start & end dates exist
+- Expired contracts pause commission automatically
+- Suspension & termination work
+
+IF APPOINTMENT UI EXISTS BUT IS DISABLED:
+- ACTIVATE IT
+- REMOVE “COMING SOON”
+
+====================================================
+PHASE E — STAFF & PERMISSIONS
+====================================================
+
+5) DIRECTOR STAFF
+Verify:
+- Directors can add staff
+- Staff see ONLY assigned sections
+- All actions are logged with:
+  - user
+  - role
+  - timestamp
+  - before/after state
+
+FIX PERMISSION LEAKS IF FOUND.
+
+====================================================
+PHASE F — ZIBRA SUPPORT (DIRECTOR MODE)
+====================================================
+
+6) ZIBRA FOR DIRECTORS
+IF ZIBRA rules exist:
+- Ensure Director role is recognized
+- Enable PRIVATE MODE for Directors
+- Allow guidance on:
+  - performance
+  - caps
+  - inactive drivers
+  - contract status
+- Ensure ZIBRA does NOT expose:
+  - platform revenue
+  - other directors’ data
+
+ADD ONLY MISSING RESPONSE RULES.
+
+====================================================
+PHASE G — UI ACTIVATION PASS
+====================================================
+
+7) REMOVE ALL “COMING SOON”
+Specifically check:
+- Director rights
+- Corporate rights
+- Special rights
+- App payments
+- Account boxes
+- Settings items
+
+Every visible box MUST:
+- be clickable
+- route correctly
+- or be hidden (not “coming soon”)
+
+====================================================
+PHASE H — LOGGING & SECURITY
+====================================================
+
+8) ACCOUNTABILITY
+Verify:
+- Every Director/Admin action is logged
+- Logs are visible to Super Admin
+- No silent state changes
+
+====================================================
+FINAL RULES
+====================================================
+
+- DO NOT recreate models already in use
+- DO NOT reset data
+- DO NOT break Rider or Driver flows
+- DO NOT expose platform commission details
+- PATCH, ACTIVATE, VERIFY ONLY
+
+DELIVERABLE:
+After update, provide:
+- list of what already existed
+- list of what was fixed
+- list of what was activated
+- list of what was newly added (if any)
+
+PROCEED CAREFULLY.

@@ -4421,6 +4421,70 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/director/referral-code", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const profile = await storage.getDirectorProfile(userId);
+      if (!profile) {
+        return res.status(404).json({ message: "Director profile not found" });
+      }
+      const [referralCode] = await db.select().from(referralCodes).where(eq(referralCodes.ownerId, userId));
+      if (!referralCode) {
+        return res.json({ code: null });
+      }
+      return res.json({ code: referralCode.code, referralCodeId: referralCode.id });
+    } catch (error) {
+      console.error("Error fetching director referral code:", error);
+      return res.status(500).json({ message: "Failed to fetch referral code" });
+    }
+  });
+
+  app.post("/api/director/drivers/:driverUserId/recommend-termination", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { driverUserId } = req.params;
+      const { reason } = req.body;
+
+      if (!reason || reason.trim().length < 10) {
+        return res.status(400).json({ message: "Reason must be at least 10 characters" });
+      }
+
+      const profile = await storage.getDirectorProfile(userId);
+      if (!profile) {
+        return res.status(403).json({ message: "Director profile not found" });
+      }
+
+      const directorForDriver = await storage.getDirectorForDriver(driverUserId);
+      if (!directorForDriver || directorForDriver.directorUserId !== userId) {
+        return res.status(403).json({ message: "Driver not assigned to you" });
+      }
+
+      await storage.createDirectorActionLog({
+        actorId: userId,
+        actorRole: "director",
+        action: "recommend_termination",
+        targetType: "driver",
+        targetId: driverUserId,
+        beforeState: null,
+        afterState: JSON.stringify({ reason: reason.trim() }),
+        metadata: JSON.stringify({ ip: req.ip }),
+      });
+
+      await storage.createNotification({
+        userId: "admin",
+        role: "admin",
+        title: "Driver Termination Recommendation",
+        message: `Director recommends termination of driver ${driverUserId}. Reason: ${reason.trim()}`,
+        type: "warning",
+      });
+
+      return res.json({ success: true, message: "Termination recommendation submitted for admin review" });
+    } catch (error) {
+      console.error("Error recommending driver termination:", error);
+      return res.status(500).json({ message: "Failed to submit termination recommendation" });
+    }
+  });
+
   app.get("/api/admin/director-settings", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
     try {
       let settings = await storage.getDirectorCommissionSettings();
