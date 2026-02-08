@@ -5579,3 +5579,87 @@ export const welcomeAnalytics = pgTable("welcome_analytics", {
 export const insertWelcomeAnalyticsSchema = createInsertSchema(welcomeAnalytics).omit({ id: true, createdAt: true });
 export type InsertWelcomeAnalytics = z.infer<typeof insertWelcomeAnalyticsSchema>;
 export type WelcomeAnalytics = typeof welcomeAnalytics.$inferSelect;
+
+// =============================================
+// RIDER TRUST, LOYALTY & WALLET GROWTH
+// =============================================
+
+export const riderTrustTierEnum = pgEnum("rider_trust_tier", [
+  "platinum", "gold", "standard", "limited"
+]);
+
+export const riderTrustScores = pgTable("rider_trust_scores", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique(),
+  score: integer("score").notNull().default(75),
+  tier: riderTrustTierEnum("tier").notNull().default("standard"),
+  reliabilityScore: integer("reliability_score").notNull().default(75),
+  paymentBehaviorScore: integer("payment_behavior_score").notNull().default(75),
+  conductSafetyScore: integer("conduct_safety_score").notNull().default(75),
+  accountStabilityScore: integer("account_stability_score").notNull().default(75),
+  adminFlagsScore: integer("admin_flags_score").notNull().default(100),
+  completedRides: integer("completed_rides").notNull().default(0),
+  totalRides: integer("total_rides").notNull().default(0),
+  cancellations: integer("cancellations").notNull().default(0),
+  walletFundedRides: integer("wallet_funded_rides").notNull().default(0),
+  cashRides: integer("cash_rides").notNull().default(0),
+  incidentReports: integer("incident_reports").notNull().default(0),
+  disputeCount: integer("dispute_count").notNull().default(0),
+  averageDriverRating: decimal("average_driver_rating", { precision: 3, scale: 2 }).notNull().default("5.00"),
+  lastCalculatedAt: timestamp("last_calculated_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type RiderTrustScore = typeof riderTrustScores.$inferSelect;
+
+export const riderTrustWeights = pgTable("rider_trust_weights", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  reliabilityWeight: integer("reliability_weight").notNull().default(35),
+  paymentBehaviorWeight: integer("payment_behavior_weight").notNull().default(25),
+  conductSafetyWeight: integer("conduct_safety_weight").notNull().default(20),
+  accountStabilityWeight: integer("account_stability_weight").notNull().default(10),
+  adminFlagsWeight: integer("admin_flags_weight").notNull().default(10),
+  platinumThreshold: integer("platinum_threshold").notNull().default(85),
+  goldThreshold: integer("gold_threshold").notNull().default(70),
+  standardThreshold: integer("standard_threshold").notNull().default(50),
+  gracePeriodPlatinum: integer("grace_period_platinum").notNull().default(5),
+  gracePeriodGold: integer("grace_period_gold").notNull().default(4),
+  gracePeriodStandard: integer("grace_period_standard").notNull().default(3),
+  gracePeriodLimited: integer("grace_period_limited").notNull().default(2),
+  updatedBy: varchar("updated_by"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type RiderTrustWeights = typeof riderTrustWeights.$inferSelect;
+
+export const riderLoyaltyIncentives = pgTable("rider_loyalty_incentives", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  incentiveType: varchar("incentive_type", { length: 50 }).notNull(),
+  description: text("description"),
+  amount: decimal("amount", { precision: 10, scale: 2 }),
+  isActive: boolean("is_active").notNull().default(true),
+  grantedBy: varchar("granted_by").notNull().default("system"),
+  grantReason: text("grant_reason"),
+  expiresAt: timestamp("expires_at"),
+  usedAt: timestamp("used_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type RiderLoyaltyIncentive = typeof riderLoyaltyIncentives.$inferSelect;
+
+export const riderTrustLogs = pgTable("rider_trust_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  action: varchar("action", { length: 50 }).notNull(),
+  previousScore: integer("previous_score"),
+  newScore: integer("new_score"),
+  previousTier: varchar("previous_tier", { length: 20 }),
+  newTier: varchar("new_tier", { length: 20 }),
+  details: text("details"),
+  performedBy: varchar("performed_by").notNull().default("system"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type RiderTrustLog = typeof riderTrustLogs.$inferSelect;

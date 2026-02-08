@@ -1,0 +1,191 @@
+You are implementing THIRD-PARTY WALLET FUNDING
+across the ZIBA platform (Rider, Admin, Super Admin).
+
+OBJECTIVE:
+Allow trusted users (parents, spouses, employers, friends)
+to fund a rider’s wallet safely — without creating loans,
+debts, guarantees, or legal liability.
+
+This is a CONVENIENCE FEATURE, not a financial service.
+
+DO NOT:
+- Create repayment obligations
+- Allow forced transfers
+- Allow anonymous funding
+- Expose internal commissions
+- Break existing wallet flows
+
+=====================================================
+PHASE 1 — FUNDING RELATIONSHIP TYPES
+=====================================================
+
+1) FUNDING TYPES (EXPLICITLY LABELED)
+
+A) PERSONAL SUPPORT
+- Parent → Child
+- Spouse → Spouse
+- Friend → Friend
+
+B) CORPORATE SUPPORT
+- Employer → Employee
+- Organization → Member
+
+Each relationship must be:
+- Initiated by the FUNDER
+- Accepted by the RECIPIENT
+- Revocable by either party
+
+=====================================================
+PHASE 2 — FUNDING INVITE FLOW
+=====================================================
+
+2) FUNDING INVITE PROCESS
+
+FUNDER:
+- Enter recipient phone/email/username
+- Choose funding type
+- Set optional:
+  - Daily limit
+  - Monthly limit
+  - Purpose tag (e.g. school, work, family)
+
+RECIPIENT:
+- Receives in-app notification
+- Must ACCEPT or DECLINE
+- Can revoke anytime
+
+No auto-linking without acceptance.
+
+=====================================================
+PHASE 3 — FUNDING RULES & LIMITS
+=====================================================
+
+3) SAFETY RULES
+
+- Recipient must be a verified ZIBA user
+- Funding capped per day & per month (Admin configurable)
+- Funds can only be used for:
+  - Rides
+  - Cancellation fees
+  - Lost-item return fees
+- Funds CANNOT be withdrawn as cash
+- No negative balance allowed
+
+=====================================================
+PHASE 4 — VISIBILITY & CONTROL
+=====================================================
+
+4) FUNDER DASHBOARD (LIMITED)
+
+FUNDER can see:
+- Total funded amount
+- Date/time of top-ups
+- Ride usage summaries (high-level only)
+
+FUNDER CANNOT see:
+- Ride routes
+- Driver identity
+- Exact locations
+- Trust score details
+
+=====================================================
+PHASE 5 — RIDER EXPERIENCE
+=====================================================
+
+5) RIDER UI
+
+- Wallet shows:
+  “Funded by Parent / Employer / Friend”
+- Clear separation between:
+  - Personal funds
+  - Sponsored funds
+- Priority usage rules:
+  Sponsored funds used FIRST unless rider opts out
+
+=====================================================
+PHASE 6 — ADMIN & COMPLIANCE
+=====================================================
+
+6) ADMIN CONTROLS
+
+Admin can:
+- Set global caps
+- Freeze suspicious funding links
+- View abuse patterns
+- Disable funding per user
+
+Super Admin:
+- Configure country-specific rules
+- Enable/disable feature per region
+
+=====================================================
+PHASE 7 — FRAUD & ABUSE DETECTION
+=====================================================
+
+7) AUTO-FLAGS
+
+Flag when:
+- Many riders funded by one account
+- Rapid fund-spend-refund cycles
+- Cross-country anomalies
+- Repeated cancellation abuse
+
+Flags route to Admin review.
+
+=====================================================
+PHASE 8 — ZIBRA ROLE (SUPPORT)
+=====================================================
+
+8) ZIBRA SUPPORT RESPONSES
+
+ZIBRA may:
+- Explain how funding works
+- Help revoke funding
+- Suggest limits
+- Guide employers setup
+
+ZIBRA must NEVER:
+- Call it a loan
+- Suggest repayment
+- Mediate disputes
+- Promise refunds
+
+=====================================================
+PHASE 9 — LEGAL & TERMS INSERT
+=====================================================
+
+9) TERMS TEXT (SHORT)
+
+“Third-party wallet funding is a voluntary convenience feature.
+ZIBA does not act as a lender, escrow, or financial intermediary.
+All transfers are non-refundable and subject to platform rules.”
+
+=====================================================
+PHASE 10 — AUDIT & LOGGING
+=====================================================
+
+10) LOGGING
+Log:
+- Funding invites
+- Acceptances
+- Top-ups
+- Usage
+- Revocations
+- Abuse flags
+
+Admin & Super Admin access only.
+
+=====================================================
+FINAL CONFIRMATION
+=====================================================
+
+Confirm:
+✔ No loan language
+✔ No repayment obligations
+✔ Clear consent
+✔ Abuse detection active
+✔ Wallet integrity intact
+✔ Legal risk minimized
+
+Proceed step-by-step.
+Confirm each phase before completion.
