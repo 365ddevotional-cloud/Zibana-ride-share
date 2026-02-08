@@ -1,0 +1,153 @@
+You are implementing “Fund Another Wallet” across the ZIBA platform (Rider, Driver, Director).
+
+OBJECTIVE:
+Allow any ZIBA user to voluntarily fund another user’s wallet in a safe, non-refundable, legally protected way that increases wallet usage and reduces ride failures.
+
+This is NOT wallet-to-wallet transfer.
+This is NOT withdrawal.
+Funds can ONLY be used inside ZIBA.
+
+Do NOT break existing wallet logic.
+Do NOT change pricing splits or commissions.
+
+==================================================
+PHASE 1 — CORE WALLET FUNDING FEATURE
+==================================================
+
+1) ADD NEW ACTION: FUND ANOTHER WALLET
+Available to:
+- Rider
+- Driver
+- Director
+- Admin (manual support use only)
+
+UI ENTRY POINTS:
+- Wallet screen → “Fund Another Wallet”
+- Optional shortcut in Account / Payments
+
+==================================================
+PHASE 2 — FUNDING FLOW (USER EXPERIENCE)
+==================================================
+
+FLOW:
+1. User taps “Fund Another Wallet”
+2. Show form:
+   - Recipient identifier (phone OR email OR ZIBA ID)
+   - Amount
+3. System validates recipient exists
+4. Show confirmation screen:
+   - Recipient name + avatar
+   - Amount
+   - Warning text:
+     “Funds added cannot be reversed and can only be used within ZIBA.”
+5. User confirms payment
+6. Wallet credited instantly
+7. Show success screen
+
+==================================================
+PHASE 3 — RULES & SAFETY
+==================================================
+
+RULES:
+- Funds are NON-REFUNDABLE
+- No wallet-to-wallet withdrawals
+- Funds usable ONLY for rides/services
+- No negative balances allowed
+- Daily and monthly funding limits (admin-configurable)
+
+ANTI-ABUSE:
+- Detect repeated funding to same account
+- Flag unusual patterns
+- Admin review dashboard (read-only)
+
+==================================================
+PHASE 4 — DATA MODELS
+==================================================
+
+Add model:
+WalletFundingTransaction:
+- id
+- sender_user_id
+- receiver_user_id
+- amount
+- status (completed / failed)
+- created_at
+- metadata (role, country)
+
+Link transaction to:
+- Sender wallet history
+- Receiver wallet history
+
+==================================================
+PHASE 5 — NOTIFICATIONS & INBOX
+==================================================
+
+ON SUCCESS:
+Sender:
+- Push notification
+- Inbox receipt
+
+Receiver:
+- Push notification:
+  “₦5,000 has been added to your ZIBA wallet.”
+- Inbox message with sender name
+
+Admin:
+- Log visible in wallet funding logs
+
+==================================================
+PHASE 6 — LEGAL PROTECTION
+==================================================
+
+Before final confirmation show disclaimer:
+“ZIBA facilitates wallet funding between users. Funds are non-refundable and ZIBA does not guarantee services or outcomes.”
+
+Terms update:
+- Funding is voluntary
+- ZIBA is not a bank
+- No responsibility for disputes
+- No cash equivalents
+
+Require checkbox acceptance before funding.
+
+==================================================
+PHASE 7 — ADMIN CONTROLS
+==================================================
+
+Admin Dashboard:
+- View funding transactions
+- Filter by sender, receiver, date
+- See flagged patterns
+- No manual reversals unless Super Admin override
+
+==================================================
+PHASE 8 — DIRECTOR COMPATIBILITY
+==================================================
+
+Directors:
+- Can fund drivers under them
+- Funding does NOT affect commission calculations
+- Funding is NOT considered salary or payout
+- Fully logged for audit
+
+==================================================
+PHASE 9 — EDGE CASES
+==================================================
+
+Handle:
+- Recipient not found
+- Self-funding blocked or allowed (admin setting)
+- Network failure → retry
+- Duplicate confirmation protection
+
+==================================================
+FINAL RULES
+==================================================
+
+- ZIBA is a facilitator only
+- No refunds
+- No liability
+- No wallet withdrawals
+- Everything logged
+
+Proceed step-by-step and confirm each phase before moving on.

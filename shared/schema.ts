@@ -5117,3 +5117,43 @@ export const directorCoachingLogs = pgTable("director_coaching_logs", {
 export const insertDirectorCoachingLogSchema = createInsertSchema(directorCoachingLogs).omit({ id: true, createdAt: true });
 export type InsertDirectorCoachingLog = z.infer<typeof insertDirectorCoachingLogSchema>;
 export type DirectorCoachingLog = typeof directorCoachingLogs.$inferSelect;
+
+// =============================================
+// FUND ANOTHER WALLET
+// =============================================
+
+export const walletFundingStatusEnum = pgEnum("wallet_funding_status", ["completed", "failed"]);
+
+export const walletFundingTransactions = pgTable("wallet_funding_transactions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  senderUserId: varchar("sender_user_id").notNull(),
+  receiverUserId: varchar("receiver_user_id").notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 3 }).notNull().default("NGN"),
+  status: walletFundingStatusEnum("status").notNull().default("completed"),
+  senderRole: varchar("sender_role", { length: 30 }),
+  receiverRole: varchar("receiver_role", { length: 30 }),
+  countryCode: varchar("country_code", { length: 3 }),
+  disclaimerAccepted: boolean("disclaimer_accepted").notNull().default(false),
+  flagged: boolean("flagged").notNull().default(false),
+  flagReason: text("flag_reason"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const walletFundingSettings = pgTable("wallet_funding_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  dailyLimit: decimal("daily_limit", { precision: 10, scale: 2 }).notNull().default("50000.00"),
+  monthlyLimit: decimal("monthly_limit", { precision: 10, scale: 2 }).notNull().default("500000.00"),
+  minAmount: decimal("min_amount", { precision: 10, scale: 2 }).notNull().default("100.00"),
+  maxAmount: decimal("max_amount", { precision: 10, scale: 2 }).notNull().default("50000.00"),
+  selfFundingAllowed: boolean("self_funding_allowed").notNull().default(false),
+  repeatFundingThreshold: integer("repeat_funding_threshold").notNull().default(5),
+  isEnabled: boolean("is_enabled").notNull().default(true),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertWalletFundingTransactionSchema = createInsertSchema(walletFundingTransactions).omit({ id: true, createdAt: true });
+export type InsertWalletFundingTransaction = z.infer<typeof insertWalletFundingTransactionSchema>;
+export type WalletFundingTransaction = typeof walletFundingTransactions.$inferSelect;
+
+export type WalletFundingSettings = typeof walletFundingSettings.$inferSelect;
