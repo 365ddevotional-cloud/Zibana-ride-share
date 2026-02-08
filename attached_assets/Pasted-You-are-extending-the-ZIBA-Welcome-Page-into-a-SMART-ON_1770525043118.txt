@@ -1,0 +1,134 @@
+You are extending the ZIBA Welcome Page into a SMART ONBOARDING & INSIGHT ENTRY POINT.
+
+OBJECTIVE:
+Turn the welcome page from a static landing page into:
+- a guided onboarding funnel
+- a behavior-aware discovery experience
+- a data-informed growth surface
+WITHOUT forcing sign-up too early.
+
+=====================================================
+PHASE 1 — SOFT ONBOARDING FLOW (NO LOGIN REQUIRED)
+=====================================================
+
+1) SMART DISCOVERY MODE
+When a user clicks any welcome-page card:
+- Track which feature they explored
+- Store intent temporarily (session-based, anonymous)
+Examples:
+- clicked “Live Tracking” → intent = safety-aware
+- clicked “Flexible Payments” → intent = cost-aware
+- clicked “Safety First” → intent = safety-first
+
+2) DELAYED CTA
+Do NOT force signup immediately.
+Instead:
+- Show value first
+- Then present “Continue with ZIBA” CTA
+CTA text adapts to intent:
+- “Track rides safely with ZIBA”
+- “Pay flexibly with ZIBA”
+- “Ride with verified drivers”
+
+=====================================================
+PHASE 2 — ZIBRA INTRO (NO AI MENTION)
+=====================================================
+
+3) ZIBRA SOFT INTRO
+On second or third interaction:
+Show a non-intrusive message bubble:
+
+“Need help choosing how ZIBA works for you?
+I can guide you.”
+
+Button:
+- “Get guidance” → opens ZIBA Support (public mode)
+
+ZIBRA rules:
+- Never mention AI
+- Friendly, calm, optional
+- No data collection notice needed here
+
+=====================================================
+PHASE 3 — SIGNUP CONTEXT PASS-THROUGH
+=====================================================
+
+4) INTENT-AWARE SIGNUP
+When user finally clicks “Get Started”:
+- Pass intent context to signup flow:
+  - safety
+  - payments
+  - speed
+  - scheduling
+This allows:
+- personalized onboarding tips after signup
+- better first-session experience
+
+=====================================================
+PHASE 4 — LIGHTWEIGHT ANALYTICS (LEGAL SAFE)
+=====================================================
+
+5) TRACK ONLY NON-SENSITIVE EVENTS
+Track:
+- card_click (card_id)
+- page_view (public routes only)
+- cta_click
+- signup_start
+
+DO NOT track:
+- personal data
+- location
+- behavior across accounts
+- anything requiring consent banner
+
+6) ADMIN VIEW (READ-ONLY)
+Create Admin Insights panel:
+- Most-clicked welcome features
+- Conversion by feature interest
+- Drop-off points
+
+No PII.
+No user-level profiling.
+
+=====================================================
+PHASE 5 — UX POLISH
+=====================================================
+
+7) MICRO-INTERACTIONS
+- Hover glow on cards
+- Tap ripple on mobile
+- Smooth transitions between sections
+
+8) FALLBACK SAFETY
+If analytics fails:
+- App still works
+- No errors shown
+- No blocked navigation
+
+=====================================================
+PHASE 6 — QA CHECKLIST
+=====================================================
+
+Confirm:
+✔ Welcome page guides users naturally
+✔ Signup feels intentional
+✔ ZIBRA appears helpful, not intrusive
+✔ No legal exposure
+✔ No performance regression
+✔ Mobile UX clean
+
+=====================================================
+DELIVERABLES
+=====================================================
+
+Report:
+1) Events tracked
+2) Pages updated
+3) ZIBRA entry points added
+4) Admin insights available
+5) What remains optional
+
+Proceed carefully.
+Do NOT add consent banners.
+Do NOT mention AI.
+Do NOT break existing signup flow.
