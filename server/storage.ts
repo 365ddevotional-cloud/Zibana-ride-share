@@ -833,7 +833,7 @@ export interface IStorage {
   removeDriverFromDirector(driverUserId: string): Promise<void>;
   getDirectorForDriver(driverUserId: string): Promise<DirectorDriverAssignment | undefined>;
   getDirectorDailyMetrics(directorUserId: string): Promise<{ totalDrivers: number; activeDriversToday: number; commissionableDrivers: number; suspendedDrivers: number }>;
-  logDirectorDailyCommission(data: { directorUserId: string; date: string; totalDrivers: number; activeDriversToday: number; commissionableDrivers: number; commissionRate: string; activeRatio: string }): Promise<DirectorCommissionLog>;
+  logDirectorDailyCommission(data: { directorUserId: string; date: string; totalDrivers: number; activeDriversToday: number; commissionableDrivers: number; commissionRate: string; activeRatio: string; platformEarnings?: string; commissionAmount?: string; directorStatus?: string; meetsActivationThreshold?: boolean }): Promise<DirectorCommissionLog>;
   getDirectorCommissionLogs(directorUserId: string, limit?: number): Promise<DirectorCommissionLog[]>;
   updateDirectorProfile(userId: string, updates: Partial<{ directorType: string; commissionFrozen: boolean; maxCellSize: number; activationThreshold: number; status: string; suspendedAt: Date | null; suspendedBy: string | null }>): Promise<DirectorProfile | undefined>;
   logDirectorSettingsChange(data: { settingKey: string; oldValue: string | null; newValue: string; changedBy: string; reason: string }): Promise<DirectorSettingsAuditLog>;
@@ -2814,8 +2814,14 @@ export class DatabaseStorage implements IStorage {
     return { totalDrivers, activeDriversToday, commissionableDrivers, suspendedDrivers };
   }
 
-  async logDirectorDailyCommission(data: { directorUserId: string; date: string; totalDrivers: number; activeDriversToday: number; commissionableDrivers: number; commissionRate: string; activeRatio: string }): Promise<DirectorCommissionLog> {
-    const [log] = await db.insert(directorCommissionLogs).values(data).returning();
+  async logDirectorDailyCommission(data: { directorUserId: string; date: string; totalDrivers: number; activeDriversToday: number; commissionableDrivers: number; commissionRate: string; activeRatio: string; platformEarnings?: string; commissionAmount?: string; directorStatus?: string; meetsActivationThreshold?: boolean }): Promise<DirectorCommissionLog> {
+    const [log] = await db.insert(directorCommissionLogs).values({
+      ...data,
+      platformEarnings: data.platformEarnings || "0",
+      commissionAmount: data.commissionAmount || "0",
+      directorStatus: data.directorStatus || "active",
+      meetsActivationThreshold: data.meetsActivationThreshold ?? false,
+    }).returning();
     return log;
   }
 

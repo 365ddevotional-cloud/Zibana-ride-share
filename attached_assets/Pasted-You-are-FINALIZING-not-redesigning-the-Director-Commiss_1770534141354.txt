@@ -1,0 +1,98 @@
+You are FINALIZING (not redesigning) the Director Commission Engine in ZIBA.
+
+GOAL:
+- Convert existing director commission rules into enforceable backend logic
+- Respect all caps, ratios, and lifespan limits
+- Do NOT change business rules
+- Do NOT expose commissions to drivers or riders
+
+================================================
+PHASE 1 — COMMISSION ELIGIBILITY (SERVER-SIDE)
+================================================
+
+Rules (already agreed):
+- Director earns commission ONLY from what ZIBA earns
+- Commission rate default = 12% (editable by Super Admin)
+- Director must have at least 10 active drivers to activate commission
+- Commissionable drivers per day:
+  = MIN(77% of active working drivers that day, 1000)
+- Hard cap:
+  - Max drivers per cell = 1300
+  - Max commissionable drivers = 1000
+- Drivers above cap → zero commission impact
+
+================================================
+PHASE 2 — DAILY COMMISSION CALCULATION
+================================================
+
+For each Director, per day:
+1. Identify drivers who completed trips that day
+2. Filter to drivers under Director’s cell
+3. Apply 77% rule
+4. Apply 1000-driver cap
+5. From ZIBA platform earnings of those drivers:
+   - commission = platform_earnings × commission_rate
+6. Store result as DAILY SNAPSHOT (immutable)
+
+================================================
+PHASE 3 — LIFESPAN & STATUS CHECKS
+================================================
+
+Before calculation:
+- Director status must be ACTIVE
+- Today must be within start_date and end_date
+- Suspended or expired directors → commission = 0
+
+================================================
+PHASE 4 — DIRECTOR DASHBOARD DISPLAY
+================================================
+
+Director can see:
+- Active drivers today
+- Commissionable drivers today
+- Commission rate (%)
+- Status (active / suspended / expired)
+
+Director CANNOT see:
+- Raw platform earnings
+- Per-driver revenue
+- Admin financial totals
+
+================================================
+PHASE 5 — ADMIN / SUPER ADMIN CONTROLS
+================================================
+
+Admin:
+- View reports
+- Audit calculations
+
+Super Admin:
+- Adjust commission rate
+- Adjust caps
+- Pause or terminate director
+
+All changes logged.
+
+================================================
+PHASE 6 — ZIBRA OVERSIGHT
+================================================
+
+ZIBRA must:
+- Warn if director nearing cap
+- Warn if performance drops
+- Flag suspicious patterns
+- Suggest improvements (non-financial)
+
+================================================
+PHASE 7 — TESTING
+================================================
+
+Confirm:
+✔ Calculations correct
+✔ Caps enforced
+✔ Lifespan enforced
+✔ No leaks to drivers
+✔ Director dashboard accurate
+✔ Admin override works
+
+Proceed carefully and confirm completion.

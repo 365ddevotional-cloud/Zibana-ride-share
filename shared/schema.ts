@@ -526,6 +526,10 @@ export const directorCommissionLogs = pgTable("director_commission_logs", {
   commissionableDrivers: integer("commissionable_drivers").notNull().default(0),
   commissionRate: varchar("commission_rate").notNull(),
   activeRatio: varchar("active_ratio").notNull(),
+  platformEarnings: varchar("platform_earnings").notNull().default("0"),
+  commissionAmount: varchar("commission_amount").notNull().default("0"),
+  directorStatus: varchar("director_status", { length: 20 }).notNull().default("active"),
+  meetsActivationThreshold: boolean("meets_activation_threshold").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

@@ -20553,6 +20553,120 @@ export async function registerRoutes(
   console.log("[SETTLEMENT SCHEDULER] Started — polling every 60min for period settlements");
 
   // =============================================
+  // DIRECTOR COMMISSION DAILY SCHEDULER
+  // =============================================
+  const COMMISSION_INTERVAL = 60 * 60 * 1000;
+  let lastCommissionRunDate = "";
+
+  setInterval(async () => {
+    try {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      if (lastCommissionRunDate === todayStr) return;
+
+      const allDirectors = await db.select().from(directorProfiles);
+      if (allDirectors.length === 0) return;
+
+      const settings = await storage.getDirectorCommissionSettings();
+      const globalActiveRatio = parseFloat(settings?.activeRatio || "0.77");
+      const globalMaxCommissionable = settings?.maxCommissionableDrivers || 1000;
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      for (const director of allDirectors) {
+        try {
+          const isActive = director.status === "active" && director.lifecycleStatus === "active";
+          const withinLifespan = (!director.lifespanStartDate || new Date(director.lifespanStartDate) <= today) &&
+            (!director.lifespanEndDate || new Date(director.lifespanEndDate) >= today);
+          const notFrozen = !director.commissionFrozen;
+          const eligible = isActive && withinLifespan && notFrozen;
+
+          const directorStatus = !isActive ? "inactive" : !withinLifespan ? "expired" : director.commissionFrozen ? "frozen" : "active";
+
+          const assignments = await storage.getDriversUnderDirector(director.userId);
+          const driverIds = assignments.map(a => a.driverUserId);
+          const totalDrivers = driverIds.length;
+
+          const meetsThreshold = totalDrivers >= (director.activationThreshold || 10);
+
+          let activeDriversToday = 0;
+          const activeDriverIds: string[] = [];
+          for (const driverId of driverIds) {
+            const [tripToday] = await db.select({ count: count() }).from(trips)
+              .where(and(eq(trips.driverId, driverId), eq(trips.status, "completed"), gte(trips.completedAt, today)));
+            if (tripToday && tripToday.count > 0) {
+              activeDriversToday++;
+              activeDriverIds.push(driverId);
+            }
+          }
+
+          const commissionRate = (director.commissionRatePercent || 12) / 100;
+          const maxCommissionable = director.maxCommissionablePerDay || globalMaxCommissionable;
+          const commissionableDrivers = Math.min(Math.floor(activeDriversToday * globalActiveRatio), maxCommissionable);
+
+          let platformEarnings = 0;
+          if (eligible && meetsThreshold && commissionableDrivers > 0) {
+            const commissionableIds = activeDriverIds.slice(0, commissionableDrivers);
+            for (const driverId of commissionableIds) {
+              const driverTrips = await db.select().from(trips)
+                .where(and(
+                  eq(trips.driverId, driverId),
+                  eq(trips.status, "completed"),
+                  gte(trips.completedAt, today)
+                ));
+              for (const trip of driverTrips) {
+                platformEarnings += parseFloat(String(trip.commissionAmount || "0"));
+              }
+            }
+          }
+
+          const commissionAmount = eligible && meetsThreshold ? platformEarnings * commissionRate : 0;
+
+          await storage.logDirectorDailyCommission({
+            directorUserId: director.userId,
+            date: todayStr,
+            totalDrivers,
+            activeDriversToday,
+            commissionableDrivers,
+            commissionRate: String(commissionRate),
+            activeRatio: String(globalActiveRatio),
+            platformEarnings: platformEarnings.toFixed(2),
+            commissionAmount: commissionAmount.toFixed(2),
+            directorStatus,
+            meetsActivationThreshold: meetsThreshold,
+          });
+
+          if (eligible && meetsThreshold) {
+            const capUsage = commissionableDrivers / maxCommissionable;
+            if (capUsage >= 0.9) {
+              await db.insert(directorActionLogs).values({
+                actorId: "system",
+                actorRole: "system",
+                action: "zibra_cap_warning",
+                targetType: "director",
+                targetId: director.userId,
+                afterState: JSON.stringify({
+                  commissionableDrivers,
+                  maxCommissionable,
+                  capUsage: (capUsage * 100).toFixed(1) + "%",
+                }),
+              });
+            }
+          }
+        } catch (dirError) {
+          console.error(`[COMMISSION SCHEDULER] Error for director ${director.userId}:`, dirError);
+        }
+      }
+
+      lastCommissionRunDate = todayStr;
+      console.log(`[COMMISSION SCHEDULER] Daily commission snapshots created for ${allDirectors.length} directors`);
+    } catch (error) {
+      console.error("[COMMISSION SCHEDULER] Error:", error);
+    }
+  }, COMMISSION_INTERVAL);
+  console.log("[COMMISSION SCHEDULER] Started — polling every 60min for daily commission snapshots");
+
+  // =============================================
   // BANK TRANSFER WALLET FUNDING
   // =============================================
 
