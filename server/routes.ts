@@ -5,7 +5,7 @@ import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integra
 import { storage } from "./storage";
 import { db } from "./db";
 import { eq, and, count, sql, gte, lt, isNotNull, inArray, desc } from "drizzle-orm";
-import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, driverInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages, walletFundingTransactions, walletFundingSettings, driverWallets, directorFundingTransactions, directorFundingSettings, directorFundingAcceptance, directorFundingSuspensions, directorProfiles, directorDriverAssignments, directorActionLogs } from "@shared/schema";
+import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, driverInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages, walletFundingTransactions, walletFundingSettings, driverWallets, directorFundingTransactions, directorFundingSettings, directorFundingAcceptance, directorFundingSuspensions, directorProfiles, directorDriverAssignments, directorActionLogs, driverCoachingLogs } from "@shared/schema";
 import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, evaluateAllDrivers, evaluateBehaviorAndWarnings, calculateDriverMatchingScore, getDriverIncentiveProgress, assignFirstRidePromo, assignReturnRiderPromo, applyPromoToTrip, voidPromosOnCancellation } from "./incentives";
 import { notificationService } from "./notification-service";
 import { getCurrencyFromCountry, getCountryConfig, FINANCIAL_ENGINE_LOCKED } from "@shared/currency";
@@ -21424,7 +21424,7 @@ export async function registerRoutes(
       const senderUserId = req.user?.claims?.sub;
       if (!senderUserId) return res.status(401).json({ error: "Not authenticated" });
 
-      const { receiverUserId, amount, disclaimerAccepted } = req.body;
+      const { receiverUserId, amount, disclaimerAccepted, purpose } = req.body;
       if (!receiverUserId || !amount || !disclaimerAccepted) {
         return res.status(400).json({ error: "Missing required fields" });
       }
@@ -21532,6 +21532,7 @@ export async function registerRoutes(
         status: "completed",
         senderRole,
         receiverRole,
+        purpose: purpose || null,
         disclaimerAccepted: true,
         flagged: isFlagged,
         flagReason,
@@ -22398,6 +22399,134 @@ export async function registerRoutes(
       res.json({ message: "Report submitted. The director's funding has been paused and admin has been notified." });
     } catch (error) {
       res.status(500).json({ error: "Failed to submit coercion report" });
+    }
+  });
+
+  app.get("/api/driver/coaching", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const logs = await db.select().from(driverCoachingLogs)
+        .where(eq(driverCoachingLogs.driverUserId, userId))
+        .orderBy(desc(driverCoachingLogs.createdAt))
+        .limit(20);
+      res.json(logs);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to load coaching" });
+    }
+  });
+
+  app.post("/api/driver/coaching/generate", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      const [profile] = await db.select().from(driverProfiles)
+        .where(eq(driverProfiles.userId, userId))
+        .limit(1);
+
+      const [wallet] = await db.select().from(driverWallets)
+        .where(eq(driverWallets.userId, userId))
+        .limit(1);
+
+      const [trustProfile] = await db.select().from(userTrustProfiles)
+        .where(eq(userTrustProfiles.userId, userId))
+        .limit(1);
+
+      const coachingItems: Array<{ type: string; message: string; severity: string }> = [];
+
+      if (wallet && parseFloat(wallet.balance || "0") < 500) {
+        coachingItems.push({
+          type: "wallet_low",
+          message: "Your wallet balance is running low. A healthy balance ensures you can continue accepting rides without interruption. Consider topping up when convenient.",
+          severity: "warning"
+        });
+      }
+
+      if (trustProfile && trustProfile.riskScore > 60) {
+        coachingItems.push({
+          type: "trust_dip",
+          message: "Your trust indicator has changed recently. Consistent, reliable ride completion and positive interactions help maintain strong trust levels.",
+          severity: "warning"
+        });
+      }
+
+      if (profile && profile.averageRating && parseFloat(profile.averageRating) < 4.0) {
+        coachingItems.push({
+          type: "rating_improvement",
+          message: "Your rider feedback score could use a boost. Small improvements like a friendly greeting and clean vehicle go a long way. Keep working on the experience!",
+          severity: "info"
+        });
+      }
+
+      if (profile && profile.averageRating && parseFloat(profile.averageRating) >= 4.5 &&
+          (!trustProfile || trustProfile.riskScore < 30)) {
+        coachingItems.push({
+          type: "positive_streak",
+          message: "You have been performing well recently. Consistent engagement and positive rider feedback strengthen your profile. Thank you for your continued dedication.",
+          severity: "info"
+        });
+      }
+
+      if (profile && !profile.isOnline) {
+        coachingItems.push({
+          type: "availability_tip",
+          message: "Staying available during peak hours can increase your ride opportunities. Check the app for busy times in your area and plan your availability accordingly.",
+          severity: "info"
+        });
+      }
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      for (const item of coachingItems) {
+        const [existing] = await db.select().from(driverCoachingLogs)
+          .where(and(
+            eq(driverCoachingLogs.driverUserId, userId),
+            eq(driverCoachingLogs.coachingType, item.type),
+            gte(driverCoachingLogs.createdAt, today)
+          ))
+          .limit(1);
+
+        if (!existing) {
+          await db.insert(driverCoachingLogs).values({
+            driverUserId: userId,
+            coachingType: item.type,
+            message: item.message,
+            severity: item.severity,
+          });
+        }
+      }
+
+      const logs = await db.select().from(driverCoachingLogs)
+        .where(eq(driverCoachingLogs.driverUserId, userId))
+        .orderBy(desc(driverCoachingLogs.createdAt))
+        .limit(20);
+
+      res.json(logs);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to generate coaching" });
+    }
+  });
+
+  app.post("/api/driver/coaching/:id/dismiss", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+
+      const [updated] = await db.update(driverCoachingLogs)
+        .set({ isDismissed: true })
+        .where(and(
+          eq(driverCoachingLogs.id, id),
+          eq(driverCoachingLogs.driverUserId, userId)
+        ))
+        .returning();
+
+      if (!updated) {
+        return res.status(404).json({ error: "Coaching alert not found" });
+      }
+
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to dismiss coaching" });
     }
   });
 

@@ -5119,6 +5119,23 @@ export type InsertDirectorCoachingLog = z.infer<typeof insertDirectorCoachingLog
 export type DirectorCoachingLog = typeof directorCoachingLogs.$inferSelect;
 
 // =============================================
+// PHASE 32B: DRIVER COACHING LOGS
+// =============================================
+
+export const driverCoachingLogs = pgTable("driver_coaching_logs", {
+  id: serial("id").primaryKey(),
+  driverUserId: varchar("driver_user_id", { length: 255 }).notNull(),
+  coachingType: varchar("coaching_type", { length: 50 }).notNull(),
+  message: text("message").notNull(),
+  severity: varchar("severity", { length: 20 }).notNull().default("info"),
+  isDismissed: boolean("is_dismissed").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertDriverCoachingLogSchema = createInsertSchema(driverCoachingLogs).omit({ id: true, createdAt: true });
+export type DriverCoachingLog = typeof driverCoachingLogs.$inferSelect;
+
+// =============================================
 // FUND ANOTHER WALLET
 // =============================================
 
@@ -5135,6 +5152,7 @@ export const walletFundingTransactions = pgTable("wallet_funding_transactions", 
   receiverRole: varchar("receiver_role", { length: 30 }),
   countryCode: varchar("country_code", { length: 3 }),
   disclaimerAccepted: boolean("disclaimer_accepted").notNull().default(false),
+  purpose: varchar("purpose", { length: 255 }),
   flagged: boolean("flagged").notNull().default(false),
   flagReason: text("flag_reason"),
   createdAt: timestamp("created_at").defaultNow().notNull(),

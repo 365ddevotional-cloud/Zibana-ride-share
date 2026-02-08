@@ -1,0 +1,235 @@
+You are continuing work on the ZIBA Ride-Share platform.
+
+MISSION:
+Implement Director Dashboard UI wireframes, “Fund Others” wallet capability, and ZIBRA coaching & performance nudges — safely, legally, and role-aware.
+
+ABSOLUTE RULES:
+- Do NOT change pricing splits or commission visibility.
+- Do NOT convert funding into loans, wages, or repayment systems.
+- Do NOT expose internal metrics to Riders or Drivers.
+- All actions must be logged, reversible only by Admin/Super Admin.
+- Audit existing code first and ADD only what is missing.
+
+====================================================================
+PART A — DIRECTOR DASHBOARD UI WIREFRAMES (BUILD-READY)
+====================================================================
+
+Create a dedicated Director Dashboard with these routes:
+
+/director/dashboard
+/director/drivers
+/director/funding
+/director/staff
+/director/activity
+
+VISIBILITY RULES:
+- Contract Director: sees only own cells
+- Employee Director: sees assigned drivers
+- Admin/Super Admin: sees all
+- Every action stores: actor_id, role, timestamp, IP
+
+-------------------------
+SCREEN 1: Director Overview
+-------------------------
+Components:
+- KPI cards:
+  - Total Drivers
+  - Active Today
+  - Commissionable Today (system-calculated)
+  - Funding Given (Today / Month)
+- ZIBRA Insight Card:
+  - Performance feedback
+  - Risk warning if nearing caps
+- Button: View Drivers
+- Button: Funding Center
+
+Empty State:
+- “You need at least 10 drivers to activate your director cell.”
+
+-------------------------
+SCREEN 2: Drivers Under Me
+-------------------------
+Table:
+- Driver Name
+- Status (Active / Pending / Suspended)
+- Online Today
+- Trust Indicator
+- Actions:
+  - Fund Wallet (if eligible)
+  - Warn Driver
+  - Request Suspension (Admin approval required)
+
+Director CAN:
+- Activate drivers signed via their referral
+Director CANNOT:
+- Permanently deactivate drivers
+
+-------------------------
+SCREEN 3: Funding Drivers
+-------------------------
+Form:
+- Select Driver (assigned only)
+- Amount
+- Purpose (required):
+  - Fuel support
+  - Availability boost
+  - Emergency help
+- Limits indicator (daily / weekly / monthly)
+- Checkbox:
+  “This is voluntary support. No repayment or obligation.”
+
+Backend:
+- Enforce caps
+- Reject coercive patterns
+- Log everything
+
+-------------------------
+SCREEN 4: Staff & Permissions
+-------------------------
+Director can:
+- Create staff accounts
+- Assign scoped permissions:
+  - View drivers
+  - View funding
+  - View reports
+  - No financial override
+- Discipline staff (non-destructive)
+Admin/Super Admin override all.
+
+-------------------------
+SCREEN 5: Activity & Audit Log
+-------------------------
+Immutable list:
+- Funding actions
+- Driver discipline
+- Staff changes
+- ZIBRA warnings
+Filters by date, action, user.
+
+====================================================================
+PART B — FUND OTHERS WALLET FEATURE (PARENT / BOSS / FRIEND)
+====================================================================
+
+Enable wallet funding BETWEEN users with consent.
+
+ELIGIBLE ROLES:
+- Rider → Rider
+- Director → Driver
+- Employer-type accounts → Staff (future)
+
+RULES:
+- Recipient must accept funding once
+- No repayment
+- No auto-deductions
+- No conditions
+- Funding ≠ obligation
+
+UI FLOW (RIDER):
+Wallet → “Fund Someone”
+- Enter phone/email (must exist on ZIBA)
+- Amount
+- Purpose (optional)
+- Confirmation message:
+  “This is a gift/support. No repayment expected.”
+
+RECIPIENT FLOW:
+- Notification + Inbox message
+- Accept / Decline
+- Funds appear only after acceptance
+
+LIMITS:
+- Daily / monthly caps
+- Fraud detection enabled
+- Admin configurable
+
+DATA MODEL:
+WalletFunding {
+  id
+  sender_id
+  recipient_id
+  amount
+  purpose
+  accepted_at
+  created_at
+  status
+}
+
+LEGAL SAFETY:
+- Add Terms clause:
+  “Wallet funding is voluntary support and not a loan or service payment.”
+
+====================================================================
+PART C — ZIBRA COACHING & PERFORMANCE SYSTEM
+====================================================================
+
+ZIBRA = internal codename
+User-facing name = “ZIBA Support”
+
+DO NOT mention “AI”.
+
+-------------------------
+ZIBRA COACHING TARGETS
+-------------------------
+- Directors
+- Drivers
+- (Admins get advisory mode)
+
+-------------------------
+DIRECTOR COACHING
+-------------------------
+ZIBRA prompts when:
+- Near driver cap
+- Funding abuse risk detected
+- Low driver activity
+- Staff mismanagement
+- Expiring contract lifespan
+
+Examples:
+- “Your funding activity is nearing system limits.”
+- “Driver engagement dropped this week. Consider outreach.”
+- “Some actions may require Admin confirmation.”
+
+-------------------------
+DRIVER COACHING
+-------------------------
+- Low acceptance rate
+- Frequent cancellations
+- Trust score dips
+- Wallet low balance
+
+Tone:
+Supportive, neutral, never threatening.
+
+-------------------------
+PERFORMANCE DATA (READ-ONLY)
+-------------------------
+ZIBRA may reference:
+- Aggregated trends
+- Status indicators
+- Compliance flags
+
+ZIBRA MUST NOT:
+- Promise income
+- Threaten penalties
+- Reveal commission math
+
+-------------------------
+ESCALATION
+-------------------------
+Button: “Contact Human Support”
+- Attaches context snapshot
+- No promises of resolution time
+
+====================================================================
+FINAL CHECKS (MANDATORY)
+====================================================================
+
+✔ Director dashboard isolated & secure
+✔ Funding others legally safe
+✔ ZIBRA coaching non-coercive
+✔ All actions logged
+✔ Admin override intact
+✔ No platform fee exposure
+
+Proceed step-by-step.
+Confirm each part before marking complete.

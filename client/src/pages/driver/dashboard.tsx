@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Power, TrendingUp, Clock, Navigation, Check, MapPin, Settings, User, Bell, Shield, Star, AlertTriangle, Flag } from "lucide-react";
+import { Power, TrendingUp, Clock, Navigation, Check, MapPin, Settings, User, Bell, Shield, Star, AlertTriangle, Flag, Lightbulb, RefreshCw, X, MessageCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -75,6 +75,37 @@ export default function DriverDashboard() {
   const { data: driverFundingAcceptance } = useQuery<{ accepted: boolean }>({
     queryKey: ["/api/director/funding/acceptance"],
     enabled: !!user,
+  });
+
+  const { data: coachingAlerts } = useQuery<Array<{
+    id: number;
+    coachingType: string;
+    message: string;
+    severity: string;
+    isDismissed: boolean;
+    createdAt: string;
+  }>>({
+    queryKey: ["/api/driver/coaching"],
+    enabled: !!user,
+  });
+
+  const generateCoachingMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/driver/coaching/generate");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/driver/coaching"] });
+      toast({ title: "Insights Updated", description: "Your support insights have been refreshed." });
+    },
+  });
+
+  const dismissCoachingMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("POST", `/api/driver/coaching/${id}/dismiss`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/driver/coaching"] });
+    },
   });
 
   const acceptFundingTermsMutation = useMutation({
@@ -197,6 +228,8 @@ export default function DriverDashboard() {
   }, 0);
 
   const todayTips = 0;
+
+  const activeDriverCoaching = coachingAlerts?.filter(c => !c.isDismissed) ?? [];
 
   if (profileLoading) {
     return <FullPageLoading text="Loading dashboard..." />;
@@ -563,6 +596,60 @@ export default function DriverDashboard() {
             </CardContent>
           </Card>
         )}
+
+        <Card data-testid="card-driver-coaching">
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Lightbulb className="h-4 w-4" />
+              ZIBA Support
+            </CardTitle>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => generateCoachingMutation.mutate()}
+              disabled={generateCoachingMutation.isPending}
+              data-testid="button-generate-driver-coaching"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${generateCoachingMutation.isPending ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {activeDriverCoaching.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-3" data-testid="text-no-driver-coaching">
+                No support insights right now. Tap Refresh to check for new tips.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {activeDriverCoaching.map((item) => (
+                  <div key={item.id} className="flex items-start justify-between gap-3 py-2 border-b border-border last:border-0" data-testid={`driver-coaching-${item.id}`}>
+                    <div className="flex items-start gap-2 min-w-0">
+                      <Lightbulb className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
+                      <p className="text-sm">{item.message}</p>
+                    </div>
+                    <Button size="icon" variant="ghost" onClick={() => dismissCoachingMutation.mutate(item.id)} data-testid={`button-dismiss-driver-coaching-${item.id}`}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="mt-3 pt-3 border-t border-border">
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  window.location.href = "/rider/support";
+                }}
+                data-testid="button-contact-human-support"
+              >
+                <MessageCircle className="h-3.5 w-3.5 mr-1.5" />
+                Contact Human Support
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         <Card data-testid="card-coercion-report">
           <CardContent className="flex items-start gap-3 py-4">

@@ -338,6 +338,21 @@ function AdminRouter() {
       <Route path="/admin/director-dashboard">
         <LazyComponent><DirectorDashboardPage /></LazyComponent>
       </Route>
+      <Route path="/director/dashboard">
+        <LazyComponent><DirectorDashboardPage /></LazyComponent>
+      </Route>
+      <Route path="/director/drivers">
+        <LazyComponent><DirectorDashboardPage /></LazyComponent>
+      </Route>
+      <Route path="/director/funding">
+        <LazyComponent><DirectorDashboardPage /></LazyComponent>
+      </Route>
+      <Route path="/director/staff">
+        <LazyComponent><DirectorDashboardPage /></LazyComponent>
+      </Route>
+      <Route path="/director/activity">
+        <LazyComponent><DirectorDashboardPage /></LazyComponent>
+      </Route>
       <Route>
         <Redirect to="/admin" />
       </Route>
@@ -377,6 +392,10 @@ function AuthenticatedRoutes() {
     return <Redirect to="/driver/dashboard" />;
   }
   
+  if (role === "director") {
+    return <Redirect to="/director/dashboard" />;
+  }
+
   if (ADMIN_ROLES.includes(role)) {
     return <Redirect to="/admin" />;
   }
@@ -700,6 +719,10 @@ function MainRouter() {
           return <Redirect to="/driver/dashboard" />;
         }
         
+        if (role === "director") {
+          return <Redirect to="/director/dashboard" />;
+        }
+
         if (ADMIN_ROLES.includes(role)) {
           return <Redirect to="/admin" />;
         }
@@ -715,7 +738,7 @@ function MainRouter() {
     );
   }
 
-  if (location.startsWith("/admin")) {
+  if (location.startsWith("/admin") || location.startsWith("/director")) {
     return <AdminRouter />;
   }
   

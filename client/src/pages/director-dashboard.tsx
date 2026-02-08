@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Users, Shield, Clock, AlertTriangle, Activity, UserPlus, ChevronRight,
   Calendar, Bell, X, RefreshCw, Wallet, Send, Ban, History, DollarSign,
-  CheckCircle, XCircle, Eye, Trash2
+  CheckCircle, XCircle, Eye, Trash2, Lightbulb, MessageCircle
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -697,7 +698,15 @@ function FundDriverDialog({
 
 export default function DirectorDashboard() {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("overview");
+  const [location] = useLocation();
+  const getInitialTab = () => {
+    if (location === "/director/drivers") return "drivers";
+    if (location === "/director/funding") return "funding";
+    if (location === "/director/staff") return "staff";
+    if (location === "/director/activity") return "activity";
+    return "overview";
+  };
+  const [activeTab, setActiveTab] = useState(getInitialTab);
   const [fundDialogOpen, setFundDialogOpen] = useState(false);
   const [selectedDriver, setSelectedDriver] = useState<EligibleDriver | null>(null);
   const [disciplineDialogOpen, setDisciplineDialogOpen] = useState(false);
@@ -807,6 +816,13 @@ export default function DirectorDashboard() {
   }) || [];
   const todayFundingTotal = todayFunding.reduce((sum, t) => sum + parseFloat(t.amount), 0);
 
+  const monthlyFunding = fundingHistory?.filter(t => {
+    const now = new Date();
+    const txDate = new Date(t.createdAt);
+    return txDate.getMonth() === now.getMonth() && txDate.getFullYear() === now.getFullYear() && t.status === "completed";
+  }) || [];
+  const monthlyFundingTotal = monthlyFunding.reduce((sum, t) => sum + parseFloat(t.amount), 0);
+
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto" data-testid="director-dashboard">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -837,7 +853,7 @@ export default function DirectorDashboard() {
 
         {/* OVERVIEW TAB */}
         <TabsContent value="overview" className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
             <Card data-testid="card-total-drivers">
               <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Drivers</CardTitle>
@@ -875,6 +891,16 @@ export default function DirectorDashboard() {
                 <p className="text-xs text-muted-foreground">{todayFunding.length} transaction{todayFunding.length !== 1 ? "s" : ""}</p>
               </CardContent>
             </Card>
+            <Card data-testid="card-funding-month">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Funding Given (Month)</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold" data-testid="text-funding-month">{monthlyFundingTotal.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground">{monthlyFunding.length} transaction{monthlyFunding.length !== 1 ? "s" : ""}</p>
+              </CardContent>
+            </Card>
             <Card data-testid="card-trust-score">
               <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Trust Score</CardTitle>
@@ -892,6 +918,17 @@ export default function DirectorDashboard() {
               </CardContent>
             </Card>
           </div>
+
+          {metrics && metrics.totalDrivers < 10 && (
+            <Card data-testid="card-empty-state-drivers">
+              <CardContent className="flex flex-col items-center justify-center py-8">
+                <Users className="h-10 w-10 text-muted-foreground mb-3" />
+                <p className="text-sm text-muted-foreground text-center" data-testid="text-empty-state-drivers">
+                  You need at least 10 drivers to activate your director cell.
+                </p>
+              </CardContent>
+            </Card>
+          )}
 
           {lifespan && (
             <Card data-testid="card-lifespan">
@@ -947,6 +984,45 @@ export default function DirectorDashboard() {
             </Card>
           )}
 
+          <Card data-testid="card-ziba-insight">
+            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Lightbulb className="h-4 w-4" />
+                ZIBA Support Insight
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm" data-testid="text-insight-performance">
+                {metrics && metrics.totalDrivers > 0 && (metrics.activeDriversToday / metrics.totalDrivers) > 0.77
+                  ? "Your cell activity is strong today."
+                  : "Your active driver ratio is below the target threshold."}
+              </p>
+              {cells && cells.some(cell => cell.maxDrivers > 0 && (cell.driverCount / cell.maxDrivers) > 0.9) && (
+                <p className="text-sm text-destructive" data-testid="text-insight-capacity-warning">
+                  One or more cells are nearing capacity.
+                </p>
+              )}
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setActiveTab("drivers")}
+                  data-testid="button-insight-view-drivers"
+                >
+                  View Drivers
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setActiveTab("funding")}
+                  data-testid="button-insight-funding-center"
+                >
+                  Funding Center
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card data-testid="card-coaching">
             <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -993,6 +1069,18 @@ export default function DirectorDashboard() {
                   ))}
                 </div>
               )}
+              <div className="mt-3 pt-3 border-t border-border">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => { window.location.href = "/admin"; }}
+                  data-testid="button-director-contact-support"
+                >
+                  <MessageCircle className="h-3.5 w-3.5 mr-1.5" />
+                  Contact Human Support
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

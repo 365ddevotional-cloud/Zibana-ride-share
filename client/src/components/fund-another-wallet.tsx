@@ -47,6 +47,7 @@ export function FundAnotherWalletDialog({ open, onClose }: { open: boolean; onCl
   const [identifier, setIdentifier] = useState("");
   const [amount, setAmount] = useState("");
   const [recipient, setRecipient] = useState<Recipient | null>(null);
+  const [purpose, setPurpose] = useState("");
   const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
 
   const { data: settings } = useQuery<FundingSettings>({
@@ -79,6 +80,7 @@ export function FundAnotherWalletDialog({ open, onClose }: { open: boolean; onCl
         receiverUserId: recipient?.userId,
         amount: parseFloat(amount),
         disclaimerAccepted,
+        purpose: purpose || undefined,
       });
       return res.json();
     },
@@ -130,6 +132,7 @@ export function FundAnotherWalletDialog({ open, onClose }: { open: boolean; onCl
     setStep("form");
     setIdentifier("");
     setAmount("");
+    setPurpose("");
     setRecipient(null);
     setDisclaimerAccepted(false);
     onClose();
@@ -139,6 +142,7 @@ export function FundAnotherWalletDialog({ open, onClose }: { open: boolean; onCl
     setStep("form");
     setIdentifier("");
     setAmount("");
+    setPurpose("");
     setRecipient(null);
     setDisclaimerAccepted(false);
   };
@@ -218,6 +222,16 @@ export function FundAnotherWalletDialog({ open, onClose }: { open: boolean; onCl
                 )}
               </div>
 
+              <div className="space-y-2">
+                <Label>Purpose (optional)</Label>
+                <Input
+                  placeholder="e.g. Fuel support, trip assistance"
+                  value={purpose}
+                  onChange={(e) => setPurpose(e.target.value)}
+                  data-testid="input-funding-purpose"
+                />
+              </div>
+
               <div className="flex gap-2">
                 <Button className="flex-1" onClick={handleProceed} disabled={!recipient || !amount} data-testid="button-proceed-funding">
                   Continue
@@ -255,6 +269,12 @@ export function FundAnotherWalletDialog({ open, onClose }: { open: boolean; onCl
                       {"\u20A6"}{parseFloat(amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </p>
                   </div>
+                  {purpose && (
+                    <div className="flex justify-between py-1">
+                      <span className="text-sm text-muted-foreground">Purpose</span>
+                      <span className="text-sm" data-testid="text-confirm-purpose">{purpose}</span>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 

@@ -15,7 +15,8 @@ export type ZibraCategory =
   | "director_cell" | "director_commission" | "director_drivers"
   | "director_performance" | "director_recruiting"
   | "director_lifecycle" | "director_appeals" | "director_deescalation"
-  | "director_coaching";
+  | "director_coaching"
+  | "driver_coaching";
 
 export interface ZibraTemplate {
   id: string;
@@ -1577,6 +1578,53 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     category: "director_coaching",
     keywords: ["cell almost full", "approaching limit", "near capacity", "running out of space", "cell capacity warning"],
     response: "Your cell is approaching its maximum capacity. Focus on quality over quantity for your remaining slots. Confirm that new driver additions meet platform standards. If you need additional capacity, discuss options with administration."
+  },
+
+  // ============================
+  // DRIVER COACHING TEMPLATES
+  // ============================
+
+  {
+    id: "drv-coach-low-acceptance",
+    role: "driver",
+    category: "driver_coaching",
+    keywords: ["low acceptance", "declining rides", "not accepting"],
+    response: "Your ride acceptance rate has been lower recently. Accepting more ride requests helps build your profile and maintain good standing on the platform."
+  },
+  {
+    id: "drv-coach-frequent-cancellations",
+    role: "driver",
+    category: "driver_coaching",
+    keywords: ["cancellations", "cancelled rides", "too many cancels"],
+    response: "We noticed some recent cancellations on your account. Completing rides you accept helps maintain a smooth experience for riders and supports your driver profile."
+  },
+  {
+    id: "drv-coach-trust-dip",
+    role: "driver",
+    category: "driver_coaching",
+    keywords: ["trust score", "trust dropped", "low trust"],
+    response: "Your trust indicator has changed recently. Consistent, reliable ride completion and positive interactions help maintain strong trust levels. Keep up the great work on completed rides."
+  },
+  {
+    id: "drv-coach-wallet-low",
+    role: "driver",
+    category: "driver_coaching",
+    keywords: ["low balance", "wallet empty", "no funds"],
+    response: "Your wallet balance is running low. A healthy balance ensures you can continue accepting rides without interruption. Consider topping up when convenient."
+  },
+  {
+    id: "drv-coach-positive-streak",
+    role: "driver",
+    category: "driver_coaching",
+    keywords: ["good performance", "great week", "doing well"],
+    response: "You have been performing well recently. Consistent engagement and positive rider feedback strengthen your profile. Thank you for your continued dedication."
+  },
+  {
+    id: "drv-coach-availability-tip",
+    role: "driver",
+    category: "driver_coaching",
+    keywords: ["availability", "go online", "more rides"],
+    response: "Staying available during peak hours can increase your ride opportunities. Check the app for busy times in your area and plan your availability accordingly."
   },
 
   // ============================
