@@ -49,7 +49,7 @@ import { LostItemFraudPanel } from "@/components/admin/lost-item-fraud-panel";
 import { ComplianceLogPanel } from "@/components/admin/compliance-log-panel";
 import { SupportLogsPanel } from "@/components/admin/support-logs-panel";
 import { InboxViewerPanel } from "@/components/admin/inbox-viewer-panel";
-import { ZibraInsightsPanel } from "@/components/zibra-insights-panel";
+import { ZibraInsightsPanel } from "@/components/admin/zibra-insights-panel";
 import { WelcomeInsightsPanel } from "@/components/welcome-insights-panel";
 import { ZibraGovernancePanel } from "@/components/zibra-governance-panel";
 import { ZibaSupport } from "@/components/ziba-support";
