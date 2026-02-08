@@ -42,6 +42,7 @@ Preferred communication style: Simple, everyday language.
 - **Safety & Incident Management**: SOS trigger, incident reporting, auto-escalation, suspension management, Accident Report Protocol, Lost Item Protocol with AI fraud detection, and a Safe Return Hub System.
 - **Legal Compliance**: Versioned legal documents, user consent tracking, and country-specific legal localization.
 - **Growth & Marketing**: Referral codes, marketing campaign tracking, and in-app tip banners.
+- **Smart Onboarding**: Behavior-aware discovery on the welcome page with intent tracking (session-based, anonymous), adaptive CTAs that change based on user interest, ZIBRA soft intro bubble on 2nd/3rd interaction, intent pass-through to signup flow, and admin Welcome Insights panel with conversion metrics.
 - **Scheduled Reservations**: Advance booking functionality.
 - **Driver and Rider Apps**: Restructured interfaces with bottom navigation, performance insights, and comprehensive settings.
 - **Tax Statement System**: Generation of PDF & CSV tax statements with country-specific configurations.
