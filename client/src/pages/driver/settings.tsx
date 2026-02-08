@@ -202,7 +202,7 @@ export default function DriverSettings() {
                 icon={<Eye className="h-5 w-5" />}
                 label="Data Usage"
                 sublabel="Control how your data is used"
-                onClick={() => toast({ title: "Coming soon", description: "Data usage settings will be available in a future update." })}
+                onClick={() => setLocation("/driver/data-usage")}
                 testId="button-data-usage"
               />
               <SettingsNavRow
@@ -233,7 +233,7 @@ export default function DriverSettings() {
                 icon={<Phone className="h-5 w-5" />}
                 label="Emergency Contacts"
                 sublabel="Manage your emergency contacts"
-                onClick={() => toast({ title: "Coming soon", description: "Emergency contacts will be available in a future update." })}
+                onClick={() => setLocation("/driver/emergency-contacts")}
                 testId="button-emergency-contacts"
               />
             </CardContent>

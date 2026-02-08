@@ -61,6 +61,8 @@ const DriverVehiclePage = lazy(() => import("@/pages/driver/vehicle"));
 const DriverDocumentsPage = lazy(() => import("@/pages/driver/documents"));
 const DriverInboxPage = lazy(() => import("@/pages/driver/inbox"));
 const DriverTermsPrivacyPage = lazy(() => import("@/pages/driver/terms-privacy"));
+const DriverDataUsagePage = lazy(() => import("@/pages/driver/data-usage"));
+const DriverEmergencyContactsPage = lazy(() => import("@/pages/driver/emergency-contacts"));
 const RiderSchedulePage = lazy(() => import("@/pages/rider/schedule"));
 const RiderInboxPage = lazy(() => import("@/pages/rider/inbox"));
 const RiderActivityPage = lazy(() => import("@/pages/rider/activity"));
@@ -323,6 +325,12 @@ function DriverRouter() {
       </Route>
       <Route path="/driver/terms-privacy">
         <LazyComponent><DriverTermsPrivacyPage /></LazyComponent>
+      </Route>
+      <Route path="/driver/data-usage">
+        <LazyComponent><DriverDataUsagePage /></LazyComponent>
+      </Route>
+      <Route path="/driver/emergency-contacts">
+        <LazyComponent><DriverEmergencyContactsPage /></LazyComponent>
       </Route>
       <Route>
         <Redirect to="/driver/dashboard" />
