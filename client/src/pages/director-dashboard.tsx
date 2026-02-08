@@ -22,6 +22,7 @@ import {
   CheckCircle, XCircle, Eye, Trash2, Lightbulb, MessageCircle,
   TrendingUp, BarChart3, Building2, Star, Crown, BookOpen, Globe, Settings2
 } from "lucide-react";
+import { RideClassIcon } from "@/components/ride-class-icon";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation, LANGUAGES } from "@/i18n";
@@ -1099,6 +1100,22 @@ export default function DirectorDashboard() {
     queryKey: ["/api/director/funding/acceptance"],
   });
 
+  const { data: rideClassStats, isLoading: rideClassLoading } = useQuery<{
+    stats: Array<{
+      classId: string;
+      className: string;
+      color: string;
+      driverCount: number;
+      tripsToday: number;
+      earningsToday: number;
+      percentage: number;
+    }>;
+    totalEarnings: number;
+  }>({
+    queryKey: ["/api/director/ride-class-stats"],
+    enabled: activeTab === "ride-classes",
+  });
+
   const { data: disputesData, isLoading: disputesLoading } = useQuery<{
     disputes: Array<{
       id: string;
@@ -1451,6 +1468,10 @@ export default function DirectorDashboard() {
           <TabsTrigger value="special-rides" disabled={trainingStatus && !trainingStatus.allCompleted && !isReadOnly} data-testid="tab-special-rides">
             <Crown className="h-4 w-4 mr-1" />
             Special Rides
+          </TabsTrigger>
+          <TabsTrigger value="ride-classes" disabled={trainingStatus && !trainingStatus.allCompleted && !isReadOnly} data-testid="tab-ride-classes">
+            <BarChart3 className="h-4 w-4 mr-1" />
+            Ride Classes
           </TabsTrigger>
           <TabsTrigger value="settings" data-testid="tab-settings">
             <Settings2 className="w-3 h-3 mr-1" /> Settings
@@ -3023,6 +3044,71 @@ export default function DirectorDashboard() {
         {/* SPECIAL RIDES TAB */}
         <TabsContent value="special-rides" className="space-y-4">
           <DirectorSpecialRidesPanel />
+        </TabsContent>
+
+        <TabsContent value="ride-classes" className="space-y-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" />
+                  Ride Class Breakdown
+                </CardTitle>
+                <CardDescription>Drivers and earnings by ride class</CardDescription>
+              </div>
+              {rideClassStats && (
+                <Badge variant="secondary" data-testid="badge-total-earnings">
+                  Total: {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0 }).format(rideClassStats.totalEarnings)}
+                </Badge>
+              )}
+            </CardHeader>
+            <CardContent>
+              {rideClassLoading ? (
+                <div className="space-y-3">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <Skeleton key={i} className="h-12 w-full" />
+                  ))}
+                </div>
+              ) : rideClassStats?.stats?.length ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Class</TableHead>
+                      <TableHead className="text-right">Active Drivers</TableHead>
+                      <TableHead className="text-right">Trips Today</TableHead>
+                      <TableHead className="text-right">Earnings Today</TableHead>
+                      <TableHead className="text-right">% of Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rideClassStats.stats.map((rc) => (
+                      <TableRow key={rc.classId} data-testid={`row-ride-class-${rc.classId}`}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <RideClassIcon rideClass={rc.classId} size="sm" />
+                            <span className="font-medium">{rc.className}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right" data-testid={`text-driver-count-${rc.classId}`}>{rc.driverCount}</TableCell>
+                        <TableCell className="text-right" data-testid={`text-trips-today-${rc.classId}`}>{rc.tripsToday}</TableCell>
+                        <TableCell className="text-right" data-testid={`text-earnings-${rc.classId}`}>
+                          {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0 }).format(rc.earningsToday)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Progress value={rc.percentage} className="w-16 h-2" />
+                            <span className="text-sm text-muted-foreground w-10 text-right" data-testid={`text-percentage-${rc.classId}`}>{rc.percentage}%</span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-8">No ride class data available</p>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-4">

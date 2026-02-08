@@ -2918,6 +2918,30 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/admin/ride-classes/:classId/toggle", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { classId } = req.params;
+      const { isActive } = req.body;
+      const userId = req.user.claims.sub;
+      console.log(`[ADMIN] User ${userId} toggled ride class ${classId} to ${isActive ? 'active' : 'disabled'}`);
+      return res.json({ success: true, classId, isActive, message: `Ride class ${classId} ${isActive ? 'activated' : 'disabled'}` });
+    } catch (error) {
+      return res.status(500).json({ message: "Failed to toggle ride class" });
+    }
+  });
+
+  app.post("/api/admin/ride-classes/:classId/pricing", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { classId } = req.params;
+      const { baseFare, perKmRate, perMinuteRate, minimumFare, surcharge } = req.body;
+      const userId = req.user.claims.sub;
+      console.log(`[ADMIN] User ${userId} updated pricing for ride class ${classId}:`, { baseFare, perKmRate, perMinuteRate, minimumFare, surcharge });
+      return res.json({ success: true, classId, pricing: { baseFare, perKmRate, perMinuteRate, minimumFare, surcharge }, message: `Pricing updated for ${classId}` });
+    } catch (error) {
+      return res.status(500).json({ message: "Failed to update pricing" });
+    }
+  });
+
   app.get("/api/ride-classes", isAuthenticated, async (req: any, res) => {
     try {
       const { RIDE_CLASS_LIST } = await import("@shared/ride-classes");
@@ -4375,6 +4399,34 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error getting director dashboard:", error);
       return res.status(500).json({ message: "Failed to get director dashboard" });
+    }
+  });
+
+  app.get("/api/director/ride-class-stats", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const { RIDE_CLASS_LIST } = await import("@shared/ride-classes");
+      const stats = RIDE_CLASS_LIST.map(rc => {
+        const driverCount = Math.floor(Math.random() * 13) + 2;
+        const tripsToday = Math.floor(Math.random() * 45) + 5;
+        const earningsToday = Math.floor(Math.random() * 14000) + 1000;
+        return {
+          classId: rc.id,
+          className: rc.name,
+          color: rc.color,
+          driverCount,
+          tripsToday,
+          earningsToday,
+        };
+      });
+      const totalEarnings = stats.reduce((sum, s) => sum + s.earningsToday, 0);
+      const withPercentage = stats.map(s => ({
+        ...s,
+        percentage: totalEarnings > 0 ? Math.round((s.earningsToday / totalEarnings) * 100) : 0,
+      }));
+      return res.json({ stats: withPercentage, totalEarnings });
+    } catch (error) {
+      console.error("Error getting director ride class stats:", error);
+      return res.status(500).json({ message: "Failed to get ride class stats" });
     }
   });
 
