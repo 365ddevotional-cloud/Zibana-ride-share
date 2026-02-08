@@ -4,8 +4,8 @@ import { createHash } from "crypto";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { storage } from "./storage";
 import { db } from "./db";
-import { eq, and, count, sql, gte, lt, isNotNull, inArray, desc, or } from "drizzle-orm";
-import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, driverInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages, walletFundingTransactions, walletFundingSettings, driverWallets, directorFundingTransactions, directorFundingSettings, directorFundingAcceptance, directorFundingSuspensions, directorProfiles, directorDriverAssignments, directorActionLogs, driverCoachingLogs, directorCells, directorCommissionSettings, directorPayoutSummaries, referralCodes, directorFraudSignals, directorDisputes, directorDisputeMessages, directorWindDowns, welcomeAnalytics, directorPerformanceScores, directorPerformanceWeights, directorIncentives, directorRestrictions, directorPerformanceLogs } from "@shared/schema";
+import { eq, and, count, sql, gte, lt, lte, isNotNull, inArray, desc, or } from "drizzle-orm";
+import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, driverInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages, walletFundingTransactions, walletFundingSettings, driverWallets, directorFundingTransactions, directorFundingSettings, directorFundingAcceptance, directorFundingSuspensions, directorProfiles, directorDriverAssignments, directorActionLogs, driverCoachingLogs, directorCells, directorCommissionSettings, directorPayoutSummaries, referralCodes, directorFraudSignals, directorDisputes, directorDisputeMessages, directorWindDowns, welcomeAnalytics, directorPerformanceScores, directorPerformanceWeights, directorIncentives, directorRestrictions, directorPerformanceLogs, directorSuccessions, directorTerminationTimeline, directorStaff } from "@shared/schema";
 import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, evaluateAllDrivers, evaluateBehaviorAndWarnings, calculateDriverMatchingScore, getDriverIncentiveProgress, assignFirstRidePromo, assignReturnRiderPromo, applyPromoToTrip, voidPromosOnCancellation } from "./incentives";
 import { notificationService } from "./notification-service";
 import { getCurrencyFromCountry, getCountryConfig, FINANCIAL_ENGINE_LOCKED } from "@shared/currency";
@@ -24470,6 +24470,469 @@ export async function registerRoutes(
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to reinstate director" });
+    }
+  });
+
+  // ============================================================
+  // PART O — DIRECTOR TERMINATION, SUCCESSION & CELL CONTINUITY
+  // ============================================================
+
+  app.post("/api/admin/directors/:directorUserId/succession", isAuthenticated, requireSuperAdmin, async (req: any, res) => {
+    try {
+      const { directorUserId } = req.params;
+      const adminUserId = req.user?.claims?.sub;
+      const { terminationType, terminationReason, successionType, successorDirectorId, payoutDecision, payoutAmount, payoutReason } = req.body;
+
+      const validTermTypes = ["expiration", "suspension", "termination"];
+      if (!validTermTypes.includes(terminationType)) {
+        return res.status(400).json({ error: "Invalid terminationType. Must be one of: expiration, suspension, termination" });
+      }
+
+      const validSuccTypes = ["reassign_to_director", "new_director", "platform_pool"];
+      if (!validSuccTypes.includes(successionType)) {
+        return res.status(400).json({ error: "Invalid successionType. Must be one of: reassign_to_director, new_director, platform_pool" });
+      }
+
+      if (successionType === "reassign_to_director" && !successorDirectorId) {
+        return res.status(400).json({ error: "successorDirectorId is required when successionType is reassign_to_director" });
+      }
+
+      const driverCountResult = await db.select({ value: count() }).from(directorDriverAssignments).where(eq(directorDriverAssignments.directorUserId, directorUserId));
+      const driversAffectedCount = driverCountResult[0]?.value || 0;
+
+      const staffCountResult = await db.select({ value: count() }).from(directorStaff).where(and(eq(directorStaff.directorUserId, directorUserId), eq(directorStaff.status, "active")));
+      const activeStaffCount = staffCountResult[0]?.value || 0;
+
+      const zibraSummary = `ZIBRA Succession Summary: Director ${directorUserId} — ${terminationType}. Reason: ${terminationReason || "N/A"}. Drivers affected: ${driversAffectedCount}. Active staff: ${activeStaffCount}. Succession type: ${successionType}.`;
+
+      const [succession] = await db.insert(directorSuccessions).values({
+        departingDirectorId: directorUserId,
+        terminationType,
+        terminationReason: terminationReason || null,
+        successionType,
+        successorDirectorId: successorDirectorId || null,
+        driversAffectedCount,
+        payoutDecision: payoutDecision || "hold",
+        payoutAmount: payoutAmount || null,
+        payoutReason: payoutReason || null,
+        initiatedBy: adminUserId,
+        status: "pending",
+        zibraSummary,
+      }).returning();
+
+      const timelineSteps = [
+        { stepName: "disable_actions", stepDescription: "Disable driver activation, funding, staff management", sortOrder: 1 },
+        { stepName: "freeze_payouts", stepDescription: "Freeze all pending payouts for review", sortOrder: 2 },
+        { stepName: "disable_staff", stepDescription: "Disable all director staff accounts", sortOrder: 3 },
+        { stepName: "handle_drivers", stepDescription: "Reassign or move drivers to platform pool", sortOrder: 4 },
+        { stepName: "resolve_payouts", stepDescription: "Apply payout decision (release/hold/partial/forfeit)", sortOrder: 5 },
+        { stepName: "seal_audit", stepDescription: "Seal audit trail and mark completion", sortOrder: 6 },
+      ];
+
+      const insertedSteps = [];
+      for (const step of timelineSteps) {
+        const [inserted] = await db.insert(directorTerminationTimeline).values({
+          successionId: succession.id,
+          directorUserId,
+          stepName: step.stepName,
+          stepDescription: step.stepDescription,
+          sortOrder: step.sortOrder,
+        }).returning();
+        insertedSteps.push(inserted);
+      }
+
+      await db.insert(directorActionLogs).values({
+        directorUserId,
+        action: "create_succession_plan",
+        performedBy: adminUserId,
+        details: `Succession plan created. Type: ${terminationType}, Succession: ${successionType}`,
+        metadata: JSON.stringify({ successionId: succession.id, terminationType, successionType }),
+        ipAddress: req.ip || req.connection?.remoteAddress || null,
+      });
+
+      res.json({ succession, timeline: insertedSteps });
+    } catch (error) {
+      console.error("Error creating succession plan:", error);
+      res.status(500).json({ error: "Failed to create succession plan" });
+    }
+  });
+
+  app.get("/api/admin/directors/:directorUserId/succession", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { directorUserId } = req.params;
+      const records = await db.select().from(directorSuccessions).where(eq(directorSuccessions.departingDirectorId, directorUserId)).orderBy(desc(directorSuccessions.createdAt));
+      res.json(records);
+    } catch (error) {
+      console.error("Error getting succession records:", error);
+      res.status(500).json({ error: "Failed to get succession records" });
+    }
+  });
+
+  app.post("/api/admin/directors/succession/:successionId/execute", isAuthenticated, requireSuperAdmin, async (req: any, res) => {
+    try {
+      const { successionId } = req.params;
+      const adminUserId = req.user?.claims?.sub;
+
+      const [succession] = await db.select().from(directorSuccessions).where(eq(directorSuccessions.id, successionId));
+      if (!succession) {
+        return res.status(404).json({ error: "Succession plan not found" });
+      }
+
+      const directorUserId = succession.departingDirectorId;
+      const [director] = await db.select().from(directorProfiles).where(eq(directorProfiles.userId, directorUserId));
+      if (!director) {
+        return res.status(404).json({ error: "Director profile not found" });
+      }
+
+      if (director.lifecycleStatus === "terminated") {
+        return res.status(400).json({ error: "Director is already terminated" });
+      }
+
+      const markStep = async (stepName: string) => {
+        await db.update(directorTerminationTimeline).set({
+          completed: true,
+          completedAt: new Date(),
+          completedBy: adminUserId,
+        }).where(and(
+          eq(directorTerminationTimeline.successionId, successionId),
+          eq(directorTerminationTimeline.stepName, stepName)
+        ));
+      };
+
+      if (succession.terminationType === "termination") {
+        await db.update(directorProfiles).set({
+          lifecycleStatus: "terminated",
+          status: "inactive",
+          terminatedAt: new Date(),
+          terminatedBy: adminUserId,
+          terminationReason: succession.terminationReason || "Succession plan executed",
+          commissionFrozen: true,
+        }).where(eq(directorProfiles.userId, directorUserId));
+      } else if (succession.terminationType === "suspension") {
+        await db.update(directorProfiles).set({
+          lifecycleStatus: "suspended",
+          suspendedAt: new Date(),
+          suspendedBy: adminUserId,
+          commissionFrozen: true,
+        }).where(eq(directorProfiles.userId, directorUserId));
+      } else if (succession.terminationType === "expiration") {
+        await db.update(directorProfiles).set({
+          lifecycleStatus: "expired",
+          status: "inactive",
+          commissionFrozen: true,
+        }).where(eq(directorProfiles.userId, directorUserId));
+      }
+      await markStep("disable_actions");
+
+      const pendingPayouts = await db.select().from(directorPayoutSummaries).where(and(
+        eq(directorPayoutSummaries.directorUserId, directorUserId),
+        inArray(directorPayoutSummaries.payoutState, ["calculating", "pending_review", "approved", "scheduled"])
+      ));
+      if (pendingPayouts.length > 0) {
+        await db.update(directorPayoutSummaries).set({
+          payoutState: "held",
+          payoutStatus: "on_hold",
+          holdReason: `Succession plan executed: ${succession.terminationType}`,
+          heldBy: adminUserId,
+          heldAt: new Date(),
+          zibraFlagged: true,
+        }).where(and(
+          eq(directorPayoutSummaries.directorUserId, directorUserId),
+          inArray(directorPayoutSummaries.payoutState, ["calculating", "pending_review", "approved", "scheduled"])
+        ));
+      }
+      await markStep("freeze_payouts");
+
+      const staffResult = await db.update(directorStaff).set({
+        status: "disabled",
+      }).where(and(
+        eq(directorStaff.directorUserId, directorUserId),
+        eq(directorStaff.status, "active")
+      )).returning();
+      const staffDisabledCount = staffResult.length;
+      await db.update(directorSuccessions).set({ staffDisabledCount }).where(eq(directorSuccessions.id, successionId));
+      await markStep("disable_staff");
+
+      const assignments = await db.select().from(directorDriverAssignments).where(eq(directorDriverAssignments.directorUserId, directorUserId));
+      if (succession.successionType === "reassign_to_director" && succession.successorDirectorId) {
+        for (const assignment of assignments) {
+          await storage.removeDriverFromDirector(assignment.driverUserId);
+          await storage.assignDriverToDirector(succession.successorDirectorId, assignment.driverUserId, assignment.assignmentType || "reassigned", adminUserId);
+          await storage.createNotification({
+            userId: assignment.driverUserId,
+            role: "driver",
+            type: "info",
+            title: "Director Assignment Updated",
+            message: "Your Director assignment has been updated.",
+          });
+        }
+        await db.update(directorSuccessions).set({ driversReassignedCount: assignments.length }).where(eq(directorSuccessions.id, successionId));
+      } else {
+        for (const assignment of assignments) {
+          await storage.removeDriverFromDirector(assignment.driverUserId);
+          await storage.createNotification({
+            userId: assignment.driverUserId,
+            role: "driver",
+            type: "info",
+            title: "Director Assignment Updated",
+            message: "Your Director assignment has been updated.",
+          });
+        }
+        await db.update(directorSuccessions).set({ driversToPoolCount: assignments.length }).where(eq(directorSuccessions.id, successionId));
+      }
+      await markStep("handle_drivers");
+
+      const heldPayouts = await db.select().from(directorPayoutSummaries).where(and(
+        eq(directorPayoutSummaries.directorUserId, directorUserId),
+        eq(directorPayoutSummaries.payoutState, "held")
+      ));
+      if (succession.payoutDecision === "release") {
+        if (heldPayouts.length > 0) {
+          await db.update(directorPayoutSummaries).set({
+            payoutState: "approved",
+            payoutStatus: "approved",
+          }).where(and(
+            eq(directorPayoutSummaries.directorUserId, directorUserId),
+            eq(directorPayoutSummaries.payoutState, "held")
+          ));
+        }
+      } else if (succession.payoutDecision === "partial_release") {
+        if (heldPayouts.length > 0 && succession.payoutAmount) {
+          await db.update(directorPayoutSummaries).set({
+            partialReleaseAmount: succession.payoutAmount,
+            payoutState: "approved",
+            payoutStatus: "approved",
+          }).where(and(
+            eq(directorPayoutSummaries.directorUserId, directorUserId),
+            eq(directorPayoutSummaries.payoutState, "held")
+          ));
+        }
+      } else if (succession.payoutDecision === "forfeit") {
+        if (heldPayouts.length > 0) {
+          await db.update(directorPayoutSummaries).set({
+            payoutState: "rejected",
+            payoutStatus: "rejected",
+            holdReason: succession.payoutReason || "Forfeited via succession plan",
+          }).where(and(
+            eq(directorPayoutSummaries.directorUserId, directorUserId),
+            eq(directorPayoutSummaries.payoutState, "held")
+          ));
+        }
+      }
+      await markStep("resolve_payouts");
+
+      await db.insert(directorWindDowns).values({
+        directorUserId,
+        triggerReason: `Succession plan: ${succession.terminationType}`,
+        initiatedBy: adminUserId,
+        fundingDisabled: true,
+        staffAccessRevoked: true,
+        driversReassigned: succession.successionType === "reassign_to_director",
+        driversUnassigned: succession.successionType !== "reassign_to_director",
+        pendingPayoutsResolved: true,
+        auditSealed: true,
+        driversAffectedCount: assignments.length,
+        reassignedToDirectorId: succession.successorDirectorId || null,
+        completedAt: new Date(),
+        status: "completed",
+      });
+      await markStep("seal_audit");
+
+      const [updatedSuccession] = await db.update(directorSuccessions).set({
+        status: "completed",
+        completedAt: new Date(),
+        approvedBy: adminUserId,
+      }).where(eq(directorSuccessions.id, successionId)).returning();
+
+      await db.insert(directorActionLogs).values({
+        directorUserId,
+        action: "execute_succession",
+        performedBy: adminUserId,
+        details: `Succession plan executed. Type: ${succession.terminationType}, Succession: ${succession.successionType}`,
+        metadata: JSON.stringify({ successionId, terminationType: succession.terminationType, successionType: succession.successionType }),
+        ipAddress: req.ip || req.connection?.remoteAddress || null,
+      });
+
+      await storage.createNotification({
+        userId: directorUserId,
+        role: "director",
+        type: "warning",
+        title: "Director Appointment Concluded",
+        message: "Your director appointment has been concluded. Your dashboard is now in read-only mode.",
+      });
+
+      res.json({ success: true, succession: updatedSuccession });
+    } catch (error) {
+      console.error("Error executing succession plan:", error);
+      res.status(500).json({ error: "Failed to execute succession plan" });
+    }
+  });
+
+  app.get("/api/admin/directors/succession/:successionId/timeline", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { successionId } = req.params;
+      const steps = await db.select().from(directorTerminationTimeline).where(eq(directorTerminationTimeline.successionId, successionId)).orderBy(directorTerminationTimeline.sortOrder);
+      res.json(steps);
+    } catch (error) {
+      console.error("Error getting timeline steps:", error);
+      res.status(500).json({ error: "Failed to get timeline steps" });
+    }
+  });
+
+  app.get("/api/admin/directors/succession/active", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const records = await db.select({
+        succession: directorSuccessions,
+        director: directorProfiles,
+      }).from(directorSuccessions)
+        .leftJoin(directorProfiles, eq(directorSuccessions.departingDirectorId, directorProfiles.userId))
+        .where(sql`${directorSuccessions.status} != 'completed'`)
+        .orderBy(desc(directorSuccessions.createdAt));
+      res.json(records);
+    } catch (error) {
+      console.error("Error getting active successions:", error);
+      res.status(500).json({ error: "Failed to get active successions" });
+    }
+  });
+
+  app.post("/api/admin/directors/:directorUserId/payout-decision", isAuthenticated, requireSuperAdmin, async (req: any, res) => {
+    try {
+      const { directorUserId } = req.params;
+      const adminUserId = req.user?.claims?.sub;
+      const { decision, amount, reason } = req.body;
+
+      const validDecisions = ["release", "hold", "partial_release", "forfeit"];
+      if (!validDecisions.includes(decision)) {
+        return res.status(400).json({ error: "Invalid decision. Must be one of: release, hold, partial_release, forfeit" });
+      }
+
+      const heldPayouts = await db.select().from(directorPayoutSummaries).where(and(
+        eq(directorPayoutSummaries.directorUserId, directorUserId),
+        eq(directorPayoutSummaries.payoutState, "held")
+      ));
+
+      if (heldPayouts.length === 0) {
+        return res.status(404).json({ error: "No held payouts found for this director" });
+      }
+
+      if (decision === "release") {
+        await db.update(directorPayoutSummaries).set({
+          payoutState: "approved",
+          payoutStatus: "approved",
+        }).where(and(
+          eq(directorPayoutSummaries.directorUserId, directorUserId),
+          eq(directorPayoutSummaries.payoutState, "held")
+        ));
+      } else if (decision === "partial_release" && amount) {
+        await db.update(directorPayoutSummaries).set({
+          partialReleaseAmount: amount,
+          payoutState: "approved",
+          payoutStatus: "approved",
+        }).where(and(
+          eq(directorPayoutSummaries.directorUserId, directorUserId),
+          eq(directorPayoutSummaries.payoutState, "held")
+        ));
+      } else if (decision === "forfeit") {
+        await db.update(directorPayoutSummaries).set({
+          payoutState: "rejected",
+          payoutStatus: "rejected",
+          holdReason: reason || "Forfeited by admin decision",
+        }).where(and(
+          eq(directorPayoutSummaries.directorUserId, directorUserId),
+          eq(directorPayoutSummaries.payoutState, "held")
+        ));
+      }
+
+      await db.insert(directorActionLogs).values({
+        directorUserId,
+        action: "payout_decision",
+        performedBy: adminUserId,
+        details: `Payout decision: ${decision}. Affected payouts: ${heldPayouts.length}. Reason: ${reason || "N/A"}`,
+        metadata: JSON.stringify({ decision, amount, reason, affectedCount: heldPayouts.length }),
+        ipAddress: req.ip || req.connection?.remoteAddress || null,
+      });
+
+      res.json({ success: true, affectedPayouts: heldPayouts.length, decision });
+    } catch (error) {
+      console.error("Error applying payout decision:", error);
+      res.status(500).json({ error: "Failed to apply payout decision" });
+    }
+  });
+
+  app.get("/api/admin/directors/expiring", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const now = new Date();
+      const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+      const expiringDirectors = await db.select().from(directorProfiles).where(and(
+        eq(directorProfiles.lifecycleStatus, "active"),
+        isNotNull(directorProfiles.lifespanEndDate),
+        gte(directorProfiles.lifespanEndDate, now),
+        lte(directorProfiles.lifespanEndDate, thirtyDaysFromNow)
+      ));
+
+      const results = expiringDirectors.map(d => {
+        const endDate = new Date(d.lifespanEndDate!);
+        const daysRemaining = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        return { ...d, daysRemaining };
+      });
+
+      res.json(results);
+    } catch (error) {
+      console.error("Error getting expiring directors:", error);
+      res.status(500).json({ error: "Failed to get expiring directors" });
+    }
+  });
+
+  app.post("/api/admin/directors/:directorUserId/zibra-succession-summary", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { directorUserId } = req.params;
+
+      const [director] = await db.select().from(directorProfiles).where(eq(directorProfiles.userId, directorUserId));
+      if (!director) {
+        return res.status(404).json({ error: "Director not found" });
+      }
+
+      const driverCountResult = await db.select({ value: count() }).from(directorDriverAssignments).where(eq(directorDriverAssignments.directorUserId, directorUserId));
+      const driverCount = driverCountResult[0]?.value || 0;
+
+      const staffCountResult = await db.select({ value: count() }).from(directorStaff).where(and(eq(directorStaff.directorUserId, directorUserId), eq(directorStaff.status, "active")));
+      const activeStaffCount = staffCountResult[0]?.value || 0;
+
+      const [perfScore] = await db.select().from(directorPerformanceScores).where(eq(directorPerformanceScores.directorUserId, directorUserId));
+      const performanceScore = perfScore?.score || 0;
+      const performanceTier = perfScore?.tier || "bronze";
+
+      const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+      const fraudCountResult = await db.select({ value: count() }).from(directorFraudSignals).where(and(
+        eq(directorFraudSignals.directorUserId, directorUserId),
+        gte(directorFraudSignals.createdAt, ninetyDaysAgo)
+      ));
+      const recentFraudSignals = fraudCountResult[0]?.value || 0;
+
+      const payoutCountResult = await db.select({ value: count() }).from(directorPayoutSummaries).where(eq(directorPayoutSummaries.directorUserId, directorUserId));
+      const pendingPayouts = payoutCountResult[0]?.value || 0;
+
+      const complianceRisks: string[] = [];
+      if (recentFraudSignals > 0) complianceRisks.push(`${recentFraudSignals} fraud signal(s) in last 90 days`);
+      if (performanceScore < 40) complianceRisks.push("Low performance score (below 40)");
+      if (performanceTier === "at_risk") complianceRisks.push("Performance tier: at_risk");
+      if (director.commissionFrozen) complianceRisks.push("Commission currently frozen");
+
+      res.json({
+        directorUserId,
+        fullName: director.fullName,
+        driverCount,
+        activeStaffCount,
+        performanceScore,
+        performanceTier,
+        recentFraudSignals,
+        pendingPayouts,
+        complianceRisks,
+      });
+    } catch (error) {
+      console.error("Error generating ZIBRA succession summary:", error);
+      res.status(500).json({ error: "Failed to generate ZIBRA succession summary" });
     }
   });
 

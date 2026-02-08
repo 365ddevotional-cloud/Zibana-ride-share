@@ -15,7 +15,7 @@ export type ZibraCategory =
   | "director_cell" | "director_commission" | "director_drivers"
   | "director_performance" | "director_recruiting"
   | "director_lifecycle" | "director_appeals" | "director_deescalation"
-  | "director_coaching"
+  | "director_coaching" | "director_termination" | "director_succession"
   | "driver_coaching";
 
 export interface ZibraTemplate {
@@ -1794,6 +1794,86 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     response: "An At-Risk status means your performance metrics need attention. This is an opportunity to improve, not a penalty. Review your driver activity, quality, and compliance metrics. ZIBA provides guidance and time to address performance gaps. The platform retains discretion over all operational decisions.",
     priority: 90
   },
+
+  // ============================
+  // DIRECTOR TERMINATION, SUCCESSION & CELL CONTINUITY
+  // ============================
+
+  {
+    id: "d-termination-process",
+    role: "director",
+    category: "director_termination",
+    keywords: ["termination process", "how does termination work", "what happens when terminated", "termination steps"],
+    response: "When a director is terminated, the platform follows a structured process:\n1. All director actions are immediately disabled.\n2. Pending payouts are frozen for review.\n3. Staff accounts under the director are disabled.\n4. Drivers are handled according to the succession plan determined by administration.\n5. Final payouts are resolved based on compliance review and admin decision.\n6. The director's audit trail is sealed for record-keeping.\n\nThis process is managed by administration. ZIBRA does not make promises regarding reinstatement or specific outcomes. If you have questions about your situation, contact support for guidance.",
+    priority: 85
+  },
+  {
+    id: "d-succession-planning",
+    role: "director",
+    category: "director_succession",
+    keywords: ["succession", "replacement", "who takes over", "drivers reassigned", "new director"],
+    response: "Succession is managed by Admin or Super Admin. When a director transition occurs, there are three possible outcomes for drivers and cell operations:\n1. Reassignment to an existing active director.\n2. Appointment of a new director to take over the cell.\n3. Temporary placement in the platform pool until a new director is assigned.\n\nDrivers are protected throughout the transition and continue operating without interruption. The specific succession path is determined by administration based on operational needs.",
+    priority: 80
+  },
+  {
+    id: "d-driver-protection-changes",
+    role: "director",
+    category: "director_termination",
+    keywords: ["what happens to my drivers", "are drivers safe", "driver impact", "drivers during termination"],
+    response: "Drivers always remain active during director transitions. There is no impact to driver earnings, account standing, or operational access. Drivers receive a neutral notification about the change without details about the reason. Administration decides the reassignment plan. ZIBRA does not inform drivers prematurely or share internal decision details.",
+    priority: 85
+  },
+  {
+    id: "d-staff-during-termination",
+    role: "director",
+    category: "director_termination",
+    keywords: ["what happens to staff", "staff accounts", "team access", "staff during termination"],
+    response: "All staff accounts associated with a terminated director are immediately disabled upon termination. Staff data and activity records are preserved for audit purposes. Staff members may be rehired and reassigned under a new director if administration determines it is appropriate. Staff are notified of the change through the platform.",
+    priority: 80
+  },
+  {
+    id: "d-payout-termination",
+    role: "director",
+    category: "director_termination",
+    keywords: ["payout during termination", "final payout", "money owed", "payment after termination", "will I get paid"],
+    response: "Final eligible payouts are calculated according to all applicable caps and compliance rules. Administration reviews the payout and decides the resolution, which may include: full release, hold for further review, partial release, or forfeiture based on compliance findings. The director is notified of the decision through the platform. ZIBRA does not discuss specific payout amounts or make commitments regarding payout outcomes.",
+    priority: 85
+  },
+  {
+    id: "d-contract-expiration",
+    role: "director",
+    category: "director_lifecycle",
+    keywords: ["contract expiring", "contract end", "renewal", "extension", "when does contract end"],
+    response: "Contract expiration follows the lifespan dates set during your appointment. There is no automatic renewal of director contracts. If a Super Admin determines an extension is appropriate, they may extend your contract before it expires. Review your contract dates on your Director Dashboard and plan accordingly. Contact administration well in advance if you wish to discuss your contract status.",
+    priority: 80
+  },
+  {
+    id: "d-readonly-dashboard",
+    role: "director",
+    category: "director_termination",
+    keywords: ["dashboard locked", "cannot access", "read only", "dashboard disabled", "can't do anything"],
+    response: "Your dashboard enters read-only mode during suspension, termination, or contract expiration. In this state, you can view your information, metrics, and history but cannot take any operational actions such as managing drivers or staff. If you believe this status was applied in error, contact support for a review of your account.",
+    priority: 80
+  },
+
+  // Admin — Director Succession & Early Warning
+  {
+    id: "admin-succession-management",
+    role: "admin",
+    category: "director_succession",
+    keywords: ["manage succession", "director succession", "replace director", "succession plan", "reassign directors drivers"],
+    response: "To manage director succession:\n1. Create a succession plan by selecting the transition type, choosing a successor (existing director or new appointment), and setting the payout decision for the outgoing director.\n2. Review the ZIBRA-generated summary which highlights driver counts, compliance risks, and performance history.\n3. Execute the plan, which automatically handles driver reassignment, staff disabling, payout processing, and audit trail sealing.\n4. Monitor the succession timeline for completion status and address any flagged items.\n\nAll succession actions are logged for audit purposes.",
+    priority: 80
+  },
+  {
+    id: "admin-director-early-warning",
+    role: "admin",
+    category: "director_lifecycle",
+    keywords: ["director expiring", "directors at risk", "expiring contracts", "early warning", "director alerts"],
+    response: "Check the expiring directors list for contracts ending within 30 days. For each flagged director:\n1. Review their current performance score and cell health metrics.\n2. Check for any fraud signals or compliance concerns.\n3. Prepare a succession plan before the contract expires.\n\nZIBRA generates a summary for each at-risk director including active driver counts, compliance risk indicators, and recent performance history. Proactive planning prevents disruption to driver operations.",
+    priority: 80
+  },
+
   {
     id: "x-general-help",
     role: ["rider", "driver", "admin", "super_admin", "director", "general"],
