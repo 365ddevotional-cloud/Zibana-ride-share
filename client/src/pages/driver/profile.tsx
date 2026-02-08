@@ -19,15 +19,12 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { isUnauthorizedError } from "@/lib/auth-utils";
-import { ArrowLeft, Camera, Car, Phone, User } from "lucide-react";
+import { ArrowLeft, Camera, Mail, Phone, User, Lock } from "lucide-react";
 import type { DriverProfile } from "@shared/schema";
 
 const driverProfileSchema = z.object({
   fullName: z.string().min(2, "Name must be at least 2 characters"),
-  phone: z.string().min(10, "Please enter a valid phone number"),
-  vehicleMake: z.string().min(2, "Vehicle make is required"),
-  vehicleModel: z.string().min(1, "Vehicle model is required"),
-  licensePlate: z.string().min(2, "License plate is required"),
+  email: z.string().email("Please enter a valid email").optional().or(z.literal("")),
 });
 
 type DriverProfileForm = z.infer<typeof driverProfileSchema>;
@@ -49,24 +46,18 @@ export default function DriverProfilePage() {
     resolver: zodResolver(driverProfileSchema),
     defaultValues: {
       fullName: "",
-      phone: "",
-      vehicleMake: "",
-      vehicleModel: "",
-      licensePlate: "",
+      email: "",
     },
   });
 
   useEffect(() => {
     if (profile) {
       form.reset({
-        fullName: profile.fullName,
-        phone: profile.phone,
-        vehicleMake: profile.vehicleMake,
-        vehicleModel: profile.vehicleModel,
-        licensePlate: profile.licensePlate,
+        fullName: profile.fullName || "",
+        email: (profile as any).email || user?.email || "",
       });
     }
-  }, [profile, form]);
+  }, [profile, form, user]);
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: DriverProfileForm) => {
@@ -76,7 +67,7 @@ export default function DriverProfilePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/driver/profile"] });
       toast({
-        title: "Profile updated!",
+        title: "Profile updated",
         description: "Your changes have been saved.",
       });
       setLocation("/driver/account");
@@ -134,6 +125,7 @@ export default function DriverProfilePage() {
   };
 
   const avatarSrc = (profile as any)?.profilePhoto || user?.profileImageUrl || undefined;
+  const phoneDisplay = profile?.phone || user?.email || "Not set";
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -264,9 +256,9 @@ export default function DriverProfilePage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Personal & Vehicle Info</CardTitle>
+            <CardTitle className="text-lg">Personal Information</CardTitle>
             <CardDescription>
-              Update your personal and vehicle information
+              Update your name and contact details
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -281,11 +273,11 @@ export default function DriverProfilePage() {
                       <FormControl>
                         <div className="relative">
                           <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                          <Input 
-                            placeholder="John Doe" 
-                            className="pl-10" 
+                          <Input
+                            placeholder="John Doe"
+                            className="pl-10"
                             data-testid="input-full-name"
-                            {...field} 
+                            {...field}
                           />
                         </div>
                       </FormControl>
@@ -296,18 +288,19 @@ export default function DriverProfilePage() {
 
                 <FormField
                   control={form.control}
-                  name="phone"
+                  name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Phone Number</FormLabel>
+                      <FormLabel>Email</FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                          <Input 
-                            placeholder="+1 234 567 8900" 
-                            className="pl-10" 
-                            data-testid="input-phone"
-                            {...field} 
+                          <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                          <Input
+                            placeholder="driver@example.com"
+                            type="email"
+                            className="pl-10"
+                            data-testid="input-email"
+                            {...field}
                           />
                         </div>
                       </FormControl>
@@ -316,75 +309,36 @@ export default function DriverProfilePage() {
                   )}
                 />
 
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <FormField
-                    control={form.control}
-                    name="vehicleMake"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Vehicle Make</FormLabel>
-                        <FormControl>
-                          <Input 
-                            placeholder="Toyota" 
-                            data-testid="input-vehicle-make"
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="vehicleModel"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Vehicle Model</FormLabel>
-                        <FormControl>
-                          <Input 
-                            placeholder="Camry" 
-                            data-testid="input-vehicle-model"
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                <div>
+                  <label className="text-sm font-medium">Phone Number</label>
+                  <div className="relative mt-1.5">
+                    <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      value={phoneDisplay}
+                      readOnly
+                      className="pl-10 bg-muted cursor-not-allowed"
+                      data-testid="input-phone"
+                    />
+                    <Lock className="absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Contact support to change your phone number
+                  </p>
                 </div>
 
-                <FormField
-                  control={form.control}
-                  name="licensePlate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>License Plate</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="ABC-1234" 
-                          data-testid="input-license-plate"
-                          {...field} 
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
                 <div className="flex gap-3 pt-4">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
+                  <Button
+                    type="button"
+                    variant="outline"
                     className="flex-1"
                     onClick={() => setLocation("/driver/account")}
                     data-testid="button-cancel"
                   >
                     Cancel
                   </Button>
-                  <Button 
-                    type="submit" 
-                    className="flex-1 bg-emerald-600" 
+                  <Button
+                    type="submit"
+                    className="flex-1 bg-emerald-600"
                     disabled={updateProfileMutation.isPending}
                     data-testid="button-save-profile"
                   >
