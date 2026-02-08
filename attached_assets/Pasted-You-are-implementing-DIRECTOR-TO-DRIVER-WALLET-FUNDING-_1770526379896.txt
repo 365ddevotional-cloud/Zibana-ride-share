@@ -1,0 +1,212 @@
+You are implementing DIRECTOR-TO-DRIVER WALLET FUNDING in the ZIBA platform.
+
+This feature allows Directors to financially support drivers under strict rules,
+without exposing ZIBA to liability, fraud, or labor classification risk.
+
+DO NOT break existing wallet logic.
+DO NOT allow Directors to withdraw funds from drivers.
+DO NOT allow Directors to see driver private wallet history beyond funding records.
+DO NOT create employer-employee liability.
+
+=====================================================
+PHASE 1 — FUNDING CONCEPT (WHAT THIS IS & IS NOT)
+=====================================================
+
+1) WHAT THIS FEATURE IS
+- Optional financial assistance
+- Wallet credit only
+- Non-repayable unless explicitly configured
+- Used to:
+  - help drivers stay active
+  - cover temporary low-balance issues
+  - encourage performance
+
+2) WHAT THIS FEATURE IS NOT
+- NOT salary
+- NOT loan by default
+- NOT guaranteed income
+- NOT wage advance
+- NOT enforceable debt
+
+=====================================================
+PHASE 2 — WHO CAN FUND WHO
+=====================================================
+
+3) ELIGIBILITY RULES
+- Director can fund ONLY drivers assigned to their cell
+- Employee Directors:
+  - funding limits defined by Admin / Super Admin
+- Contract Directors:
+  - funding allowed ONLY from their own funded Director Wallet
+- Directors cannot fund:
+  - drivers outside their cell
+  - suspended or deactivated drivers
+
+=====================================================
+PHASE 3 — DIRECTOR WALLET (ISOLATED)
+=====================================================
+
+4) DIRECTOR WALLET
+Create a separate wallet type:
+- walletType = DIRECTOR_WALLET
+- Funded by:
+  - card
+  - bank transfer
+  - internal settlement (Admin-approved)
+- Cannot receive rider payments
+- Cannot receive driver earnings
+
+5) WALLET RULES
+- Director Wallet → Driver Wallet only
+- No reverse transfers
+- No cash-out by Director unless Admin-approved
+- All transactions logged
+
+=====================================================
+PHASE 4 — FUNDING RULES & CAPS
+=====================================================
+
+6) FUNDING LIMITS (CONFIGURABLE)
+Defaults (editable by Super Admin):
+- Per driver per day cap
+- Per driver per week cap
+- Per director daily cap
+- Per director monthly cap
+
+7) PURPOSE TAGGING (MANDATORY)
+Every funding must include a purpose tag:
+- “Low wallet balance”
+- “Incentive”
+- “Temporary support”
+- “Ops assistance”
+
+=====================================================
+PHASE 5 — DRIVER EXPERIENCE
+=====================================================
+
+8) DRIVER RECEIPT
+When funded:
+- Driver receives:
+  - inbox message
+  - push notification
+- Message language:
+  “Your wallet has been credited to help you continue driving.”
+
+No obligation language.
+No repayment pressure.
+
+9) DRIVER VISIBILITY
+Driver can see:
+- amount
+- date
+- director name
+- purpose tag
+
+Driver CANNOT see:
+- director wallet balance
+- director commissions
+- director funding rules
+
+=====================================================
+PHASE 6 — ADMIN & SUPER ADMIN CONTROLS
+=====================================================
+
+10) ADMIN DASHBOARD
+Admins can:
+- View all director funding activity
+- Filter by:
+  - director
+  - driver
+  - date
+  - amount
+- Flag suspicious patterns
+- Suspend funding privileges
+
+11) SUPER ADMIN POWERS
+Super Admin can:
+- Adjust limits
+- Enable/disable funding per director
+- Convert funding mode to “recoverable” (future, optional)
+- Freeze Director Wallets
+
+=====================================================
+PHASE 7 — ZIBRA SUPPORT BEHAVIOR
+=====================================================
+
+12) ZIBRA FOR DIRECTORS
+ZIBRA may:
+- Explain funding rules
+- Warn when limits are near
+- Suggest non-monetary alternatives
+
+ZIBRA must NEVER:
+- Suggest funding guarantees
+- Pressure funding
+- Imply obligation
+
+13) ZIBRA FOR DRIVERS
+If asked:
+“Do I have to pay it back?”
+ZIBRA response:
+- Neutral
+- Clear
+- Non-binding
+Example:
+“Director support is optional assistance. Terms vary and are shown before acceptance.”
+
+=====================================================
+PHASE 8 — LEGAL & TERMS SAFETY
+=====================================================
+
+14) TERMS INSERT (MANDATORY)
+- Director funding is discretionary
+- No obligation to fund
+- No obligation to repay unless explicitly stated
+- ZIBA is not a party to funding agreements
+- ZIBA only facilitates wallet crediting
+
+=====================================================
+PHASE 9 — ABUSE & FRAUD PROTECTION
+=====================================================
+
+15) ABUSE PATTERNS TO FLAG
+- Same driver repeatedly funded
+- Director funding tied to coercive messages
+- Funding used to influence ratings or behavior
+
+16) AUTOMATIC ACTIONS
+- Soft warnings via ZIBRA
+- Auto-limit reductions
+- Admin review escalation
+
+=====================================================
+PHASE 10 — AUDIT & LOGGING
+=====================================================
+
+17) LOG EVERYTHING
+Log:
+- who funded
+- who received
+- amount
+- purpose
+- timestamp
+- IP/session
+
+Logs visible to:
+- Admin
+- Super Admin
+Only summaries visible to Director.
+
+=====================================================
+CONFIRMATION
+=====================================================
+
+After implementation, confirm:
+✔ Wallet isolation intact
+✔ No liability language
+✔ Abuse flags working
+✔ ZIBRA responses compliant
+✔ No commission logic affected
+
+Proceed step-by-step.
+Confirm after each phase.
