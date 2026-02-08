@@ -451,6 +451,16 @@ export const driverProfiles = pgTable("driver_profiles", {
   ninHash: varchar("nin_hash", { length: 128 }), // SHA-256 hash of NIN for duplicate detection
   driversLicenseHash: varchar("drivers_license_hash", { length: 128 }), // SHA-256 hash of license number
   acceptedRideClasses: text("accepted_ride_classes").array(),
+  tripDistancePreference: text("trip_distance_preference").array(),
+  cashAcceptance: boolean("cash_acceptance").notNull().default(true),
+  preferredAreas: text("preferred_areas").array(),
+  preferencesLockedBy: varchar("preferences_locked_by"),
+  preferencesLockedAt: timestamp("preferences_locked_at"),
+  declineCount: integer("decline_count").notNull().default(0),
+  declineResetAt: timestamp("decline_reset_at"),
+  preferenceWarnings: integer("preference_warnings").notNull().default(0),
+  preferenceRestricted: boolean("preference_restricted").notNull().default(false),
+  preferenceRestrictedUntil: timestamp("preference_restricted_until"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

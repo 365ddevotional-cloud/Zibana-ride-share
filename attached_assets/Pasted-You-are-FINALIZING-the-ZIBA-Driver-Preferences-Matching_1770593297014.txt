@@ -1,0 +1,105 @@
+You are FINALIZING the ZIBA Driver Preferences & Matching system.
+
+OBJECTIVE:
+Close out Driver Preferences so they are fully enforced, tested, visible to Admin/Director, monitored by ZIBRA, and production-safe.
+
+This is a FINALIZATION step — do not redesign.
+Only COMPLETE, ENFORCE, and VALIDATE.
+
+DO NOT break existing trips, pricing, or director logic.
+
+================================================
+PHASE 1 — LOCK SERVER-SIDE ENFORCEMENT
+================================================
+1) Ensure ALL driver preferences are enforced server-side:
+   - ride class toggles
+   - distance preference
+   - cash acceptance
+   - area preference (soft)
+
+2) Frontend settings must NEVER override backend rules.
+
+3) Admin & Super Admin overrides must always win.
+
+================================================
+PHASE 2 — FINAL DRIVER UI CONFIRMATION
+================================================
+Driver Preferences screen must:
+- Save successfully
+- Show success toast/confirmation
+- Reload preferences correctly
+- Prevent toggling ride classes driver is NOT approved for
+- Display disclaimer:
+  “Preferences guide matching but do not guarantee trips.”
+
+================================================
+PHASE 3 — MATCHING PRIORITY FINAL CHECK
+================================================
+Confirm matching priority order is enforced exactly as:
+
+1) Safety & compliance
+2) Ride class eligibility
+3) Admin rules
+4) Driver preferences
+5) Proximity
+6) Driver performance score
+
+If preferences conflict with platform needs, system must ignore preference silently.
+
+================================================
+PHASE 4 — ABUSE & MISUSE HANDLING
+================================================
+Ensure safeguards are active:
+- Excessive declines → priority reduction
+- Over-restrictive preferences → warning flag
+- Repeat abuse → Director notification
+- Severe abuse → Admin review
+
+ZIBRA must log (not announce) these patterns.
+
+================================================
+PHASE 5 — DIRECTOR & ADMIN VISIBILITY (FINAL)
+================================================
+Director Dashboard:
+- View driver preference summaries
+- See drivers blocking too many rides
+- Cannot force preference changes
+
+Admin / Super Admin:
+- View and reset driver preferences
+- Lock specific preferences if needed
+- See abuse indicators
+
+================================================
+PHASE 6 — ZIBRA SUPPORT FINAL INTEGRATION
+================================================
+ZIBRA Support must:
+- Explain why driver may receive fewer trips
+- Suggest balanced preference settings
+- Never promise earnings or trip volume
+- Never expose internal matching weights
+
+================================================
+PHASE 7 — EDGE CASE TESTS (MUST PASS)
+================================================
+Test and confirm:
+- Driver toggles off ZIBA Go → fewer trips
+- Driver enables too many filters → warning triggered
+- Admin override ignores preferences
+- Director can view but not change
+- Matching continues smoothly under load
+
+================================================
+PHASE 8 — MARK AS COMPLETE
+================================================
+After successful validation:
+- Mark Driver Preferences feature as COMPLETE
+- No “Coming Soon”
+- No TODO flags
+- No dead UI
+
+REPORT REQUIRED:
+- Enforcement points confirmed
+- Tests passed
+- Screens verified
+- Feature marked DONE
