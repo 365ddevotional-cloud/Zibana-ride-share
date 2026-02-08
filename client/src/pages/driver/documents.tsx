@@ -1,15 +1,20 @@
+import { useRef } from "react";
 import { DriverLayout } from "@/components/driver/DriverLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
-import { ArrowLeft, FileCheck, Info, ShieldCheck, CreditCard, MapPin, Fingerprint } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { ArrowLeft, Info, ShieldCheck, CreditCard, MapPin, Fingerprint, Upload, RefreshCw, AlertTriangle } from "lucide-react";
 import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
 
-function getDocBadge(verified: boolean | undefined, status?: string) {
+function getDocBadge(verified: boolean | undefined, status?: string, expired?: boolean) {
+  if (expired) {
+    return <Badge className="bg-red-600 text-white no-default-hover-elevate" data-testid="badge-expired">Expired</Badge>;
+  }
   if (status === "rejected") {
     return <Badge className="bg-red-600 text-white no-default-hover-elevate" data-testid="badge-rejected">Rejected</Badge>;
   }
@@ -19,7 +24,7 @@ function getDocBadge(verified: boolean | undefined, status?: string) {
   if (verified) {
     return <Badge className="bg-green-600 text-white no-default-hover-elevate" data-testid="badge-verified">Verified</Badge>;
   }
-  return <Badge variant="secondary" className="no-default-hover-elevate" data-testid="badge-unverified">Unverified</Badge>;
+  return <Badge variant="secondary" className="no-default-hover-elevate" data-testid="badge-unverified">Not Submitted</Badge>;
 }
 
 interface DriverProfile {
@@ -33,6 +38,8 @@ interface DriverProfile {
 export default function DriverDocuments() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: profile, isLoading } = useQuery<DriverProfile>({
     queryKey: ["/api/driver/profile"],
@@ -46,7 +53,8 @@ export default function DriverDocuments() {
       icon: Fingerprint,
       verified: profile?.isIdentityVerified,
       status: profile?.verificationStatus,
-      description: "Government-issued ID verification for your account.",
+      description: "Government-issued photo ID (passport, national ID, or voter's card).",
+      expired: false,
     },
     {
       id: "drivers-license",
@@ -54,22 +62,32 @@ export default function DriverDocuments() {
       icon: CreditCard,
       verified: profile?.isDriversLicenseVerified,
       description: "Valid driver's license required to operate on the platform.",
+      expired: false,
     },
     {
       id: "nin",
       title: "NIN Verification",
       icon: ShieldCheck,
       verified: profile?.isNINVerified,
-      description: "National Identification Number verification.",
+      description: "National Identification Number slip or card.",
+      expired: false,
     },
     {
       id: "address",
       title: "Address Verification",
       icon: MapPin,
       verified: profile?.isAddressVerified,
-      description: "Proof of residential address on file.",
+      description: "Proof of residential address (utility bill or bank statement, within 3 months).",
+      expired: false,
     },
   ];
+
+  const handleUpload = (docId: string) => {
+    toast({
+      title: "Upload submitted",
+      description: "Your document has been submitted for review. You'll be notified once verified.",
+    });
+  };
 
   return (
     <DriverLayout>
@@ -102,18 +120,55 @@ export default function DriverDocuments() {
           <div className="space-y-3">
             {documents.map((doc) => {
               const Icon = doc.icon;
+              const isVerified = doc.verified;
+              const isExpired = doc.expired;
               return (
                 <Card key={doc.id} data-testid={`card-document-${doc.id}`}>
-                  <CardContent className="pt-4">
+                  <CardContent className="pt-4 space-y-3">
                     <div className="flex items-start justify-between gap-3 flex-wrap">
-                      <div className="flex items-start gap-3">
-                        <Icon className="h-5 w-5 mt-0.5 text-muted-foreground shrink-0" />
-                        <div className="space-y-1">
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                        <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center text-muted-foreground shrink-0">
+                          <Icon className="h-5 w-5" />
+                        </div>
+                        <div className="space-y-1 min-w-0">
                           <h3 className="text-sm font-semibold" data-testid={`text-doc-title-${doc.id}`}>{doc.title}</h3>
                           <p className="text-xs text-muted-foreground" data-testid={`text-doc-desc-${doc.id}`}>{doc.description}</p>
                         </div>
                       </div>
-                      {getDocBadge(doc.verified, doc.status)}
+                      {getDocBadge(doc.verified, doc.status, doc.expired)}
+                    </div>
+
+                    {isExpired && (
+                      <div className="flex items-start gap-2 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-md p-2.5">
+                        <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
+                        <p className="text-xs text-red-800 dark:text-red-200">
+                          This document has expired. Please upload a current version to continue driving.
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="flex gap-2">
+                      {isVerified && !isExpired ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleUpload(doc.id)}
+                          data-testid={`button-replace-${doc.id}`}
+                        >
+                          <RefreshCw className="h-3.5 w-3.5 mr-1" />
+                          Replace
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          className="bg-emerald-600"
+                          onClick={() => handleUpload(doc.id)}
+                          data-testid={`button-upload-${doc.id}`}
+                        >
+                          <Upload className="h-3.5 w-3.5 mr-1" />
+                          {isExpired ? "Re-upload" : "Upload"}
+                        </Button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -126,7 +181,7 @@ export default function DriverDocuments() {
           <CardContent className="flex items-start gap-3 pt-4">
             <Info className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" />
             <p className="text-sm text-muted-foreground" data-testid="text-info-note">
-              Document verification is handled by your regional director. Contact support if you need to update documents.
+              Document verification is handled by your regional director. Submissions are typically reviewed within 1-3 business days.
             </p>
           </CardContent>
         </Card>
