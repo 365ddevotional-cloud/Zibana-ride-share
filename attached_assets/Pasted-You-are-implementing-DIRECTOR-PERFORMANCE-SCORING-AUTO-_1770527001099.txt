@@ -1,0 +1,176 @@
+You are implementing DIRECTOR PERFORMANCE SCORING & AUTO-INCENTIVES
+for the ZIBA platform.
+
+This system evaluates Director effectiveness, protects ZIBA legally,
+and enables data-driven rewards or restrictions.
+
+DO NOT create employment guarantees.
+DO NOT auto-pay commissions outside existing commission rules.
+DO NOT override Admin or Super Admin authority.
+
+=====================================================
+PHASE 1 — PERFORMANCE OBJECTIVES
+=====================================================
+
+1) GOALS
+- Encourage quality driver management
+- Reduce driver churn
+- Improve safety & compliance
+- Detect underperforming or abusive directors early
+- Reward good directors WITHOUT legal liability
+
+=====================================================
+PHASE 2 — DIRECTOR PERFORMANCE SCORE (DPS)
+=====================================================
+
+2) DIRECTOR PERFORMANCE SCORE (0–100)
+Score recalculated daily.
+
+Weighted components (configurable by Super Admin):
+
+A) DRIVER ACTIVITY (30%)
+- % of assigned drivers active per day
+- Based on the allowed commissionable pool (77% rule respected)
+
+B) DRIVER QUALITY (25%)
+- Average driver trust score
+- Complaints per driver
+- Suspension frequency
+
+C) DRIVER RETENTION (20%)
+- Drivers remaining active over 30 / 60 / 90 days
+- Excessive churn reduces score
+
+D) COMPLIANCE & SAFETY (15%)
+- Accident reports frequency
+- Fraud flags
+- Policy violations
+
+E) ADMIN FEEDBACK (10%)
+- Manual Admin or Super Admin rating
+- Investigation outcomes
+
+=====================================================
+PHASE 3 — PERFORMANCE TIERS
+=====================================================
+
+3) DIRECTOR TIERS (AUTO-ASSIGNED)
+
+- GOLD: 85–100
+- SILVER: 70–84
+- BRONZE: 55–69
+- AT-RISK: <55
+
+Tier affects:
+- Funding privileges
+- Growth permissions
+- Incentives
+- Warnings
+
+=====================================================
+PHASE 4 — AUTO-INCENTIVES (NON-GUARANTEED)
+=====================================================
+
+4) INCENTIVE TYPES (CONFIGURABLE)
+
+Possible incentives:
+- Increased driver cap (temporary)
+- Priority access to new driver leads
+- Reduced funding limits restrictions
+- Visibility boost on Admin dashboards
+
+IMPORTANT:
+- Incentives are discretionary
+- No cash promises
+- No guaranteed earnings
+
+=====================================================
+PHASE 5 — AUTO-RESTRICTIONS (PROTECTIVE)
+=====================================================
+
+5) RESTRICTIONS FOR LOW SCORES
+
+If AT-RISK:
+- Freeze ability to activate new drivers
+- Reduce funding limits
+- Trigger Admin review
+- ZIBRA sends improvement guidance
+
+=====================================================
+PHASE 6 — DIRECTOR DASHBOARD UI
+=====================================================
+
+6) DASHBOARD SECTIONS
+
+Director Dashboard must include:
+- Performance Score gauge
+- Tier badge
+- Driver activity summary
+- Compliance alerts
+- Funding usage
+- ZIBRA insights panel
+
+Only visible to:
+- Director
+- Admin
+- Super Admin
+
+=====================================================
+PHASE 7 — ZIBRA ROLE (COACH, NOT BOSS)
+=====================================================
+
+7) ZIBRA DIRECTOR GUIDANCE
+
+ZIBRA may:
+- Explain score changes
+- Suggest improvement actions
+- Warn of risks
+
+ZIBRA must NEVER:
+- Threaten termination
+- Promise incentives
+- Guarantee outcomes
+
+Tone:
+- Professional
+- Advisory
+- Non-coercive
+
+=====================================================
+PHASE 8 — LEGAL & TERMS SAFETY
+=====================================================
+
+8) TERMS INSERT
+- Performance scoring is informational
+- Scores do not guarantee income or status
+- ZIBA may adjust metrics at any time
+- ZIBA retains full discretion
+
+=====================================================
+PHASE 9 — AUDIT & TRANSPARENCY
+=====================================================
+
+9) LOGGING
+Log:
+- Score calculations
+- Metric inputs
+- Manual Admin overrides
+- Incentive triggers
+
+Logs visible to:
+- Admin
+- Super Admin
+
+=====================================================
+CONFIRMATION
+=====================================================
+
+After implementation confirm:
+✔ Score updates daily
+✔ Incentives are non-binding
+✔ Restrictions protect platform
+✔ ZIBRA guidance compliant
+✔ No labor-law exposure
+
+Proceed step-by-step.
+Confirm completion per phase.
