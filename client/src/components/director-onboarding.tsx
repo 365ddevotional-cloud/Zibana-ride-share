@@ -1,9 +1,14 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Users, Share2, Target, Shield, CheckCircle, Briefcase, Eye, FileText, ArrowRight, ArrowLeft, Copy } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Users, Target, Shield, CheckCircle, Briefcase, Eye, FileText,
+  ArrowRight, ArrowLeft, Copy, BookOpen, Scale, UserCheck, AlertTriangle,
+  Share2
+} from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -13,7 +18,33 @@ interface DirectorOnboardingProps {
   onComplete: () => void;
 }
 
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 8;
+
+const CONTRACT_STEP_LABELS = [
+  "Welcome",
+  "Responsibilities",
+  "Driver Management",
+  "Commission Rules",
+  "Staff & Permissions",
+  "Compliance & Conduct",
+  "Terms & Conditions",
+  "Ready",
+];
+
+const CONTRACT_STEP_ICONS = [Users, Briefcase, UserCheck, Target, Shield, Scale, FileText, CheckCircle];
+
+const EMPLOYED_STEP_LABELS = [
+  "Welcome",
+  "Your Role",
+  "Driver Oversight",
+  "Reporting Duties",
+  "Authority & Limits",
+  "Conduct & Policy",
+  "Terms & Conditions",
+  "Ready",
+];
+
+const EMPLOYED_STEP_ICONS = [Briefcase, Eye, Users, BookOpen, Shield, Scale, FileText, CheckCircle];
 
 export default function DirectorOnboarding({ directorType, referralCodeId, onComplete }: DirectorOnboardingProps) {
   const [currentStep, setCurrentStep] = useState(0);
@@ -22,11 +53,13 @@ export default function DirectorOnboarding({ directorType, referralCodeId, onCom
 
   const completeMutation = useMutation({
     mutationFn: async () => {
+      await apiRequest("POST", "/api/director/terms/accept");
       return apiRequest("POST", "/api/director/onboarding/complete");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/director/dashboard"] });
-      toast({ title: "Onboarding complete", description: "You are now ready to use the dashboard." });
+      queryClient.invalidateQueries({ queryKey: ["/api/director/onboarding/status"] });
+      toast({ title: "Onboarding complete", description: "Welcome to your Director dashboard." });
       onComplete();
     },
     onError: (err: Error) => {
@@ -35,7 +68,7 @@ export default function DirectorOnboarding({ directorType, referralCodeId, onCom
   });
 
   const canProceed = () => {
-    if (currentStep === 3) return agreedToTerms;
+    if (currentStep === 6) return agreedToTerms;
     return true;
   };
 
@@ -53,13 +86,8 @@ export default function DirectorOnboarding({ directorType, referralCodeId, onCom
     setCurrentStep((s) => Math.max(s - 1, 0));
   };
 
-  const stepIcons = directorType === "contract"
-    ? [Users, Share2, Target, Shield, CheckCircle]
-    : [Briefcase, Users, Eye, FileText, CheckCircle];
-
-  const stepLabels = directorType === "contract"
-    ? ["Introduction", "Referral Code", "Activation Rules", "Agreement", "Ready"]
-    : ["Introduction", "Assigned Drivers", "Authority Limits", "Compliance", "Ready"];
+  const stepIcons = directorType === "contract" ? CONTRACT_STEP_ICONS : EMPLOYED_STEP_ICONS;
+  const stepLabels = directorType === "contract" ? CONTRACT_STEP_LABELS : EMPLOYED_STEP_LABELS;
 
   return (
     <Card className="mb-6" data-testid="director-onboarding-card">
@@ -73,7 +101,7 @@ export default function DirectorOnboarding({ directorType, referralCodeId, onCom
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="flex items-center justify-center gap-2" data-testid="step-indicators">
+        <div className="flex items-center justify-center gap-1 flex-wrap" data-testid="step-indicators">
           {Array.from({ length: TOTAL_STEPS }).map((_, i) => {
             const Icon = stepIcons[i];
             return (
@@ -98,7 +126,7 @@ export default function DirectorOnboarding({ directorType, referralCodeId, onCom
           {stepLabels[currentStep]}
         </p>
 
-        <div className="min-h-[200px]" data-testid="step-content">
+        <div className="min-h-[260px]" data-testid="step-content">
           {directorType === "contract" ? (
             <ContractStepContent
               step={currentStep}
@@ -174,98 +202,204 @@ function ContractStepContent({
   switch (step) {
     case 0:
       return (
-        <div className="space-y-4" data-testid="contract-step-intro">
-          <h3 className="text-lg font-semibold" data-testid="text-welcome-title">Welcome, Driver Network Manager</h3>
-          <p className="text-sm text-muted-foreground" data-testid="text-intro-desc">
-            As a contract director, your role is to manage and grow a driver network. You are responsible for the performance and discipline of drivers within your assigned cell.
+        <div className="space-y-4" data-testid="contract-step-welcome">
+          <h3 className="text-lg font-semibold" data-testid="text-welcome-title">Welcome, Director</h3>
+          <p className="text-sm text-muted-foreground" data-testid="text-welcome-desc">
+            As a Contract Director, you play a key role in building and managing a driver network. Your success depends on growing an active, compliant team of drivers who provide reliable service to riders.
           </p>
-          <div className="rounded-md bg-muted p-3">
-            <p className="text-sm text-muted-foreground" data-testid="text-eligibility-note">
-              <Shield className="inline h-4 w-4 mr-1" />
-              Commission eligibility is variable and not guaranteed. It depends on driver activity, policy compliance, and daily calculations that may change.
+          <div className="rounded-md bg-muted p-3 space-y-2">
+            <p className="text-sm text-muted-foreground" data-testid="text-role-overview">
+              <Briefcase className="inline h-4 w-4 mr-1" />
+              You are an independent contractor — not an employee — unless explicitly designated otherwise. Your relationship with ZIBA is governed by the terms you will accept during this onboarding.
             </p>
           </div>
-        </div>
-      );
-    case 1:
-      return (
-        <div className="space-y-4" data-testid="contract-step-referral">
-          <h3 className="text-lg font-semibold" data-testid="text-referral-title">Your Referral Code</h3>
-          <p className="text-sm text-muted-foreground" data-testid="text-referral-desc">
-            Drivers who sign up using your referral code are automatically assigned to your cell. Share this code to grow your network.
-          </p>
-          {referralCodeId ? (
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="text-base px-4 py-2 font-mono" data-testid="text-referral-code">
+          {referralCodeId && (
+            <div className="flex items-center gap-2 pt-2">
+              <span className="text-sm text-muted-foreground">Your referral code:</span>
+              <Badge variant="secondary" className="text-base px-4 py-1 font-mono" data-testid="text-referral-code">
                 {referralCodeId}
               </Badge>
               <Button variant="outline" size="icon" onClick={copyReferralCode} data-testid="button-copy-referral">
                 <Copy className="h-4 w-4" />
               </Button>
             </div>
-          ) : (
-            <p className="text-sm text-muted-foreground" data-testid="text-no-referral">
-              Your referral code will be available once your account is fully set up.
-            </p>
           )}
         </div>
       );
-    case 2:
+
+    case 1:
       return (
-        <div className="space-y-4" data-testid="contract-step-activation">
-          <h3 className="text-lg font-semibold" data-testid="text-activation-title">Activation Rules</h3>
+        <div className="space-y-4" data-testid="contract-step-responsibilities">
+          <h3 className="text-lg font-semibold" data-testid="text-responsibilities-title">Your Responsibilities</h3>
           <ul className="space-y-3 text-sm text-muted-foreground">
-            <li className="flex items-start gap-2" data-testid="text-rule-min-drivers">
-              <Target className="h-4 w-4 mt-0.5 shrink-0" />
-              <span>A minimum of 10 drivers is required to activate your cell and become eligible for commission.</span>
+            <li className="flex items-start gap-2" data-testid="text-resp-recruit">
+              <Share2 className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>Recruit drivers using your referral code. Drivers who sign up with your code are assigned to your cell.</span>
             </li>
-            <li className="flex items-start gap-2" data-testid="text-rule-daily-cap">
-              <Shield className="h-4 w-4 mt-0.5 shrink-0" />
-              <span>Commission eligibility is calculated daily and capped. Not all active drivers may count toward your eligibility.</span>
+            <li className="flex items-start gap-2" data-testid="text-resp-monitor">
+              <Eye className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>Monitor driver activity, performance, and compliance. You are accountable for the conduct of drivers in your cell.</span>
             </li>
-            <li className="flex items-start gap-2" data-testid="text-rule-daily-calc">
-              <Target className="h-4 w-4 mt-0.5 shrink-0" />
-              <span>Daily calculations determine how many of your drivers contribute to your commission. Ratios and caps may change based on policy.</span>
+            <li className="flex items-start gap-2" data-testid="text-resp-escalate">
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>Escalate serious issues to administration. Use suspension sparingly and only when justified.</span>
+            </li>
+            <li className="flex items-start gap-2" data-testid="text-resp-staff">
+              <Users className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>You are responsible for the actions of any staff operating under your authority.</span>
             </li>
           </ul>
         </div>
       );
+
+    case 2:
+      return (
+        <div className="space-y-4" data-testid="contract-step-driver-mgmt">
+          <h3 className="text-lg font-semibold" data-testid="text-driver-mgmt-title">Driver Management Rules</h3>
+          <ul className="space-y-3 text-sm text-muted-foreground">
+            <li className="flex items-start gap-2" data-testid="text-rule-min-drivers">
+              <Target className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>A minimum of 10 active drivers is required before your cell becomes eligible for commission calculations.</span>
+            </li>
+            <li className="flex items-start gap-2" data-testid="text-rule-cap">
+              <Shield className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>Your cell has a maximum driver capacity. Approaching or exceeding this limit will trigger system alerts.</span>
+            </li>
+            <li className="flex items-start gap-2" data-testid="text-rule-suspend">
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>Suspending a driver is a serious action. Excessive or retaliatory suspensions are monitored and may affect your standing.</span>
+            </li>
+            <li className="flex items-start gap-2" data-testid="text-rule-fair">
+              <Scale className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>All driver management actions must be fair, documented, and comply with platform policies. Disputes from drivers are tracked.</span>
+            </li>
+          </ul>
+        </div>
+      );
+
     case 3:
       return (
-        <div className="space-y-4" data-testid="contract-step-agreement">
-          <h3 className="text-lg font-semibold" data-testid="text-agreement-title">Terms and Agreement</h3>
-          <div className="space-y-3 text-sm text-muted-foreground">
-            <p data-testid="text-obligation-desc">
-              By proceeding, you acknowledge the following obligations and conditions:
-            </p>
-            <ul className="list-disc pl-5 space-y-2">
-              <li data-testid="text-obligation-performance">You are responsible for the performance and conduct of drivers in your cell.</li>
-              <li data-testid="text-obligation-variable">Commission eligibility is variable, not guaranteed, and subject to daily recalculation.</li>
-              <li data-testid="text-obligation-policy">Policy terms, caps, and ratios may be adjusted by administration at any time.</li>
-            </ul>
+        <div className="space-y-4" data-testid="contract-step-commission">
+          <h3 className="text-lg font-semibold" data-testid="text-commission-title">Commission Rules</h3>
+          <p className="text-sm text-muted-foreground" data-testid="text-commission-intro">
+            Commission is calculated daily by the platform. Here is what you need to know:
+          </p>
+          <ul className="space-y-3 text-sm text-muted-foreground">
+            <li className="flex items-start gap-2" data-testid="text-comm-variable">
+              <Target className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>Commission eligibility is variable and not guaranteed. It depends on driver activity, compliance, and daily calculations that may change.</span>
+            </li>
+            <li className="flex items-start gap-2" data-testid="text-comm-no-pricing">
+              <Shield className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>You do not control pricing, fare calculations, or driver payouts. These are managed entirely by the platform.</span>
+            </li>
+            <li className="flex items-start gap-2" data-testid="text-comm-earnings">
+              <Briefcase className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>Commission is earned only from platform earnings — not from driver income. Exact amounts are never disclosed in advance.</span>
+            </li>
+            <li className="flex items-start gap-2" data-testid="text-comm-frozen">
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>Commission may be frozen during suspension, investigation, or policy violations.</span>
+            </li>
+          </ul>
+        </div>
+      );
+
+    case 4:
+      return (
+        <div className="space-y-4" data-testid="contract-step-staff">
+          <h3 className="text-lg font-semibold" data-testid="text-staff-title">Staff & Permissions</h3>
+          <ul className="space-y-3 text-sm text-muted-foreground">
+            <li className="flex items-start gap-2" data-testid="text-staff-resp">
+              <Users className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>If you delegate tasks to staff, you remain fully responsible for their actions on the platform.</span>
+            </li>
+            <li className="flex items-start gap-2" data-testid="text-staff-access">
+              <Shield className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>Staff access is limited to the permissions you grant. You cannot grant staff access beyond your own authority level.</span>
+            </li>
+            <li className="flex items-start gap-2" data-testid="text-staff-audit">
+              <Eye className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>All actions taken by your staff are logged and attributed to your directorship. Audit trails are permanent.</span>
+            </li>
+          </ul>
+        </div>
+      );
+
+    case 5:
+      return (
+        <div className="space-y-4" data-testid="contract-step-compliance">
+          <h3 className="text-lg font-semibold" data-testid="text-compliance-title">Compliance & Conduct</h3>
+          <ul className="space-y-3 text-sm text-muted-foreground">
+            <li className="flex items-start gap-2" data-testid="text-conduct-fair">
+              <Scale className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>Treat all drivers fairly and without discrimination. Retaliation against drivers who file disputes is strictly prohibited.</span>
+            </li>
+            <li className="flex items-start gap-2" data-testid="text-conduct-monitor">
+              <Eye className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>ZIBRA continuously monitors operational patterns. Unusual activity — such as mass suspensions or inactivity — triggers automated alerts.</span>
+            </li>
+            <li className="flex items-start gap-2" data-testid="text-conduct-revoke">
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>ZIBA reserves the right to suspend or terminate your directorship at its discretion for policy violations or misconduct.</span>
+            </li>
+            <li className="flex items-start gap-2" data-testid="text-conduct-dispute">
+              <FileText className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>A formal dispute and appeals process is available. All dispute submissions are tracked and form part of your account record.</span>
+            </li>
+          </ul>
+        </div>
+      );
+
+    case 6:
+      return (
+        <div className="space-y-4" data-testid="contract-step-terms">
+          <h3 className="text-lg font-semibold" data-testid="text-terms-title">Terms & Conditions</h3>
+          <div className="space-y-3 text-sm text-muted-foreground max-h-[200px] overflow-y-auto border rounded-md p-3">
+            <p className="font-medium text-foreground">ZIBA Director Agreement — Version 1.0</p>
+            <p>By accepting these terms, you acknowledge and agree to the following:</p>
+            <ol className="list-decimal pl-5 space-y-2">
+              <li>You are an independent contractor, not an employee, unless explicitly designated as an employed director.</li>
+              <li>You do not control pricing, fare calculations, or driver payouts.</li>
+              <li>Commission is earned only from ZIBA platform earnings — not from driver income — and is not guaranteed.</li>
+              <li>Your appointment is revocable at the discretion of ZIBA administration.</li>
+              <li>ZIBA may suspend or terminate your directorship at any time for policy violations, misconduct, or operational reasons.</li>
+              <li>There is no guarantee of earnings. Commission eligibility depends on daily calculations, driver activity, and compliance.</li>
+              <li>You are fully responsible for the actions of any staff operating under your authority.</li>
+              <li>A formal dispute resolution process is available. Appeals are limited and subject to final review.</li>
+              <li>Governing law is configurable per country of operation and subject to change.</li>
+              <li>These terms may be updated. Continued use of the platform constitutes acceptance of updated terms.</li>
+            </ol>
           </div>
-          <label className="flex items-center gap-3 cursor-pointer" data-testid="label-agreement-checkbox">
-            <input
-              type="checkbox"
+          <label className="flex items-start gap-3 cursor-pointer pt-2" data-testid="label-agreement-checkbox">
+            <Checkbox
               checked={agreedToTerms}
-              onChange={(e) => onToggleAgreement(e.target.checked)}
-              className="h-4 w-4 rounded border-muted-foreground"
+              onCheckedChange={(v) => onToggleAgreement(!!v)}
+              className="mt-0.5"
               data-testid="checkbox-agree-terms"
             />
-            <span className="text-sm font-medium">I understand and accept these terms</span>
+            <span className="text-sm font-medium">I have read, understood, and accept the Director Terms & Conditions</span>
           </label>
         </div>
       );
-    case 4:
+
+    case 7:
       return (
         <div className="space-y-4 text-center" data-testid="contract-step-ready">
           <CheckCircle className="h-12 w-12 mx-auto text-primary" />
-          <h3 className="text-lg font-semibold" data-testid="text-ready-title">You are ready</h3>
+          <h3 className="text-lg font-semibold" data-testid="text-ready-title">Onboarding Complete</h3>
           <p className="text-sm text-muted-foreground" data-testid="text-ready-desc">
-            Your onboarding is complete. Click "Go to Dashboard" to start managing your driver network.
+            You have completed the Director onboarding process. After accessing your dashboard, you will need to complete mandatory training modules before full access is granted.
           </p>
+          <div className="rounded-md bg-muted p-3 text-left">
+            <p className="text-sm text-muted-foreground">
+              <BookOpen className="inline h-4 w-4 mr-1" />
+              Next: Complete 6 training modules covering driver management, compliance, and ZIBRA insights.
+            </p>
+          </div>
         </div>
       );
+
     default:
       return null;
   }
@@ -283,84 +417,172 @@ function EmployedStepContent({
   switch (step) {
     case 0:
       return (
-        <div className="space-y-4" data-testid="employed-step-intro">
+        <div className="space-y-4" data-testid="employed-step-welcome">
           <h3 className="text-lg font-semibold" data-testid="text-welcome-title">Welcome to the Director Team</h3>
           <p className="text-sm text-muted-foreground" data-testid="text-intro-desc">
-            As an employed director, your role is to oversee assigned driver operations. You will monitor driver activity, track performance, and report on key metrics.
-          </p>
-        </div>
-      );
-    case 1:
-      return (
-        <div className="space-y-4" data-testid="employed-step-assigned">
-          <h3 className="text-lg font-semibold" data-testid="text-assigned-title">Assigned Drivers</h3>
-          <p className="text-sm text-muted-foreground" data-testid="text-assigned-desc">
-            Drivers are assigned to you by administration. You do not recruit drivers directly. Your responsibility is to monitor their activity and report any issues.
+            As an Employed Director, you are part of the ZIBA operations team. Your role is to oversee assigned driver operations, monitor performance, and ensure compliance with platform standards.
           </p>
           <div className="rounded-md bg-muted p-3">
-            <p className="text-sm text-muted-foreground" data-testid="text-assigned-note">
-              <Users className="inline h-4 w-4 mr-1" />
-              Driver assignments may be added or removed by administration at any time.
+            <p className="text-sm text-muted-foreground" data-testid="text-employed-note">
+              <Briefcase className="inline h-4 w-4 mr-1" />
+              As an employed director, your employment terms are governed by your employment agreement with ZIBA.
             </p>
           </div>
         </div>
       );
-    case 2:
+
+    case 1:
       return (
-        <div className="space-y-4" data-testid="employed-step-authority">
-          <h3 className="text-lg font-semibold" data-testid="text-authority-title">Authority Limits</h3>
+        <div className="space-y-4" data-testid="employed-step-role">
+          <h3 className="text-lg font-semibold" data-testid="text-role-title">Your Role</h3>
           <ul className="space-y-3 text-sm text-muted-foreground">
-            <li className="flex items-start gap-2" data-testid="text-limit-readonly">
+            <li className="flex items-start gap-2" data-testid="text-role-monitor">
               <Eye className="h-4 w-4 mt-0.5 shrink-0" />
-              <span>You have read-only access to driver data. You can view driver activity, trip history, and performance metrics.</span>
+              <span>Monitor and oversee drivers assigned to your cell by administration.</span>
             </li>
-            <li className="flex items-start gap-2" data-testid="text-limit-no-suspend">
-              <Shield className="h-4 w-4 mt-0.5 shrink-0" />
-              <span>You cannot suspend or activate drivers. These actions are reserved for administration.</span>
+            <li className="flex items-start gap-2" data-testid="text-role-report">
+              <BookOpen className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>Submit regular reports on driver activity, performance, and any incidents.</span>
             </li>
-            <li className="flex items-start gap-2" data-testid="text-limit-escalate">
-              <FileText className="h-4 w-4 mt-0.5 shrink-0" />
-              <span>If you identify issues that require action, escalate them to administration through the appropriate channels.</span>
+            <li className="flex items-start gap-2" data-testid="text-role-escalate">
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>Escalate operational concerns and policy violations to administration through proper channels.</span>
             </li>
           </ul>
         </div>
       );
+
+    case 2:
+      return (
+        <div className="space-y-4" data-testid="employed-step-drivers">
+          <h3 className="text-lg font-semibold" data-testid="text-drivers-title">Driver Oversight</h3>
+          <ul className="space-y-3 text-sm text-muted-foreground">
+            <li className="flex items-start gap-2" data-testid="text-driver-assigned">
+              <Users className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>Drivers are assigned to you by administration. You do not recruit drivers directly.</span>
+            </li>
+            <li className="flex items-start gap-2" data-testid="text-driver-activity">
+              <Eye className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>You can view driver activity, trip history, and performance metrics.</span>
+            </li>
+            <li className="flex items-start gap-2" data-testid="text-driver-changes">
+              <Shield className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>Driver assignments may be added or removed by administration at any time.</span>
+            </li>
+          </ul>
+        </div>
+      );
+
     case 3:
       return (
-        <div className="space-y-4" data-testid="employed-step-compliance">
-          <h3 className="text-lg font-semibold" data-testid="text-compliance-title">Compliance and Reporting</h3>
-          <div className="space-y-3 text-sm text-muted-foreground">
-            <p data-testid="text-compliance-desc">
-              You are expected to monitor driver performance and submit reports as required:
-            </p>
-            <ul className="list-disc pl-5 space-y-2">
-              <li data-testid="text-compliance-monitoring">Regular performance monitoring of all assigned drivers.</li>
-              <li data-testid="text-compliance-reporting">Timely reporting of any incidents, policy violations, or operational concerns.</li>
-              <li data-testid="text-compliance-standards">Adherence to all organizational standards and procedures.</li>
-            </ul>
+        <div className="space-y-4" data-testid="employed-step-reporting">
+          <h3 className="text-lg font-semibold" data-testid="text-reporting-title">Reporting Duties</h3>
+          <ul className="space-y-3 text-sm text-muted-foreground">
+            <li className="flex items-start gap-2" data-testid="text-report-regular">
+              <BookOpen className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>Regular performance monitoring of all assigned drivers is expected.</span>
+            </li>
+            <li className="flex items-start gap-2" data-testid="text-report-incidents">
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>Timely reporting of incidents, policy violations, and operational concerns is mandatory.</span>
+            </li>
+            <li className="flex items-start gap-2" data-testid="text-report-standards">
+              <FileText className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>All reports must follow the organizational standards and procedures.</span>
+            </li>
+          </ul>
+        </div>
+      );
+
+    case 4:
+      return (
+        <div className="space-y-4" data-testid="employed-step-authority">
+          <h3 className="text-lg font-semibold" data-testid="text-authority-title">Authority & Limits</h3>
+          <ul className="space-y-3 text-sm text-muted-foreground">
+            <li className="flex items-start gap-2" data-testid="text-limit-readonly">
+              <Eye className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>You have read-only access to driver data unless administration grants additional permissions.</span>
+            </li>
+            <li className="flex items-start gap-2" data-testid="text-limit-suspend">
+              <Shield className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>Driver suspension, activation, and assignment actions are reserved for administration.</span>
+            </li>
+            <li className="flex items-start gap-2" data-testid="text-limit-escalate">
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>If action is needed, escalate through the proper channels. Do not take independent disciplinary action.</span>
+            </li>
+          </ul>
+        </div>
+      );
+
+    case 5:
+      return (
+        <div className="space-y-4" data-testid="employed-step-conduct">
+          <h3 className="text-lg font-semibold" data-testid="text-conduct-title">Conduct & Policy</h3>
+          <ul className="space-y-3 text-sm text-muted-foreground">
+            <li className="flex items-start gap-2" data-testid="text-conduct-standards">
+              <Scale className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>Adhere to all organizational standards, professional conduct requirements, and platform policies at all times.</span>
+            </li>
+            <li className="flex items-start gap-2" data-testid="text-conduct-monitor">
+              <Eye className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>ZIBRA monitors operational patterns continuously. Compliance is tracked and forms part of your performance record.</span>
+            </li>
+            <li className="flex items-start gap-2" data-testid="text-conduct-dispute">
+              <FileText className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>A formal dispute and appeals process is available for any concerns or disagreements.</span>
+            </li>
+          </ul>
+        </div>
+      );
+
+    case 6:
+      return (
+        <div className="space-y-4" data-testid="employed-step-terms">
+          <h3 className="text-lg font-semibold" data-testid="text-terms-title">Terms & Conditions</h3>
+          <div className="space-y-3 text-sm text-muted-foreground max-h-[200px] overflow-y-auto border rounded-md p-3">
+            <p className="font-medium text-foreground">ZIBA Employed Director Agreement — Version 1.0</p>
+            <p>By accepting these terms, you acknowledge and agree to the following:</p>
+            <ol className="list-decimal pl-5 space-y-2">
+              <li>Your role as an employed director is governed by your employment agreement with ZIBA.</li>
+              <li>You do not control pricing, fare calculations, or driver payouts.</li>
+              <li>Your authority is limited to the scope defined by administration.</li>
+              <li>ZIBA may modify your duties, assignments, or authority at any time.</li>
+              <li>You are expected to comply with all platform policies and organizational standards.</li>
+              <li>All actions are logged and form part of your performance record.</li>
+              <li>A formal dispute resolution process is available.</li>
+              <li>Governing law is configurable per country of operation.</li>
+            </ol>
           </div>
-          <label className="flex items-center gap-3 cursor-pointer" data-testid="label-agreement-checkbox">
-            <input
-              type="checkbox"
+          <label className="flex items-start gap-3 cursor-pointer pt-2" data-testid="label-agreement-checkbox">
+            <Checkbox
               checked={agreedToTerms}
-              onChange={(e) => onToggleAgreement(e.target.checked)}
-              className="h-4 w-4 rounded border-muted-foreground"
+              onCheckedChange={(v) => onToggleAgreement(!!v)}
+              className="mt-0.5"
               data-testid="checkbox-agree-terms"
             />
-            <span className="text-sm font-medium">I understand and accept these requirements</span>
+            <span className="text-sm font-medium">I have read, understood, and accept the Director Terms & Conditions</span>
           </label>
         </div>
       );
-    case 4:
+
+    case 7:
       return (
         <div className="space-y-4 text-center" data-testid="employed-step-ready">
           <CheckCircle className="h-12 w-12 mx-auto text-primary" />
-          <h3 className="text-lg font-semibold" data-testid="text-ready-title">You are ready</h3>
+          <h3 className="text-lg font-semibold" data-testid="text-ready-title">Onboarding Complete</h3>
           <p className="text-sm text-muted-foreground" data-testid="text-ready-desc">
-            Your onboarding is complete. Click "Go to Dashboard" to begin overseeing your assigned drivers.
+            You have completed the Director onboarding process. After accessing your dashboard, you will need to complete mandatory training modules.
           </p>
+          <div className="rounded-md bg-muted p-3 text-left">
+            <p className="text-sm text-muted-foreground">
+              <BookOpen className="inline h-4 w-4 mr-1" />
+              Next: Complete 6 training modules covering driver management, compliance, and ZIBRA insights.
+            </p>
+          </div>
         </div>
       );
+
     default:
       return null;
   }
