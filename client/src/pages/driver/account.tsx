@@ -18,6 +18,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
+import { useTranslation } from "@/i18n";
 import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
 import {
   User, Star, ChevronRight, LogOut, Trash2,
@@ -41,6 +42,7 @@ interface DriverProfile {
 export default function DriverAccount() {
   const { user, logout } = useAuth();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [, setLocation] = useLocation();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
@@ -274,20 +276,20 @@ export default function DriverAccount() {
 
         <div className="space-y-1">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1 mb-2">
-            Account
+            {t("driver.account")}
           </p>
           <Card>
             <CardContent className="p-0 divide-y">
               <AccountRow
                 icon={<User className="h-5 w-5" />}
-                label="Profile"
+                label={t("driver.profile")}
                 sublabel="Name, email, phone"
                 onClick={() => setLocation("/driver/profile")}
                 testId="button-profile"
               />
               <AccountRow
                 icon={<Car className="h-5 w-5" />}
-                label="Vehicle Information"
+                label={t("driver.vehicle")}
                 sublabel={profile?.vehicleMake && profile?.vehicleModel
                   ? `${profile.vehicleMake} ${profile.vehicleModel}`
                   : "Add vehicle details"}
@@ -296,7 +298,7 @@ export default function DriverAccount() {
               />
               <AccountRow
                 icon={<FileText className="h-5 w-5" />}
-                label="Documents"
+                label={t("driver.documents")}
                 sublabel="License, insurance, registration"
                 onClick={() => setLocation("/driver/documents")}
                 testId="button-documents"
@@ -313,21 +315,21 @@ export default function DriverAccount() {
             <CardContent className="p-0 divide-y">
               <AccountRow
                 icon={<TrendingUp className="h-5 w-5" />}
-                label="Earnings"
+                label={t("driver.earnings")}
                 sublabel="View your earnings summary"
                 onClick={() => setLocation("/driver/earnings")}
                 testId="button-earnings"
               />
               <AccountRow
                 icon={<Clock className="h-5 w-5" />}
-                label="Trips"
+                label={t("driver.trips")}
                 sublabel="View your trip history"
                 onClick={() => setLocation("/driver/trips")}
                 testId="button-trips"
               />
               <AccountRow
                 icon={<Mail className="h-5 w-5" />}
-                label="Inbox"
+                label={t("inbox.title")}
                 sublabel="Messages and notifications"
                 onClick={() => setLocation("/driver/inbox")}
                 testId="button-inbox"
@@ -345,7 +347,7 @@ export default function DriverAccount() {
             <CardContent className="p-0 divide-y">
               <AccountRow
                 icon={<Settings className="h-5 w-5" />}
-                label="Settings"
+                label={t("driver.settings")}
                 sublabel="Notifications, theme, privacy"
                 onClick={() => setLocation("/driver/settings")}
                 testId="button-settings"
@@ -386,7 +388,7 @@ export default function DriverAccount() {
               data-testid="button-logout"
             >
               <LogOut className="h-5 w-5" />
-              <span className="font-medium text-sm">Log Out</span>
+              <span className="font-medium text-sm">{t("driver.signOut")}</span>
             </button>
           </CardContent>
         </Card>
@@ -400,7 +402,7 @@ export default function DriverAccount() {
                   data-testid="button-delete-account"
                 >
                   <Trash2 className="h-5 w-5" />
-                  <span className="font-medium text-sm">Delete Account</span>
+                  <span className="font-medium text-sm">{t("driver.deleteAccount")}</span>
                 </button>
               </AlertDialogTrigger>
               <AlertDialogContent>

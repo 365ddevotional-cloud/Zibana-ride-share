@@ -1,0 +1,166 @@
+YOU ARE CONTINUING WORK ON THE ZIBA PLATFORM.
+
+TASK: IMPLEMENT COUNTRY-BASED ONBOARDING COPY, LEGAL AUTO-LOCALIZATION, AND CULTURAL TONE ADAPTATION FOR ZIBRA SUPPORT.
+
+DO NOT REMOVE EXISTING FEATURES.
+DO NOT BREAK CURRENT FLOWS.
+DO NOT CHANGE COMMISSION OR PRICING LOGIC.
+FOLLOW ZIBA LEGAL & BRAND RULES.
+
+====================================================
+PHASE 1 — COUNTRY-AWARE ONBOARDING COPY
+====================================================
+
+1) CREATE COUNTRY PROFILES
+Create a CountryProfile config table:
+
+CountryProfile {
+  country_code
+  default_language
+  secondary_languages[]
+  currency
+  tone_style (formal | friendly | neutral)
+  legal_region (US | UK | NG | GH | SA | EU | GLOBAL)
+}
+
+2) ONBOARDING COPY VARIATION
+Use CountryProfile to adapt:
+- Welcome page headline
+- Safety reassurance copy
+- Payment explanation
+- Support reassurance text
+
+EXAMPLES:
+Nigeria → friendly, reassuring, simple
+US / UK / Canada → formal, clear, compliance-forward
+Francophone Africa → polite, structured
+Arabic regions → respectful, formal, calm
+
+DO NOT:
+- Change meaning
+- Add promises
+- Reduce legal protection
+
+====================================================
+PHASE 2 — LEGAL TEXT AUTO-LOCALIZATION (SAFE MODE)
+====================================================
+
+3) LEGAL BLOCK STRUCTURE
+Split legal content into modules:
+
+- Platform Role Disclaimer
+- Liability Limitation
+- Lost Item Disclaimer
+- Accident & Safety Disclaimer
+- Director & Driver Responsibility
+- Dispute Resolution
+- Governing Law
+
+4) LEGAL LOCALIZATION RULES
+- Each module has:
+  - Global base version
+  - Country addendum (if required)
+- ZIBRA may EXPLAIN legal text
+- ZIBRA may NEVER interpret law or give legal advice
+
+If translation exists → use it  
+If not → show English + short explanation
+
+====================================================
+PHASE 3 — ZIBRA CULTURAL TONE ADAPTATION
+====================================================
+
+5) TONE ENGINE
+ZIBRA response tone must adapt using:
+
+tone_style from CountryProfile
+
+FORMAL:
+- Polite
+- Clear
+- Structured
+- Minimal emojis
+
+FRIENDLY:
+- Warm
+- Reassuring
+- Short sentences
+- Light emojis allowed (💜🚗)
+
+NEUTRAL:
+- Calm
+- Professional
+- Balanced
+
+Tone affects:
+- Greeting
+- Error explanations
+- Guidance
+- Escalation language
+
+====================================================
+PHASE 4 — ZIBRA SAFETY & LEGAL GUARDRAILS
+====================================================
+
+6) GLOBAL RESPONSE RULES (UNCHANGED)
+ZIBRA must NEVER:
+- Admit fault
+- Promise refunds
+- Guarantee outcomes
+- Suggest liability
+- Override platform policy
+
+Even when tone is friendly, legal strength stays MAXIMUM.
+
+====================================================
+PHASE 5 — UI PLACEMENT & USER CLARITY
+====================================================
+
+7) ONBOARDING UI
+- Show country-adapted copy on:
+  - Welcome page
+  - First ride screen
+  - First payment screen
+- Add subtle “Learn more” links (legal-safe)
+
+8) SETTINGS
+- Show:
+  - Current language
+  - Country detected
+- Allow manual override (language only, not country)
+
+====================================================
+PHASE 6 — TEST MATRIX (MANDATORY)
+====================================================
+
+Test combinations:
+- Nigeria + English + Friendly
+- Nigeria + Yoruba
+- South Africa + English + Neutral
+- Francophone Africa + French
+- Arabic + RTL + Formal
+- US / UK / Canada + English + Formal
+
+Test:
+- Onboarding
+- ZIBRA Support replies
+- Legal screens
+- Notifications
+- Language reset
+
+====================================================
+FINAL RULES
+====================================================
+
+- One legal truth, many safe presentations
+- No dilution of responsibility limits
+- No cultural confusion
+- No user lock-in
+- ZIBRA always sounds human, calm, and professional
+
+IMPLEMENT NOW.
+AFTER COMPLETION, REPORT:
+- Country profiles added
+- Legal modules localized
+- Tone rules applied
+- Any gaps found

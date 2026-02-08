@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Wallet, ArrowUpRight, ArrowDownLeft, CreditCard, Clock, Star, Info, DollarSign, FileText, Banknote, ChevronDown, ChevronUp, Send } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
+import { useTranslation } from "@/i18n";
 import { DriverBankAccountSection } from "@/components/driver-bank-account-section";
 import { FundAnotherWalletDialog } from "@/components/fund-another-wallet";
 import type { Wallet as WalletType, WalletTransaction } from "@shared/schema";
@@ -17,6 +18,7 @@ interface WalletWithTransactions extends WalletType {
 
 export default function DriverWalletPage() {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [, setLocation] = useLocation();
 
   const { data: walletData, isLoading } = useQuery<WalletWithTransactions>({
@@ -68,7 +70,7 @@ export default function DriverWalletPage() {
   return (
     <DriverLayout>
       <div className="p-4 space-y-4">
-        <h1 className="text-xl font-bold" data-testid="text-wallet-title">Wallet</h1>
+        <h1 className="text-xl font-bold" data-testid="text-wallet-title">{t("driver.wallet")}</h1>
 
         <Card className="bg-emerald-600 text-white" data-testid="card-available-balance">
           <CardHeader className="pb-2">

@@ -3,6 +3,7 @@ import { Home, Car, TrendingUp, Wallet, HelpCircle, Sun, Moon } from "lucide-rea
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
+import { useTranslation } from "@/i18n";
 
 interface DriverLayoutProps {
   children: React.ReactNode;
@@ -19,6 +20,15 @@ const navItems = [
 export function DriverLayout({ children }: DriverLayoutProps) {
   const [location] = useLocation();
   const { setTheme, resolvedTheme } = useTheme();
+  const { t } = useTranslation();
+
+  const navLabels: Record<string, string> = {
+    "Home": t("nav.home"),
+    "Trips": t("driver.trips"),
+    "Earnings": t("driver.earnings"),
+    "Wallet": t("driver.wallet"),
+    "Help": t("driver.help"),
+  };
 
   const toggleTheme = () => {
     setTheme(resolvedTheme === "dark" ? "light" : "dark");
@@ -30,8 +40,8 @@ export function DriverLayout({ children }: DriverLayoutProps) {
         <div className="flex items-center justify-between max-w-lg mx-auto">
           <Link href="/driver/dashboard">
             <div className="flex items-center gap-1.5 cursor-pointer" data-testid="logo-ziba-driver">
-              <span className="text-xl font-bold tracking-tight">ZIBA</span>
-              <span className="text-xs font-medium opacity-80">Driver</span>
+              <span className="text-xl font-bold tracking-tight">{t("driver.appName")}</span>
+              <span className="text-xs font-medium opacity-80">{t("driver.appRole")}</span>
             </div>
           </Link>
           <div className="flex items-center gap-1">
@@ -81,7 +91,7 @@ export function DriverLayout({ children }: DriverLayoutProps) {
                     "text-xs",
                     isActive && "font-medium"
                   )}>
-                    {item.label}
+                    {navLabels[item.label] || item.label}
                   </span>
                 </button>
               </Link>

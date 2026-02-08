@@ -427,11 +427,50 @@ export async function registerRoutes(
       if (!validLanguages.includes(language)) {
         return res.status(400).json({ message: "Invalid language" });
       }
-      await storage.updateLanguagePreference(userId, language);
+      await storage.updateLanguagePreference(userId, language, "manual");
       return res.json({ language });
     } catch (error) {
       console.error("Error updating language preference:", error);
       return res.status(500).json({ message: "Failed to update language preference" });
+    }
+  });
+
+  app.post("/api/user/language/detect", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const currentLang = await storage.getLanguagePreference(userId);
+      
+      const [userData] = await db.select({ languageSource: users.languageSource }).from(users).where(eq(users.id, userId));
+      if (userData?.languageSource === "manual") {
+        return res.json({ language: currentLang, source: "manual", changed: false });
+      }
+      
+      const { country } = req.body;
+      let detectedLang = "en";
+      let source = "default";
+      
+      if (country) {
+        source = "auto_country";
+        const countryLower = (country || "").toLowerCase();
+        const francophoneCountries = ["senegal", "cote d'ivoire", "ivory coast", "cameroon", "mali", "guinea", "burkina faso", "niger", "chad", "congo", "drc", "togo", "benin", "madagascar", "gabon"];
+        const arabicCountries = ["egypt", "morocco", "algeria", "tunisia", "libya", "sudan", "iraq", "saudi arabia", "uae", "jordan", "lebanon", "qatar", "bahrain", "kuwait", "oman", "yemen"];
+        
+        if (francophoneCountries.some(c => countryLower.includes(c))) {
+          detectedLang = "fr";
+        } else if (arabicCountries.some(c => countryLower.includes(c))) {
+          detectedLang = "ar";
+        }
+      }
+      
+      if (currentLang === "en" && (!userData?.languageSource || userData.languageSource === "default")) {
+        await storage.updateLanguagePreference(userId, detectedLang, source);
+        return res.json({ language: detectedLang, source, changed: true });
+      }
+      
+      return res.json({ language: currentLang, source: userData?.languageSource || "default", changed: false });
+    } catch (error) {
+      console.error("Error detecting language:", error);
+      return res.status(500).json({ message: "Failed to detect language" });
     }
   });
 

@@ -19,11 +19,13 @@ import { BehaviorAdvisory } from "@/components/driver/behavior-advisory";
 import { DriverSimulationControls } from "@/components/simulation-ride-controls";
 import { cn } from "@/lib/utils";
 import { useLocation } from "wouter";
+import { useTranslation } from "@/i18n";
 import type { DriverProfile, Trip } from "@shared/schema";
 
 export default function DriverDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [, setLocation] = useLocation();
   const [coercionDialogOpen, setCoercionDialogOpen] = useState(false);
   const [coercionDetails, setCoercionDetails] = useState("");
@@ -352,7 +354,7 @@ export default function DriverDashboard() {
               <span>
                 {toggleOnlineMutation.isPending 
                   ? "..." 
-                  : isOnline ? "Go Offline" : "Go Online"}
+                  : isOnline ? t("driver.offline") : t("driver.online")}
               </span>
             </div>
           </Button>

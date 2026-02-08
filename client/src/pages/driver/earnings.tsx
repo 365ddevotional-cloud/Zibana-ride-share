@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Wallet, TrendingUp, Calendar, ArrowUpRight, Star, CheckCircle, Lightbulb, FileText, Banknote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
+import { useTranslation } from "@/i18n";
 import type { DriverProfile, Trip } from "@shared/schema";
 
 interface CancellationMetrics {
@@ -17,6 +18,7 @@ interface CancellationMetrics {
 
 export default function DriverEarnings() {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [, setLocation] = useLocation();
 
   const { data: profile } = useQuery<DriverProfile>({
@@ -105,7 +107,7 @@ export default function DriverEarnings() {
     <DriverLayout>
       <div className="p-4 space-y-4">
         <div className="flex items-center justify-between gap-2 flex-wrap">
-          <h1 className="text-xl font-bold" data-testid="text-earnings-title">Earnings</h1>
+          <h1 className="text-xl font-bold" data-testid="text-earnings-title">{t("driver.earnings")}</h1>
           <Button
             variant="outline"
             size="sm"
@@ -113,7 +115,7 @@ export default function DriverEarnings() {
             data-testid="button-earnings-statements"
           >
             <FileText className="h-4 w-4 mr-2" />
-            Statements
+            {t("driver.statements")}
           </Button>
         </div>
 
@@ -143,9 +145,9 @@ export default function DriverEarnings() {
 
         <Tabs defaultValue="today" className="w-full">
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="today" data-testid="tab-today">Today</TabsTrigger>
-            <TabsTrigger value="week" data-testid="tab-week">This Week</TabsTrigger>
-            <TabsTrigger value="month" data-testid="tab-month">Last 30 Days</TabsTrigger>
+            <TabsTrigger value="today" data-testid="tab-today">{t("driver.todayEarnings")}</TabsTrigger>
+            <TabsTrigger value="week" data-testid="tab-week">{t("driver.weeklyEarnings")}</TabsTrigger>
+            <TabsTrigger value="month" data-testid="tab-month">{t("driver.monthlyEarnings")}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="today" className="mt-4 space-y-3">
@@ -185,7 +187,7 @@ export default function DriverEarnings() {
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Acceptance Rate</span>
+              <span className="text-sm text-muted-foreground">{t("driver.acceptanceRate")}</span>
               <span className="font-medium" data-testid="text-acceptance-rate">{acceptanceRate}%</span>
             </div>
             <div className="flex items-center justify-between">
@@ -226,7 +228,7 @@ export default function DriverEarnings() {
 
         <Tabs defaultValue="history" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="history" data-testid="tab-earnings-history">Trip History</TabsTrigger>
+            <TabsTrigger value="history" data-testid="tab-earnings-history">{t("driver.tripHistory")}</TabsTrigger>
             <TabsTrigger value="withdrawals" data-testid="tab-withdrawals">Withdrawals</TabsTrigger>
           </TabsList>
 

@@ -9,6 +9,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
+import { useTranslation } from "@/i18n";
 import {
   ArrowLeft, Car, Wallet, Bell, Megaphone, Mail,
   CheckCheck, DollarSign, Shield, AlertTriangle,
@@ -50,6 +51,7 @@ const typeLabels: Record<string, string> = {
 export default function DriverInbox() {
   const { toast } = useToast();
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [, setLocation] = useLocation();
 
   const { data: messages, isLoading, isError } = useQuery<InboxMessage[]>({
@@ -104,7 +106,7 @@ export default function DriverInbox() {
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <h1 className="text-2xl font-bold" data-testid="text-inbox-title">Inbox</h1>
+            <h1 className="text-2xl font-bold" data-testid="text-inbox-title">{t("inbox.title")}</h1>
             {unreadCount > 0 && (
               <Badge data-testid="badge-unread-count">{unreadCount}</Badge>
             )}
@@ -118,7 +120,7 @@ export default function DriverInbox() {
               data-testid="button-mark-all-read"
             >
               <CheckCheck className="h-4 w-4 mr-1" />
-              Mark All Read
+              {t("inbox.markAllRead")}
             </Button>
           )}
         </div>
@@ -140,9 +142,9 @@ export default function DriverInbox() {
           <Card data-testid="card-empty-inbox">
             <CardContent className="p-8 text-center">
               <Mail className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-              <p className="text-muted-foreground font-medium">No messages yet</p>
+              <p className="text-muted-foreground font-medium">{t("inbox.noMessages")}</p>
               <p className="text-sm text-muted-foreground mt-1">
-                Your notifications and updates will appear here
+                {t("inbox.noMessagesDesc")}
               </p>
             </CardContent>
           </Card>

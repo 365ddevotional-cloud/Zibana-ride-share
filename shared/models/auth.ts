@@ -26,6 +26,7 @@ export const users = pgTable("users", {
   profileImageUrl: varchar("profile_image_url"),
   themePreference: themePreferenceEnum("theme_preference").default("system"),
   language: varchar("language").default("en"),
+  languageSource: varchar("language_source").default("default"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
