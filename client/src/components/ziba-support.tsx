@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Headphones, Send, ArrowRight, X } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
+import { useTranslation } from "@/i18n";
 import { getTemplateResponse, type ZibraRole, ZIBRA_LANGUAGE_CONFIG } from "@shared/zibra-templates";
 
 type UserRole = ZibraRole;
@@ -159,6 +160,7 @@ interface ZibaSupportProps {
 export function ZibaSupport({ onClose, forceRole }: ZibaSupportProps) {
   const { user } = useAuth();
   const [pathname] = useLocation();
+  const { t } = useTranslation();
   const detectedRole = forceRole || detectRole(pathname, (user as any)?.roles);
   const screen = getScreenContext(pathname);
 
@@ -199,6 +201,23 @@ export function ZibaSupport({ onClose, forceRole }: ZibaSupportProps) {
     setMessages(prev => [...prev, userMsg]);
     setInput("");
 
+    // Check for language-related keywords and provide auto-response
+    const languageKeywords = ["language", "english", "reset", "help me", "can't read", "cant read", "don't understand", "dont understand", "لغة", "langue", "idioma", "lingua"];
+    const isLanguageHelp = languageKeywords.some(kw => msg.toLowerCase().includes(kw));
+
+    if (isLanguageHelp) {
+      const langHelpMsg = t("support.helpReset") + "\n\nTo reset: Settings → Language → English";
+      const supportMsg: SupportMessage = {
+        id: `support-${Date.now()}`,
+        role: "support",
+        content: langHelpMsg,
+        timestamp: new Date(Date.now() + 300),
+      };
+      setMessages(prev => [...prev, supportMsg]);
+      logSupportInteraction(msg, langHelpMsg, detectedRole, screen);
+      return;
+    }
+
     try {
       const res = await fetch("/api/support/chat", {
         method: "POST",
@@ -230,7 +249,7 @@ export function ZibaSupport({ onClose, forceRole }: ZibaSupportProps) {
     };
     setMessages(prev => [...prev, supportMsg]);
     logSupportInteraction(msg, responseText, detectedRole, screen);
-  }, [input, detectedRole, screen, conversationId, escalated]);
+  }, [input, detectedRole, screen, conversationId, escalated, t]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

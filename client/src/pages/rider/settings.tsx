@@ -65,10 +65,10 @@ export default function RiderSettings() {
   };
 
   const notifItems = [
-    { key: "rideUpdates", label: "Ride Updates", desc: "Status changes, driver arrivals, trip completions" },
-    { key: "payments", label: "Payments", desc: "Wallet activity, receipts, refunds" },
-    { key: "safety", label: "Safety Alerts", desc: "Emergency notifications and safety tips" },
-    { key: "promotions", label: "Promotions", desc: "Special offers, discounts, and campaigns" },
+    { key: "rideUpdates", labelKey: "settings.rideUpdates", descKey: "settings.rideUpdatesDesc" },
+    { key: "payments", labelKey: "settings.paymentsNotif", descKey: "settings.paymentsNotifDesc" },
+    { key: "safety", labelKey: "settings.safetyAlerts", descKey: "settings.safetyAlertsDesc" },
+    { key: "promotions", labelKey: "settings.promotionsNotif", descKey: "settings.promotionsNotifDesc" },
   ];
 
   return (
@@ -84,20 +84,20 @@ export default function RiderSettings() {
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <h1 className="text-xl font-bold">Settings</h1>
+            <h1 className="text-xl font-bold">{t("settings.title")}</h1>
           </div>
 
           <div className="space-y-1">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1 mb-2">
-              Notifications
+              {t("settings.notifications")}
             </p>
             <Card>
               <CardContent className="p-4 space-y-4">
                 {notifItems.map((item) => (
                   <div key={item.key} className="flex items-center justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      <Label className="text-sm font-medium">{item.label}</Label>
-                      <p className="text-xs text-muted-foreground">{item.desc}</p>
+                      <Label className="text-sm font-medium">{t(item.labelKey)}</Label>
+                      <p className="text-xs text-muted-foreground">{t(item.descKey)}</p>
                     </div>
                     <Switch
                       checked={(notifPrefs as any)?.[item.key] ?? true}
@@ -112,17 +112,17 @@ export default function RiderSettings() {
 
           <div className="space-y-1">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1 mb-2">
-              Appearance
+              {t("settings.appearance")}
             </p>
             <Card>
               <CardContent className="p-4 space-y-3">
-                <p className="text-sm font-medium">Theme</p>
+                <p className="text-sm font-medium">{t("settings.theme")}</p>
                 <div className="flex gap-2">
                   {([
-                    { value: "light", icon: Sun, label: "Light" },
-                    { value: "dark", icon: Moon, label: "Dark" },
-                    { value: "system", icon: Monitor, label: "Auto" },
-                  ] as const).map(({ value, icon: Icon, label }) => (
+                    { value: "light", icon: Sun, labelKey: "settings.light" },
+                    { value: "dark", icon: Moon, labelKey: "settings.dark" },
+                    { value: "system", icon: Monitor, labelKey: "settings.auto" },
+                  ] as const).map(({ value, icon: Icon, labelKey }) => (
                     <Button
                       key={value}
                       variant={theme === value ? "default" : "outline"}
@@ -132,7 +132,7 @@ export default function RiderSettings() {
                       data-testid={`button-theme-${value}`}
                     >
                       <Icon className="h-4 w-4" />
-                      {label}
+                      {t(labelKey)}
                     </Button>
                   ))}
                 </div>
@@ -168,21 +168,21 @@ export default function RiderSettings() {
 
           <div className="space-y-1">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1 mb-2">
-              Privacy & Data
+              {t("settings.privacyData")}
             </p>
             <Card>
               <CardContent className="p-0 divide-y">
                 <SettingsNavRow
                   icon={<Eye className="h-5 w-5" />}
-                  label="Data Usage"
-                  sublabel="Control how your data is used"
+                  label={t("settings.dataUsage")}
+                  sublabel={t("settings.dataUsageDesc")}
                   onClick={() => setLocation("/rider/account-data-usage")}
                   testId="button-data-usage"
                 />
                 <SettingsNavRow
                   icon={<Lock className="h-5 w-5" />}
-                  label="Privacy Policy"
-                  sublabel="How we protect your information"
+                  label={t("settings.privacyPolicy")}
+                  sublabel={t("settings.privacyPolicyDesc")}
                   onClick={() => setLocation("/rider/terms-privacy")}
                   testId="button-privacy-policy"
                 />
@@ -192,21 +192,21 @@ export default function RiderSettings() {
 
           <div className="space-y-1">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1 mb-2">
-              Safety
+              {t("settings.safety")}
             </p>
             <Card>
               <CardContent className="p-0 divide-y">
                 <SettingsNavRow
                   icon={<Shield className="h-5 w-5" />}
-                  label="Safety Hub"
-                  sublabel="Emergency contacts, SOS, incident reports"
+                  label={t("settings.safetyHub")}
+                  sublabel={t("settings.safetyHubDesc")}
                   onClick={() => setLocation("/rider/safety")}
                   testId="button-safety-hub"
                 />
                 <SettingsNavRow
                   icon={<Lock className="h-5 w-5" />}
-                  label="Ride PIN"
-                  sublabel="Verify your driver before riding"
+                  label={t("settings.ridePin")}
+                  sublabel={t("settings.ridePinDesc")}
                   onClick={() => setLocation("/rider/account-ride-pin")}
                   testId="button-ride-pin"
                 />
@@ -216,7 +216,7 @@ export default function RiderSettings() {
 
           <div className="space-y-1">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1 mb-2">
-              About
+              {t("settings.about")}
             </p>
             <Card>
               <CardContent className="p-4 space-y-3">
@@ -224,18 +224,18 @@ export default function RiderSettings() {
                   <Info className="h-5 w-5 text-muted-foreground" />
                   <div>
                     <p className="text-sm font-medium">ZIBA Ride</p>
-                    <p className="text-xs text-muted-foreground">Version 1.0.0</p>
+                    <p className="text-xs text-muted-foreground">{t("settings.version")} 1.0.0</p>
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  ZIBA is a ride-hailing platform designed for emerging markets, connecting riders with safe and reliable drivers. We are committed to enhancing mobility and creating economic opportunities across Africa and beyond.
+                  {t("settings.aboutDesc")}
                 </p>
                 <button
                   className="text-xs text-primary hover:underline"
                   onClick={() => setLocation("/rider/terms-privacy")}
                   data-testid="button-about-terms"
                 >
-                  Terms of Service & Privacy Policy
+                  {t("settings.termsService")}
                 </button>
               </CardContent>
             </Card>
