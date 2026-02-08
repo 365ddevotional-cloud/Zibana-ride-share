@@ -1221,24 +1221,24 @@ export default function DirectorDashboard() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex flex-wrap gap-1" data-testid="tabs-director">
           <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
-          <TabsTrigger value="drivers" data-testid="tab-drivers">Drivers</TabsTrigger>
-          <TabsTrigger value="funding" data-testid="tab-funding">Funding</TabsTrigger>
-          <TabsTrigger value="staff" data-testid="tab-staff">Staff</TabsTrigger>
+          <TabsTrigger value="drivers" disabled={trainingStatus && !trainingStatus.allCompleted && !isReadOnly} data-testid="tab-drivers">Drivers</TabsTrigger>
+          <TabsTrigger value="funding" disabled={trainingStatus && !trainingStatus.allCompleted && !isReadOnly} data-testid="tab-funding">Funding</TabsTrigger>
+          <TabsTrigger value="staff" disabled={trainingStatus && !trainingStatus.allCompleted && !isReadOnly} data-testid="tab-staff">Staff</TabsTrigger>
           <TabsTrigger value="activity" data-testid="tab-activity">Activity Log</TabsTrigger>
-          <TabsTrigger value="earnings" data-testid="tab-earnings">Earnings</TabsTrigger>
+          <TabsTrigger value="earnings" disabled={trainingStatus && !trainingStatus.allCompleted && !isReadOnly} data-testid="tab-earnings">Earnings</TabsTrigger>
           <TabsTrigger value="performance" data-testid="tab-performance">
             <TrendingUp className="h-4 w-4 mr-1" />
             Performance
           </TabsTrigger>
-          <TabsTrigger value="disputes" data-testid="tab-disputes">
+          <TabsTrigger value="disputes" disabled={trainingStatus && !trainingStatus.allCompleted && !isReadOnly} data-testid="tab-disputes">
             <Shield className="h-4 w-4 mr-1" />
             Disputes
           </TabsTrigger>
-          <TabsTrigger value="corporate-rides" data-testid="tab-corporate-rides">
+          <TabsTrigger value="corporate-rides" disabled={trainingStatus && !trainingStatus.allCompleted && !isReadOnly} data-testid="tab-corporate-rides">
             <Building2 className="h-4 w-4 mr-1" />
             Corporate
           </TabsTrigger>
-          <TabsTrigger value="special-rides" data-testid="tab-special-rides">
+          <TabsTrigger value="special-rides" disabled={trainingStatus && !trainingStatus.allCompleted && !isReadOnly} data-testid="tab-special-rides">
             <Crown className="h-4 w-4 mr-1" />
             Special Rides
           </TabsTrigger>
