@@ -1,0 +1,150 @@
+YOU ARE WORKING ON THE ZIBA RIDER APP.
+GOAL: FINALIZE AND ACTIVATE ALL RIDER FLOWS WITH ZERO DEAD TAPS, ZERO “COMING SOON”, AND FULL NAVIGATION CONSISTENCY.
+
+DO NOT REMOVE OR BREAK EXISTING LOGIC.
+AUDIT FIRST, THEN FIX ONLY WHAT IS MISSING OR DISABLED.
+
+====================================================
+PHASE 0 — QUICK AUDIT (DO NOT SKIP)
+====================================================
+
+1) Scan Rider UI for:
+- Disabled cards
+- Non-clickable containers
+- “Coming Soon” labels
+- Missing routes
+- Missing back navigation
+
+2) Identify components involved:
+- Services cards
+- Payment card
+- Account list items
+- Corporate Rides
+- Special Rides
+
+====================================================
+PHASE 1 — ACTIVATE CORPORATE & SPECIAL RIDES
+====================================================
+
+A) REMOVE ALL “COMING SOON” STATES
+- Corporate Rides
+- Special Rides
+
+B) MAKE BOTH FULLY CLICKABLE
+Services screen:
+- Tapping Corporate Rides → /rider/corporate
+- Tapping Special Rides → /rider/special
+
+C) CREATE MINIMAL FUNCTIONAL PAGES IF MISSING
+
+/rider/corporate:
+- Title: Corporate Rides
+- Description: Ride on your company’s account with centralized billing
+- CTA:
+  - “Request Corporate Ride”
+  - If user not enrolled → show info + contact/admin flow
+- Back button → Services
+
+/rider/special:
+- Title: Special Rides
+- Options:
+  - Premium Ride
+  - Group Ride
+  - Event Ride
+- Each option opens placeholder detail page (no dead taps)
+- Back button → Services
+
+NO FEATURE SHOULD LEAD TO A BLANK PAGE.
+
+====================================================
+PHASE 2 — FIX RIDER HOME PAYMENT CARD
+====================================================
+
+1) Make payment box clickable:
+- Cash / Wallet card → /rider/payment-method
+
+/rider/payment-method page:
+- Select Cash
+- Select Wallet
+- Wallet balance display
+- Link: “Top up wallet”
+- Back button → Home
+
+2) “Payment help” card:
+- Route to /rider/help
+- Open ZIBA Support (Z-Assist)
+
+====================================================
+PHASE 3 — ACCOUNT TAB: MAKE EVERYTHING CLICKABLE
+====================================================
+
+ALL account rows must navigate properly:
+
+Profile → /account/profile
+Email → /account/email
+Phone → /account/phone
+Saved Places → /account/saved-places
+Notifications → /account/notifications
+Marketing → /account/marketing
+Data Usage → /account/data-usage
+Ride History → /activity
+Trusted Contacts → /account/trusted-contacts
+Ride PIN → /account/ride-pin
+Emergency → /account/emergency
+Help Center → /help
+
+EACH PAGE MUST:
+- Have a visible Back button
+- Return to Account tab
+- Never crash on empty data
+
+====================================================
+PHASE 4 — SERVICES TAB FINAL PASS
+====================================================
+
+Services screen must contain:
+- Schedule Ride (working)
+- Corporate Rides (ACTIVE, clickable)
+- Special Rides (ACTIVE, clickable)
+
+NO disabled UI.
+NO “Coming Soon”.
+NO dead arrows.
+
+====================================================
+PHASE 5 — UX & CONSISTENCY RULES
+====================================================
+
+- Entire card is tappable (not icon-only)
+- Arrow icon reflects navigation
+- Consistent header styling
+- Back navigation always works
+- Empty states show guidance, not errors
+
+====================================================
+PHASE 6 — FINAL QA CHECKS (REQUIRED)
+====================================================
+
+Test manually:
+- Tap every card
+- Navigate forward and back
+- Refresh page
+- Test logged-in Rider only
+
+Confirm:
+- No console errors
+- No blank screens
+- No disabled interactions
+
+====================================================
+FINAL INSTRUCTION
+====================================================
+
+DO NOT LEAVE ANY RIDER-FACING UI NON-CLICKABLE.
+IF A FEATURE EXISTS VISUALLY, IT MUST NAVIGATE.
+MATCH ALL STYLING WITH EXISTING ZIBA DESIGN SYSTEM.
+
+IMPLEMENT NOW AND CONFIRM:
+- Which routes were added
+- Which components were updated
+- What was already working vs fixed

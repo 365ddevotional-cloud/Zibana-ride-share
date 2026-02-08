@@ -36,6 +36,7 @@ ZIBA includes comprehensive features such as:
 - **Performance Scoring**: Implements Director Performance Scoring (DPS) and Rider Trust Score (RTS) with auto-assigned tiers and configurable incentives/restrictions.
 - **Third-Party Wallet Funding**: Allows trusted users to fund a rider's wallet with defined relationship types and limits, including fraud detection and admin controls.
 - **Reporting Dashboards**: Read-only dashboards for directors with operational metrics and comparison views for administrators.
+- **Complete Driver Experience**: Full driver account management with profile editing (name, email, read-only phone), vehicle management (make, model, color, year, plate with edit/re-approval flow), document management (upload/replace per document with expiry warnings), data usage controls, emergency contacts, inbox, settings, help center, and terms/privacy pages.
 
 ### System Design Choices
 The data storage layer uses PostgreSQL as the database, with Drizzle ORM and Zod for schema validation. The schema is comprehensive, covering all operational aspects from users and trips to financial transactions, fraud profiles, and legal compliance.
