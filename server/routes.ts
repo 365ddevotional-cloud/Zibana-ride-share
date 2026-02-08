@@ -23418,6 +23418,278 @@ export async function registerRoutes(
     }
   });
 
+  // =============================================
+  // DIRECTOR REPORTS (READ-ONLY, SAFE)
+  // =============================================
+
+  app.get("/api/director/reports/daily", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+
+      const [director] = await db.select().from(directorProfiles)
+        .where(eq(directorProfiles.userId, userId));
+      if (!director) return res.status(404).json({ error: "Director profile not found" });
+
+      if (director.lifecycleStatus === "suspended" || director.lifecycleStatus === "terminated") {
+        return res.json({ readOnly: true, status: director.lifecycleStatus, message: "Your dashboard is in read-only mode." });
+      }
+
+      const assignments = await storage.getDriversUnderDirector(userId);
+      const driverIds = assignments.map(a => a.driverUserId);
+      const totalDrivers = driverIds.length;
+
+      let activeDriversToday = 0;
+      let suspendedDrivers = 0;
+      if (driverIds.length > 0) {
+        const driverProfs = await db.select().from(driverProfiles)
+          .where(inArray(driverProfiles.userId, driverIds));
+        activeDriversToday = driverProfs.filter(d => d.isOnline).length;
+        suspendedDrivers = driverProfs.filter(d => d.status === "suspended").length;
+      }
+
+      const commSettings = await storage.getDirectorCommissionSettings();
+      const activeRatio = parseFloat(commSettings?.activeRatio || "0.77");
+      const maxComm = director.maxCommissionablePerDay || commSettings?.maxCommissionableDrivers || 1000;
+      const commissionableDrivers = Math.min(Math.floor(activeDriversToday * activeRatio), maxComm);
+      const activityRatio = totalDrivers > 0 ? Math.round((activeDriversToday / totalDrivers) * 100) : 0;
+
+      const cells = await db.select().from(directorCells)
+        .where(eq(directorCells.directorUserId, userId));
+      const cellSummaries = cells.map(c => ({
+        id: c.id,
+        name: c.cellName,
+        driverCount: 0,
+        maxCapacity: c.maxDriverCapacity || 50,
+      }));
+
+      for (const cell of cellSummaries) {
+        const cellAssignments = assignments.filter(a => a.cellId === cell.id);
+        cell.driverCount = cellAssignments.length;
+      }
+
+      res.json({
+        date: new Date().toISOString().split("T")[0],
+        totalDrivers,
+        activeDriversToday,
+        commissionableDrivers,
+        suspendedDrivers,
+        activityRatio,
+        cellSummaries,
+        meetsActivationThreshold: totalDrivers >= (director.activationThreshold || 10),
+        lifecycleStatus: director.lifecycleStatus,
+        lifespanEndDate: director.lifespanEndDate,
+      });
+    } catch (error) {
+      console.error("Director daily report error:", error);
+      res.status(500).json({ error: "Failed to load daily report" });
+    }
+  });
+
+  app.get("/api/director/reports/weekly", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+
+      const [director] = await db.select().from(directorProfiles)
+        .where(eq(directorProfiles.userId, userId));
+      if (!director) return res.status(404).json({ error: "Director profile not found" });
+
+      const commissionLogs = await storage.getDirectorCommissionLogs(userId, 7);
+
+      const dailyTrend = commissionLogs.map(log => ({
+        date: log.date,
+        activeDrivers: log.activeDriversToday,
+        totalDrivers: log.totalDrivers,
+        commissionableDrivers: log.commissionableDrivers,
+        activityRatio: Math.round(parseFloat(log.activeRatio) * 100),
+        directorStatus: log.directorStatus,
+        meetsThreshold: log.meetsActivationThreshold,
+      }));
+
+      const avgActiveDrivers = commissionLogs.length > 0
+        ? Math.round(commissionLogs.reduce((s, l) => s + l.activeDriversToday, 0) / commissionLogs.length)
+        : 0;
+      const avgCommissionable = commissionLogs.length > 0
+        ? Math.round(commissionLogs.reduce((s, l) => s + l.commissionableDrivers, 0) / commissionLogs.length)
+        : 0;
+
+      const first = commissionLogs[commissionLogs.length - 1];
+      const last = commissionLogs[0];
+      const growthIndicator = first && last
+        ? last.totalDrivers - first.totalDrivers
+        : 0;
+
+      const complianceDays = commissionLogs.filter(l => l.meetsActivationThreshold).length;
+      const complianceRate = commissionLogs.length > 0
+        ? Math.round((complianceDays / commissionLogs.length) * 100)
+        : 0;
+
+      res.json({
+        period: "weekly",
+        daysReported: commissionLogs.length,
+        dailyTrend,
+        avgActiveDrivers,
+        avgCommissionable,
+        growthIndicator,
+        complianceRate,
+        lifecycleStatus: director.lifecycleStatus,
+      });
+    } catch (error) {
+      console.error("Director weekly report error:", error);
+      res.status(500).json({ error: "Failed to load weekly report" });
+    }
+  });
+
+  app.get("/api/director/reports/monthly", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+
+      const [director] = await db.select().from(directorProfiles)
+        .where(eq(directorProfiles.userId, userId));
+      if (!director) return res.status(404).json({ error: "Director profile not found" });
+
+      const commissionLogs = await storage.getDirectorCommissionLogs(userId, 30);
+
+      const weeklyBuckets: Array<{ week: number; avgActive: number; avgTotal: number; complianceRate: number }> = [];
+      for (let w = 0; w < 4; w++) {
+        const weekLogs = commissionLogs.slice(w * 7, (w + 1) * 7);
+        if (weekLogs.length === 0) continue;
+        const avgActive = Math.round(weekLogs.reduce((s, l) => s + l.activeDriversToday, 0) / weekLogs.length);
+        const avgTotal = Math.round(weekLogs.reduce((s, l) => s + l.totalDrivers, 0) / weekLogs.length);
+        const compliant = weekLogs.filter(l => l.meetsActivationThreshold).length;
+        weeklyBuckets.push({
+          week: w + 1,
+          avgActive,
+          avgTotal,
+          complianceRate: Math.round((compliant / weekLogs.length) * 100),
+        });
+      }
+
+      const perf = await db.select().from(directorPerformanceScores)
+        .where(eq(directorPerformanceScores.directorUserId, userId))
+        .orderBy(desc(directorPerformanceScores.calculatedAt))
+        .limit(1);
+      const performanceScore = perf[0]?.totalScore || null;
+      const performanceTier = perf[0]?.tier || null;
+
+      const firstWeek = weeklyBuckets[weeklyBuckets.length - 1];
+      const lastWeek = weeklyBuckets[0];
+      const monthlyGrowth = firstWeek && lastWeek
+        ? lastWeek.avgTotal - firstWeek.avgTotal
+        : 0;
+      const trendDirection = monthlyGrowth > 0 ? "growing" : monthlyGrowth < 0 ? "declining" : "stable";
+
+      res.json({
+        period: "monthly",
+        daysReported: commissionLogs.length,
+        weeklyBuckets,
+        performanceScore,
+        performanceTier,
+        monthlyGrowth,
+        trendDirection,
+        lifecycleStatus: director.lifecycleStatus,
+      });
+    } catch (error) {
+      console.error("Director monthly report error:", error);
+      res.status(500).json({ error: "Failed to load monthly report" });
+    }
+  });
+
+  // ADMIN — VIEW ALL DIRECTOR REPORTS
+  app.get("/api/admin/directors/reports", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const allDirectors = await db.select().from(directorProfiles);
+      const directorUsers = await db.select().from(users)
+        .where(inArray(users.id, allDirectors.map(d => d.userId)));
+
+      const reports = [];
+      for (const director of allDirectors) {
+        const user = directorUsers.find(u => u.id === director.userId);
+        const assignments = await storage.getDriversUnderDirector(director.userId);
+        const commissionLogs = await storage.getDirectorCommissionLogs(director.userId, 7);
+
+        let activeDriversToday = 0;
+        if (assignments.length > 0) {
+          const driverProfs = await db.select().from(driverProfiles)
+            .where(inArray(driverProfiles.userId, assignments.map(a => a.driverUserId)));
+          activeDriversToday = driverProfs.filter(d => d.isOnline).length;
+        }
+
+        const avgActive7d = commissionLogs.length > 0
+          ? Math.round(commissionLogs.reduce((s, l) => s + l.activeDriversToday, 0) / commissionLogs.length)
+          : 0;
+        const complianceDays = commissionLogs.filter(l => l.meetsActivationThreshold).length;
+        const complianceRate = commissionLogs.length > 0
+          ? Math.round((complianceDays / commissionLogs.length) * 100)
+          : 0;
+        const activityRatio = assignments.length > 0
+          ? Math.round((activeDriversToday / assignments.length) * 100)
+          : 0;
+
+        const perf = await db.select().from(directorPerformanceScores)
+          .where(eq(directorPerformanceScores.directorUserId, director.userId))
+          .orderBy(desc(directorPerformanceScores.calculatedAt))
+          .limit(1);
+
+        reports.push({
+          directorUserId: director.userId,
+          name: user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.username || "Unknown" : "Unknown",
+          directorType: director.directorType,
+          lifecycleStatus: director.lifecycleStatus,
+          totalDrivers: assignments.length,
+          activeDriversToday,
+          activityRatio,
+          avgActive7d,
+          complianceRate,
+          performanceScore: perf[0]?.totalScore || null,
+          performanceTier: perf[0]?.tier || null,
+          lifespanEndDate: director.lifespanEndDate,
+          commissionFrozen: director.commissionFrozen,
+        });
+      }
+
+      res.json({ reports });
+    } catch (error) {
+      console.error("Admin director reports error:", error);
+      res.status(500).json({ error: "Failed to load director reports" });
+    }
+  });
+
+  // ADMIN — FLAG DIRECTOR FOR REVIEW
+  app.post("/api/admin/directors/:directorUserId/flag", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { directorUserId } = req.params;
+      const { reason } = req.body;
+      const actorId = req.user?.claims?.sub;
+      const userRoles = await storage.getUserRoles(actorId);
+      const actorRole = userRoles.includes("super_admin") ? "super_admin" : "admin";
+
+      await db.insert(directorActionLogs).values({
+        actorId,
+        actorRole,
+        action: "flag_for_review",
+        targetType: "director",
+        targetId: directorUserId,
+        afterState: JSON.stringify({ reason }),
+        metadata: JSON.stringify({ reason }),
+      });
+
+      await storage.createNotification({
+        userId: directorUserId,
+        type: "system",
+        title: "Account Under Review",
+        message: "Your director account has been flagged for administrative review. No action is required at this time.",
+      });
+
+      res.json({ success: true, message: "Director flagged for review" });
+    } catch (error) {
+      console.error("Flag director error:", error);
+      res.status(500).json({ error: "Failed to flag director" });
+    }
+  });
+
   app.get("/api/director/oversight-signals", isAuthenticated, requireRole(["director", "admin", "super_admin"]), async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
