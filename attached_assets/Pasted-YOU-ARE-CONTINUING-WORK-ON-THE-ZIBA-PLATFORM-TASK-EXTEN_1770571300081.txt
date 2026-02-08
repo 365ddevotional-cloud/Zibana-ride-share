@@ -1,0 +1,144 @@
+YOU ARE CONTINUING WORK ON THE ZIBA PLATFORM.
+TASK: EXTEND MULTI-LANGUAGE SUPPORT TO DRIVERS, DIRECTORS, ADMINS + ENABLE SMART DEFAULT LANGUAGE DETECTION.
+
+DO NOT REMOVE EXISTING FEATURES.
+DO NOT BREAK CURRENT FLOWS.
+FOLLOW ZIBA DESIGN + LEGAL RULES.
+
+====================================================
+PHASE 1 — ROLE-WIDE LANGUAGE SYNC
+====================================================
+
+Apply the SAME language system already implemented for Riders to:
+
+- Drivers
+- Contract Directors
+- Employee Directors
+- Director Staff Accounts
+- Admin
+- Super Admin
+- ZIBA Support (Z-Assist / ZIBRA)
+
+RULE:
+Language preference is PER USER, not per device.
+
+Store:
+- user.language
+- user.language_source (manual | auto_country | default)
+
+====================================================
+PHASE 2 — SMART DEFAULT LANGUAGE DETECTION
+====================================================
+
+ON FIRST SIGN-UP OR FIRST LOGIN ONLY:
+
+Detect language in this priority order:
+
+1) If user manually selects language → USE IT
+2) Else if country is known:
+   - Nigeria → English (default), Hausa / Igbo / Yoruba available
+   - Ghana → English
+   - South Africa → English (Zulu, Xhosa, Afrikaans available)
+   - Kenya / Tanzania → English (Swahili available)
+   - Francophone Africa → French
+   - Middle East / North Africa → Arabic
+3) Else → English
+
+IMPORTANT:
+- Never auto-switch language after first manual selection
+- Never override user choice
+
+====================================================
+PHASE 3 — DRIVER & DIRECTOR DASHBOARD SUPPORT
+====================================================
+
+A) DRIVER APP
+- Settings → Language (same UI as Rider)
+- Trip screens translated
+- Earnings, wallet, alerts translated
+- ZIBA Support messages translated
+
+B) DIRECTOR DASHBOARD
+- Director Dashboard → Settings → Language
+- Director KPIs, driver lists, funding screens translated
+- ZIBRA private guidance respects director language
+
+C) DIRECTOR STAFF
+- Each staff member has independent language setting
+- Does NOT affect Director or other staff
+
+====================================================
+PHASE 4 — ADMIN & SUPER ADMIN CONTROLS
+====================================================
+
+Admin / Super Admin may:
+- View user language preference (read-only)
+- Filter users by language in reports
+- Set system default language per country (optional)
+
+Admins CANNOT:
+- Force-change a user’s language without consent
+
+====================================================
+PHASE 5 — ZIBRA (ZIBA SUPPORT) MULTI-LANGUAGE RULES
+====================================================
+
+ZIBRA must:
+- Respond in user’s selected language
+- Fall back to English if translation missing
+- Keep legal phrasing intact across languages
+
+If user types mixed language:
+- Detect intent
+- Respond in selected app language
+
+If user types:
+- “English”
+- “Reset language”
+ZIBRA must guide reset instantly.
+
+====================================================
+PHASE 6 — RTL & UI SAFETY
+====================================================
+
+For Arabic:
+- Enable RTL layout
+- Mirror icons where appropriate
+- Keep numbers readable
+- Ensure buttons don’t overflow
+
+====================================================
+PHASE 7 — TESTING MATRIX (MANDATORY)
+====================================================
+
+Test EACH role:
+- Rider
+- Driver
+- Contract Director
+- Director Staff
+- Admin
+- Super Admin
+
+Test flows:
+- Language switch
+- Logout/login persistence
+- ZIBRA responses
+- Notifications
+- Dashboard labels
+
+====================================================
+FINAL RULES
+====================================================
+
+- One user = one language preference
+- No user can get stuck
+- English reset always visible
+- No “Coming Soon” remains
+- Legal language preserved across translations
+
+IMPLEMENT NOW.
+AFTER COMPLETION, REPORT:
+- Roles updated
+- Languages active
+- Detection logic used
+- Any edge cases found
