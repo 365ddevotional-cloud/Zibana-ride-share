@@ -5,7 +5,7 @@ import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integra
 import { storage } from "./storage";
 import { db } from "./db";
 import { eq, and, count, sql, gte, lt, isNotNull, inArray, desc } from "drizzle-orm";
-import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, driverInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages } from "@shared/schema";
+import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, driverInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages, walletFundingTransactions, walletFundingSettings, driverWallets } from "@shared/schema";
 import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, evaluateAllDrivers, evaluateBehaviorAndWarnings, calculateDriverMatchingScore, getDriverIncentiveProgress, assignFirstRidePromo, assignReturnRiderPromo, applyPromoToTrip, voidPromosOnCancellation } from "./incentives";
 import { notificationService } from "./notification-service";
 import { getCurrencyFromCountry, getCountryConfig, FINANCIAL_ENGINE_LOCKED } from "@shared/currency";
@@ -21269,6 +21269,331 @@ export async function registerRoutes(
       res.json({ generated: alertTypes.length, alertTypes: alertTypes.map(a => a.type) });
     } catch (error) {
       res.status(500).json({ error: "Failed to generate health check" });
+    }
+  });
+
+  // =============================================
+  // FUND ANOTHER WALLET
+  // =============================================
+
+  app.get("/api/wallet-funding/settings", isAuthenticated, async (req: any, res) => {
+    try {
+      const [settings] = await db.select().from(walletFundingSettings).limit(1);
+      if (!settings) {
+        const [created] = await db.insert(walletFundingSettings).values({}).returning();
+        return res.json(created);
+      }
+      res.json(settings);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to load funding settings" });
+    }
+  });
+
+  app.post("/api/wallet-funding/lookup", isAuthenticated, async (req: any, res) => {
+    try {
+      const { identifier } = req.body;
+      if (!identifier || typeof identifier !== "string" || identifier.trim().length < 3) {
+        return res.status(400).json({ error: "Please enter a valid email, phone number, or ZIBA ID" });
+      }
+      const trimmed = identifier.trim().toLowerCase();
+      const allUsers = await db.select({
+        id: users.id,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        profileImageUrl: users.profileImageUrl,
+        roles: users.roles,
+      }).from(users);
+
+      let found = allUsers.find(u => u.email?.toLowerCase() === trimmed || u.id === trimmed);
+      if (!found) {
+        const riderP = await db.select({ userId: riderProfiles.userId, phone: riderProfiles.phone })
+          .from(riderProfiles).where(eq(riderProfiles.phone, trimmed));
+        if (riderP.length > 0) {
+          found = allUsers.find(u => u.id === riderP[0].userId);
+        }
+      }
+      if (!found) {
+        return res.status(404).json({ error: "No ZIBA user found with that identifier" });
+      }
+
+      const senderUserId = req.user?.claims?.sub;
+      const [fundSettings] = await db.select().from(walletFundingSettings).limit(1);
+      if (fundSettings && !fundSettings.selfFundingAllowed && found.id === senderUserId) {
+        return res.status(400).json({ error: "You cannot fund your own wallet" });
+      }
+
+      let riderPhoto: string | null = null;
+      const [rp] = await db.select({ profilePhoto: riderProfiles.profilePhoto })
+        .from(riderProfiles).where(eq(riderProfiles.userId, found.id));
+      if (rp) riderPhoto = rp.profilePhoto;
+
+      const displayName = found.firstName && found.lastName
+        ? `${found.firstName} ${found.lastName}`
+        : found.email || "ZIBA User";
+      const primaryRole = (found.roles as string[])?.[0] || "rider";
+
+      res.json({
+        userId: found.id,
+        displayName,
+        avatarUrl: riderPhoto || found.profileImageUrl,
+        role: primaryRole,
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to lookup recipient" });
+    }
+  });
+
+  app.post("/api/wallet-funding/send", isAuthenticated, async (req: any, res) => {
+    try {
+      const senderUserId = req.user?.claims?.sub;
+      if (!senderUserId) return res.status(401).json({ error: "Not authenticated" });
+
+      const { receiverUserId, amount, disclaimerAccepted } = req.body;
+      if (!receiverUserId || !amount || !disclaimerAccepted) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+      const fundAmount = parseFloat(amount);
+      if (isNaN(fundAmount) || fundAmount <= 0) {
+        return res.status(400).json({ error: "Invalid amount" });
+      }
+
+      let [settings] = await db.select().from(walletFundingSettings).limit(1);
+      if (!settings) {
+        [settings] = await db.insert(walletFundingSettings).values({}).returning();
+      }
+      if (!settings.isEnabled) {
+        return res.status(403).json({ error: "Wallet funding is currently disabled" });
+      }
+      if (!settings.selfFundingAllowed && receiverUserId === senderUserId) {
+        return res.status(400).json({ error: "You cannot fund your own wallet" });
+      }
+      const minAmt = parseFloat(settings.minAmount as string);
+      const maxAmt = parseFloat(settings.maxAmount as string);
+      if (fundAmount < minAmt) return res.status(400).json({ error: `Minimum amount is ${minAmt}` });
+      if (fundAmount > maxAmt) return res.status(400).json({ error: `Maximum amount is ${maxAmt}` });
+
+      const now = new Date();
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+      const [dailyTotal] = await db.select({ total: sql<string>`COALESCE(SUM(amount::numeric), 0)` })
+        .from(walletFundingTransactions)
+        .where(and(
+          eq(walletFundingTransactions.senderUserId, senderUserId),
+          eq(walletFundingTransactions.status, "completed"),
+          gte(walletFundingTransactions.createdAt, startOfDay)
+        ));
+      if (parseFloat(dailyTotal?.total || "0") + fundAmount > parseFloat(settings.dailyLimit as string)) {
+        return res.status(400).json({ error: "Daily funding limit exceeded" });
+      }
+
+      const [monthlyTotal] = await db.select({ total: sql<string>`COALESCE(SUM(amount::numeric), 0)` })
+        .from(walletFundingTransactions)
+        .where(and(
+          eq(walletFundingTransactions.senderUserId, senderUserId),
+          eq(walletFundingTransactions.status, "completed"),
+          gte(walletFundingTransactions.createdAt, startOfMonth)
+        ));
+      if (parseFloat(monthlyTotal?.total || "0") + fundAmount > parseFloat(settings.monthlyLimit as string)) {
+        return res.status(400).json({ error: "Monthly funding limit exceeded" });
+      }
+
+      const [receiver] = await db.select().from(users).where(eq(users.id, receiverUserId));
+      if (!receiver) return res.status(404).json({ error: "Recipient not found" });
+
+      const [sender] = await db.select().from(users).where(eq(users.id, senderUserId));
+      const senderRoles = (sender?.roles as string[]) || [];
+      const receiverRoles = (receiver.roles as string[]) || [];
+      const senderRole = senderRoles[0] || "rider";
+      const receiverRole = receiverRoles[0] || "rider";
+
+      const [repeatCount] = await db.select({ cnt: sql<number>`COUNT(*)` })
+        .from(walletFundingTransactions)
+        .where(and(
+          eq(walletFundingTransactions.senderUserId, senderUserId),
+          eq(walletFundingTransactions.receiverUserId, receiverUserId),
+          eq(walletFundingTransactions.status, "completed")
+        ));
+      const threshold = settings.repeatFundingThreshold || 5;
+      const isFlagged = (repeatCount?.cnt || 0) >= threshold;
+      const flagReason = isFlagged ? `Repeated funding to same user (${repeatCount?.cnt} previous transactions)` : null;
+
+      const amountStr = fundAmount.toFixed(2);
+
+      if (receiverRoles.includes("rider")) {
+        const [wallet] = await db.select().from(riderWallets).where(eq(riderWallets.userId, receiverUserId));
+        if (wallet) {
+          await db.update(riderWallets)
+            .set({ balance: sql`(${riderWallets.balance}::numeric + ${amountStr}::numeric)::text`, updatedAt: new Date() })
+            .where(eq(riderWallets.userId, receiverUserId));
+        } else {
+          await db.insert(riderWallets).values({ userId: receiverUserId, balance: amountStr });
+        }
+      } else if (receiverRoles.includes("driver")) {
+        const [wallet] = await db.select().from(driverWallets).where(eq(driverWallets.userId, receiverUserId));
+        if (wallet) {
+          await db.update(driverWallets)
+            .set({ balance: sql`(${driverWallets.balance}::numeric + ${amountStr}::numeric)::text`, updatedAt: new Date() })
+            .where(eq(driverWallets.userId, receiverUserId));
+        } else {
+          await db.insert(driverWallets).values({ userId: receiverUserId, balance: amountStr });
+        }
+      } else {
+        const [wallet] = await db.select().from(riderWallets).where(eq(riderWallets.userId, receiverUserId));
+        if (wallet) {
+          await db.update(riderWallets)
+            .set({ balance: sql`(${riderWallets.balance}::numeric + ${amountStr}::numeric)::text`, updatedAt: new Date() })
+            .where(eq(riderWallets.userId, receiverUserId));
+        } else {
+          await db.insert(riderWallets).values({ userId: receiverUserId, balance: amountStr });
+        }
+      }
+
+      const [txn] = await db.insert(walletFundingTransactions).values({
+        senderUserId,
+        receiverUserId,
+        amount: amountStr,
+        status: "completed",
+        senderRole,
+        receiverRole,
+        disclaimerAccepted: true,
+        flagged: isFlagged,
+        flagReason,
+      }).returning();
+
+      const senderName = sender?.firstName && sender?.lastName
+        ? `${sender.firstName} ${sender.lastName}` : sender?.email || "A ZIBA user";
+      const receiverName = receiver.firstName && receiver.lastName
+        ? `${receiver.firstName} ${receiver.lastName}` : receiver.email || "ZIBA User";
+
+      const senderNotifRole = senderRoles.includes("driver") ? "driver" as const
+        : senderRoles.includes("director") ? "director" as const : "rider" as const;
+      const receiverNotifRole = receiverRoles.includes("driver") ? "driver" as const
+        : receiverRoles.includes("director") ? "director" as const : "rider" as const;
+
+      await storage.createNotification({
+        userId: senderUserId,
+        role: senderNotifRole,
+        type: "success",
+        title: "Wallet Funding Sent",
+        message: `You sent \u20A6${parseFloat(amountStr).toLocaleString()} to ${receiverName}'s ZIBA wallet.`,
+      });
+
+      await storage.createNotification({
+        userId: receiverUserId,
+        role: receiverNotifRole,
+        type: "success",
+        title: "Wallet Funded",
+        message: `\u20A6${parseFloat(amountStr).toLocaleString()} has been added to your ZIBA wallet by ${senderName}.`,
+      });
+
+      res.json({ success: true, transaction: txn });
+    } catch (error) {
+      console.error("Wallet funding error:", error);
+      res.status(500).json({ error: "Failed to process wallet funding" });
+    }
+  });
+
+  app.get("/api/wallet-funding/history", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+
+      const sent = await db.select().from(walletFundingTransactions)
+        .where(eq(walletFundingTransactions.senderUserId, userId))
+        .orderBy(desc(walletFundingTransactions.createdAt))
+        .limit(50);
+      const received = await db.select().from(walletFundingTransactions)
+        .where(eq(walletFundingTransactions.receiverUserId, userId))
+        .orderBy(desc(walletFundingTransactions.createdAt))
+        .limit(50);
+
+      const allUserIds = [...new Set([...sent.map(t => t.receiverUserId), ...received.map(t => t.senderUserId)])];
+      const userNames: Record<string, string> = {};
+      if (allUserIds.length > 0) {
+        const foundUsers = await db.select({ id: users.id, email: users.email, firstName: users.firstName, lastName: users.lastName })
+          .from(users).where(inArray(users.id, allUserIds));
+        for (const u of foundUsers) {
+          userNames[u.id] = u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.email || "ZIBA User";
+        }
+      }
+
+      res.json({
+        sent: sent.map(t => ({ ...t, recipientName: userNames[t.receiverUserId] || "ZIBA User" })),
+        received: received.map(t => ({ ...t, senderName: userNames[t.senderUserId] || "ZIBA User" })),
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to load funding history" });
+    }
+  });
+
+  app.get("/api/admin/wallet-funding/transactions", isAuthenticated, requireRole(["admin", "super_admin", "finance"]), async (req: any, res) => {
+    try {
+      const { flagged, sender, receiver } = req.query;
+      let query = db.select().from(walletFundingTransactions).orderBy(desc(walletFundingTransactions.createdAt)).limit(200);
+
+      const txns = await query;
+      let filtered = txns;
+      if (flagged === "true") filtered = filtered.filter(t => t.flagged);
+      if (sender) filtered = filtered.filter(t => t.senderUserId === sender);
+      if (receiver) filtered = filtered.filter(t => t.receiverUserId === receiver);
+
+      const allUserIds = [...new Set(filtered.flatMap(t => [t.senderUserId, t.receiverUserId]))];
+      const userMap: Record<string, string> = {};
+      if (allUserIds.length > 0) {
+        const foundUsers = await db.select({ id: users.id, email: users.email, firstName: users.firstName, lastName: users.lastName })
+          .from(users).where(inArray(users.id, allUserIds));
+        for (const u of foundUsers) {
+          userMap[u.id] = u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.email || "ZIBA User";
+        }
+      }
+
+      res.json(filtered.map(t => ({
+        ...t,
+        senderName: userMap[t.senderUserId] || "Unknown",
+        receiverName: userMap[t.receiverUserId] || "Unknown",
+      })));
+    } catch (error) {
+      res.status(500).json({ error: "Failed to load funding transactions" });
+    }
+  });
+
+  app.get("/api/admin/wallet-funding/settings", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      let [settings] = await db.select().from(walletFundingSettings).limit(1);
+      if (!settings) {
+        [settings] = await db.insert(walletFundingSettings).values({}).returning();
+      }
+      res.json(settings);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to load funding settings" });
+    }
+  });
+
+  app.put("/api/admin/wallet-funding/settings", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { dailyLimit, monthlyLimit, minAmount, maxAmount, selfFundingAllowed, repeatFundingThreshold, isEnabled } = req.body;
+      let [settings] = await db.select().from(walletFundingSettings).limit(1);
+      if (!settings) {
+        [settings] = await db.insert(walletFundingSettings).values({}).returning();
+      }
+      const updates: any = { updatedAt: new Date() };
+      if (dailyLimit !== undefined) updates.dailyLimit = String(dailyLimit);
+      if (monthlyLimit !== undefined) updates.monthlyLimit = String(monthlyLimit);
+      if (minAmount !== undefined) updates.minAmount = String(minAmount);
+      if (maxAmount !== undefined) updates.maxAmount = String(maxAmount);
+      if (selfFundingAllowed !== undefined) updates.selfFundingAllowed = selfFundingAllowed;
+      if (repeatFundingThreshold !== undefined) updates.repeatFundingThreshold = repeatFundingThreshold;
+      if (isEnabled !== undefined) updates.isEnabled = isEnabled;
+
+      const [updated] = await db.update(walletFundingSettings)
+        .set(updates)
+        .where(eq(walletFundingSettings.id, settings.id))
+        .returning();
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update funding settings" });
     }
   });
 

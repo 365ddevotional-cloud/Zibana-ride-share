@@ -4,10 +4,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
-import { Wallet, ArrowUpRight, ArrowDownLeft, CreditCard, Clock, Star, Info, DollarSign, FileText, Banknote, ChevronDown, ChevronUp } from "lucide-react";
+import { Wallet, ArrowUpRight, ArrowDownLeft, CreditCard, Clock, Star, Info, DollarSign, FileText, Banknote, ChevronDown, ChevronUp, Send } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { DriverBankAccountSection } from "@/components/driver-bank-account-section";
+import { FundAnotherWalletDialog } from "@/components/fund-another-wallet";
 import type { Wallet as WalletType, WalletTransaction } from "@shared/schema";
 
 interface WalletWithTransactions extends WalletType {
@@ -24,6 +25,7 @@ export default function DriverWalletPage() {
   });
 
   const [settlementExpanded, setSettlementExpanded] = useState(false);
+  const [showFundWallet, setShowFundWallet] = useState(false);
 
   const { data: settlementSummary } = useQuery<{ totalOwed: number; totalPaid: number; pendingCount: number }>({
     queryKey: ["/api/driver/settlement/summary"],
@@ -99,6 +101,16 @@ export default function DriverWalletPage() {
             </Button>
           </CardContent>
         </Card>
+
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={() => setShowFundWallet(true)}
+          data-testid="button-fund-another-wallet"
+        >
+          <Send className="h-4 w-4 mr-2" />
+          Fund Another Wallet
+        </Button>
 
         <div className="grid grid-cols-2 gap-3">
           <Card data-testid="card-total-balance">
@@ -231,6 +243,7 @@ export default function DriverWalletPage() {
           )}
         </div>
       </div>
+      <FundAnotherWalletDialog open={showFundWallet} onClose={() => setShowFundWallet(false)} />
     </DriverLayout>
   );
 }

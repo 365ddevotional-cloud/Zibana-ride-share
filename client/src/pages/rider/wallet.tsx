@@ -13,7 +13,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Wallet, CreditCard, Plus, Clock, CheckCircle, XCircle, AlertCircle, X, RefreshCw, Settings, Building2, Copy } from "lucide-react";
+import { Wallet, CreditCard, Plus, Clock, CheckCircle, XCircle, AlertCircle, X, RefreshCw, Settings, Building2, Copy, Send } from "lucide-react";
+import { FundAnotherWalletDialog } from "@/components/fund-another-wallet";
 
 interface WalletData {
   mainBalance: string;
@@ -63,6 +64,7 @@ export default function RiderWallet() {
   const [bankTransferAmount, setBankTransferAmount] = useState("");
   const [bankTransferInfo, setBankTransferInfo] = useState<BankTransferInfo | null>(null);
   const [showAutoTopUp, setShowAutoTopUp] = useState(false);
+  const [showFundWallet, setShowFundWallet] = useState(false);
   const [topUpThreshold, setTopUpThreshold] = useState("500");
   const [topUpAmount, setTopUpAmount] = useState("1000");
 
@@ -172,6 +174,16 @@ export default function RiderWallet() {
               </CardContent>
             </Card>
           )}
+
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => setShowFundWallet(true)}
+            data-testid="button-fund-another-wallet"
+          >
+            <Send className="h-4 w-4 mr-2" />
+            Fund Another Wallet
+          </Button>
 
           <Card>
             <CardHeader className="pb-3">
@@ -618,6 +630,8 @@ export default function RiderWallet() {
           )}
         </DialogContent>
       </Dialog>
+
+      <FundAnotherWalletDialog open={showFundWallet} onClose={() => setShowFundWallet(false)} />
     </RiderRouteGuard>
   );
 }
