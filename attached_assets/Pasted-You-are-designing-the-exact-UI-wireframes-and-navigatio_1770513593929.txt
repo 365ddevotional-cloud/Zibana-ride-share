@@ -1,0 +1,149 @@
+You are designing the exact UI wireframes and navigation flow for
+“Fund Another Wallet” in the ZIBA app.
+
+GOAL:
+Make wallet funding for another user simple, safe, reversible-proof, and consistent with ZIBA’s existing design language.
+
+Do NOT redesign the whole app.
+Add this as a natural extension of Wallet.
+
+==================================================
+SCREEN 1 — WALLET HOME
+==================================================
+
+Add a new primary action card/button:
+
+[ Fund Another Wallet ]
+
+Placement:
+- Below “Add Funds”
+- Above transaction history
+
+Icon:
+- Wallet + arrow outward
+
+==================================================
+SCREEN 2 — FUND ANOTHER WALLET (FORM)
+==================================================
+
+Title:
+Fund Another Wallet
+
+Fields:
+1) Recipient
+   - Placeholder: “Enter phone, email, or ZIBA ID”
+   - Live validation (✔ user found / ✖ not found)
+
+2) Amount
+   - Numeric input
+   - Currency auto-detected by country
+
+Helper text:
+“Funds can only be used inside ZIBA and cannot be reversed.”
+
+Button:
+[ Continue ]
+
+==================================================
+SCREEN 3 — CONFIRMATION
+==================================================
+
+Title:
+Confirm Wallet Funding
+
+Show:
+- Recipient avatar
+- Recipient full name
+- Recipient role (Rider / Driver)
+- Amount
+
+Warning box (non-alarming):
+“Wallet funding is voluntary and non-refundable.”
+
+Checkbox (required):
+☑ I understand this funding cannot be reversed
+
+Buttons:
+[ Confirm & Fund ]
+[ Cancel ]
+
+==================================================
+SCREEN 4 — SUCCESS
+==================================================
+
+Icon:
+✔ Success
+
+Text:
+₦10,000 has been added to Sarah A.’s ZIBA wallet.
+
+Buttons:
+[ View Receipt ]
+[ Back to Wallet ]
+
+==================================================
+SCREEN 5 — RECEIPT (INBOX + WALLET)
+==================================================
+
+Receipt shows:
+- Sender name
+- Receiver name
+- Amount
+- Date & time
+- Transaction ID
+- “For use within ZIBA only”
+
+==================================================
+RECEIVER EXPERIENCE
+==================================================
+
+Push notification (if enabled):
+“You received ₦10,000 in your ZIBA wallet.”
+
+Inbox message:
+Title: Wallet Funded
+Body:
+“John D. added ₦10,000 to your wallet. You can now request rides.”
+
+==================================================
+NAVIGATION RULES
+==================================================
+
+- All screens have Back navigation
+- After success → return to Wallet
+- No dead ends
+- Handle refresh safely
+
+==================================================
+ERROR STATES
+==================================================
+
+Recipient not found:
+“User not found. Check details and try again.”
+
+Network error:
+“Unable to complete funding. Please retry.”
+
+Duplicate submission:
+Disable button after first tap until response.
+
+==================================================
+ACCESSIBILITY & UX
+==================================================
+
+- Large buttons
+- Clear typography
+- Dark/Light mode compatible
+- Keyboard-friendly inputs
+
+==================================================
+DONE WHEN
+==================================================
+
+✔ User can fund another wallet in under 20 seconds
+✔ No refunds possible
+✔ Notifications + Inbox receipts work
+✔ Wallet balances update instantly
+✔ Admin logs reflect transaction
+
+Proceed carefully and confirm each screen works before moving on.
