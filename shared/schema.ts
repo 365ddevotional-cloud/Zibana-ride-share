@@ -490,6 +490,9 @@ export const directorProfiles = pgTable("director_profiles", {
   suspendedBy: varchar("suspended_by"),
   status: directorStatusEnum("status").notNull().default("active"),
   onboardingCompleted: boolean("onboarding_completed").notNull().default(false),
+  trainingCompleted: boolean("training_completed").notNull().default(false),
+  termsAccepted: boolean("terms_accepted").notNull().default(false),
+  termsAcceptedAt: timestamp("terms_accepted_at"),
   terminatedAt: timestamp("terminated_at"),
   terminatedBy: varchar("terminated_by"),
   terminationReason: text("termination_reason"),
@@ -5178,6 +5181,54 @@ export const directorCoachingLogs = pgTable("director_coaching_logs", {
 export const insertDirectorCoachingLogSchema = createInsertSchema(directorCoachingLogs).omit({ id: true, createdAt: true });
 export type InsertDirectorCoachingLog = z.infer<typeof insertDirectorCoachingLogSchema>;
 export type DirectorCoachingLog = typeof directorCoachingLogs.$inferSelect;
+
+// =============================================
+// DIRECTOR TRAINING & TERMS
+// =============================================
+
+export const directorTrainingModules = pgTable("director_training_modules", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  directorUserId: varchar("director_user_id").notNull(),
+  moduleKey: varchar("module_key", { length: 50 }).notNull(),
+  moduleTitle: varchar("module_title", { length: 200 }).notNull(),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertDirectorTrainingModuleSchema = createInsertSchema(directorTrainingModules).omit({ id: true, createdAt: true });
+export type InsertDirectorTrainingModule = z.infer<typeof insertDirectorTrainingModuleSchema>;
+export type DirectorTrainingModule = typeof directorTrainingModules.$inferSelect;
+
+export const directorTermsAcceptance = pgTable("director_terms_acceptance", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  directorUserId: varchar("director_user_id").notNull(),
+  termsVersion: varchar("terms_version", { length: 20 }).notNull().default("1.0"),
+  acceptedAt: timestamp("accepted_at").defaultNow().notNull(),
+  ipAddress: varchar("ip_address", { length: 45 }),
+});
+
+export const insertDirectorTermsAcceptanceSchema = createInsertSchema(directorTermsAcceptance).omit({ id: true, acceptedAt: true });
+export type InsertDirectorTermsAcceptance = z.infer<typeof insertDirectorTermsAcceptanceSchema>;
+export type DirectorTermsAcceptance = typeof directorTermsAcceptance.$inferSelect;
+
+export const directorTrustScores = pgTable("director_trust_scores", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  directorUserId: varchar("director_user_id").notNull().unique(),
+  score: integer("score").notNull().default(100),
+  riskLevel: varchar("risk_level", { length: 20 }).notNull().default("low"),
+  driverComplaints: integer("driver_complaints").notNull().default(0),
+  excessiveSuspensions: integer("excessive_suspensions").notNull().default(0),
+  staffAbuseFlags: integer("staff_abuse_flags").notNull().default(0),
+  missedCompliance: integer("missed_compliance").notNull().default(0),
+  zibraAlerts: integer("zibra_alerts").notNull().default(0),
+  adminWarnings: integer("admin_warnings").notNull().default(0),
+  lastCalculatedAt: timestamp("last_calculated_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertDirectorTrustScoreSchema = createInsertSchema(directorTrustScores).omit({ id: true, createdAt: true });
+export type InsertDirectorTrustScore = z.infer<typeof insertDirectorTrustScoreSchema>;
+export type DirectorTrustScore = typeof directorTrustScores.$inferSelect;
 
 // =============================================
 // PHASE 32B: DRIVER COACHING LOGS
