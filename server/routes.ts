@@ -2289,6 +2289,27 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/rider/profile", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { fullName, email } = req.body;
+      if (fullName && typeof fullName === "string" && fullName.trim().length > 0) {
+        const nameParts = fullName.trim().split(" ");
+        const firstName = nameParts[0];
+        const lastName = nameParts.slice(1).join(" ") || "";
+        await db.update(users).set({ firstName, lastName }).where(eq(users.id, userId));
+      }
+      if (email && typeof email === "string" && email.includes("@")) {
+        await db.update(users).set({ email }).where(eq(users.id, userId));
+      }
+      const profile = await storage.getRiderProfile(userId);
+      return res.json(profile || {});
+    } catch (error) {
+      console.error("Error updating rider profile:", error);
+      return res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
   // Get rider wallet
   app.get("/api/rider/wallet", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
     try {

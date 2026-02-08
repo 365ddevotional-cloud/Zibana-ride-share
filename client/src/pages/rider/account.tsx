@@ -21,10 +21,9 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import {
-  User, Mail, Phone, Star, ChevronRight, LogOut, Trash2,
-  Bell, Eye, Sun, Moon, Monitor, Camera,
-  MapPin, Lock, AlertTriangle, Users, Smartphone, Megaphone,
-  FileText, X,
+  User, Star, ChevronRight, LogOut, Trash2,
+  Camera, MapPin, Wallet, Settings, HelpCircle,
+  FileText, Mail as MailIcon, Clock, X,
 } from "lucide-react";
 
 interface RiderProfile {
@@ -38,7 +37,6 @@ interface RiderProfile {
 export default function RiderAccount() {
   const { user, logout } = useAuth();
   const { toast } = useToast();
-  const { theme, setTheme } = useTheme();
   const [, setLocation] = useLocation();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
@@ -50,18 +48,23 @@ export default function RiderAccount() {
     enabled: !!user,
   });
 
+  const { data: unreadData } = useQuery<{ count: number }>({
+    queryKey: ["/api/rider/inbox/unread-count"],
+    enabled: !!user,
+  });
+
   const uploadPhotoMutation = useMutation({
     mutationFn: async (photoData: string) => {
       await apiRequest("POST", "/api/profile/photo", { photoData });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/rider/profile"] });
-      toast({ title: "Photo updated", description: "Your profile picture has been saved." });
+      toast({ title: "Photo updated" });
       setAvatarDialogOpen(false);
       setAvatarPreview(null);
     },
     onError: () => {
-      toast({ title: "Upload failed", description: "Could not save your photo. Please try again.", variant: "destructive" });
+      toast({ title: "Upload failed", variant: "destructive" });
     },
   });
 
@@ -71,17 +74,8 @@ export default function RiderAccount() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/rider/profile"] });
-      toast({ title: "Photo removed", description: "Your profile picture has been removed." });
+      toast({ title: "Photo removed" });
       setAvatarDialogOpen(false);
-    },
-  });
-
-  const updateThemeMutation = useMutation({
-    mutationFn: async (newTheme: string) => {
-      await apiRequest("PATCH", "/api/user/theme-preference", { themePreference: newTheme });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/user/theme-preference"] });
     },
   });
 
@@ -104,15 +98,9 @@ export default function RiderAccount() {
     },
   });
 
-  const handleThemeChange = (newTheme: "light" | "dark" | "system") => {
-    setTheme(newTheme);
-    updateThemeMutation.mutate(newTheme);
-  };
-
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     const validTypes = ["image/jpeg", "image/png", "image/webp"];
     if (!validTypes.includes(file.type)) {
       toast({ title: "Invalid file type", description: "Please select a JPG, PNG, or WebP image.", variant: "destructive" });
@@ -122,7 +110,6 @@ export default function RiderAccount() {
       toast({ title: "File too large", description: "Please select an image under 5MB.", variant: "destructive" });
       return;
     }
-
     const reader = new FileReader();
     reader.onloadend = () => {
       setAvatarPreview(reader.result as string);
@@ -141,6 +128,7 @@ export default function RiderAccount() {
     : user?.email || "Rider";
 
   const avatarSrc = profile?.profilePhoto || user?.profileImageUrl || undefined;
+  const unreadCount = unreadData?.count ?? 0;
 
   if (isLoading) {
     return (
@@ -160,7 +148,7 @@ export default function RiderAccount() {
   return (
     <RiderRouteGuard>
       <RiderLayout>
-        <div className="p-4 space-y-5">
+        <div className="p-4 space-y-5 max-w-lg mx-auto">
           <Card>
             <CardContent className="p-5">
               <div className="flex items-center gap-4">
@@ -242,20 +230,13 @@ export default function RiderAccount() {
                     >
                       {uploadPhotoMutation.isPending ? "Saving..." : "Save Photo"}
                     </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => { setAvatarPreview(null); setAvatarDialogOpen(false); }}
-                      data-testid="button-cancel-avatar"
-                    >
+                    <Button variant="outline" onClick={() => { setAvatarPreview(null); setAvatarDialogOpen(false); }} data-testid="button-cancel-avatar">
                       Cancel
                     </Button>
                   </>
                 ) : (
                   <>
-                    <Button
-                      onClick={() => fileInputRef.current?.click()}
-                      data-testid="button-change-avatar"
-                    >
+                    <Button onClick={() => fileInputRef.current?.click()} data-testid="button-change-avatar">
                       {avatarSrc ? "Change Photo" : "Upload Photo"}
                     </Button>
                     {avatarSrc && (
@@ -281,31 +262,24 @@ export default function RiderAccount() {
             </p>
             <Card>
               <CardContent className="p-0 divide-y">
-                <SettingsRow
+                <AccountRow
                   icon={<User className="h-5 w-5" />}
                   label="Profile"
-                  sublabel={displayName}
+                  sublabel="Name, email, phone"
                   onClick={() => setLocation("/rider/profile")}
                   testId="button-profile"
                 />
-                <SettingsRow
-                  icon={<Mail className="h-5 w-5" />}
-                  label="Email"
-                  sublabel={user?.email || "Not set"}
-                  onClick={() => setLocation("/rider/account-email")}
-                  testId="button-email"
+                <AccountRow
+                  icon={<Wallet className="h-5 w-5" />}
+                  label="Payment Methods"
+                  sublabel="Wallet and payment options"
+                  onClick={() => setLocation("/rider/wallet")}
+                  testId="button-payment-methods"
                 />
-                <SettingsRow
-                  icon={<Phone className="h-5 w-5" />}
-                  label="Phone"
-                  sublabel={profile?.phone || "Not set"}
-                  onClick={() => setLocation("/rider/account-phone")}
-                  testId="button-phone"
-                />
-                <SettingsRow
+                <AccountRow
                   icon={<MapPin className="h-5 w-5" />}
                   label="Saved Places"
-                  sublabel={profile?.savedLocations?.length ? `${profile.savedLocations.length} saved` : "None saved"}
+                  sublabel={profile?.savedLocations?.length ? `${profile.savedLocations.length} saved` : "Add home, work, and more"}
                   onClick={() => setLocation("/rider/account-saved-places")}
                   testId="button-saved-places"
                 />
@@ -315,23 +289,24 @@ export default function RiderAccount() {
 
           <div className="space-y-1">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1 mb-2">
-              Communication
+              Activity
             </p>
             <Card>
               <CardContent className="p-0 divide-y">
-                <SettingsRow
-                  icon={<Bell className="h-5 w-5" />}
-                  label="Notifications"
-                  sublabel="Ride alerts, payments, safety"
-                  onClick={() => setLocation("/rider/account-notifications")}
-                  testId="button-notifications"
+                <AccountRow
+                  icon={<Clock className="h-5 w-5" />}
+                  label="Trips"
+                  sublabel="View your ride history"
+                  onClick={() => setLocation("/rider/trips")}
+                  testId="button-trips"
                 />
-                <SettingsRow
-                  icon={<Megaphone className="h-5 w-5" />}
-                  label="Marketing"
-                  sublabel="Promotions and offers"
-                  onClick={() => setLocation("/rider/account-marketing")}
-                  testId="button-marketing"
+                <AccountRow
+                  icon={<MailIcon className="h-5 w-5" />}
+                  label="Inbox"
+                  sublabel="Messages and notifications"
+                  onClick={() => setLocation("/rider/inbox")}
+                  testId="button-inbox"
+                  badge={unreadCount > 0 ? String(unreadCount) : undefined}
                 />
               </CardContent>
             </Card>
@@ -339,101 +314,40 @@ export default function RiderAccount() {
 
           <div className="space-y-1">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1 mb-2">
-              Appearance
+              Preferences
             </p>
             <Card>
-              <CardContent className="p-4 space-y-3">
-                <p className="text-sm font-medium">Theme</p>
-                <div className="flex gap-2">
-                  {([
-                    { value: "light", icon: Sun, label: "Light" },
-                    { value: "dark", icon: Moon, label: "Dark" },
-                    { value: "system", icon: Monitor, label: "Auto" },
-                  ] as const).map(({ value, icon: Icon, label }) => (
-                    <Button
-                      key={value}
-                      variant={theme === value ? "default" : "outline"}
-                      size="sm"
-                      className="flex-1 gap-2"
-                      onClick={() => handleThemeChange(value)}
-                      data-testid={`button-theme-${value}`}
-                    >
-                      <Icon className="h-4 w-4" />
-                      {label}
-                    </Button>
-                  ))}
-                </div>
+              <CardContent className="p-0 divide-y">
+                <AccountRow
+                  icon={<Settings className="h-5 w-5" />}
+                  label="Settings"
+                  sublabel="Notifications, theme, privacy, safety"
+                  onClick={() => setLocation("/rider/settings")}
+                  testId="button-settings"
+                />
               </CardContent>
             </Card>
           </div>
 
           <div className="space-y-1">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1 mb-2">
-              Privacy & Data
+              Support & Legal
             </p>
             <Card>
               <CardContent className="p-0 divide-y">
-                <SettingsRow
-                  icon={<Eye className="h-5 w-5" />}
-                  label="Data Usage"
-                  sublabel="Manage how your data is used"
-                  onClick={() => setLocation("/rider/account-data-usage")}
-                  testId="button-data-usage"
+                <AccountRow
+                  icon={<HelpCircle className="h-5 w-5" />}
+                  label="Help & Support"
+                  sublabel="FAQs, contact us, ZIBRA assistant"
+                  onClick={() => setLocation("/rider/support")}
+                  testId="button-help-support"
                 />
-                <SettingsRow
+                <AccountRow
                   icon={<FileText className="h-5 w-5" />}
-                  label="Ride History"
-                  sublabel="View and manage ride data"
-                  onClick={() => setLocation("/rider/activity")}
-                  testId="button-ride-history"
-                />
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="space-y-1">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1 mb-2">
-              Safety
-            </p>
-            <Card>
-              <CardContent className="p-0 divide-y">
-                <SettingsRow
-                  icon={<Users className="h-5 w-5" />}
-                  label="Trusted Contacts"
-                  sublabel="Emergency and safety contacts"
-                  onClick={() => setLocation("/rider/trusted-contacts")}
-                  testId="button-trusted-contacts"
-                />
-                <SettingsRow
-                  icon={<Lock className="h-5 w-5" />}
-                  label="Ride PIN"
-                  sublabel="Verify your driver"
-                  onClick={() => setLocation("/rider/account-ride-pin")}
-                  testId="button-ride-pin"
-                />
-                <SettingsRow
-                  icon={<AlertTriangle className="h-5 w-5" />}
-                  label="Emergency"
-                  sublabel="SOS and incident reporting"
-                  onClick={() => setLocation("/rider/account-emergency")}
-                  testId="button-emergency"
-                />
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="space-y-1">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1 mb-2">
-              Support
-            </p>
-            <Card>
-              <CardContent className="p-0 divide-y">
-                <SettingsRow
-                  icon={<Smartphone className="h-5 w-5" />}
-                  label="Help Center"
-                  sublabel="FAQs and guides"
-                  onClick={() => setLocation("/rider/help")}
-                  testId="button-help-center"
+                  label="Terms & Privacy"
+                  sublabel="Terms of service, privacy policy"
+                  onClick={() => setLocation("/rider/terms-privacy")}
+                  testId="button-terms-privacy"
                 />
               </CardContent>
             </Card>
@@ -492,20 +406,19 @@ export default function RiderAccount() {
   );
 }
 
-function SettingsRow({
+function AccountRow({
   icon, label, sublabel, onClick, testId, badge,
 }: {
   icon: React.ReactNode;
   label: string;
   sublabel?: string;
-  onClick?: () => void;
+  onClick: () => void;
   testId: string;
   badge?: string;
 }) {
-  const Wrapper = onClick ? "button" : "div";
   return (
-    <Wrapper
-      className={`w-full p-4 flex items-center gap-3 ${onClick ? "hover-elevate cursor-pointer" : ""}`}
+    <button
+      className="w-full p-4 flex items-center gap-3 hover-elevate cursor-pointer"
       onClick={onClick}
       data-testid={testId}
     >
@@ -519,7 +432,7 @@ function SettingsRow({
         )}
       </div>
       {badge && <Badge variant="secondary">{badge}</Badge>}
-      {onClick && <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />}
-    </Wrapper>
+      <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+    </button>
   );
 }

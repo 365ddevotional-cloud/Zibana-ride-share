@@ -74,6 +74,8 @@ const RiderAccountMarketingPage = lazy(() => import("@/pages/rider/account-marke
 const RiderAccountDataUsagePage = lazy(() => import("@/pages/rider/account-data-usage"));
 const RiderAccountRidePinPage = lazy(() => import("@/pages/rider/account-ride-pin"));
 const RiderAccountEmergencyPage = lazy(() => import("@/pages/rider/account-emergency"));
+const RiderSettingsPage = lazy(() => import("@/pages/rider/settings"));
+const RiderTermsPrivacyPage = lazy(() => import("@/pages/rider/terms-privacy"));
 const RiderWelcomeBackPage = lazy(() => import("@/pages/rider/welcome-back"));
 const HelpCenterPage = lazy(() => import("@/pages/help-center"));
 const TrustedContactsPage = lazy(() => import("@/pages/rider/trusted-contacts"));
@@ -667,6 +669,18 @@ function RiderRouter() {
       <Route path="/rider/account-emergency">
         <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["rider"]}>
           <LazyComponent><RiderAccountEmergencyPage /></LazyComponent>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/rider/settings">
+        <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["rider"]}>
+          <LazyComponent><RiderSettingsPage /></LazyComponent>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/rider/terms-privacy">
+        <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["rider"]}>
+          <LazyComponent><RiderTermsPrivacyPage /></LazyComponent>
         </ProtectedRoute>
       </Route>
       
