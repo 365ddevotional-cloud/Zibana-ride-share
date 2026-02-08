@@ -434,6 +434,13 @@ export default function DriverAccount() {
           <Card>
             <CardContent className="p-0 divide-y">
               <AccountRow
+                icon={<Layers className="h-5 w-5" />}
+                label="Driver Preferences"
+                sublabel="Distance, payment, areas, ride classes"
+                onClick={() => setLocation("/driver/preferences")}
+                testId="button-driver-preferences"
+              />
+              <AccountRow
                 icon={<Settings className="h-5 w-5" />}
                 label={t("driver.settings")}
                 sublabel="Notifications, theme, privacy"

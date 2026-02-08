@@ -20,7 +20,7 @@ import {
   Users, Shield, Clock, AlertTriangle, Activity, UserPlus, ChevronRight,
   Calendar, Bell, X, RefreshCw, Wallet, Send, Ban, History, DollarSign,
   CheckCircle, XCircle, Eye, Trash2, Lightbulb, MessageCircle,
-  TrendingUp, BarChart3, Building2, Star, Crown, BookOpen, Globe, Settings2
+  TrendingUp, BarChart3, Building2, Star, Crown, BookOpen, Globe, Settings2, Filter
 } from "lucide-react";
 import { RideClassIcon } from "@/components/ride-class-icon";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -1116,6 +1116,15 @@ export default function DirectorDashboard() {
     enabled: activeTab === "ride-classes",
   });
 
+  const { data: driverPrefsData, isLoading: driverPrefsLoading } = useQuery<{
+    drivers: any[];
+    overRestrictingCount: number;
+    overRestricting: any[];
+  }>({
+    queryKey: ["/api/director/driver-preferences"],
+    enabled: activeTab === "driver-prefs",
+  });
+
   const { data: disputesData, isLoading: disputesLoading } = useQuery<{
     disputes: Array<{
       id: string;
@@ -1472,6 +1481,10 @@ export default function DirectorDashboard() {
           <TabsTrigger value="ride-classes" disabled={trainingStatus && !trainingStatus.allCompleted && !isReadOnly} data-testid="tab-ride-classes">
             <BarChart3 className="h-4 w-4 mr-1" />
             Ride Classes
+          </TabsTrigger>
+          <TabsTrigger value="driver-prefs" className="gap-1" data-testid="tab-driver-prefs">
+            <Filter className="h-4 w-4" />
+            Driver Prefs
           </TabsTrigger>
           <TabsTrigger value="settings" data-testid="tab-settings">
             <Settings2 className="w-3 h-3 mr-1" /> Settings
@@ -3106,6 +3119,70 @@ export default function DirectorDashboard() {
                 </Table>
               ) : (
                 <p className="text-sm text-muted-foreground text-center py-8">No ride class data available</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="driver-prefs" className="space-y-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-2 pb-3">
+              <CardTitle className="text-base">Driver Preference Overview</CardTitle>
+              {driverPrefsData && (
+                <Badge variant={driverPrefsData.overRestrictingCount > 0 ? "destructive" : "secondary"}>
+                  {driverPrefsData.overRestrictingCount} over-restricting
+                </Badge>
+              )}
+            </CardHeader>
+            <CardContent>
+              {driverPrefsLoading ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+              ) : driverPrefsData && driverPrefsData.drivers.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm" data-testid="table-driver-prefs">
+                    <thead>
+                      <tr className="border-b text-left">
+                        <th className="pb-2 font-medium">Driver</th>
+                        <th className="pb-2 font-medium">Classes</th>
+                        <th className="pb-2 font-medium">Distance</th>
+                        <th className="pb-2 font-medium">Cash</th>
+                        <th className="pb-2 font-medium">Declines</th>
+                        <th className="pb-2 font-medium">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {driverPrefsData.drivers.map((d: any, idx: number) => {
+                        const isOverRestricting = driverPrefsData.overRestricting.some((o: any) => o.userId === d.userId);
+                        const classCount = (d.acceptedRideClasses || ["go"]).length;
+                        const distCount = (d.tripDistancePreference || ["short", "medium", "long"]).length;
+                        return (
+                          <tr key={d.userId || idx} className="border-b last:border-0" data-testid={`row-driver-pref-${idx}`}>
+                            <td className="py-2 font-medium">{d.fullName || "Unknown"}</td>
+                            <td className="py-2">{classCount}/6</td>
+                            <td className="py-2">{distCount}/3</td>
+                            <td className="py-2">{d.cashAcceptance !== false ? "Yes" : "No"}</td>
+                            <td className="py-2">{d.declineCount || 0}</td>
+                            <td className="py-2">
+                              {isOverRestricting ? (
+                                <Badge variant="destructive">Over-restricting</Badge>
+                              ) : d.preferenceRestricted ? (
+                                <Badge variant="secondary">Restricted</Badge>
+                              ) : (
+                                <Badge variant="outline">Normal</Badge>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No driver data available.</p>
               )}
             </CardContent>
           </Card>

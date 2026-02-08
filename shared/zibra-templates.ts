@@ -2276,6 +2276,56 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
   },
 
   {
+    id: "d-pref-overview",
+    role: "driver",
+    category: "account",
+    keywords: ["preferences", "filters", "ride filters", "driver preferences", "my preferences", "preference settings", "what can I filter"],
+    response: "You can manage your ride preferences from your Account page. Available preferences include:\n\n1. **Trip Distance** — Choose short, medium, or long trips.\n2. **Payment Acceptance** — Toggle cash payments on or off (wallet always accepted).\n3. **Preferred Areas** — Mark up to 5 areas for priority matching.\n4. **Ride Classes** — Toggle which eligible ride classes you accept.\n\nPreferences guide matching but do not guarantee trips. Go to Account > Driver Preferences to manage your settings."
+  },
+  {
+    id: "d-pref-distance",
+    role: "driver",
+    category: "rides",
+    keywords: ["short trip", "long trip", "trip distance", "distance preference", "far trips", "nearby trips", "close rides", "long rides"],
+    response: "You can set your trip distance preferences from Account > Driver Preferences > Trip Distance. Toggle short (under 5 km), medium (5-15 km), or long (over 15 km) trips on or off. You must keep at least one category enabled. Distance preferences increase your matching priority for those trip types but won't completely block other distances."
+  },
+  {
+    id: "d-pref-cash",
+    role: "driver",
+    category: "rides",
+    keywords: ["cash payment", "accept cash", "no cash", "wallet only", "payment preference", "cash rides", "cash toggle"],
+    response: "You can toggle cash acceptance from Account > Driver Preferences > Payment Acceptance. Wallet payments are always accepted and cannot be disabled. If you turn off cash, you'll only receive wallet-paid ride requests. Note that this may reduce the number of ride requests you receive in areas where cash is popular."
+  },
+  {
+    id: "d-pref-area",
+    role: "driver",
+    category: "rides",
+    keywords: ["preferred area", "area preference", "work zone", "favorite area", "zone preference", "where I drive", "my area"],
+    response: "You can set up to 5 preferred areas from Account > Driver Preferences > Preferred Areas. Adding preferred areas increases your matching priority when rides are available in those areas, but it does NOT block rides from other locations. This is a soft filter to help you get more rides in areas you prefer."
+  },
+  {
+    id: "d-pref-not-getting-trips",
+    role: "driver",
+    category: "rides",
+    keywords: ["no trips", "not getting rides", "no ride requests", "empty", "no matches", "why no rides", "fewer trips", "less rides"],
+    response: "If you're not receiving many ride requests, here are some suggestions:\n\n1. **Expand your preferences** — Accept more ride classes and all trip distances.\n2. **Enable cash payments** — This opens up more ride opportunities.\n3. **Move to busy areas** — Check your preferred areas or try high-demand zones.\n4. **Stay online** — Keep your app active and your location up to date.\n5. **Check your rating** — A higher rating improves matching priority.\n\nRemember, preferences guide matching but restricting too many options reduces your ride volume."
+  },
+  {
+    id: "d-pref-locked",
+    role: "driver",
+    category: "account",
+    keywords: ["preferences locked", "can't change preferences", "locked settings", "admin locked", "restricted preferences"],
+    response: "If your preferences are locked, it means an administrator has temporarily restricted your ability to change settings. This usually happens when preference patterns suggest potential misuse. Contact your director or admin for clarification. You can also reach out through the ZIBA Support chat for assistance."
+  },
+  {
+    id: "d-pref-decline-warning",
+    role: "driver",
+    category: "rides",
+    keywords: ["decline warning", "too many declines", "decline limit", "ride decline", "decline penalty", "excessive decline"],
+    response: "ZIBA tracks ride declines to maintain platform reliability. If you decline too many rides:\n\n- After 5 declines: You'll receive a warning.\n- After 10 declines: Your preferences may be temporarily restricted for 2 hours.\n\nTo avoid restrictions, adjust your preferences to match the rides you want instead of declining frequently. You can change your trip distance, ride class, and payment preferences anytime from Account > Driver Preferences."
+  },
+
+  {
     id: "x-general-help",
     role: ["rider", "driver", "admin", "super_admin", "director", "general"],
     category: "general_help",
