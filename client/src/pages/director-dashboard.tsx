@@ -1068,7 +1068,7 @@ export default function DirectorDashboard() {
     return true;
   });
 
-  const uniqueActions = [...new Set((actionLogs || []).map(l => l.action))];
+  const uniqueActions = Array.from(new Set((actionLogs || []).map(l => l.action)));
 
   const handleFundDriver = (driver: EligibleDriver) => {
     setSelectedDriver(driver);
