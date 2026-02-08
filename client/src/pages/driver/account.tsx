@@ -23,8 +23,10 @@ import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
 import {
   User, Star, ChevronRight, LogOut, Trash2,
   Camera, Car, Settings, HelpCircle,
-  FileText, Mail, Clock, TrendingUp,
+  FileText, Mail, Clock, TrendingUp, Layers,
 } from "lucide-react";
+import { RideClassIcon, getRideClassLabel } from "@/components/ride-class-icon";
+import type { RideClassDefinition } from "@shared/ride-classes";
 
 interface DriverProfile {
   fullName: string | null;
@@ -56,6 +58,11 @@ export default function DriverAccount() {
 
   const { data: unreadData } = useQuery<{ count: number }>({
     queryKey: ["/api/driver/inbox/unread-count"],
+    enabled: !!user,
+  });
+
+  const { data: rideClasses = [] } = useQuery<RideClassDefinition[]>({
+    queryKey: ["/api/ride-classes"],
     enabled: !!user,
   });
 
@@ -306,6 +313,44 @@ export default function DriverAccount() {
             </CardContent>
           </Card>
         </div>
+
+        {rideClasses.length > 0 && (
+          <div className="space-y-1">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1 mb-2">
+              Ride Classes
+            </p>
+            <Card>
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Your Eligible Classes</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {rideClasses.map((rc) => {
+                    const driverRating = profile?.averageRating ? Number(profile.averageRating) : 0;
+                    const isEligible = driverRating >= rc.minDriverRating && !rc.requiresPetApproval && !rc.requiresBackgroundCheck && !rc.requiresEliteApproval;
+                    return (
+                      <div
+                        key={rc.id}
+                        className={`flex items-center gap-2 p-2 rounded-md ${isEligible ? "" : "opacity-40"}`}
+                        data-testid={`driver-class-${rc.id}`}
+                      >
+                        <RideClassIcon rideClass={rc.id} size="sm" color={rc.color} bgLight={rc.bgLight} />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-medium truncate">{rc.displayName}</p>
+                          <p className="text-xs text-muted-foreground">{rc.fareMultiplier}x</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Eligibility is based on your rating, vehicle, and approvals.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         <div className="space-y-1">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1 mb-2">

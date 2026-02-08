@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { CountdownTimer } from "./countdown-timer";
 import { MapPin, Users, Clock, Navigation } from "lucide-react";
+import { RideClassIcon, getRideClassLabel } from "@/components/ride-class-icon";
 import type { RideWithDetails } from "@/hooks/use-ride-lifecycle";
 
 interface DriverRideCardProps {
@@ -56,9 +57,17 @@ export function DriverRideCard({
             <Navigation className="h-5 w-5 text-primary" />
             New Ride Request
           </CardTitle>
-          <Badge variant="secondary" className="bg-primary/10 text-primary">
-            {ride.passengerCount} {ride.passengerCount === 1 ? "passenger" : "passengers"}
-          </Badge>
+          <div className="flex items-center gap-2 flex-wrap">
+            {ride.rideClass && ride.rideClass !== "go" && (
+              <Badge variant="secondary" className="gap-1">
+                <RideClassIcon rideClass={ride.rideClass} size="sm" showBg={false} />
+                <span className="text-xs">{getRideClassLabel(ride.rideClass)}</span>
+              </Badge>
+            )}
+            <Badge variant="secondary" className="bg-primary/10 text-primary">
+              {ride.passengerCount} {ride.passengerCount === 1 ? "passenger" : "passengers"}
+            </Badge>
+          </div>
         </div>
       </CardHeader>
       

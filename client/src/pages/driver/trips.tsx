@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Car, Clock, MapPin, Navigation, Check, FileWarning, Banknote } from "lucide-react";
+import { RideClassIcon, getRideClassLabel } from "@/components/ride-class-icon";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { TripDetailModal } from "@/components/trip-detail-modal";
@@ -176,6 +177,12 @@ export default function DriverTrips() {
             <CardContent className="space-y-3">
               {availableRides.slice(0, 5).map((ride) => (
                 <div key={ride.id} className="p-3 border rounded-md space-y-2">
+                  {(ride as any).rideClass && (ride as any).rideClass !== "go" && (
+                    <div className="flex items-center gap-2 mb-1">
+                      <RideClassIcon rideClass={(ride as any).rideClass} size="sm" showBg={true} />
+                      <span className="text-xs font-medium">{getRideClassLabel((ride as any).rideClass)}</span>
+                    </div>
+                  )}
                   <div className="flex items-start gap-2">
                     <div className="w-2 h-2 rounded-full bg-emerald-500 mt-2" />
                     <p className="text-sm flex-1">{ride.pickupLocation}</p>
@@ -333,9 +340,17 @@ function TripCard({
     >
       <CardContent className="pt-4 space-y-3">
         <div className="flex items-center justify-between gap-2 flex-wrap">
-          <Badge className={statusColors[trip.status] || "bg-gray-100 text-gray-800"}>
-            {trip.status.replace("_", " ").toUpperCase()}
-          </Badge>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge className={statusColors[trip.status] || "bg-gray-100 text-gray-800"}>
+              {trip.status.replace("_", " ").toUpperCase()}
+            </Badge>
+            {(trip as any).rideClass && (trip as any).rideClass !== "go" && (
+              <Badge variant="outline" className="gap-1">
+                <RideClassIcon rideClass={(trip as any).rideClass} size="sm" showBg={false} />
+                <span className="text-xs">{getRideClassLabel((trip as any).rideClass)}</span>
+              </Badge>
+            )}
+          </div>
           <span className="text-sm text-muted-foreground">
             {formatDate(trip.createdAt)}
           </span>

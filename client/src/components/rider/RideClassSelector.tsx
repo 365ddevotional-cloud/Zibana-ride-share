@@ -1,20 +1,11 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Car, CarFront, Armchair, Crown, PawPrint, ShieldCheck, Check } from "lucide-react";
+import { Check } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { RideClassIcon } from "@/components/ride-class-icon";
 import type { RideClassId, RideClassDefinition } from "@shared/ride-classes";
-
-const ICON_MAP: Record<string, typeof Car> = {
-  "car": Car,
-  "car-front": CarFront,
-  "armchair": Armchair,
-  "crown": Crown,
-  "paw-print": PawPrint,
-  "shield-check": ShieldCheck,
-};
 
 interface RideClassSelectorProps {
   selectedClass: RideClassId;
@@ -64,7 +55,7 @@ export function RideClassSelector({ selectedClass, onClassChange, currencySymbol
       <div className="space-y-2">
         <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Choose your ride</h3>
         {[1, 2, 3].map(i => (
-          <Skeleton key={i} className="h-16 w-full rounded-md" />
+          <Skeleton key={i} className="h-[72px] w-full rounded-md" />
         ))}
       </div>
     );
@@ -80,29 +71,29 @@ export function RideClassSelector({ selectedClass, onClassChange, currencySymbol
       <div className="space-y-1.5">
         {rideClasses.map((rc) => {
           const isSelected = selectedClass === rc.id;
-          const IconComponent = ICON_MAP[rc.icon] || Car;
           const estimate = estimates[rc.id];
 
           return (
             <button
               key={rc.id}
               onClick={() => onClassChange(rc.id as RideClassId, rc.fareMultiplier)}
-              className={`w-full flex items-center gap-3 p-3 rounded-md transition-colors text-left ${
+              className={`w-full flex items-center gap-3 p-3 rounded-md text-left transition-all duration-150 ${
                 isSelected
-                  ? "bg-primary/10 ring-1 ring-primary"
+                  ? "ring-2 shadow-sm"
                   : "hover-elevate"
               }`}
+              style={isSelected ? {
+                boxShadow: `0 0 0 2px ${rc.color}40`,
+                backgroundColor: `${rc.color}08`,
+              } : undefined}
               data-testid={`button-ride-class-${rc.id}`}
             >
-              <div
-                className="h-10 w-10 rounded-full flex items-center justify-center shrink-0"
-                style={{ backgroundColor: `${rc.color}20` }}
-              >
-                <IconComponent
-                  className="h-5 w-5"
-                  style={{ color: rc.color }}
-                />
-              </div>
+              <RideClassIcon
+                rideClass={rc.id}
+                size="md"
+                color={rc.color}
+                bgLight={rc.bgLight}
+              />
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -115,7 +106,12 @@ export function RideClassSelector({ selectedClass, onClassChange, currencySymbol
                     </Badge>
                   )}
                   {isSelected && (
-                    <Check className="h-4 w-4 text-primary shrink-0" />
+                    <span
+                      className="inline-flex items-center justify-center h-4 w-4 rounded-full"
+                      style={{ backgroundColor: rc.color }}
+                    >
+                      <Check className="h-3 w-3 text-white" />
+                    </span>
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground truncate" data-testid={`text-ride-class-desc-${rc.id}`}>
@@ -126,7 +122,11 @@ export function RideClassSelector({ selectedClass, onClassChange, currencySymbol
               <div className="text-right shrink-0">
                 {estimate ? (
                   <div>
-                    <span className="font-semibold text-sm" data-testid={`text-ride-class-fare-${rc.id}`}>
+                    <span
+                      className="font-semibold text-sm"
+                      style={isSelected ? { color: rc.color } : undefined}
+                      data-testid={`text-ride-class-fare-${rc.id}`}
+                    >
                       {currencySymbol}{estimate.estimatedFare.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                     </span>
                     <p className="text-xs text-muted-foreground">

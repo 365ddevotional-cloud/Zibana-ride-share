@@ -2,14 +2,15 @@ import { useState } from "react";
 import { useTranslation } from "@/i18n";
 import { RiderLayout } from "@/components/rider/RiderLayout";
 import { RiderRouteGuard } from "@/components/rider/RiderRouteGuard";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
-import { Car, XCircle, AlertTriangle, Wallet, Clock, MapPin, ChevronRight, Filter } from "lucide-react";
-import { formatDistanceToNow, format } from "date-fns";
+import { Car, XCircle, AlertTriangle, Clock, MapPin, ChevronRight } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
+import { RideClassIcon, getRideClassLabel } from "@/components/ride-class-icon";
 
 interface Trip {
   id: string;
@@ -28,11 +29,12 @@ interface Trip {
   scheduledPickupAt?: string | null;
   reservationStatus?: string | null;
   paymentSource?: string | null;
+  rideClass?: string | null;
 }
 
 const formatCurrency = (amount: string | null, currency: string) => {
-  if (!amount) return "—";
-  const symbols: Record<string, string> = { NGN: "₦", USD: "$", ZAR: "R" };
+  if (!amount) return "\u2014";
+  const symbols: Record<string, string> = { NGN: "\u20A6", USD: "$", ZAR: "R" };
   return `${symbols[currency] || currency} ${parseFloat(amount).toLocaleString()}`;
 };
 
@@ -63,37 +65,48 @@ export default function RiderActivity() {
     <Card key={trip.id} className="hover-elevate cursor-pointer" data-testid={`card-trip-${trip.id}`}>
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap mb-2">
-              <Badge variant="outline" className={getStatusColor(trip.status)} data-testid={`badge-status-${trip.id}`}>
-                {trip.status}
-              </Badge>
-              {!isPenalty && trip.status === "cancelled" && trip.cancellationFeeApplied && (
-                <Badge variant="destructive" data-testid={`badge-fee-applied-${trip.id}`}>
-                  Fee Applied
+          <div className="flex gap-3 flex-1 min-w-0">
+            <RideClassIcon
+              rideClass={trip.rideClass || "go"}
+              size="sm"
+            />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap mb-2">
+                <Badge variant="outline" className={getStatusColor(trip.status)} data-testid={`badge-status-${trip.id}`}>
+                  {trip.status}
                 </Badge>
-              )}
-              <span className="text-xs text-muted-foreground" data-testid={`text-date-${trip.id}`}>
-                {formatDistanceToNow(new Date(trip.createdAt), { addSuffix: true })}
-              </span>
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-start gap-2">
-                <MapPin className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground">From</p>
-                  <p className="font-medium truncate" data-testid={`text-pickup-${trip.id}`}>
-                    {trip.pickupLocation}
-                  </p>
-                </div>
+                {trip.rideClass && trip.rideClass !== "go" && (
+                  <Badge variant="secondary" className="text-xs" data-testid={`badge-class-${trip.id}`}>
+                    {getRideClassLabel(trip.rideClass)}
+                  </Badge>
+                )}
+                {!isPenalty && trip.status === "cancelled" && trip.cancellationFeeApplied && (
+                  <Badge variant="destructive" data-testid={`badge-fee-applied-${trip.id}`}>
+                    Fee Applied
+                  </Badge>
+                )}
+                <span className="text-xs text-muted-foreground" data-testid={`text-date-${trip.id}`}>
+                  {formatDistanceToNow(new Date(trip.createdAt), { addSuffix: true })}
+                </span>
               </div>
-              <div className="flex items-start gap-2">
-                <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground">To</p>
-                  <p className="font-medium truncate" data-testid={`text-dropoff-${trip.id}`}>
-                    {trip.dropoffLocation}
-                  </p>
+              <div className="space-y-1">
+                <div className="flex items-start gap-2">
+                  <MapPin className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground">From</p>
+                    <p className="font-medium truncate" data-testid={`text-pickup-${trip.id}`}>
+                      {trip.pickupLocation}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground">To</p>
+                    <p className="font-medium truncate" data-testid={`text-dropoff-${trip.id}`}>
+                      {trip.dropoffLocation}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>

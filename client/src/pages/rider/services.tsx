@@ -3,7 +3,7 @@ import { RiderLayout } from "@/components/rider/RiderLayout";
 import { RiderRouteGuard } from "@/components/rider/RiderRouteGuard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Building2, Star, ChevronRight } from "lucide-react";
+import { Calendar, Building2, Sparkles, ChevronRight } from "lucide-react";
 import { useLocation } from "wouter";
 
 export default function Services() {
@@ -27,13 +27,13 @@ export default function Services() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                     <Calendar className="h-6 w-6 text-primary" />
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-medium" data-testid="text-schedule-service-title">{t("services.scheduleRide")}</p>
-                      <Badge variant="default" className="bg-green-600 hover:bg-green-700 text-white" data-testid="badge-schedule-popular">
+                      <Badge variant="default" className="bg-green-600 text-white" data-testid="badge-schedule-popular">
                         Popular
                       </Badge>
                     </div>
@@ -51,8 +51,8 @@ export default function Services() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                    <Building2 className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                  <div className="h-12 w-12 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center shrink-0">
+                    <Building2 className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -75,14 +75,14 @@ export default function Services() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
-                    <Star className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+                  <div className="h-12 w-12 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center shrink-0">
+                    <Sparkles className="h-6 w-6 text-violet-600 dark:text-violet-400" />
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-medium" data-testid="text-special-service-title">{t("services.specialRides")}</p>
-                      <Badge variant="secondary" data-testid="badge-special-new">
-                        New
+                      <Badge variant="secondary" data-testid="badge-special-explore">
+                        6 Classes
                       </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground" data-testid="text-special-service-description">
