@@ -1,0 +1,144 @@
+You are finalizing the Director Governance system across the ZIBA platform.
+
+OBJECTIVE:
+Implement Director fraud detection, conflict resolution, termination handling,
+and wind-down procedures in a legally safe, auditable, non-disruptive manner.
+
+This applies to:
+- Contract Directors
+- Employee Directors
+
+Admin and Super Admin retain final authority.
+
+Do NOT break existing Director dashboards.
+Do NOT expose platform revenue or commission math.
+Do NOT delete historical data.
+Do NOT auto-punish without Admin/Super Admin review.
+
+=====================================================
+PART K — DIRECTOR FRAUD & ABUSE DETECTION
+=====================================================
+
+FRAUD SIGNALS TO MONITOR:
+- Artificial driver activation patterns
+- Repeated short online sessions to inflate activity
+- Coordinated driver cancellations
+- Forced driver behavior (coercion reports)
+- Excessive funding used as leverage
+- Abnormal referral clustering
+- Repeated payout spikes followed by churn
+
+SYSTEM RESPONSE LEVELS:
+Level 1 — Soft Flag
+- ZIBRA notifies Admin silently
+- Director receives neutral compliance reminder
+
+Level 2 — Review Hold
+- Director payouts placed on hold
+- Director informed neutrally
+- Admin investigation required
+
+Level 3 — Enforcement
+- Suspension or termination (Admin / Super Admin only)
+- Funding disabled
+- Drivers reassigned if needed
+
+ZIBRA MUST NOT:
+- Accuse
+- Threaten
+- Promise outcomes
+
+=====================================================
+PART L — DIRECTOR–ADMIN CONFLICT RESOLUTION
+=====================================================
+
+CONFLICT TYPES:
+- Director disputes payout hold
+- Director disputes suspension
+- Director disputes driver reassignment
+- Director disputes staff restriction
+
+CONFLICT FLOW:
+1) Director submits dispute (structured form)
+2) Admin reviews evidence
+3) ZIBRA summarizes case (neutral)
+4) Super Admin issues final decision
+
+UI REQUIREMENTS:
+- Dispute status tracking
+- Message history
+- Evidence attachments (optional)
+- Read-only once closed
+
+LANGUAGE:
+Neutral, facilitative, non-legal.
+
+=====================================================
+PART M — DIRECTOR TERMINATION & WIND-DOWN
+=====================================================
+
+TERMINATION TRIGGERS:
+- Contract expiration
+- Repeated compliance failure
+- Fraud confirmation
+- Admin/Super Admin decision
+
+TERMINATION PROCESS:
+1) Director status → Terminated
+2) Director dashboard → Read-only
+3) Funding disabled
+4) Staff access revoked
+5) Drivers reassigned or unassigned
+6) Pending payouts resolved or held
+7) Audit record sealed
+
+IMPORTANT:
+- Termination does NOT delete history
+- Director cannot reactivate themselves
+- Super Admin override required for reinstatement
+
+=====================================================
+PART N — DRIVER PROTECTION DURING TERMINATION
+=====================================================
+
+When Director is terminated:
+- Drivers remain active
+- Drivers notified neutrally:
+  “Your director assignment has changed.”
+- No earnings impact
+- No driver penalties
+
+Admin decides:
+- Reassignment to new Director
+- Direct platform management
+
+=====================================================
+PART O — DATA RETENTION & LEGAL SAFETY
+=====================================================
+
+DATA RETENTION:
+- Director records retained permanently
+- Payout records immutable
+- Audit logs immutable
+- Staff actions preserved
+
+LEGAL SAFETY LANGUAGE (TERMINATION VIEW):
+“Director appointments are facilitation roles subject to review, suspension,
+or termination at ZIBA’s discretion. No guarantees of continuation are provided.”
+
+=====================================================
+PART P — FINAL DIRECTOR SYSTEM VALIDATION
+=====================================================
+
+Confirm ALL:
+✔ Fraud signals detected
+✔ No auto-punishment
+✔ Admin/Super Admin authority intact
+✔ Director disputes handled
+✔ Wind-down safe for drivers
+✔ Data preserved
+✔ ZIBRA guidance active
+✔ No legal exposure
+
+Proceed step-by-step.
+Do not mark complete until all scenarios pass.

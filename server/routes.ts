@@ -23221,6 +23221,9 @@ export async function registerRoutes(
       const commissionLogs = await storage.getDirectorCommissionLogs(directorUserId, 30);
       const todayDate = new Date().toISOString().split("T")[0];
       const todayPayout = payouts.find(p => p.periodDate === todayDate);
+      const lastReleased = payouts.find(p => p.payoutState === "released" || p.payoutStatus === "released");
+      const heldPayouts = payouts.filter(p => p.payoutState === "held" || p.payoutStatus === "on_hold");
+      const disputeablePayouts = payouts.filter(p => (p.payoutState === "held" || p.payoutState === "reversed") && !p.disputeSubmitted);
       const history = commissionLogs.map(log => {
         const matchingPayout = payouts.find(p => p.periodDate === log.date);
         return {
@@ -23228,6 +23231,7 @@ export async function registerRoutes(
           activeDrivers: log.activeDriversToday,
           commissionableDrivers: log.commissionableDrivers,
           payoutStatus: matchingPayout?.payoutStatus || "pending",
+          payoutState: matchingPayout?.payoutState || "calculating",
         };
       });
       res.json({
@@ -23236,10 +23240,22 @@ export async function registerRoutes(
         eligibleDrivers: metrics.commissionableDrivers,
         estimatedEarnings: todayPayout?.estimatedEarnings || "0",
         payoutStatus: todayPayout?.payoutStatus || "pending",
+        payoutState: todayPayout?.payoutState || "calculating",
         commissionFrozen: director.commissionFrozen,
         lifecycleStatus: director.lifecycleStatus,
+        lastPayoutDate: lastReleased?.releasedAt ? new Date(lastReleased.releasedAt).toISOString() : null,
+        heldCount: heldPayouts.length,
+        holdNotice: heldPayouts.length > 0 ? "Your payout is currently under review due to compliance checks. No action is required at this time." : null,
+        disputeablePayouts: disputeablePayouts.map(p => ({
+          id: p.id, periodDate: p.periodDate, payoutState: p.payoutState, estimatedEarnings: p.estimatedEarnings,
+        })),
+        payouts: payouts.map(p => ({
+          id: p.id, periodDate: p.periodDate, payoutState: p.payoutState, payoutStatus: p.payoutStatus,
+          estimatedEarnings: p.estimatedEarnings, partialReleaseAmount: p.partialReleaseAmount,
+          releasedAt: p.releasedAt, disputeSubmitted: p.disputeSubmitted,
+        })),
         history,
-        legalDisclaimer: "Director earnings are estimates based on platform activity and are subject to verification, caps, and policy rules. ZIBA does not guarantee earnings or payout timelines.",
+        legalDisclaimer: "Director earnings are estimates based on platform activity and subject to eligibility rules, caps, compliance reviews, and administrative approval. ZIBA does not guarantee earnings, payout timing, or amounts.",
       });
     } catch (error) {
       console.error("Director earnings error:", error);
@@ -23271,12 +23287,26 @@ export async function registerRoutes(
           activeRatio: log.activeRatio,
           estimatedEarnings: matchingPayout?.estimatedEarnings || "0",
           payoutStatus: matchingPayout?.payoutStatus || "pending",
+          payoutState: matchingPayout?.payoutState || "calculating",
           capEnforced: matchingPayout?.capEnforced || false,
           fraudFlagged: matchingPayout?.fraudFlagged || false,
+          zibraFlagged: matchingPayout?.zibraFlagged || false,
+          zibraFlagReason: matchingPayout?.zibraFlagReason,
           adminNotes: matchingPayout?.adminNotes,
           holdReason: matchingPayout?.holdReason,
           releasedAt: matchingPayout?.releasedAt,
           releasedBy: matchingPayout?.releasedBy,
+          approvedBy: matchingPayout?.approvedBy,
+          approvedAt: matchingPayout?.approvedAt,
+          reversedAt: matchingPayout?.reversedAt,
+          reversedBy: matchingPayout?.reversedBy,
+          reversalReason: matchingPayout?.reversalReason,
+          partialReleaseAmount: matchingPayout?.partialReleaseAmount,
+          disputeSubmitted: matchingPayout?.disputeSubmitted || false,
+          disputeExplanation: matchingPayout?.disputeExplanation,
+          disputeReviewedBy: matchingPayout?.disputeReviewedBy,
+          disputeReviewNotes: matchingPayout?.disputeReviewNotes,
+          eligibilitySnapshot: matchingPayout?.eligibilitySnapshot,
           payoutId: matchingPayout?.id,
         };
       });
@@ -23311,96 +23341,305 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/admin/directors/:directorUserId/payout", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+  app.post("/api/admin/directors/:directorUserId/payout", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {
       const adminUserId = req.user?.claims?.sub;
+      const adminRoles = await storage.getUserRoles(adminUserId);
+      const isSuperAdmin = adminRoles.includes("super_admin");
       const { directorUserId } = req.params;
-      const { action, payoutId, reason, periodDate } = req.body;
-      if (!action || !["release", "hold", "create"].includes(action)) {
-        return res.status(400).json({ error: "action must be 'release', 'hold', or 'create'" });
+      const { action, payoutId, reason, periodDate, periodStart, periodEnd, payoutCadence, partialAmount, scheduledDate, adminNotes } = req.body;
+      const validActions = ["create", "approve", "schedule", "release", "hold", "reverse", "partial_release", "force_release", "force_hold"];
+      if (!action || !validActions.includes(action)) {
+        return res.status(400).json({ error: `action must be one of: ${validActions.join(", ")}` });
+      }
+      const superAdminOnly = ["force_release", "force_hold", "reverse", "create"];
+      if (superAdminOnly.includes(action) && !isSuperAdmin) {
+        return res.status(403).json({ error: "This action requires Super Admin privileges" });
       }
       const [director] = await db.select().from(directorProfiles)
         .where(eq(directorProfiles.userId, directorUserId));
       if (!director) return res.status(404).json({ error: "Director not found" });
+
       if (action === "create") {
         const targetDate = periodDate || new Date().toISOString().split("T")[0];
         const metrics = await storage.getDirectorDailyMetrics(directorUserId);
-        const settings = await storage.getDirectorCommissionSettings();
         const commissionRate = director.commissionRatePercent / 100;
         const estimated = (metrics.commissionableDrivers * commissionRate * 100).toFixed(2);
+        const capLimit = director.maxCommissionablePerDay || 1000;
+        const snapshot = JSON.stringify({
+          totalDrivers: metrics.totalDrivers,
+          activeDriversToday: metrics.activeDriversToday,
+          commissionableDrivers: metrics.commissionableDrivers,
+          suspendedDrivers: metrics.suspendedDrivers,
+          commissionRatePercent: director.commissionRatePercent,
+          maxCommissionablePerDay: capLimit,
+          activeRatioRequired: 0.77,
+          directorType: director.directorType,
+          lifecycleStatus: director.lifecycleStatus,
+          commissionFrozen: director.commissionFrozen,
+          capturedAt: new Date().toISOString(),
+        });
+        const shouldAutoHold = director.commissionFrozen || director.lifecycleStatus === "suspended" || director.lifecycleStatus === "expired";
         const [payout] = await db.insert(directorPayoutSummaries).values({
           directorUserId,
           periodDate: targetDate,
+          periodStart: periodStart || targetDate,
+          periodEnd: periodEnd || targetDate,
+          payoutCadence: payoutCadence || (director.directorType === "contract" ? "monthly" : "monthly"),
           activeDrivers: metrics.activeDriversToday,
           commissionableDrivers: metrics.commissionableDrivers,
           eligibleDrivers: metrics.commissionableDrivers,
           estimatedEarnings: estimated,
           commissionRateApplied: String(director.commissionRatePercent),
-          capEnforced: metrics.commissionableDrivers >= (director.maxCommissionablePerDay || 1000),
-          payoutStatus: "pending",
+          capEnforced: metrics.commissionableDrivers >= capLimit,
+          payoutState: shouldAutoHold ? "held" : "pending_review",
+          payoutStatus: shouldAutoHold ? "on_hold" : "pending",
+          eligibilitySnapshot: snapshot,
+          holdReason: shouldAutoHold ? (director.commissionFrozen ? "Commission frozen" : `Director ${director.lifecycleStatus}`) : null,
+          heldBy: shouldAutoHold ? "system" : null,
+          heldAt: shouldAutoHold ? new Date() : null,
+          zibraFlagged: shouldAutoHold,
+          zibraFlagReason: shouldAutoHold ? `Auto-held: director status is ${director.lifecycleStatus}` : null,
+          adminNotes: adminNotes || null,
         }).returning();
         await db.insert(directorActionLogs).values({
           actorId: adminUserId,
-          actorRole: "super_admin",
+          actorRole: isSuperAdmin ? "super_admin" : "admin",
           action: "create_payout_summary",
           targetType: "director",
           targetId: directorUserId,
           beforeState: null,
-          afterState: JSON.stringify({ payoutId: payout.id, periodDate: targetDate, estimated }),
-          metadata: JSON.stringify({ reason: reason || "Manual payout creation" }),
+          afterState: JSON.stringify({ payoutId: payout.id, periodDate: targetDate, estimated, payoutState: payout.payoutState }),
+          metadata: JSON.stringify({ reason: reason || "Manual payout creation", payoutCadence: payout.payoutCadence }),
           ipAddress: req.ip || req.connection?.remoteAddress || null,
         });
         return res.json({ success: true, payout });
       }
-      if (!payoutId) return res.status(400).json({ error: "payoutId is required for release/hold" });
-      if (!reason) return res.status(400).json({ error: "reason is required" });
+
+      if (!payoutId) return res.status(400).json({ error: "payoutId is required" });
+      if (!reason && action !== "approve") return res.status(400).json({ error: "reason is required" });
       const [payout] = await db.select().from(directorPayoutSummaries)
         .where(eq(directorPayoutSummaries.id, payoutId));
       if (!payout) return res.status(404).json({ error: "Payout not found" });
-      const beforeState = { payoutStatus: payout.payoutStatus };
-      if (action === "release") {
+      const beforeState = { payoutState: payout.payoutState, payoutStatus: payout.payoutStatus };
+
+      if (action === "approve") {
+        if (!["pending_review", "calculating"].includes(payout.payoutState)) {
+          return res.status(400).json({ error: `Cannot approve payout in state: ${payout.payoutState}` });
+        }
         await db.update(directorPayoutSummaries).set({
+          payoutState: "approved",
+          payoutStatus: "pending",
+          approvedBy: adminUserId,
+          approvedAt: new Date(),
+          adminNotes: reason || payout.adminNotes,
+        }).where(eq(directorPayoutSummaries.id, payoutId));
+      } else if (action === "schedule") {
+        if (payout.payoutState !== "approved") {
+          return res.status(400).json({ error: "Only approved payouts can be scheduled" });
+        }
+        await db.update(directorPayoutSummaries).set({
+          payoutState: "scheduled",
+          scheduledReleaseDate: scheduledDate || null,
+          adminNotes: reason || payout.adminNotes,
+        }).where(eq(directorPayoutSummaries.id, payoutId));
+      } else if (action === "release") {
+        if (!["approved", "scheduled"].includes(payout.payoutState)) {
+          return res.status(400).json({ error: `Cannot release payout in state: ${payout.payoutState}` });
+        }
+        await db.update(directorPayoutSummaries).set({
+          payoutState: "released",
           payoutStatus: "released",
           releasedAt: new Date(),
           releasedBy: adminUserId,
           adminNotes: reason,
         }).where(eq(directorPayoutSummaries.id, payoutId));
         await storage.createNotification({
-          userId: directorUserId,
-          role: "director",
-          type: "info",
+          userId: directorUserId, role: "director", type: "info",
           title: "Payout Released",
-          message: `Your payout for ${payout.periodDate} has been released.`,
+          message: `Your payout for period ${payout.periodDate} has been processed and released.`,
         });
-      } else if (action === "hold") {
+      } else if (action === "partial_release") {
+        if (!["approved", "scheduled"].includes(payout.payoutState)) {
+          return res.status(400).json({ error: `Cannot partially release payout in state: ${payout.payoutState}` });
+        }
+        if (!partialAmount || parseFloat(partialAmount) <= 0) {
+          return res.status(400).json({ error: "Valid partialAmount is required" });
+        }
+        if (parseFloat(partialAmount) > parseFloat(payout.estimatedEarnings)) {
+          return res.status(400).json({ error: "Partial amount cannot exceed estimated earnings" });
+        }
         await db.update(directorPayoutSummaries).set({
-          payoutStatus: "on_hold",
-          holdReason: reason,
+          payoutState: "released",
+          payoutStatus: "released",
+          partialReleaseAmount: partialAmount,
+          releasedAt: new Date(),
+          releasedBy: adminUserId,
           adminNotes: reason,
         }).where(eq(directorPayoutSummaries.id, payoutId));
         await storage.createNotification({
-          userId: directorUserId,
-          role: "director",
-          type: "warning",
-          title: "Payout On Hold",
-          message: `Your payout for ${payout.periodDate} has been placed on hold. Contact support for details.`,
+          userId: directorUserId, role: "director", type: "info",
+          title: "Partial Payout Released",
+          message: `A partial payout has been released for period ${payout.periodDate}.`,
+        });
+      } else if (action === "hold" || action === "force_hold") {
+        if (action === "hold" && ["released", "reversed"].includes(payout.payoutState)) {
+          return res.status(400).json({ error: `Cannot hold payout in state: ${payout.payoutState}` });
+        }
+        await db.update(directorPayoutSummaries).set({
+          payoutState: "held",
+          payoutStatus: "on_hold",
+          holdReason: reason,
+          heldBy: adminUserId,
+          heldAt: new Date(),
+          adminNotes: reason,
+        }).where(eq(directorPayoutSummaries.id, payoutId));
+        await storage.createNotification({
+          userId: directorUserId, role: "director", type: "warning",
+          title: "Payout Under Review",
+          message: "Your payout is currently under review due to compliance checks. No action is required at this time.",
+        });
+      } else if (action === "reverse") {
+        if (!["pending_review", "approved", "scheduled"].includes(payout.payoutState)) {
+          return res.status(400).json({ error: `Cannot reverse payout in state: ${payout.payoutState}. Only pre-release payouts can be reversed.` });
+        }
+        await db.update(directorPayoutSummaries).set({
+          payoutState: "reversed",
+          payoutStatus: "reversed",
+          reversedAt: new Date(),
+          reversedBy: adminUserId,
+          reversalReason: reason,
+          adminNotes: reason,
+        }).where(eq(directorPayoutSummaries.id, payoutId));
+        await storage.createNotification({
+          userId: directorUserId, role: "director", type: "warning",
+          title: "Payout Reversed",
+          message: "A payout record has been reversed following a compliance review. Contact support for details.",
+        });
+      } else if (action === "force_release") {
+        await db.update(directorPayoutSummaries).set({
+          payoutState: "released",
+          payoutStatus: "released",
+          releasedAt: new Date(),
+          releasedBy: adminUserId,
+          adminNotes: `[FORCE RELEASE] ${reason}`,
+        }).where(eq(directorPayoutSummaries.id, payoutId));
+        await storage.createNotification({
+          userId: directorUserId, role: "director", type: "info",
+          title: "Payout Released",
+          message: `Your payout for period ${payout.periodDate} has been processed and released.`,
         });
       }
+
       await db.insert(directorActionLogs).values({
         actorId: adminUserId,
-        actorRole: "super_admin",
+        actorRole: isSuperAdmin ? "super_admin" : "admin",
         action: `payout_${action}`,
         targetType: "director",
         targetId: directorUserId,
         beforeState: JSON.stringify(beforeState),
-        afterState: JSON.stringify({ payoutStatus: action === "release" ? "released" : "on_hold" }),
-        metadata: JSON.stringify({ payoutId, reason }),
+        afterState: JSON.stringify({ payoutState: action === "release" || action === "force_release" || action === "partial_release" ? "released" : action === "hold" || action === "force_hold" ? "held" : action === "reverse" ? "reversed" : action }),
+        metadata: JSON.stringify({ payoutId, reason, partialAmount: partialAmount || null }),
         ipAddress: req.ip || req.connection?.remoteAddress || null,
       });
       res.json({ success: true });
     } catch (error) {
       console.error("Payout control error:", error);
       res.status(500).json({ error: "Failed to process payout action" });
+    }
+  });
+
+  app.post("/api/director/payout/:payoutId/dispute", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { payoutId } = req.params;
+      const { explanation } = req.body;
+      if (!explanation || explanation.trim().length < 10) {
+        return res.status(400).json({ error: "Please provide a detailed explanation (at least 10 characters)" });
+      }
+      const [payout] = await db.select().from(directorPayoutSummaries)
+        .where(and(eq(directorPayoutSummaries.id, payoutId), eq(directorPayoutSummaries.directorUserId, userId)));
+      if (!payout) return res.status(404).json({ error: "Payout not found" });
+      if (!["held", "reversed"].includes(payout.payoutState)) {
+        return res.status(400).json({ error: "Disputes can only be submitted for held or reversed payouts" });
+      }
+      if (payout.disputeSubmitted) {
+        return res.status(400).json({ error: "A dispute has already been submitted for this payout" });
+      }
+      await db.update(directorPayoutSummaries).set({
+        disputeSubmitted: true,
+        disputeExplanation: explanation.trim(),
+      }).where(eq(directorPayoutSummaries.id, payoutId));
+      await db.insert(directorActionLogs).values({
+        actorId: userId,
+        actorRole: "director",
+        action: "payout_dispute_submitted",
+        targetType: "payout",
+        targetId: payoutId,
+        beforeState: JSON.stringify({ disputeSubmitted: false }),
+        afterState: JSON.stringify({ disputeSubmitted: true }),
+        metadata: JSON.stringify({ explanation: explanation.trim().substring(0, 200) }),
+        ipAddress: req.ip || req.connection?.remoteAddress || null,
+      });
+      const admins = await db.select().from(users);
+      for (const admin of admins) {
+        const roles = await storage.getUserRoles(admin.id);
+        if (roles.includes("admin") || roles.includes("super_admin")) {
+          await storage.createNotification({
+            userId: admin.id, role: roles.includes("super_admin") ? "super_admin" : "admin",
+            type: "warning", title: "Payout Dispute Submitted",
+            message: `Director dispute submitted for payout ${payoutId}. Review required.`,
+          });
+        }
+      }
+      res.json({ success: true, message: "Your explanation has been submitted for review." });
+    } catch (error) {
+      console.error("Payout dispute error:", error);
+      res.status(500).json({ error: "Failed to submit dispute" });
+    }
+  });
+
+  app.post("/api/admin/directors/:directorUserId/payout/:payoutId/resolve-dispute", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const adminUserId = req.user?.claims?.sub;
+      const { payoutId } = req.params;
+      const { reviewNotes, newState } = req.body;
+      if (!reviewNotes) return res.status(400).json({ error: "Review notes are required" });
+      const [payout] = await db.select().from(directorPayoutSummaries)
+        .where(eq(directorPayoutSummaries.id, payoutId));
+      if (!payout) return res.status(404).json({ error: "Payout not found" });
+      if (!payout.disputeSubmitted) return res.status(400).json({ error: "No dispute to resolve" });
+      const updates: any = {
+        disputeReviewedBy: adminUserId,
+        disputeReviewNotes: reviewNotes,
+        disputeResolvedAt: new Date(),
+      };
+      if (newState === "approved") {
+        updates.payoutState = "approved";
+        updates.payoutStatus = "pending";
+        updates.holdReason = null;
+      }
+      await db.update(directorPayoutSummaries).set(updates).where(eq(directorPayoutSummaries.id, payoutId));
+      await storage.createNotification({
+        userId: payout.directorUserId, role: "director", type: "info",
+        title: "Dispute Reviewed",
+        message: "Your payout dispute has been reviewed by an administrator. Check your earnings tab for the updated status.",
+      });
+      await db.insert(directorActionLogs).values({
+        actorId: adminUserId,
+        actorRole: "admin",
+        action: "payout_dispute_resolved",
+        targetType: "payout",
+        targetId: payoutId,
+        beforeState: JSON.stringify({ disputeSubmitted: true }),
+        afterState: JSON.stringify({ disputeResolvedAt: new Date().toISOString(), newState: newState || "unchanged" }),
+        metadata: JSON.stringify({ reviewNotes }),
+        ipAddress: req.ip || req.connection?.remoteAddress || null,
+      });
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Dispute resolve error:", error);
+      res.status(500).json({ error: "Failed to resolve dispute" });
     }
   });
 
