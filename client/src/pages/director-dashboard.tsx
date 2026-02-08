@@ -782,7 +782,7 @@ export default function DirectorDashboard() {
     legalDisclaimer: string;
   }>({
     queryKey: ["/api/director/earnings"],
-    enabled: activeTab === "earnings",
+    enabled: activeTab === "earnings" || activeTab === "overview",
   });
 
   const { data: acceptanceData } = useQuery<{ accepted: boolean }>({
@@ -834,6 +834,11 @@ export default function DirectorDashboard() {
       </div>
     );
   }
+
+  const isSuspended = dashboard.profile?.lifecycleStatus === "suspended" || dashboard.profile?.status === "suspended";
+  const isExpired = dashboard.profile?.lifecycleStatus === "expired";
+  const isTerminated = dashboard.profile?.lifecycleStatus === "terminated";
+  const isDashboardLocked = isSuspended || isTerminated;
 
   const { profile, lifespan, cells, metrics, staff, coaching, actionLogs, trustScoreSummary } = dashboard;
   const activeCoaching = coaching?.filter((c) => !c.isDismissed) ?? [];
@@ -905,6 +910,38 @@ export default function DirectorDashboard() {
           </Badge>
         </div>
       </div>
+
+      {isDashboardLocked && (
+        <Card className="border-destructive" data-testid="card-dashboard-locked">
+          <CardContent className="flex items-center gap-3 p-4">
+            <Ban className="h-5 w-5 text-destructive shrink-0" />
+            <div>
+              <p className="font-medium text-destructive" data-testid="text-locked-title">
+                {isTerminated ? "Director Appointment Terminated" : "Director Account Suspended"}
+              </p>
+              <p className="text-sm text-muted-foreground" data-testid="text-locked-message">
+                {isTerminated
+                  ? "Your director appointment has been terminated. Access has been revoked. Contact support for more information."
+                  : "Your director account is currently suspended. Dashboard actions are disabled pending review. You may submit an appeal through support."}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {isExpired && (
+        <Card className="border-yellow-500/50" data-testid="card-dashboard-expired">
+          <CardContent className="flex items-center gap-3 p-4">
+            <Clock className="h-5 w-5 text-yellow-500 shrink-0" />
+            <div>
+              <p className="font-medium" data-testid="text-expired-title">Contract Expired</p>
+              <p className="text-sm text-muted-foreground" data-testid="text-expired-message">
+                Your director contract has expired. The dashboard is in read-only mode. Contact your administrator for renewal.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex flex-wrap gap-1" data-testid="tabs-director">
@@ -980,6 +1017,64 @@ export default function DirectorDashboard() {
                     High: {trustScoreSummary.highCount} / Med: {trustScoreSummary.mediumCount} / Low: {trustScoreSummary.lowCount}
                   </p>
                 )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Card data-testid="card-overview-earnings-status">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Earnings Status</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <Badge
+                  variant={
+                    earningsData?.payoutStatus === "released" ? "default"
+                    : earningsData?.payoutStatus === "on_hold" ? "destructive"
+                    : "secondary"
+                  }
+                  data-testid="badge-overview-earnings-status"
+                >
+                  {earningsData?.payoutStatus === "released" ? "Released"
+                   : earningsData?.payoutStatus === "on_hold" ? "On Hold"
+                   : earningsData?.commissionFrozen ? "Frozen"
+                   : "Pending"}
+                </Badge>
+                {earningsData?.estimatedEarnings && parseFloat(earningsData.estimatedEarnings) > 0 && (
+                  <p className="text-xs text-muted-foreground mt-1" data-testid="text-overview-estimated">
+                    Est. {parseFloat(earningsData.estimatedEarnings).toFixed(0)}
+                  </p>
+                )}
+                <Button size="sm" variant="ghost" className="mt-2" onClick={() => setActiveTab("earnings")} data-testid="button-view-earnings">
+                  View Earnings
+                </Button>
+              </CardContent>
+            </Card>
+            <Card data-testid="card-overview-director-status">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Director Status</CardTitle>
+                <Shield className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <Badge
+                  variant={
+                    profile?.lifecycleStatus === "active" ? "default"
+                    : profile?.lifecycleStatus === "terminated" ? "destructive"
+                    : "secondary"
+                  }
+                  data-testid="badge-overview-director-status"
+                >
+                  {profile?.lifecycleStatus === "active" ? "Active"
+                   : profile?.lifecycleStatus === "suspended" ? "Under Review"
+                   : profile?.lifecycleStatus === "expired" ? "Expired"
+                   : profile?.lifecycleStatus === "terminated" ? "Terminated"
+                   : profile?.lifecycleStatus === "pending" ? "Pending Activation"
+                   : profile?.lifecycleStatus || "Unknown"}
+                </Badge>
+                <p className="text-xs text-muted-foreground mt-1 capitalize" data-testid="text-overview-director-type">
+                  {profile?.directorType} Director
+                </p>
               </CardContent>
             </Card>
           </div>
@@ -1261,6 +1356,29 @@ export default function DirectorDashboard() {
               </CardContent>
             </Card>
           )}
+
+          <Card data-testid="card-compliance-notices">
+            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Shield className="h-4 w-4" />
+                Compliance & Notices
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-xs text-muted-foreground italic" data-testid="text-compliance-disclaimer">
+                Director earnings are facilitation-based estimates subject to eligibility rules, daily caps, compliance reviews, and platform policies. ZIBA does not guarantee earnings, driver activity, or payout timelines.
+              </p>
+              <div className="text-xs text-muted-foreground space-y-1" data-testid="text-compliance-acknowledgements">
+                <p>By operating as a director, you acknowledge:</p>
+                <ul className="list-disc pl-4 space-y-0.5">
+                  <li>The platform acts as a facilitator between drivers and riders</li>
+                  <li>Drivers are not employees of directors unless separately contracted</li>
+                  <li>Abuse or fraud leads to suspension or termination</li>
+                  <li>All actions are logged and auditable by platform administrators</li>
+                </ul>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* DRIVERS TAB */}

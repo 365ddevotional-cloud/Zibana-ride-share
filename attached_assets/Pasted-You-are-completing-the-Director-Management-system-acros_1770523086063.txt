@@ -1,0 +1,205 @@
+You are completing the Director Management system across the ZIBA platform.
+
+OBJECTIVE:
+Finalize Director governance, dashboards, permissions, lifecycle management,
+commission enforcement, staff control, and ZIBRA oversight in a secure,
+auditable, legally safe way.
+
+This applies to:
+- Contract Directors
+- Employee Directors
+
+Admin and Super Admin retain ultimate authority.
+
+Do NOT break existing systems.
+Do NOT expose platform revenue or commission math.
+Do NOT weaken security or auditability.
+
+=====================================================
+DIRECTOR DEFINITIONS
+=====================================================
+
+1) CONTRACT DIRECTOR
+- Recruits drivers via referral code
+- Must recruit minimum 10 drivers to activate
+- Can manage up to 3 driver cells
+- Each cell:
+  - Max active drivers: 1300
+  - Max commissionable drivers/day: 1000
+- Commission:
+  - Percentage configurable by Super Admin
+  - Applied ONLY to platform earnings from eligible drivers
+  - Eligible drivers/day = 77% of drivers that worked that day
+- Has lifecycle (start date + end date)
+- Can be suspended or terminated by Admin/Super Admin
+
+2) EMPLOYEE DIRECTOR
+- Drivers assigned by platform
+- No referral code ownership
+- Same dashboard structure
+- Same discipline responsibilities
+- Employment governed separately (do not expose employment terms in UI)
+
+=====================================================
+DIRECTOR DASHBOARD (PRIVATE)
+=====================================================
+
+Route:
+  /director/dashboard
+
+Visible To:
+- Director (own dashboard only)
+- Admin
+- Super Admin
+
+Director Dashboard Sections:
+- Overview
+- Drivers (assigned only)
+- Earnings Summary (masked)
+- Staff Management
+- Performance & Health
+- Compliance & Notices
+- ZIBRA Insights
+
+-----------------------------------------------------
+OVERVIEW
+-----------------------------------------------------
+Cards:
+- Active Drivers Today
+- Working Drivers Today
+- Commissionable Drivers Today (77% applied silently)
+- Earnings Status (Estimated / Pending / Released)
+- Director Status (Active / Under Review / Suspended)
+
+-----------------------------------------------------
+DRIVERS SECTION
+-----------------------------------------------------
+Director can:
+- View drivers under them
+- Activate drivers who signed up via their referral code
+- Suspend drivers (temporary only, policy-based)
+- Add notes (discipline, warnings)
+
+Director CANNOT:
+- Deactivate drivers permanently
+- See platform revenue
+- Edit payout data
+
+Admin/Super Admin can override all actions.
+
+-----------------------------------------------------
+STAFF MANAGEMENT (DIRECTOR-OWNED)
+-----------------------------------------------------
+
+Contract Directors may:
+- Hire their own staff (ops, monitoring, support)
+- Assign staff roles per section:
+  - Driver Ops
+  - Compliance
+  - Monitoring
+  - Reports
+- Each staff:
+  - Sees ONLY assigned sections
+  - Cannot see payouts unless explicitly allowed
+  - Cannot see other cells or directors
+
+All staff actions:
+- Must log actor ID
+- Must log timestamp
+- Must be visible to Admin/Super Admin
+
+=====================================================
+DIRECTOR LIFECYCLE MANAGEMENT
+=====================================================
+
+Admin / Super Admin controls:
+- Appointment start date
+- Appointment end date
+- Renewal
+- Suspension
+- Termination
+
+System behavior:
+- Expired director → dashboard read-only
+- Suspended director → dashboard locked + notice
+- Terminated director → access revoked, logs preserved
+
+=====================================================
+ZIBRA OVERSIGHT FOR DIRECTORS
+=====================================================
+
+ZIBRA must:
+- Continuously analyze director performance
+- Track:
+  - Driver churn
+  - Driver suspensions
+  - Abuse flags
+  - Earnings volatility
+  - Cell saturation
+- Generate:
+  - Performance nudges
+  - Compliance reminders
+  - Risk warnings
+
+ZIBRA MAY:
+- Prompt Director with suggestions
+- Flag Admin/Super Admin silently
+
+ZIBRA MUST NOT:
+- Punish automatically
+- Change payouts
+- Suspend directors directly
+
+=====================================================
+LEGAL & COMPLIANCE SAFETY
+=====================================================
+
+Director-facing disclaimer (monthly + payout views):
+
+"Director earnings are facilitation-based estimates subject to eligibility rules,
+daily caps, compliance reviews, and platform policies. ZIBA does not guarantee
+earnings, driver activity, or payout timelines."
+
+Directors acknowledge:
+- Platform acts as facilitator
+- Drivers are not employees of Directors unless separately contracted
+- Abuse or fraud leads to suspension or termination
+
+=====================================================
+AUDIT & ACCOUNTABILITY
+=====================================================
+
+Log EVERYTHING:
+- Director actions
+- Staff actions
+- Driver activations/suspensions
+- Commission calculations
+- Payout decisions
+- Admin overrides
+
+Audit log fields:
+- Actor ID
+- Actor role
+- Target entity
+- Action type
+- Timestamp
+- IP/device (if available)
+
+Logs visible to:
+- Admin
+- Super Admin
+- Compliance teams
+
+=====================================================
+DELIVERABLE CONFIRMATION
+=====================================================
+
+After implementation, confirm:
+- Director dashboard routes
+- Permissions matrix
+- Lifecycle enforcement
+- ZIBRA monitoring hooks
+- Audit logs
+- What remains optional/future
+
+Proceed step-by-step and confirm completion.
