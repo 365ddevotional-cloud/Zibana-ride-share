@@ -21866,6 +21866,29 @@ export async function registerRoutes(
       return res.status(500).json({ message: "Failed to mark all messages as read" });
     }
   });
+  app.get("/api/driver/notification-preferences", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const prefs = await storage.getNotificationPreferences(userId);
+      return res.json(prefs);
+    } catch (error) {
+      console.error("Error getting driver notification preferences:", error);
+      return res.status(500).json({ message: "Failed to get notification preferences" });
+    }
+  });
+
+  app.put("/api/driver/notification-preferences", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const updates = req.body;
+      const prefs = await storage.updateNotificationPreferences(userId, updates);
+      return res.json(prefs);
+    } catch (error) {
+      console.error("Error updating driver notification preferences:", error);
+      return res.status(500).json({ message: "Failed to update notification preferences" });
+    }
+  });
+
 
   app.get("/api/admin/rider-inbox/:userId", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {

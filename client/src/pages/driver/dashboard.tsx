@@ -282,8 +282,8 @@ export default function DriverDashboard() {
             <Button 
               size="icon" 
               variant="ghost" 
-              onClick={() => setLocation("/driver/profile")}
-              data-testid="button-goto-profile"
+              onClick={() => setLocation("/driver/account")}
+              data-testid="button-goto-account"
             >
               <User className="h-5 w-5" />
             </Button>

@@ -56,6 +56,11 @@ const DriverWelcomeBackPage = lazy(() => import("@/pages/driver/welcome-back"));
 const DriverLostItemsPage = lazy(() => import("@/pages/driver/lost-items"));
 const DriverReliefFundPage = lazy(() => import("@/pages/driver/relief-fund"));
 const DriverTrainingPage = lazy(() => import("@/pages/driver/training"));
+const DriverAccountPage = lazy(() => import("@/pages/driver/account"));
+const DriverVehiclePage = lazy(() => import("@/pages/driver/vehicle"));
+const DriverDocumentsPage = lazy(() => import("@/pages/driver/documents"));
+const DriverInboxPage = lazy(() => import("@/pages/driver/inbox"));
+const DriverTermsPrivacyPage = lazy(() => import("@/pages/driver/terms-privacy"));
 const RiderSchedulePage = lazy(() => import("@/pages/rider/schedule"));
 const RiderInboxPage = lazy(() => import("@/pages/rider/inbox"));
 const RiderActivityPage = lazy(() => import("@/pages/rider/activity"));
@@ -303,6 +308,21 @@ function DriverRouter() {
       </Route>
       <Route path="/driver/training">
         <LazyComponent><DriverTrainingPage /></LazyComponent>
+      </Route>
+      <Route path="/driver/account">
+        <LazyComponent><DriverAccountPage /></LazyComponent>
+      </Route>
+      <Route path="/driver/vehicle">
+        <LazyComponent><DriverVehiclePage /></LazyComponent>
+      </Route>
+      <Route path="/driver/documents">
+        <LazyComponent><DriverDocumentsPage /></LazyComponent>
+      </Route>
+      <Route path="/driver/inbox">
+        <LazyComponent><DriverInboxPage /></LazyComponent>
+      </Route>
+      <Route path="/driver/terms-privacy">
+        <LazyComponent><DriverTermsPrivacyPage /></LazyComponent>
       </Route>
       <Route>
         <Redirect to="/driver/dashboard" />
