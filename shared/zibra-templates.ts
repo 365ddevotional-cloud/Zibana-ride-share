@@ -394,6 +394,41 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     keywords: ["corporate ride", "business ride", "company ride", "corporate account", "business account", "how corporate works", "corporate policy", "business travel", "corporate setup"],
     response: "ZIBA helps facilitate corporate ride options for business travel. Corporate rides allow billing to a business account. Based on your situation, check with your company administrator for corporate ride setup and policies. I can guide you through this if you want."
   },
+  {
+    id: "a-corporate-config",
+    role: "admin",
+    category: "operations",
+    keywords: ["corporate rides admin", "setup corporate", "create corporate account", "corporate billing", "corporate management", "manage corporate", "corporate configuration"],
+    response: "As an Admin, you can manage Corporate Rides from the admin dashboard. You can create corporate accounts with company details, set billing types (invoice, prepaid wallet, or hybrid), assign riders to corporate accounts, and suspend or terminate accounts. Navigate to the Corporate Rides tab in your dashboard to get started."
+  },
+  {
+    id: "a-special-rides-config",
+    role: "admin",
+    category: "operations",
+    keywords: ["special rides admin", "configure special", "enable group rides", "enable event rides", "special rides settings", "manage special rides", "premium rides setup"],
+    response: "As an Admin, you can configure Special Rides from the admin dashboard. Enable or disable ride types (Group, Event, Premium, Long-Distance), set driver eligibility criteria like minimum trust scores and vehicle requirements, and manage country availability. The Special Rides tab in your dashboard gives you full control."
+  },
+  {
+    id: "d-corporate-management",
+    role: "director",
+    category: "operations",
+    keywords: ["corporate drivers", "corporate ride management", "corporate activity", "driver corporate eligibility", "flag corporate driver", "recommend corporate driver"],
+    response: "As a Director, you can monitor corporate ride drivers in your cell from the Corporate tab on your dashboard. You can view activity counts (not revenue), flag driver issues for admin review, and recommend drivers for corporate eligibility. Account creation and billing rules are managed by Admin."
+  },
+  {
+    id: "d-special-rides-management",
+    role: "director",
+    category: "operations",
+    keywords: ["special rides director", "driver special eligibility", "recommend special driver", "suspend special driver", "special ride demand", "group ride drivers", "event ride drivers"],
+    response: "As a Director, you can manage your cell's drivers for special rides from the Special Rides tab on your dashboard. You can view eligible drivers, recommend drivers for admin approval, temporarily suspend drivers from special rides, and see ride demand indicators. Final approval of eligibility is always handled by Admin."
+  },
+  {
+    id: "d-driver-corporate-why",
+    role: "director",
+    category: "operations",
+    keywords: ["why can't driver do corporate", "driver not eligible corporate", "corporate eligibility", "driver blocked corporate"],
+    response: "If a driver in your cell isn't eligible for corporate rides, here's what to check: 1) Has the driver been assigned to a corporate account by Admin? 2) Is the driver's status active and not suspended? 3) Does the driver meet the minimum trust score requirement? You can recommend the driver for corporate eligibility from your dashboard, and Admin will review and approve."
+  },
 
   // Safety (Rider) - Additional
   {

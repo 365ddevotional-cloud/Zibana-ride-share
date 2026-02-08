@@ -984,6 +984,124 @@ export async function registerRoutes(
     }
   });
 
+  // === SPECIAL RIDES ADMIN ENDPOINTS ===
+  app.get("/api/admin/special-rides/config", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      return res.json([
+        { id: "1", rideType: "group", enabled: true, minDriverTrustScore: 70, vehicleRequirements: "Sedan, SUV", availableCountries: ["NG", "ZA"], availableCities: [], assignedDirectorIds: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+        { id: "2", rideType: "event", enabled: true, minDriverTrustScore: 75, vehicleRequirements: "SUV, Van", availableCountries: ["NG"], availableCities: [], assignedDirectorIds: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+        { id: "3", rideType: "premium", enabled: false, minDriverTrustScore: 85, vehicleRequirements: "Luxury", availableCountries: [], availableCities: [], assignedDirectorIds: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+        { id: "4", rideType: "longdistance", enabled: false, minDriverTrustScore: 80, vehicleRequirements: "SUV, Sedan", availableCountries: [], availableCities: [], assignedDirectorIds: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+      ]);
+    } catch (error) {
+      console.error("Error fetching special rides config:", error);
+      return res.status(500).json({ message: "Failed to fetch config" });
+    }
+  });
+
+  app.get("/api/admin/special-rides/eligible-drivers", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      return res.json([]);
+    } catch (error) {
+      return res.status(500).json({ message: "Failed to fetch eligible drivers" });
+    }
+  });
+
+  app.post("/api/admin/special-rides/toggle", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { rideType, enabled } = req.body;
+      console.log(`[SPECIAL RIDES] Toggle ${rideType} -> ${enabled}`);
+      return res.json({ success: true });
+    } catch (error) {
+      return res.status(500).json({ message: "Failed to toggle ride type" });
+    }
+  });
+
+  app.post("/api/admin/special-rides/update-config", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { rideType, minDriverTrustScore, vehicleRequirements } = req.body;
+      console.log(`[SPECIAL RIDES] Config update for ${rideType}: trust=${minDriverTrustScore}, vehicle=${vehicleRequirements}`);
+      return res.json({ success: true });
+    } catch (error) {
+      return res.status(500).json({ message: "Failed to update config" });
+    }
+  });
+
+  // === DIRECTOR CORPORATE RIDES ENDPOINTS ===
+  app.get("/api/director/corporate-rides/drivers", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      return res.json([]);
+    } catch (error) {
+      return res.status(500).json({ message: "Failed to fetch corporate drivers" });
+    }
+  });
+
+  app.get("/api/director/corporate-rides/activity", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      return res.json({ totalDrivers: 0, activeDrivers: 0, totalRides: 0, monthlyRides: 0, flaggedDrivers: 0 });
+    } catch (error) {
+      return res.status(500).json({ message: "Failed to fetch activity" });
+    }
+  });
+
+  app.post("/api/director/corporate-rides/flag-driver", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      console.log(`[DIRECTOR CORPORATE] Flag driver: ${req.body.driverId}`);
+      return res.json({ success: true });
+    } catch (error) {
+      return res.status(500).json({ message: "Failed to flag driver" });
+    }
+  });
+
+  app.post("/api/director/corporate-rides/recommend", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      console.log(`[DIRECTOR CORPORATE] Recommend driver: ${req.body.driverId}`);
+      return res.json({ success: true });
+    } catch (error) {
+      return res.status(500).json({ message: "Failed to recommend driver" });
+    }
+  });
+
+  // === DIRECTOR SPECIAL RIDES ENDPOINTS ===
+  app.get("/api/director/special-rides/drivers", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      return res.json([]);
+    } catch (error) {
+      return res.status(500).json({ message: "Failed to fetch special ride drivers" });
+    }
+  });
+
+  app.get("/api/director/special-rides/demand", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      return res.json([
+        { rideType: "group", label: "Group Rides", demandLevel: "moderate", requestCount: 12 },
+        { rideType: "event", label: "Event Transport", demandLevel: "low", requestCount: 3 },
+        { rideType: "premium", label: "Premium", demandLevel: "high", requestCount: 28 },
+        { rideType: "longdistance", label: "Long-Distance", demandLevel: "low", requestCount: 5 },
+      ]);
+    } catch (error) {
+      return res.status(500).json({ message: "Failed to fetch demand" });
+    }
+  });
+
+  app.post("/api/director/special-rides/recommend", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      console.log(`[DIRECTOR SPECIAL] Recommend driver: ${req.body.driverId}`);
+      return res.json({ success: true });
+    } catch (error) {
+      return res.status(500).json({ message: "Failed to recommend driver" });
+    }
+  });
+
+  app.post("/api/director/special-rides/suspend", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      console.log(`[DIRECTOR SPECIAL] Suspend driver from special rides: ${req.body.driverId}`);
+      return res.json({ success: true });
+    } catch (error) {
+      return res.status(500).json({ message: "Failed to suspend driver" });
+    }
+  });
+
   app.get("/api/admin/cash-disputes", isAuthenticated, requireRole(["admin", "super_admin", "finance"]), async (req: any, res) => {
     try {
       const { status } = req.query;

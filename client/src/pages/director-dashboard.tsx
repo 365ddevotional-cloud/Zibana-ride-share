@@ -8,6 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DirectorSpecialRidesPanel } from "@/components/director/special-rides-panel";
+import { DirectorCorporateRidesPanel } from "@/components/director/corporate-rides-panel";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -18,7 +20,7 @@ import {
   Users, Shield, Clock, AlertTriangle, Activity, UserPlus, ChevronRight,
   Calendar, Bell, X, RefreshCw, Wallet, Send, Ban, History, DollarSign,
   CheckCircle, XCircle, Eye, Trash2, Lightbulb, MessageCircle,
-  TrendingUp, BarChart3
+  TrendingUp, BarChart3, Building2, Star, Crown
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -1183,6 +1185,14 @@ export default function DirectorDashboard() {
           <TabsTrigger value="disputes" data-testid="tab-disputes">
             <Shield className="h-4 w-4 mr-1" />
             Disputes
+          </TabsTrigger>
+          <TabsTrigger value="corporate-rides" data-testid="tab-corporate-rides">
+            <Building2 className="h-4 w-4 mr-1" />
+            Corporate
+          </TabsTrigger>
+          <TabsTrigger value="special-rides" data-testid="tab-special-rides">
+            <Crown className="h-4 w-4 mr-1" />
+            Special Rides
           </TabsTrigger>
         </TabsList>
 
@@ -2595,6 +2605,16 @@ export default function DirectorDashboard() {
           <div className="p-3 rounded-md border bg-muted/50 text-xs text-muted-foreground" data-testid="text-disputes-disclaimer">
             Director disputes are reviewed by administrators. Submissions are tracked and form part of your account record. ZIBA aims to resolve disputes fairly and promptly.
           </div>
+        </TabsContent>
+
+        {/* CORPORATE RIDES TAB */}
+        <TabsContent value="corporate-rides" className="space-y-4">
+          <DirectorCorporateRidesPanel />
+        </TabsContent>
+
+        {/* SPECIAL RIDES TAB */}
+        <TabsContent value="special-rides" className="space-y-4">
+          <DirectorSpecialRidesPanel />
         </TabsContent>
       </Tabs>
 

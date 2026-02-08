@@ -37,6 +37,7 @@ import { CashSettlementPanel } from "@/components/admin/cash-settlement-panel";
 import { CashDisputesPanel } from "@/components/admin/cash-disputes-panel";
 import { SimulationCenter } from "@/components/admin/simulation-center";
 import { CorporateRidesPanel } from "@/components/admin/corporate-rides-panel";
+import { SpecialRidesPanel } from "@/components/admin/special-rides-panel";
 import { BankTransfersPanel } from "@/components/admin/bank-transfers-panel";
 import { AdminCancellationFeeSettings } from "@/components/admin/cancellation-fee-settings";
 import { LostItemsPanel } from "@/components/admin/lost-items-panel";
@@ -3968,6 +3969,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <TabsTrigger value="corporate" className="admin-nav-trigger rounded-md" data-testid="tab-corporate">
                 <Building className="h-4 w-4 mr-2" />
                 Corporate Rides
+              </TabsTrigger>
+            )}
+            {(isSuperAdmin || userRole === "admin") && (
+              <TabsTrigger value="special-rides" className="admin-nav-trigger rounded-md" data-testid="tab-special-rides">
+                <Star className="h-4 w-4 mr-2" />
+                Special Rides
               </TabsTrigger>
             )}
             {(isSuperAdmin || userRole === "admin") && (
@@ -9859,6 +9866,11 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
           {(isSuperAdmin || userRole === "admin") && (
             <TabsContent value="corporate">
               <CorporateRidesPanel />
+            </TabsContent>
+          )}
+          {(isSuperAdmin || userRole === "admin") && (
+            <TabsContent value="special-rides">
+              <SpecialRidesPanel />
             </TabsContent>
           )}
           {(isSuperAdmin || userRole === "admin") && (

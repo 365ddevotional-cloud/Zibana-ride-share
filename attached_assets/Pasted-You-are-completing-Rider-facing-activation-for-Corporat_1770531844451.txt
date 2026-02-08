@@ -1,0 +1,151 @@
+You are completing Rider-facing activation for Corporate Rides and Special Rides
+inside the ZIBA Rider app.
+
+GOAL:
+- Make all service cards clickable
+- Ensure no dead UI
+- Provide clean placeholder flows where backend is not yet live
+- Maintain consistency with ZIBA design, safety, and legal posture
+- Do NOT expose pricing splits or internal admin rules
+
+================================================
+PHASE 1 — SERVICES PAGE CLICKABILITY (RIDER)
+================================================
+
+1) SERVICES PAGE FIX
+Ensure the following cards are clickable:
+- Schedule a Ride (already active)
+- Corporate Rides
+- Special Rides
+
+Remove all “Coming Soon” dead states.
+If a feature is limited, route to an informational page instead.
+
+================================================
+PHASE 2 — CORPORATE RIDES (RIDER FLOW)
+================================================
+
+2) CORPORATE RIDES ENTRY PAGE
+
+Route:
+- /rider/corporate-rides
+
+Page content:
+- Header: “Corporate Rides”
+- Description:
+  “Travel on your company’s account with monthly invoicing or prepaid billing.”
+
+Buttons:
+- Join a Corporate Account
+- Learn How Corporate Rides Work
+
+------------------------------------------------
+
+3) JOIN CORPORATE ACCOUNT FLOW
+
+Route:
+- /rider/corporate-rides/join
+
+Options:
+- Enter Company Code
+- Request Access (email-based request)
+
+Rules:
+- Rider cannot self-approve
+- Show status:
+  - Pending approval
+  - Approved
+  - Rejected
+
+ZIBRA guidance:
+- Explains process
+- No guarantees
+- No timelines promised
+
+================================================
+PHASE 3 — SPECIAL RIDES (RIDER FLOW)
+================================================
+
+4) SPECIAL RIDES ENTRY PAGE
+
+Route:
+- /rider/special-rides
+
+Page content:
+- Header: “Special Rides”
+- Ride types listed:
+  - Group Rides
+  - Event Rides
+  - Premium Rides (future)
+
+Each item clickable.
+
+------------------------------------------------
+
+5) SPECIAL RIDE DETAIL PAGE
+
+Route:
+- /rider/special-rides/:type
+
+Content:
+- What this ride type is
+- When it’s available
+- Safety reminders
+- Eligibility notes (non-technical)
+
+Button:
+- “Request This Ride” (if enabled)
+OR
+- “Check Availability” (if admin-controlled)
+
+================================================
+PHASE 4 — ZIBRA SUPPORT INTEGRATION
+================================================
+
+6) ZIBRA CONTEXT HELP
+
+If rider opens:
+- Corporate Rides → ZIBRA explains joining & rules
+- Special Rides → ZIBRA explains eligibility & availability
+
+ZIBRA must:
+- Never promise access
+- Never promise approval
+- Use facilitation language only
+
+================================================
+PHASE 5 — NAVIGATION & UX CONSISTENCY
+================================================
+
+7) NAVIGATION RULES
+- Every page must have:
+  - Back button
+  - Clear title
+- No page should lead to an error or blank screen
+- Empty states must be friendly and informative
+
+================================================
+PHASE 6 — LEGAL SAFETY
+================================================
+
+8) DISCLAIMER PLACEMENT (LIGHTWEIGHT)
+Show brief text on:
+- Corporate join page
+- Special ride request page
+
+Example:
+“Availability and approval are subject to policy. ZIBA facilitates access but does not guarantee participation.”
+
+================================================
+PHASE 7 — TESTING
+================================================
+
+9) CONFIRM:
+✔ Services page cards are clickable
+✔ Corporate pages load
+✔ Special ride pages load
+✔ No dead links
+✔ ZIBRA responds correctly
+✔ No admin-only data visible
+
+Proceed carefully and confirm completion.
