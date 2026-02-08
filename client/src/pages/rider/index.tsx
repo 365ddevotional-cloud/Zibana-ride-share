@@ -41,7 +41,10 @@ import {
   Award,
   Wallet,
   Lightbulb,
-  Gift
+  Gift,
+  HandCoins,
+  Link2,
+  DollarSign
 } from "lucide-react";
 import type { Trip, RiderProfile, Ride } from "@shared/schema";
 import { NotificationBell } from "@/components/notification-bell";
@@ -107,6 +110,21 @@ export default function RiderDashboard() {
 
   const { data: loyaltyIncentives = [] } = useQuery<any[]>({
     queryKey: ["/api/rider/loyalty-incentives"],
+    enabled: !!user,
+  });
+
+  const { data: sponsoredBalances = [] } = useQuery<any[]>({
+    queryKey: ["/api/funding/sponsored-balance"],
+    enabled: !!user,
+  });
+
+  const { data: fundingRelationships } = useQuery<any>({
+    queryKey: ["/api/funding/relationships"],
+    enabled: !!user,
+  });
+
+  const { data: funderDashboard = [] } = useQuery<any[]>({
+    queryKey: ["/api/funding/dashboard"],
     enabled: !!user,
   });
 
@@ -222,6 +240,18 @@ export default function RiderDashboard() {
         description: error.message || "Failed to cancel ride",
         variant: "destructive",
       });
+    },
+  });
+
+  const fundingActionMutation = useMutation({
+    mutationFn: async ({ id, action }: { id: string; action: string }) => {
+      const res = await apiRequest("POST", `/api/funding/relationships/${id}/${action}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/funding/relationships"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/funding/sponsored-balance"] });
+      toast({ title: "Success", description: "Funding relationship updated." });
     },
   });
 
@@ -949,6 +979,283 @@ export default function RiderDashboard() {
                   </p>
                 </CardContent>
               </Card>
+            </div>
+          </div>
+        )}
+
+        {user && (
+          <div className="mt-8 space-y-6" data-testid="section-wallet-funding">
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <HandCoins className="h-5 w-5" />
+              Wallet Funding
+            </h2>
+            <div className="grid gap-6 md:grid-cols-2">
+              <Card data-testid="card-sponsored-funds">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <DollarSign className="h-5 w-5" />
+                    Sponsored Funds
+                  </CardTitle>
+                  <CardDescription>
+                    Funds others have shared with you
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {sponsoredBalances.length > 0 ? (
+                    <>
+                      {sponsoredBalances.map((sb: any, index: number) => (
+                        <div
+                          key={sb.id || index}
+                          className="flex items-start justify-between gap-4 py-3 border-b last:border-b-0"
+                          data-testid={`sponsored-balance-${sb.id || index}`}
+                        >
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-medium text-sm">{sb.funderName || "Funder"}</span>
+                              <Badge variant="secondary" className="text-xs" data-testid={`badge-sponsor-type-${sb.id || index}`}>
+                                {sb.relationshipType === "parent_child" ? "Parent" :
+                                 sb.relationshipType === "spouse_spouse" ? "Spouse" :
+                                 sb.relationshipType === "friend_friend" ? "Friend" :
+                                 sb.relationshipType === "employer_employee" ? "Employer" :
+                                 sb.relationshipType === "organization_member" ? "Organization" :
+                                 "Sponsor"}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Funds from {sb.funderName || "sponsor"}
+                            </p>
+                          </div>
+                          <div className="text-right space-y-1">
+                            <p className="font-semibold" data-testid={`text-sponsor-balance-${sb.id || index}`}>
+                              ${parseFloat(sb.balance || 0).toFixed(2)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Total: ${parseFloat(sb.totalReceived || 0).toFixed(2)}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground" data-testid="text-no-sponsored-funds">
+                      No sponsored funds yet. Others can send you funds through the funding feature.
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground pt-2" data-testid="text-sponsored-note">
+                    Sponsored funds are used first for rides. They cannot be withdrawn as cash.
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card data-testid="card-funding-relationships">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Link2 className="h-5 w-5" />
+                    Your Funding Links
+                  </CardTitle>
+                  <CardDescription>
+                    Manage your funding connections
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-medium text-muted-foreground">People funding you</h4>
+                    {fundingRelationships?.asRecipient?.length > 0 ? (
+                      fundingRelationships.asRecipient.map((rel: any, index: number) => (
+                        <div
+                          key={rel.id || index}
+                          className="flex items-start justify-between gap-4 py-2 border-b last:border-b-0"
+                          data-testid={`funding-recipient-${rel.id || index}`}
+                        >
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm font-medium">{rel.funderName || "Funder"}</span>
+                              <Badge variant="secondary" className="text-xs" data-testid={`badge-rel-type-r-${rel.id || index}`}>
+                                {rel.type === "parent_child" ? "Parent" :
+                                 rel.type === "spouse_spouse" ? "Spouse" :
+                                 rel.type === "friend_friend" ? "Friend" :
+                                 rel.type === "employer_employee" ? "Employer" :
+                                 rel.type === "organization_member" ? "Organization" :
+                                 "Sponsor"}
+                              </Badge>
+                              <Badge
+                                variant={
+                                  rel.status === "pending" ? "outline" :
+                                  rel.status === "accepted" ? "default" :
+                                  rel.status === "declined" ? "destructive" :
+                                  rel.status === "revoked" ? "secondary" :
+                                  rel.status === "frozen" ? "destructive" :
+                                  "outline"
+                                }
+                                className="text-xs"
+                                data-testid={`badge-rel-status-r-${rel.id || index}`}
+                              >
+                                {rel.status ? rel.status.charAt(0).toUpperCase() + rel.status.slice(1) : "Unknown"}
+                              </Badge>
+                            </div>
+                            {rel.purpose && (
+                              <Badge variant="outline" className="text-xs" data-testid={`badge-rel-purpose-${rel.id || index}`}>
+                                {rel.purpose}
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {rel.status === "pending" && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  onClick={() => fundingActionMutation.mutate({ id: rel.id, action: "accept" })}
+                                  disabled={fundingActionMutation.isPending}
+                                  data-testid={`button-accept-funding-${rel.id || index}`}
+                                >
+                                  Accept
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => fundingActionMutation.mutate({ id: rel.id, action: "decline" })}
+                                  disabled={fundingActionMutation.isPending}
+                                  data-testid={`button-decline-funding-${rel.id || index}`}
+                                >
+                                  Decline
+                                </Button>
+                              </>
+                            )}
+                            {rel.status === "accepted" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => fundingActionMutation.mutate({ id: rel.id, action: "revoke" })}
+                                disabled={fundingActionMutation.isPending}
+                                data-testid={`button-revoke-funding-${rel.id || index}`}
+                              >
+                                Revoke
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted-foreground" data-testid="text-no-funders">
+                        No one is funding you yet
+                      </p>
+                    )}
+                  </div>
+
+                  <Separator />
+
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-medium text-muted-foreground">People you fund</h4>
+                    {fundingRelationships?.asFunder?.length > 0 ? (
+                      fundingRelationships.asFunder.map((rel: any, index: number) => (
+                        <div
+                          key={rel.id || index}
+                          className="flex items-start justify-between gap-4 py-2 border-b last:border-b-0"
+                          data-testid={`funding-funder-${rel.id || index}`}
+                        >
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm font-medium">{rel.recipientName || "Recipient"}</span>
+                              <Badge variant="secondary" className="text-xs" data-testid={`badge-rel-type-f-${rel.id || index}`}>
+                                {rel.type === "parent_child" ? "Parent" :
+                                 rel.type === "spouse_spouse" ? "Spouse" :
+                                 rel.type === "friend_friend" ? "Friend" :
+                                 rel.type === "employer_employee" ? "Employer" :
+                                 rel.type === "organization_member" ? "Organization" :
+                                 "Sponsor"}
+                              </Badge>
+                              <Badge
+                                variant={
+                                  rel.status === "pending" ? "outline" :
+                                  rel.status === "accepted" ? "default" :
+                                  rel.status === "declined" ? "destructive" :
+                                  rel.status === "revoked" ? "secondary" :
+                                  rel.status === "frozen" ? "destructive" :
+                                  "outline"
+                                }
+                                className="text-xs"
+                                data-testid={`badge-rel-status-f-${rel.id || index}`}
+                              >
+                                {rel.status ? rel.status.charAt(0).toUpperCase() + rel.status.slice(1) : "Unknown"}
+                              </Badge>
+                            </div>
+                            {rel.status === "accepted" && rel.totalFunded != null && (
+                              <p className="text-xs text-muted-foreground" data-testid={`text-total-funded-${rel.id || index}`}>
+                                Total funded: ${parseFloat(rel.totalFunded || 0).toFixed(2)}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {rel.status === "accepted" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => fundingActionMutation.mutate({ id: rel.id, action: "revoke" })}
+                                disabled={fundingActionMutation.isPending}
+                                data-testid={`button-revoke-funder-${rel.id || index}`}
+                              >
+                                Revoke
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted-foreground" data-testid="text-no-recipients">
+                        You are not funding anyone yet
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {fundingRelationships?.asFunder?.some((r: any) => r.status === "accepted") && funderDashboard.length > 0 && (
+                <Card className="md:col-span-2" data-testid="card-funder-dashboard">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Wallet className="h-5 w-5" />
+                      Your Funded Recipients
+                    </CardTitle>
+                    <CardDescription>
+                      Usage summaries only. No ride routes or driver details are shown.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {funderDashboard.map((entry: any, index: number) => (
+                      <div
+                        key={entry.recipientId || index}
+                        className="flex items-start justify-between gap-4 py-3 border-b last:border-b-0"
+                        data-testid={`funder-dashboard-${entry.recipientId || index}`}
+                      >
+                        <div className="space-y-1">
+                          <p className="font-medium text-sm" data-testid={`text-funded-name-${entry.recipientId || index}`}>
+                            {entry.recipientName || "Recipient"}
+                          </p>
+                          <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
+                            <span data-testid={`text-rides-count-${entry.recipientId || index}`}>
+                              Rides taken: {entry.ridesCount ?? 0}
+                            </span>
+                            <span data-testid={`text-month-funded-${entry.recipientId || index}`}>
+                              This month: ${parseFloat(entry.currentMonthFunded || 0).toFixed(2)}
+                            </span>
+                          </div>
+                          {entry.lastFundedAt && (
+                            <p className="text-xs text-muted-foreground" data-testid={`text-last-funded-${entry.recipientId || index}`}>
+                              Last funded: {new Date(entry.lastFundedAt).toLocaleDateString()}
+                            </p>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold" data-testid={`text-total-funded-dash-${entry.recipientId || index}`}>
+                            ${parseFloat(entry.totalFunded || 0).toFixed(2)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">Total funded</p>
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </div>
         )}

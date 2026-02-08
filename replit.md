@@ -78,6 +78,10 @@ Preferred communication style: Simple, everyday language.
 - **Rider Loyalty & Wallet Growth**: Admin-controlled loyalty incentives (ride credits, reduced fees), wallet health indicators, wallet usage encouragement. P2P wallet funding support (parent-child, employer-staff, friend-friend) with recipient acceptance required and caps enforced.
 - **Rider Dashboard Trust Section**: Trust score display with tier badge, component breakdown, wallet health indicator, active loyalty incentives, and contextual ZIBRA tips. Encouraging, informational, non-judgmental tone. No internal formulas exposed.
 - **Admin Rider Trust Panel**: Overview of all rider trust scores with tier filtering, weight configuration, manual rider flagging, loyalty incentive granting, and audit logs.
+- **Third-Party Wallet Funding**: Voluntary convenience feature allowing trusted users (parents, spouses, employers, friends, organizations) to fund a rider's wallet. Five relationship types (personal support: parent-child, spouse-spouse, friend-friend; corporate support: employer-employee, organization-member). Full invite-accept-revoke lifecycle. Funder-set daily/monthly limits with purpose tags. Sponsored funds tracked separately, used first for rides/cancellation fees/lost-item fees, cannot be withdrawn as cash. No loans, no repayment obligations, no financial intermediary role.
+- **Funder Dashboard**: Limited visibility for funders showing total funded, monthly usage, ride count summaries. No access to ride routes, driver identity, exact locations, or trust scores.
+- **Funding Fraud Detection**: Auto-flags for many-recipients-one-funder, rapid fund-spend-refund cycles, cross-country anomalies, cancellation abuse, velocity alerts. Admin review panel with resolution workflow.
+- **Admin Funding Controls**: Global and country-specific configuration (limits, caps, feature toggle), relationship freeze/unfreeze, per-user funding disable, abuse flag management, comprehensive audit logging.
 
 ## External Dependencies
 

@@ -1869,6 +1869,54 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
     enabled: !!user && (isAdmin || isSuperAdmin) && activeTab === "rider-trust",
   });
 
+  const { data: fundingConfig } = useQuery<any>({
+    queryKey: ["/api/admin/funding/config"],
+    enabled: !!user && (isAdmin || isSuperAdmin) && activeTab === "third-party-funding",
+  });
+
+  const { data: fundingRelationshipsAdmin = [] } = useQuery<any[]>({
+    queryKey: ["/api/admin/funding/relationships"],
+    enabled: !!user && (isAdmin || isSuperAdmin) && activeTab === "third-party-funding",
+  });
+
+  const { data: fundingAbuseFlags = [] } = useQuery<any[]>({
+    queryKey: ["/api/admin/funding/abuse-flags"],
+    enabled: !!user && (isAdmin || isSuperAdmin) && activeTab === "third-party-funding",
+  });
+
+  const { data: fundingAuditLogs = [] } = useQuery<any[]>({
+    queryKey: ["/api/admin/funding/audit-logs"],
+    enabled: !!user && (isAdmin || isSuperAdmin) && activeTab === "third-party-funding",
+  });
+
+  const [fundingConfigForm, setFundingConfigForm] = useState({
+    isEnabled: false,
+    globalDailyLimit: "",
+    globalMonthlyLimit: "",
+    minAmount: "",
+    maxSingleAmount: "",
+    maxRelationshipsPerFunder: "",
+    maxFundersPerRecipient: "",
+    sponsoredFundsPriority: false,
+    cashWithdrawalAllowed: false,
+  });
+
+  useEffect(() => {
+    if (fundingConfig) {
+      setFundingConfigForm({
+        isEnabled: fundingConfig.isEnabled ?? false,
+        globalDailyLimit: String(fundingConfig.globalDailyLimit ?? ""),
+        globalMonthlyLimit: String(fundingConfig.globalMonthlyLimit ?? ""),
+        minAmount: String(fundingConfig.minAmount ?? ""),
+        maxSingleAmount: String(fundingConfig.maxSingleAmount ?? ""),
+        maxRelationshipsPerFunder: String(fundingConfig.maxRelationshipsPerFunder ?? ""),
+        maxFundersPerRecipient: String(fundingConfig.maxFundersPerRecipient ?? ""),
+        sponsoredFundsPriority: fundingConfig.sponsoredFundsPriority ?? false,
+        cashWithdrawalAllowed: fundingConfig.cashWithdrawalAllowed ?? false,
+      });
+    }
+  }, [fundingConfig]);
+
   const { data: expiringDirectors = [] } = useQuery<any[]>({
     queryKey: ["/api/admin/directors/expiring"],
     enabled: !!user && isSuperAdmin && (activeTab === "directors" || activeTab === "director-settings"),
@@ -3998,6 +4046,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <TabsTrigger value="rider-trust" className="admin-nav-trigger rounded-md" data-testid="tab-rider-trust">
                 <Users className="h-4 w-4 mr-2" />
                 Rider Trust
+              </TabsTrigger>
+            )}
+            {(isSuperAdmin || isAdmin) && (
+              <TabsTrigger value="third-party-funding" className="admin-nav-trigger rounded-md" data-testid="tab-third-party-funding">
+                <Wallet className="h-4 w-4 mr-2" />
+                Funding
               </TabsTrigger>
             )}
           </TabsList>
@@ -10249,6 +10303,459 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                             </div>
                             <span className="text-xs text-muted-foreground" data-testid={`text-rt-log-time-${log.id || idx}`}>
                               {log.createdAt ? new Date(log.createdAt).toLocaleString() : ""}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+          )}
+
+          {(isSuperAdmin || isAdmin) && (
+            <TabsContent value="third-party-funding">
+              <div className="space-y-6" data-testid="panel-third-party-funding">
+                <div className="rounded-md border p-3 bg-muted/50 text-sm text-muted-foreground" data-testid="text-funding-legal-notice">
+                  Third-party wallet funding is a voluntary convenience feature. ZIBA does not act as a lender, escrow, or financial intermediary.
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium" data-testid="text-funding-total-label">Total Relationships</CardTitle>
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold" data-testid="text-funding-total-count">{fundingRelationshipsAdmin.length}</div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium" data-testid="text-funding-active-label">Active</CardTitle>
+                      <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold" data-testid="text-funding-active-count">
+                        {fundingRelationshipsAdmin.filter((r: any) => r.status === "accepted").length}
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium" data-testid="text-funding-frozen-label">Frozen</CardTitle>
+                      <Pause className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold" data-testid="text-funding-frozen-count">
+                        {fundingRelationshipsAdmin.filter((r: any) => r.status === "frozen").length}
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium" data-testid="text-funding-abuse-label">Abuse Flags</CardTitle>
+                      <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold" data-testid="text-funding-abuse-count">
+                        {fundingAbuseFlags.filter((f: any) => !f.resolvedAt).length}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {isSuperAdmin && (
+                  <Card data-testid="panel-funding-config">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2" data-testid="text-funding-config-title">
+                        <Settings className="h-5 w-5" />
+                        Funding Configuration
+                      </CardTitle>
+                      <CardDescription>Manage global settings for third-party wallet funding</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <Label data-testid="label-funding-enabled">Feature Enabled</Label>
+                          <p className="text-xs text-muted-foreground">Enable or disable third-party funding globally</p>
+                        </div>
+                        <Switch
+                          checked={fundingConfigForm.isEnabled}
+                          onCheckedChange={(checked) => setFundingConfigForm(prev => ({ ...prev, isEnabled: checked }))}
+                          data-testid="switch-funding-enabled"
+                        />
+                      </div>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="funding-global-daily-limit">Global Daily Limit</Label>
+                          <Input
+                            id="funding-global-daily-limit"
+                            type="number"
+                            min="0"
+                            value={fundingConfigForm.globalDailyLimit}
+                            onChange={(e) => setFundingConfigForm(prev => ({ ...prev, globalDailyLimit: e.target.value }))}
+                            data-testid="input-funding-global-daily-limit"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="funding-global-monthly-limit">Global Monthly Limit</Label>
+                          <Input
+                            id="funding-global-monthly-limit"
+                            type="number"
+                            min="0"
+                            value={fundingConfigForm.globalMonthlyLimit}
+                            onChange={(e) => setFundingConfigForm(prev => ({ ...prev, globalMonthlyLimit: e.target.value }))}
+                            data-testid="input-funding-global-monthly-limit"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="funding-min-amount">Min Amount</Label>
+                          <Input
+                            id="funding-min-amount"
+                            type="number"
+                            min="0"
+                            value={fundingConfigForm.minAmount}
+                            onChange={(e) => setFundingConfigForm(prev => ({ ...prev, minAmount: e.target.value }))}
+                            data-testid="input-funding-min-amount"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="funding-max-single-amount">Max Single Amount</Label>
+                          <Input
+                            id="funding-max-single-amount"
+                            type="number"
+                            min="0"
+                            value={fundingConfigForm.maxSingleAmount}
+                            onChange={(e) => setFundingConfigForm(prev => ({ ...prev, maxSingleAmount: e.target.value }))}
+                            data-testid="input-funding-max-single-amount"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="funding-max-rels-per-funder">Max Relationships Per Funder</Label>
+                          <Input
+                            id="funding-max-rels-per-funder"
+                            type="number"
+                            min="0"
+                            value={fundingConfigForm.maxRelationshipsPerFunder}
+                            onChange={(e) => setFundingConfigForm(prev => ({ ...prev, maxRelationshipsPerFunder: e.target.value }))}
+                            data-testid="input-funding-max-rels-per-funder"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="funding-max-funders-per-recipient">Max Funders Per Recipient</Label>
+                          <Input
+                            id="funding-max-funders-per-recipient"
+                            type="number"
+                            min="0"
+                            value={fundingConfigForm.maxFundersPerRecipient}
+                            onChange={(e) => setFundingConfigForm(prev => ({ ...prev, maxFundersPerRecipient: e.target.value }))}
+                            data-testid="input-funding-max-funders-per-recipient"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <Label data-testid="label-funding-priority">Sponsored Funds Priority</Label>
+                          <p className="text-xs text-muted-foreground">Use sponsored funds first for rides</p>
+                        </div>
+                        <Switch
+                          checked={fundingConfigForm.sponsoredFundsPriority}
+                          onCheckedChange={(checked) => setFundingConfigForm(prev => ({ ...prev, sponsoredFundsPriority: checked }))}
+                          data-testid="switch-funding-priority"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <Label data-testid="label-funding-cash-withdrawal">Cash Withdrawal Allowed</Label>
+                          <p className="text-xs text-muted-foreground">Allow recipients to withdraw sponsored funds as cash</p>
+                          {fundingConfigForm.cashWithdrawalAllowed && (
+                            <p className="text-xs text-destructive mt-1" data-testid="text-cash-withdrawal-warning">
+                              Warning: Enabling cash withdrawal increases abuse risk. Proceed with caution.
+                            </p>
+                          )}
+                        </div>
+                        <Switch
+                          checked={fundingConfigForm.cashWithdrawalAllowed}
+                          onCheckedChange={(checked) => setFundingConfigForm(prev => ({ ...prev, cashWithdrawalAllowed: checked }))}
+                          data-testid="switch-funding-cash-withdrawal"
+                        />
+                      </div>
+                      <Button
+                        onClick={async () => {
+                          try {
+                            await apiRequest("PUT", "/api/admin/funding/config", {
+                              isEnabled: fundingConfigForm.isEnabled,
+                              globalDailyLimit: parseFloat(fundingConfigForm.globalDailyLimit) || 0,
+                              globalMonthlyLimit: parseFloat(fundingConfigForm.globalMonthlyLimit) || 0,
+                              minAmount: parseFloat(fundingConfigForm.minAmount) || 0,
+                              maxSingleAmount: parseFloat(fundingConfigForm.maxSingleAmount) || 0,
+                              maxRelationshipsPerFunder: parseInt(fundingConfigForm.maxRelationshipsPerFunder) || 0,
+                              maxFundersPerRecipient: parseInt(fundingConfigForm.maxFundersPerRecipient) || 0,
+                              sponsoredFundsPriority: fundingConfigForm.sponsoredFundsPriority,
+                              cashWithdrawalAllowed: fundingConfigForm.cashWithdrawalAllowed,
+                            });
+                            toast({ title: "Configuration saved", description: "Funding configuration updated successfully." });
+                            queryClient.invalidateQueries({ queryKey: ["/api/admin/funding/config"] });
+                          } catch (err: any) {
+                            toast({ title: "Error", description: err.message || "Failed to save configuration", variant: "destructive" });
+                          }
+                        }}
+                        data-testid="button-save-funding-config"
+                      >
+                        Save Configuration
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
+
+                <Card data-testid="panel-funding-relationships">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2" data-testid="text-funding-relationships-title">
+                      <ArrowLeftRight className="h-5 w-5" />
+                      Funding Relationships
+                    </CardTitle>
+                    <CardDescription>View and manage all third-party funding relationships</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {fundingRelationshipsAdmin.length === 0 ? (
+                      <EmptyState icon={Users} title="No Relationships" description="No funding relationships have been created yet." />
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Funder</TableHead>
+                              <TableHead>Recipient</TableHead>
+                              <TableHead>Type</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead>Daily Limit</TableHead>
+                              <TableHead>Monthly Limit</TableHead>
+                              <TableHead>Total Funded</TableHead>
+                              <TableHead>Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {fundingRelationshipsAdmin.map((rel: any) => {
+                              const typeLabels: Record<string, string> = {
+                                parent_child: "Parent-Child",
+                                spouse: "Spouse",
+                                employer: "Employer",
+                                guardian: "Guardian",
+                                other: "Other",
+                              };
+                              const statusVariant = rel.status === "accepted" ? "default" as const
+                                : rel.status === "frozen" ? "destructive" as const
+                                : rel.status === "pending" ? "outline" as const
+                                : "secondary" as const;
+                              return (
+                                <TableRow key={rel.id} data-testid={`row-funding-rel-${rel.id}`}>
+                                  <TableCell data-testid={`text-funding-funder-${rel.id}`}>{rel.funderName || rel.funderId}</TableCell>
+                                  <TableCell data-testid={`text-funding-recipient-${rel.id}`}>{rel.recipientName || rel.recipientId}</TableCell>
+                                  <TableCell>
+                                    <Badge variant="outline" data-testid={`badge-funding-type-${rel.id}`}>
+                                      {typeLabels[rel.type] || rel.type}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant={statusVariant} data-testid={`badge-funding-status-${rel.id}`}>
+                                      {rel.status}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell data-testid={`text-funding-daily-${rel.id}`}>{rel.dailyLimit ?? "-"}</TableCell>
+                                  <TableCell data-testid={`text-funding-monthly-${rel.id}`}>{rel.monthlyLimit ?? "-"}</TableCell>
+                                  <TableCell data-testid={`text-funding-total-${rel.id}`}>{rel.totalFunded ?? "0"}</TableCell>
+                                  <TableCell>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      {rel.status === "accepted" && (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={async () => {
+                                            const reason = prompt("Reason for freezing this relationship:");
+                                            if (!reason) return;
+                                            try {
+                                              await apiRequest("POST", `/api/admin/funding/relationships/${rel.id}/freeze`, { reason });
+                                              toast({ title: "Relationship frozen" });
+                                              queryClient.invalidateQueries({ queryKey: ["/api/admin/funding/relationships"] });
+                                              queryClient.invalidateQueries({ queryKey: ["/api/admin/funding/audit-logs"] });
+                                            } catch (err: any) {
+                                              toast({ title: "Error", description: err.message || "Failed to freeze", variant: "destructive" });
+                                            }
+                                          }}
+                                          data-testid={`button-freeze-rel-${rel.id}`}
+                                        >
+                                          <Pause className="h-3 w-3 mr-1" /> Freeze
+                                        </Button>
+                                      )}
+                                      {rel.status === "frozen" && (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={async () => {
+                                            try {
+                                              await apiRequest("POST", `/api/admin/funding/relationships/${rel.id}/unfreeze`);
+                                              toast({ title: "Relationship unfrozen" });
+                                              queryClient.invalidateQueries({ queryKey: ["/api/admin/funding/relationships"] });
+                                              queryClient.invalidateQueries({ queryKey: ["/api/admin/funding/audit-logs"] });
+                                            } catch (err: any) {
+                                              toast({ title: "Error", description: err.message || "Failed to unfreeze", variant: "destructive" });
+                                            }
+                                          }}
+                                          data-testid={`button-unfreeze-rel-${rel.id}`}
+                                        >
+                                          <Play className="h-3 w-3 mr-1" /> Unfreeze
+                                        </Button>
+                                      )}
+                                      <Button
+                                        size="sm"
+                                        variant="destructive"
+                                        onClick={async () => {
+                                          if (!confirm("Disable all funding relationships for this funder?")) return;
+                                          try {
+                                            await apiRequest("POST", `/api/admin/funding/disable-user/${rel.funderId}`);
+                                            toast({ title: "Funder disabled", description: "All relationships for this funder have been disabled." });
+                                            queryClient.invalidateQueries({ queryKey: ["/api/admin/funding/relationships"] });
+                                            queryClient.invalidateQueries({ queryKey: ["/api/admin/funding/audit-logs"] });
+                                          } catch (err: any) {
+                                            toast({ title: "Error", description: err.message || "Failed to disable funder", variant: "destructive" });
+                                          }
+                                        }}
+                                        data-testid={`button-disable-funder-${rel.id}`}
+                                      >
+                                        Disable All
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card data-testid="panel-funding-abuse-flags">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2" data-testid="text-funding-abuse-title">
+                      <ShieldAlert className="h-5 w-5" />
+                      Abuse Flags
+                    </CardTitle>
+                    <CardDescription>Unresolved abuse flags requiring attention</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {(() => {
+                      const unresolvedFlags = fundingAbuseFlags.filter((f: any) => !f.resolvedAt);
+                      if (unresolvedFlags.length === 0) {
+                        return <EmptyState icon={CheckCircle} title="No Flags" description="No unresolved abuse flags." />;
+                      }
+                      return (
+                        <div className="overflow-x-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Funder</TableHead>
+                                <TableHead>Recipient</TableHead>
+                                <TableHead>Flag Type</TableHead>
+                                <TableHead>Severity</TableHead>
+                                <TableHead>Details</TableHead>
+                                <TableHead>Date</TableHead>
+                                <TableHead>Actions</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {unresolvedFlags.map((flag: any) => {
+                                const severityVariant = flag.severity === "high" ? "destructive" as const
+                                  : flag.severity === "medium" ? "secondary" as const
+                                  : "outline" as const;
+                                return (
+                                  <TableRow key={flag.id} data-testid={`row-abuse-flag-${flag.id}`}>
+                                    <TableCell data-testid={`text-abuse-funder-${flag.id}`}>{flag.funderName || flag.funderId}</TableCell>
+                                    <TableCell data-testid={`text-abuse-recipient-${flag.id}`}>{flag.recipientName || flag.recipientId}</TableCell>
+                                    <TableCell data-testid={`text-abuse-type-${flag.id}`}>{flag.flagType}</TableCell>
+                                    <TableCell>
+                                      <Badge variant={severityVariant} data-testid={`badge-abuse-severity-${flag.id}`}>
+                                        {flag.severity}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell className="max-w-[200px] truncate" data-testid={`text-abuse-details-${flag.id}`}>
+                                      {flag.details || "-"}
+                                    </TableCell>
+                                    <TableCell data-testid={`text-abuse-date-${flag.id}`}>
+                                      {flag.createdAt ? new Date(flag.createdAt).toLocaleDateString() : "-"}
+                                    </TableCell>
+                                    <TableCell>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={async () => {
+                                          const resolution = prompt("Resolution notes:");
+                                          if (!resolution) return;
+                                          try {
+                                            await apiRequest("POST", `/api/admin/funding/abuse-flags/${flag.id}/resolve`, { resolution });
+                                            toast({ title: "Flag resolved" });
+                                            queryClient.invalidateQueries({ queryKey: ["/api/admin/funding/abuse-flags"] });
+                                            queryClient.invalidateQueries({ queryKey: ["/api/admin/funding/audit-logs"] });
+                                          } catch (err: any) {
+                                            toast({ title: "Error", description: err.message || "Failed to resolve flag", variant: "destructive" });
+                                          }
+                                        }}
+                                        data-testid={`button-resolve-flag-${flag.id}`}
+                                      >
+                                        Resolve
+                                      </Button>
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      );
+                    })()}
+                  </CardContent>
+                </Card>
+
+                <Card data-testid="panel-funding-audit-logs">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2" data-testid="text-funding-audit-title">
+                      <ScrollText className="h-5 w-5" />
+                      Audit Logs
+                    </CardTitle>
+                    <CardDescription>Recent funding-related actions</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {fundingAuditLogs.length === 0 ? (
+                      <EmptyState icon={ScrollText} title="No Logs" description="No audit logs recorded yet." />
+                    ) : (
+                      <div className="space-y-2">
+                        {fundingAuditLogs.slice(0, 30).map((log: any, idx: number) => (
+                          <div
+                            key={log.id || idx}
+                            className="flex flex-wrap items-center justify-between gap-2 p-2 rounded-md border text-sm"
+                            data-testid={`row-funding-audit-${log.id || idx}`}
+                          >
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-medium" data-testid={`text-audit-actor-${log.id || idx}`}>
+                                {log.actorName || log.actorId || "System"}
+                              </span>
+                              <Badge variant="secondary" data-testid={`badge-audit-action-${log.id || idx}`}>
+                                {log.action}
+                              </Badge>
+                              <span className="text-muted-foreground" data-testid={`text-audit-target-${log.id || idx}`}>
+                                {log.targetName || log.targetId || "-"}
+                              </span>
+                              {log.relationshipId && (
+                                <span className="text-xs text-muted-foreground" data-testid={`text-audit-rel-${log.id || idx}`}>
+                                  Rel: {log.relationshipId}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-xs text-muted-foreground" data-testid={`text-audit-time-${log.id || idx}`}>
+                              {log.createdAt ? new Date(log.createdAt).toLocaleString() : "-"}
                             </span>
                           </div>
                         ))}
