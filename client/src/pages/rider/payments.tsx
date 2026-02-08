@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "@/i18n";
 import { RiderLayout } from "@/components/rider/RiderLayout";
 import { RiderRouteGuard } from "@/components/rider/RiderRouteGuard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +26,7 @@ interface WalletData {
 type PaymentMethod = "MAIN_WALLET" | "TEST_WALLET" | "CASH" | "SPONSORED_WALLET";
 
 export default function RiderPayments() {
+  const { t } = useTranslation();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>("MAIN_WALLET");
@@ -121,10 +123,10 @@ export default function RiderPayments() {
             </Button>
             <div>
               <h1 className="text-2xl font-bold" data-testid="text-payments-title">
-                Payments
+                {t("payments.title")}
               </h1>
               <p className="text-sm text-muted-foreground">
-                Manage your payment methods and wallet
+                {t("payments.subtitle")}
               </p>
             </div>
           </div>
@@ -141,7 +143,7 @@ export default function RiderPayments() {
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2 flex-wrap">
                     <Wallet className="h-4 w-4" />
-                    Wallet Balance
+                    {t("payments.walletBalance")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -150,7 +152,7 @@ export default function RiderPayments() {
                       <p className="text-2xl font-bold" data-testid="text-main-balance">
                         {formatCurrency(walletData?.mainBalance, currency)}
                       </p>
-                      <p className="text-xs text-muted-foreground">ZIBA Wallet</p>
+                      <p className="text-xs text-muted-foreground">{t("payments.zibaWallet")}</p>
                     </div>
                     <Button
                       variant="outline"
@@ -158,7 +160,7 @@ export default function RiderPayments() {
                       onClick={() => setLocation("/rider/wallet")}
                       data-testid="button-manage-wallet"
                     >
-                      Manage Wallet
+                      {t("payments.manageWallet")}
                     </Button>
                   </div>
 
@@ -192,7 +194,7 @@ export default function RiderPayments() {
                         </div>
                       </div>
                       <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-                        Test Mode
+                        {t("payments.testMode")}
                       </Badge>
                     </div>
                   )}
@@ -201,7 +203,7 @@ export default function RiderPayments() {
 
               <div className="space-y-3">
                 <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                  Current Payment Method
+                  {t("payments.currentMethod")}
                 </h2>
 
                 <Card 
@@ -220,9 +222,9 @@ export default function RiderPayments() {
                           <Wallet className="h-5 w-5 text-primary" />
                         </div>
                         <div>
-                          <p className="font-medium text-sm">ZIBA Wallet</p>
+                          <p className="font-medium text-sm">{t("payments.zibaWallet")}</p>
                           <p className="text-xs text-muted-foreground">
-                            Pay securely in the app
+                            {t("payments.paySecurely")}
                           </p>
                         </div>
                       </div>
@@ -251,9 +253,9 @@ export default function RiderPayments() {
                           <Banknote className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                         </div>
                         <div>
-                          <p className="font-medium text-sm">Cash</p>
+                          <p className="font-medium text-sm">{t("payments.cash")}</p>
                           <p className="text-xs text-muted-foreground">
-                            {cashRestricted ? "Temporarily unavailable" : "Pay the driver directly"}
+                            {cashRestricted ? t("payments.cashUnavailable") : t("payments.cashPayDriver")}
                           </p>
                         </div>
                       </div>
@@ -281,9 +283,9 @@ export default function RiderPayments() {
                             <HandCoins className="h-5 w-5 text-violet-600 dark:text-violet-400" />
                           </div>
                           <div>
-                            <p className="font-medium text-sm">Sponsored Wallet</p>
+                            <p className="font-medium text-sm">{t("payments.sponsoredWallet")}</p>
                             <p className="text-xs text-muted-foreground">
-                              Funds from your supporters
+                              {t("payments.sponsoredFunds")}
                             </p>
                           </div>
                         </div>
@@ -313,13 +315,13 @@ export default function RiderPayments() {
                           </div>
                           <div>
                             <div className="flex items-center gap-2 flex-wrap">
-                              <p className="font-medium text-sm">Test Wallet</p>
+                              <p className="font-medium text-sm">{t("payments.testWallet")}</p>
                               <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
                                 Test
                               </Badge>
                             </div>
                             <p className="text-xs text-muted-foreground">
-                              Test credits — no real charge
+                              {t("payments.testNoCharge")}
                             </p>
                           </div>
                         </div>
@@ -334,7 +336,7 @@ export default function RiderPayments() {
 
               <div className="space-y-3">
                 <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                  More Options
+                  {t("payments.moreOptions")}
                 </h2>
 
                 <Card
@@ -349,9 +351,9 @@ export default function RiderPayments() {
                           <Send className="h-5 w-5 text-green-600 dark:text-green-400" />
                         </div>
                         <div>
-                          <p className="font-medium text-sm">Fund Another User</p>
+                          <p className="font-medium text-sm">{t("payments.fundAnotherUser")}</p>
                           <p className="text-xs text-muted-foreground">
-                            Send funds to a family member, friend, or colleague
+                            {t("payments.fundDesc")}
                           </p>
                         </div>
                       </div>
@@ -372,9 +374,9 @@ export default function RiderPayments() {
                           <Wallet className="h-5 w-5 text-primary" />
                         </div>
                         <div>
-                          <p className="font-medium text-sm">Wallet Management</p>
+                          <p className="font-medium text-sm">{t("payments.walletManagement")}</p>
                           <p className="text-xs text-muted-foreground">
-                            View transactions, add funds, manage your wallet
+                            {t("payments.walletManageDesc")}
                           </p>
                         </div>
                       </div>
@@ -413,7 +415,7 @@ export default function RiderPayments() {
               data-testid="button-payment-help"
             >
               <HelpCircle className="h-4 w-4 mr-1" />
-              Need help with payments?
+              {t("payments.needHelp")}
             </Button>
           </div>
         </div>

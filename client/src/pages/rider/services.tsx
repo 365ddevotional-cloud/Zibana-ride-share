@@ -1,3 +1,4 @@
+import { useTranslation } from "@/i18n";
 import { RiderLayout } from "@/components/rider/RiderLayout";
 import { RiderRouteGuard } from "@/components/rider/RiderRouteGuard";
 import { Card, CardContent } from "@/components/ui/card";
@@ -6,6 +7,7 @@ import { Calendar, Building2, Star, ChevronRight } from "lucide-react";
 import { useLocation } from "wouter";
 
 export default function Services() {
+  const { t } = useTranslation();
   const [, setLocation] = useLocation();
 
   return (
@@ -14,10 +16,10 @@ export default function Services() {
         <div className="p-4 space-y-6">
           <div className="pt-4 pb-2">
             <h1 className="text-2xl font-bold" data-testid="text-services-heading">
-              Services
+              {t("services.title")}
             </h1>
             <p className="text-muted-foreground mt-1" data-testid="text-services-subtitle">
-              Choose a ride option
+              {t("services.subtitle")}
             </p>
           </div>
 
@@ -30,13 +32,13 @@ export default function Services() {
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-medium" data-testid="text-schedule-service-title">Schedule a Ride</p>
+                      <p className="font-medium" data-testid="text-schedule-service-title">{t("services.scheduleRide")}</p>
                       <Badge variant="default" className="bg-green-600 hover:bg-green-700 text-white" data-testid="badge-schedule-popular">
                         Popular
                       </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground" data-testid="text-schedule-service-description">
-                      Book your trip in advance for a guaranteed pickup
+                      {t("services.scheduleDesc")}
                     </p>
                   </div>
                 </div>
@@ -54,13 +56,13 @@ export default function Services() {
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-medium" data-testid="text-corporate-service-title">Corporate Rides</p>
+                      <p className="font-medium" data-testid="text-corporate-service-title">{t("services.corporateRides")}</p>
                       <Badge variant="secondary" data-testid="badge-corporate-new">
                         New
                       </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground" data-testid="text-corporate-service-description">
-                      Travel on your company's account with monthly invoicing
+                      {t("services.corporateDesc")}
                     </p>
                   </div>
                 </div>
@@ -78,13 +80,13 @@ export default function Services() {
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-medium" data-testid="text-special-service-title">Special Rides</p>
+                      <p className="font-medium" data-testid="text-special-service-title">{t("services.specialRides")}</p>
                       <Badge variant="secondary" data-testid="badge-special-new">
                         New
                       </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground" data-testid="text-special-service-description">
-                      Premium, group, and event transportation options
+                      {t("services.specialDesc")}
                     </p>
                   </div>
                 </div>

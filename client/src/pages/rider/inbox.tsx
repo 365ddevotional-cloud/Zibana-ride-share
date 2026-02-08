@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "@/i18n";
 import { RiderLayout } from "@/components/rider/RiderLayout";
 import { RiderRouteGuard } from "@/components/rider/RiderRouteGuard";
 import { Card, CardContent } from "@/components/ui/card";
@@ -73,6 +74,7 @@ const prefLabels: { key: keyof Omit<NotificationPreferences, "permissionGranted"
 ];
 
 export default function RiderInbox() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [prefsOpen, setPrefsOpen] = useState(false);
 
@@ -137,7 +139,7 @@ export default function RiderInbox() {
           <Collapsible open={prefsOpen} onOpenChange={setPrefsOpen}>
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-bold" data-testid="text-inbox-title">Inbox</h1>
+                <h1 className="text-2xl font-bold" data-testid="text-inbox-title">{t("inbox.title")}</h1>
                 {unreadCount > 0 && (
                   <Badge data-testid="badge-unread-count">{unreadCount}</Badge>
                 )}
@@ -152,7 +154,7 @@ export default function RiderInbox() {
                     data-testid="button-mark-all-read"
                   >
                     <CheckCheck className="h-4 w-4 mr-1" />
-                    Mark All Read
+                    {t("inbox.markAllRead")}
                   </Button>
                 )}
                 <CollapsibleTrigger asChild onClick={() => setPrefsOpen(!prefsOpen)}>
@@ -234,9 +236,9 @@ export default function RiderInbox() {
             <Card data-testid="card-empty-inbox">
               <CardContent className="p-8 text-center">
                 <Mail className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                <p className="text-muted-foreground font-medium">No messages yet</p>
+                <p className="text-muted-foreground font-medium">{t("inbox.noMessages")}</p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Your notifications and updates will appear here
+                  {t("inbox.noMessagesDesc")}
                 </p>
               </CardContent>
             </Card>

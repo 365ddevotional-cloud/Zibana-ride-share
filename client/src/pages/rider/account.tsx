@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { useTranslation } from "@/i18n";
 import { RiderLayout } from "@/components/rider/RiderLayout";
 import { RiderRouteGuard } from "@/components/rider/RiderRouteGuard";
 import { Card, CardContent } from "@/components/ui/card";
@@ -36,6 +37,7 @@ interface RiderProfile {
 }
 
 export default function RiderAccount() {
+  const { t } = useTranslation();
   const { user, logout } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
@@ -259,27 +261,27 @@ export default function RiderAccount() {
 
           <div className="space-y-1">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1 mb-2">
-              Account
+              {t("account.title")}
             </p>
             <Card>
               <CardContent className="p-0 divide-y">
                 <AccountRow
                   icon={<User className="h-5 w-5" />}
-                  label="Profile"
+                  label={t("account.profile")}
                   sublabel="Name, email, phone"
                   onClick={() => setLocation("/rider/profile")}
                   testId="button-profile"
                 />
                 <AccountRow
                   icon={<Wallet className="h-5 w-5" />}
-                  label="Payment Methods"
+                  label={t("account.paymentMethods")}
                   sublabel="Wallet and payment options"
                   onClick={() => setLocation("/rider/wallet")}
                   testId="button-payment-methods"
                 />
                 <AccountRow
                   icon={<MapPin className="h-5 w-5" />}
-                  label="Saved Places"
+                  label={t("account.savedPlaces")}
                   sublabel={profile?.savedLocations?.length ? `${profile.savedLocations.length} saved` : "Add home, work, and more"}
                   onClick={() => setLocation("/rider/account-saved-places")}
                   testId="button-saved-places"
@@ -296,7 +298,7 @@ export default function RiderAccount() {
               <CardContent className="p-0 divide-y">
                 <AccountRow
                   icon={<Clock className="h-5 w-5" />}
-                  label="Trips"
+                  label={t("account.trips")}
                   sublabel="View your ride history"
                   onClick={() => setLocation("/rider/trips")}
                   testId="button-trips"
@@ -321,7 +323,7 @@ export default function RiderAccount() {
               <CardContent className="p-0 divide-y">
                 <AccountRow
                   icon={<Settings className="h-5 w-5" />}
-                  label="Settings"
+                  label={t("account.settings")}
                   sublabel="Notifications, theme, privacy, safety"
                   onClick={() => setLocation("/rider/settings")}
                   testId="button-settings"
@@ -390,14 +392,14 @@ export default function RiderAccount() {
               <CardContent className="p-0 divide-y">
                 <AccountRow
                   icon={<HelpCircle className="h-5 w-5" />}
-                  label="Help & Support"
+                  label={t("account.helpCenter")}
                   sublabel="FAQs, contact us, ZIBRA assistant"
                   onClick={() => setLocation("/rider/support")}
                   testId="button-help-support"
                 />
                 <AccountRow
                   icon={<FileText className="h-5 w-5" />}
-                  label="Terms & Privacy"
+                  label={t("account.termsPrivacy")}
                   sublabel="Terms of service, privacy policy"
                   onClick={() => setLocation("/rider/terms-privacy")}
                   testId="button-terms-privacy"
@@ -414,7 +416,7 @@ export default function RiderAccount() {
                 data-testid="button-logout"
               >
                 <LogOut className="h-5 w-5" />
-                <span className="font-medium text-sm">Log Out</span>
+                <span className="font-medium text-sm">{t("account.logout")}</span>
               </button>
             </CardContent>
           </Card>

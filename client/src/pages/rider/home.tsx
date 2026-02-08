@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "@/i18n";
 import { RiderLayout } from "@/components/rider/RiderLayout";
 import { RiderRouteGuard } from "@/components/rider/RiderRouteGuard";
 import { LocationDisclosure, useLocationDisclosure } from "@/components/rider/LocationDisclosure";
@@ -25,6 +26,7 @@ interface WalletInfo {
 }
 
 export default function RiderHome() {
+  const { t } = useTranslation();
   const [, setLocation] = useLocation();
   const [destination, setDestination] = useState("");
   const [pickup, setPickup] = useState("");
@@ -95,7 +97,7 @@ export default function RiderHome() {
           <MarketingTipBanner />
           <div className="pt-4 pb-2">
             <h1 className="text-2xl font-bold" data-testid="text-greeting">
-              Where are you going?
+              {t("home.greeting")}
             </h1>
             <p className="text-muted-foreground mt-1">
               Request a safe and reliable ride
@@ -107,7 +109,7 @@ export default function RiderHome() {
               <div className="relative">
                 <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-primary" />
                 <Input
-                  placeholder="Enter pickup location"
+                  placeholder={t("home.pickupPlaceholder")}
                   value={pickup}
                   onChange={(e) => setPickup(e.target.value)}
                   className="pl-10 h-12"
@@ -118,7 +120,7 @@ export default function RiderHome() {
               <div className="relative">
                 <Navigation className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input
-                  placeholder="Where to?"
+                  placeholder={t("home.destinationPlaceholder")}
                   value={destination}
                   onChange={(e) => setDestination(e.target.value)}
                   className="pl-10 h-12"
@@ -193,7 +195,7 @@ export default function RiderHome() {
                 disabled={!destination.trim()}
                 data-testid="button-request-ride"
               >
-                Request Ride
+                {t("home.requestRide")}
               </Button>
             </CardContent>
           </Card>
@@ -206,7 +208,7 @@ export default function RiderHome() {
                     <Calendar className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <p className="font-medium" data-testid="text-schedule-ride">Schedule a Ride</p>
+                    <p className="font-medium" data-testid="text-schedule-ride">{t("home.scheduleRide")}</p>
                     <p className="text-sm text-muted-foreground">Book in advance</p>
                   </div>
                 </div>
@@ -217,7 +219,7 @@ export default function RiderHome() {
 
           <div className="space-y-3">
             <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-              Saved Places
+              {t("home.savedPlaces")}
             </h2>
             <Card className="shadow-sm">
               <CardContent className="p-0 divide-y">
@@ -233,7 +235,7 @@ export default function RiderHome() {
                     <div className="min-w-0 flex-1">
                       <p className="font-medium" data-testid="text-home-label">Home</p>
                       <p className="text-sm text-muted-foreground truncate" data-testid="text-home-address">
-                        {homePlace?.address || "Add home address"}
+                        {homePlace?.address || t("home.addHome")}
                       </p>
                     </div>
                   </button>
@@ -265,7 +267,7 @@ export default function RiderHome() {
                     <div className="min-w-0 flex-1">
                       <p className="font-medium" data-testid="text-work-label">Work</p>
                       <p className="text-sm text-muted-foreground truncate" data-testid="text-work-address">
-                        {workPlace?.address || "Add work address"}
+                        {workPlace?.address || t("home.addWork")}
                       </p>
                     </div>
                   </button>

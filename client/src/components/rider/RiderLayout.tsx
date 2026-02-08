@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
+import { useTranslation } from "@/i18n";
 
 interface RiderLayoutProps {
   children: React.ReactNode;
@@ -20,12 +21,21 @@ const navItems = [
 export function RiderLayout({ children }: RiderLayoutProps) {
   const [location] = useLocation();
   const { setTheme, resolvedTheme } = useTheme();
+  const { t } = useTranslation();
 
   const { data: unreadData } = useQuery<{ count: number }>({
     queryKey: ["/api/rider/inbox/unread-count"],
     refetchInterval: 30000,
   });
   const unreadCount = unreadData?.count ?? 0;
+
+  const navLabels: Record<string, string> = {
+    "Home": t("nav.home"),
+    "Services": t("nav.services"),
+    "Activity": t("nav.activity"),
+    "Inbox": t("nav.inbox"),
+    "Account": t("nav.account"),
+  };
 
   const toggleTheme = () => {
     setTheme(resolvedTheme === "dark" ? "light" : "dark");
@@ -101,7 +111,7 @@ export function RiderLayout({ children }: RiderLayoutProps) {
                     "text-[11px]",
                     isActive && "font-medium"
                   )}>
-                    {item.label}
+                    {navLabels[item.label] || item.label}
                   </span>
                 </button>
               </Link>

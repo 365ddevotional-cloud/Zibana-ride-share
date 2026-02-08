@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "@/i18n";
 import { RiderLayout } from "@/components/rider/RiderLayout";
 import { RiderRouteGuard } from "@/components/rider/RiderRouteGuard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,6 +47,7 @@ const getStatusColor = (status: string) => {
 };
 
 export default function RiderActivity() {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<"history" | "cancelled" | "penalties">("history");
 
   const { data: trips, isLoading } = useQuery<Trip[]>({
@@ -149,7 +151,7 @@ export default function RiderActivity() {
         <div className="p-4 space-y-4">
           <div>
             <h1 className="text-2xl font-bold" data-testid="text-activity-title">
-              Activity
+              {t("activity.title")}
             </h1>
             <p className="text-sm text-muted-foreground" data-testid="text-activity-subtitle">
               Your ride history and account activity
@@ -175,7 +177,7 @@ export default function RiderActivity() {
               data-testid="button-tab-cancelled"
             >
               <XCircle className="h-4 w-4" />
-              Cancelled
+              {t("activity.cancelled")}
             </Button>
             <Button
               variant={activeTab === "penalties" ? "default" : "outline"}
