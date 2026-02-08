@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -9840,6 +9841,67 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                                 </TableCell>
                               </TableRow>
                             ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card data-testid="card-director-trust-scores">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2" data-testid="text-trust-scores-title">
+                      <Shield className="h-5 w-5" />
+                      Director Trust Scores
+                    </CardTitle>
+                    <CardDescription>Trust scores and risk levels for all directors</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {directorPerfOverview.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No directors found</p>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <Table data-testid="table-director-trust">
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Director</TableHead>
+                              <TableHead>Trust Score</TableHead>
+                              <TableHead>Risk Level</TableHead>
+                              <TableHead>Training</TableHead>
+                              <TableHead>Terms Accepted</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {directorPerfOverview.map((d: any) => {
+                              const trustScore = d.trustScore ?? 100;
+                              const riskLevel = trustScore < 40 ? "high" : trustScore < 70 ? "medium" : "low";
+                              return (
+                                <TableRow key={`trust-${d.directorUserId}`} data-testid={`row-trust-${d.directorUserId}`}>
+                                  <TableCell className="font-medium">{d.fullName || "Unknown"}</TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-mono text-sm" data-testid={`text-trust-score-${d.directorUserId}`}>{trustScore}</span>
+                                      <Progress value={trustScore} className="w-20 h-2" />
+                                    </div>
+                                  </TableCell>
+                                  <TableCell data-testid={`badge-risk-level-${d.directorUserId}`}>
+                                    <Badge variant={riskLevel === "high" ? "destructive" : riskLevel === "medium" ? "secondary" : "outline"}>
+                                      {riskLevel}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell data-testid={`text-training-status-${d.directorUserId}`}>
+                                    <Badge variant={d.trainingCompleted ? "default" : "secondary"}>
+                                      {d.trainingCompleted ? "Complete" : "Incomplete"}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell data-testid={`text-terms-status-${d.directorUserId}`}>
+                                    <Badge variant={d.termsAccepted ? "default" : "secondary"}>
+                                      {d.termsAccepted ? "Accepted" : "Pending"}
+                                    </Badge>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
                           </TableBody>
                         </Table>
                       </div>

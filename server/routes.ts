@@ -28118,6 +28118,10 @@ export async function registerRoutes(
         const activeRestrictions = await db.select({ cnt: count() }).from(directorRestrictions)
           .where(and(eq(directorRestrictions.directorUserId, director.userId), eq(directorRestrictions.isActive, true)));
 
+        const [trustScoreRecord] = await db.select().from(directorTrustScores)
+          .where(eq(directorTrustScores.directorUserId, director.userId))
+          .limit(1);
+
         results.push({
           directorUserId: director.userId,
           fullName: director.fullName,
@@ -28128,6 +28132,9 @@ export async function registerRoutes(
           lastCalculated: latest?.calculatedAt ?? null,
           activeIncentives: Number(activeIncentives[0]?.cnt || 0),
           activeRestrictions: Number(activeRestrictions[0]?.cnt || 0),
+          trustScore: trustScoreRecord?.score ?? 100,
+          trainingCompleted: director.trainingCompleted ?? false,
+          termsAccepted: director.termsAccepted ?? false,
         });
       }
       res.json(results);
