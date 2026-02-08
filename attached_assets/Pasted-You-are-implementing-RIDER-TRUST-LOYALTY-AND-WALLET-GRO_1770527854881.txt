@@ -1,0 +1,174 @@
+You are implementing RIDER TRUST, LOYALTY, AND WALLET GROWTH SYSTEMS
+across the ZIBA platform.
+
+OBJECTIVE:
+Increase rider retention, reduce cancellations and abuse,
+encourage wallet usage, and build long-term trust —
+without exposing platform commission, creating legal guarantees,
+or breaking existing ride/payment flows.
+
+DO NOT introduce cashbacks as guaranteed income.
+DO NOT create financial obligations.
+DO NOT change pricing or commission visibility.
+
+=====================================================
+PHASE 1 — RIDER TRUST SCORE (RTS)
+=====================================================
+
+1) RIDER TRUST SCORE (0–100)
+
+Score recalculated daily and after key events.
+
+Weighted factors (configurable by Super Admin):
+
+A) RELIABILITY (35%)
+- Ride completion rate
+- On-time pickup presence
+- Cancellation behavior
+
+B) PAYMENT BEHAVIOR (25%)
+- Wallet-funded rides vs cash
+- Failed payments
+- Chargebacks or disputes
+
+C) CONDUCT & SAFETY (20%)
+- Driver feedback
+- Incident reports
+- Lost item abuse flags
+
+D) ACCOUNT STABILITY (10%)
+- Profile completeness
+- Phone/email verification
+- Device stability
+
+E) ADMIN FLAGS (10%)
+- Manual reviews
+- Warnings
+
+=====================================================
+PHASE 2 — TRUST TIERS
+=====================================================
+
+2) TRUST TIERS (AUTO-ASSIGNED)
+
+- PLATINUM: 85–100
+- GOLD: 70–84
+- STANDARD: 50–69
+- LIMITED: <50
+
+Tier affects:
+- Ride priority
+- Cancellation grace periods
+- Wallet perks
+- Support response priority
+
+=====================================================
+PHASE 3 — CANCELLATION & PENALTY LOGIC (FAIR)
+=====================================================
+
+3) CANCELLATION RULES
+- Free cancellation within grace window
+- Reduced grace window for low trust tiers
+- Higher penalty sensitivity for repeated abuse
+
+Driver always protected.
+Admin configurable values.
+
+=====================================================
+PHASE 4 — WALLET LOYALTY & GROWTH
+=====================================================
+
+4) WALLET INCENTIVES (NON-GUARANTEED)
+
+Possible incentives:
+- Priority matching when wallet-funded
+- Occasional ride credits (Admin controlled)
+- Reduced cancellation fees
+
+No promises.
+No fixed rewards.
+
+=====================================================
+PHASE 5 — FUNDING BY OTHERS (SAFE EXTENSION)
+=====================================================
+
+5) WALLET FUNDING BY OTHERS
+Allow:
+- Parent → Child
+- Employer → Staff
+- Friend → Friend
+
+Rules:
+- Recipient acceptance required
+- No repayment obligations
+- Caps enforced
+- Abuse detection active
+
+=====================================================
+PHASE 6 — RIDER DASHBOARD UI
+=====================================================
+
+6) RIDER ACCOUNT SECTION
+Add:
+- Trust Tier badge
+- Wallet health indicator
+- Loyalty hints
+- ZIBRA tips panel
+
+Tone:
+- Encouraging
+- Informational
+- Non-judgmental
+
+=====================================================
+PHASE 7 — ZIBRA ROLE (RIDER SIDE)
+=====================================================
+
+7) ZIBRA FOR RIDERS
+ZIBRA may:
+- Explain trust score changes
+- Suggest better behaviors
+- Recommend wallet usage
+- Warn before penalties
+
+ZIBRA must NEVER:
+- Threaten
+- Promise perks
+- Disclose internal scoring formulas
+
+=====================================================
+PHASE 8 — LEGAL & TERMS SAFETY
+=====================================================
+
+8) TERMS INSERT
+“Trust scores and loyalty features are informational
+and may influence platform experience.
+They do not guarantee ride availability, pricing, or rewards.”
+
+=====================================================
+PHASE 9 — AUDIT & MONITORING
+=====================================================
+
+9) LOGGING
+Log:
+- Trust score changes
+- Penalty applications
+- Incentive grants
+- Admin overrides
+
+Visible to Admin & Super Admin only.
+
+=====================================================
+FINAL CONFIRMATION
+=====================================================
+
+Confirm:
+✔ Trust score updates correctly
+✔ No guarantees implied
+✔ Wallet growth works
+✔ Abuse detected
+✔ ZIBRA guidance compliant
+✔ Existing ride flows intact
+
+Proceed step-by-step.
+Confirm completion per phase.

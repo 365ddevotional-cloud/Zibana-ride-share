@@ -5510,6 +5510,63 @@ export const directorPerformanceLogs = pgTable("director_performance_logs", {
 
 export type DirectorPerformanceLog = typeof directorPerformanceLogs.$inferSelect;
 
+// =============================================
+// DIRECTOR TERMINATION, SUCCESSION & CELL CONTINUITY
+// =============================================
+
+export const directorSuccessionTypeEnum = pgEnum("director_succession_type", [
+  "reassign_to_director", "new_director", "platform_pool"
+]);
+
+export const directorTerminationTypeEnum = pgEnum("director_termination_type", [
+  "expiration", "suspension", "termination"
+]);
+
+export const payoutDecisionEnum = pgEnum("payout_decision", [
+  "release", "hold", "partial_release", "forfeit"
+]);
+
+export const directorSuccessions = pgTable("director_successions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  departingDirectorId: varchar("departing_director_id").notNull(),
+  terminationType: directorTerminationTypeEnum("termination_type").notNull(),
+  terminationReason: text("termination_reason"),
+  successionType: directorSuccessionTypeEnum("succession_type").notNull(),
+  successorDirectorId: varchar("successor_director_id"),
+  driversAffectedCount: integer("drivers_affected_count").notNull().default(0),
+  driversReassignedCount: integer("drivers_reassigned_count").notNull().default(0),
+  driversToPoolCount: integer("drivers_to_pool_count").notNull().default(0),
+  staffDisabledCount: integer("staff_disabled_count").notNull().default(0),
+  payoutDecision: payoutDecisionEnum("payout_decision").notNull().default("hold"),
+  payoutAmount: varchar("payout_amount"),
+  payoutReason: text("payout_reason"),
+  initiatedBy: varchar("initiated_by").notNull(),
+  approvedBy: varchar("approved_by"),
+  status: varchar("status", { length: 20 }).notNull().default("pending"),
+  zibraSummary: text("zibra_summary"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertDirectorSuccessionSchema = createInsertSchema(directorSuccessions).omit({ id: true, createdAt: true, completedAt: true });
+export type InsertDirectorSuccession = z.infer<typeof insertDirectorSuccessionSchema>;
+export type DirectorSuccession = typeof directorSuccessions.$inferSelect;
+
+export const directorTerminationTimeline = pgTable("director_termination_timeline", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  successionId: varchar("succession_id").notNull(),
+  directorUserId: varchar("director_user_id").notNull(),
+  stepName: varchar("step_name", { length: 50 }).notNull(),
+  stepDescription: text("step_description"),
+  completed: boolean("completed").notNull().default(false),
+  completedAt: timestamp("completed_at"),
+  completedBy: varchar("completed_by"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type DirectorTerminationTimeline = typeof directorTerminationTimeline.$inferSelect;
+
 export const welcomeAnalytics = pgTable("welcome_analytics", {
   id: serial("id").primaryKey(),
   sessionId: varchar("session_id", { length: 64 }).notNull(),
