@@ -561,6 +561,10 @@ export interface IStorage {
   updateThemePreference(userId: string, preference: "light" | "dark" | "system"): Promise<void>;
   getThemePreference(userId: string): Promise<"light" | "dark" | "system">;
 
+  // Language preferences
+  updateLanguagePreference(userId: string, language: string): Promise<void>;
+  getLanguagePreference(userId: string): Promise<string>;
+
   getDriverProfile(userId: string): Promise<DriverProfile | undefined>;
   getDriverByNinHash(ninHash: string): Promise<DriverProfile | undefined>;
   getDriverByLicenseHash(licenseHash: string): Promise<DriverProfile | undefined>;
@@ -2013,6 +2017,18 @@ export class DatabaseStorage implements IStorage {
   async getThemePreference(userId: string): Promise<"light" | "dark" | "system"> {
     const [user] = await db.select({ themePreference: users.themePreference }).from(users).where(eq(users.id, userId));
     return user?.themePreference || "system";
+  }
+
+  async updateLanguagePreference(userId: string, language: string): Promise<void> {
+    await db
+      .update(users)
+      .set({ language, updatedAt: new Date() })
+      .where(eq(users.id, userId));
+  }
+
+  async getLanguagePreference(userId: string): Promise<string> {
+    const [user] = await db.select({ language: users.language }).from(users).where(eq(users.id, userId));
+    return user?.language || "en";
   }
 
   async getDriverProfile(userId: string): Promise<DriverProfile | undefined> {

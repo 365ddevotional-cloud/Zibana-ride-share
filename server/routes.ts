@@ -408,6 +408,33 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/user/language", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const language = await storage.getLanguagePreference(userId);
+      return res.json({ language });
+    } catch (error) {
+      console.error("Error getting language preference:", error);
+      return res.status(500).json({ message: "Failed to get language preference" });
+    }
+  });
+
+  app.post("/api/user/language", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { language } = req.body;
+      const validLanguages = ["en", "fr", "ar", "ha", "ig", "yo", "sw", "zu", "xh", "af", "pt", "es"];
+      if (!validLanguages.includes(language)) {
+        return res.status(400).json({ message: "Invalid language" });
+      }
+      await storage.updateLanguagePreference(userId, language);
+      return res.json({ language });
+    } catch (error) {
+      console.error("Error updating language preference:", error);
+      return res.status(500).json({ message: "Failed to update language preference" });
+    }
+  });
+
   app.get("/api/admin/exists", async (req: any, res) => {
     try {
       const existingAdmins = await storage.getAdminCount();

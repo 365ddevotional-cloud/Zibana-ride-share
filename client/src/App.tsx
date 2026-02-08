@@ -5,6 +5,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
+import { LanguageProvider } from "@/i18n";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { NetworkStatusIndicator } from "@/components/network-status";
 import { RiderAppGuard } from "@/components/rider-app-guard";
@@ -82,6 +83,7 @@ const RiderAccountDataUsagePage = lazy(() => import("@/pages/rider/account-data-
 const RiderAccountRidePinPage = lazy(() => import("@/pages/rider/account-ride-pin"));
 const RiderAccountEmergencyPage = lazy(() => import("@/pages/rider/account-emergency"));
 const RiderSettingsPage = lazy(() => import("@/pages/rider/settings"));
+const RiderLanguagePage = lazy(() => import("@/pages/rider/language"));
 const RiderTermsPrivacyPage = lazy(() => import("@/pages/rider/terms-privacy"));
 const RiderWelcomeBackPage = lazy(() => import("@/pages/rider/welcome-back"));
 const HelpCenterPage = lazy(() => import("@/pages/help-center"));
@@ -700,6 +702,12 @@ function RiderRouter() {
         </ProtectedRoute>
       </Route>
       
+      <Route path="/rider/settings/language">
+        <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["rider"]}>
+          <LazyComponent><RiderLanguagePage /></LazyComponent>
+        </ProtectedRoute>
+      </Route>
+
       <Route path="/rider/settings">
         <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["rider"]}>
           <LazyComponent><RiderSettingsPage /></LazyComponent>
@@ -892,18 +900,20 @@ function App() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider defaultTheme="light" storageKey="ziba-ui-theme">
-          <TooltipProvider>
-            <AppModeProvider>
-              <AppModeGuard>
-                <SimulationProvider>
-                  <SimulationBanner />
-                  <Toaster />
-                  <NetworkStatusIndicator />
-                  <MainRouter />
-                </SimulationProvider>
-              </AppModeGuard>
-            </AppModeProvider>
-          </TooltipProvider>
+          <LanguageProvider>
+            <TooltipProvider>
+              <AppModeProvider>
+                <AppModeGuard>
+                  <SimulationProvider>
+                    <SimulationBanner />
+                    <Toaster />
+                    <NetworkStatusIndicator />
+                    <MainRouter />
+                  </SimulationProvider>
+                </AppModeGuard>
+              </AppModeProvider>
+            </TooltipProvider>
+          </LanguageProvider>
         </ThemeProvider>
       </QueryClientProvider>
     </ErrorBoundary>

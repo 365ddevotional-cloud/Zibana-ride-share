@@ -5,7 +5,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { useTheme } from "@/components/theme-provider";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -16,11 +15,14 @@ import {
   Info, ChevronRight, Lock, FileText,
 } from "lucide-react";
 import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
+import { useTranslation, LANGUAGES } from "@/i18n";
 
 export default function RiderSettings() {
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
   const [, setLocation] = useLocation();
+  const { t, language } = useTranslation();
+  const currentLang = LANGUAGES.find((l) => l.code === language);
 
   const { data: notifPrefs } = useQuery<{
     rideUpdates: boolean;
@@ -140,23 +142,25 @@ export default function RiderSettings() {
 
           <div className="space-y-1">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1 mb-2">
-              Language
+              {t("settings.language")}
             </p>
             <Card>
               <CardContent className="p-0">
                 <button
                   className="w-full p-4 flex items-center gap-3 hover-elevate cursor-pointer"
                   data-testid="button-language"
-                  onClick={() => toast({ title: "Coming soon", description: "Language selection will be available in a future update." })}
+                  onClick={() => setLocation("/rider/settings/language")}
                 >
                   <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center text-muted-foreground shrink-0">
                     <Globe className="h-5 w-5" />
                   </div>
                   <div className="flex-1 min-w-0 text-left">
-                    <p className="font-medium text-sm">Language</p>
-                    <p className="text-xs text-muted-foreground">English</p>
+                    <p className="font-medium text-sm">{t("settings.language")}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {currentLang ? `${currentLang.nativeName} (${currentLang.name})` : "English"}
+                    </p>
                   </div>
-                  <Badge variant="secondary">Coming Soon</Badge>
+                  <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
                 </button>
               </CardContent>
             </Card>
