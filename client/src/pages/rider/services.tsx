@@ -29,7 +29,7 @@ export default function Services() {
                     <Calendar className="h-6 w-6 text-primary" />
                   </div>
                   <div className="flex-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-medium" data-testid="text-schedule-service-title">Schedule a Ride</p>
                       <Badge variant="default" className="bg-green-600 hover:bg-green-700 text-white" data-testid="badge-schedule-popular">
                         Popular
@@ -45,7 +45,7 @@ export default function Services() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-sm cursor-not-allowed opacity-60" data-testid="card-corporate-service">
+          <Card className="shadow-sm hover-elevate cursor-pointer" onClick={() => setLocation("/rider/corporate")} data-testid="card-corporate-service">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -53,10 +53,10 @@ export default function Services() {
                     <Building2 className="h-6 w-6 text-blue-600 dark:text-blue-400" />
                   </div>
                   <div className="flex-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-medium" data-testid="text-corporate-service-title">Corporate Rides</p>
-                      <Badge variant="secondary" className="bg-muted text-muted-foreground" data-testid="badge-corporate-coming">
-                        Coming Soon
+                      <Badge variant="secondary" data-testid="badge-corporate-new">
+                        New
                       </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground" data-testid="text-corporate-service-description">
@@ -69,7 +69,7 @@ export default function Services() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-sm cursor-not-allowed opacity-60" data-testid="card-special-service">
+          <Card className="shadow-sm hover-elevate cursor-pointer" onClick={() => setLocation("/rider/special")} data-testid="card-special-service">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -77,10 +77,10 @@ export default function Services() {
                     <Star className="h-6 w-6 text-amber-600 dark:text-amber-400" />
                   </div>
                   <div className="flex-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-medium" data-testid="text-special-service-title">Special Rides</p>
-                      <Badge variant="secondary" className="bg-muted text-muted-foreground" data-testid="badge-special-coming">
-                        Coming Soon
+                      <Badge variant="secondary" data-testid="badge-special-new">
+                        New
                       </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground" data-testid="text-special-service-description">

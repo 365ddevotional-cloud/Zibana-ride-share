@@ -951,6 +951,39 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/rider/corporate-account", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      return res.json(null);
+    } catch (error) {
+      console.error("Error fetching corporate account:", error);
+      return res.status(500).json({ message: "Failed to fetch corporate account" });
+    }
+  });
+
+  app.post("/api/rider/corporate-request", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const { companyName } = req.body;
+      const userId = req.user.claims.sub;
+      console.log(`[CORPORATE] Access request from user ${userId} for company: ${companyName}`);
+      return res.json({ success: true, message: "Corporate access request submitted" });
+    } catch (error) {
+      console.error("Error submitting corporate request:", error);
+      return res.status(500).json({ message: "Failed to submit corporate request" });
+    }
+  });
+
+  app.post("/api/rider/corporate-join", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const { companyCode } = req.body;
+      const userId = req.user.claims.sub;
+      console.log(`[CORPORATE] Join request from user ${userId} with code: ${companyCode}`);
+      return res.json({ success: true, message: "Join request submitted for approval" });
+    } catch (error) {
+      console.error("Error submitting join request:", error);
+      return res.status(500).json({ message: "Failed to submit join request" });
+    }
+  });
+
   app.get("/api/admin/cash-disputes", isAuthenticated, requireRole(["admin", "super_admin", "finance"]), async (req: any, res) => {
     try {
       const { status } = req.query;

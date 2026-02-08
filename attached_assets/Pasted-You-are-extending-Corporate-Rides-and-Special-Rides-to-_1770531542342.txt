@@ -1,0 +1,142 @@
+You are extending Corporate Rides and Special Rides to include
+Admin, Super Admin, and Director-level management.
+
+GOAL:
+- Allow Admin / Super Admin to configure Corporate & Special Rides
+- Allow Directors to manage eligible drivers under their cells
+- Maintain strict role boundaries
+- Do NOT expose financial splits or internal commissions to riders or drivers
+- Do NOT break existing ride flows
+
+================================================
+PHASE 1 — ADMIN CONTROL (SUPER ADMIN & ADMIN)
+================================================
+
+1) ADD ADMIN MENU ITEMS
+In Admin Dashboard sidebar, add:
+- Corporate Rides
+- Special Rides
+
+Only visible to:
+- Admin
+- Super Admin
+
+================================================
+PHASE 2 — CORPORATE RIDES (ADMIN SIDE)
+================================================
+
+2) CORPORATE RIDES — ADMIN PAGE
+
+Route:
+- /admin/corporate-rides
+
+Admin can:
+- Create corporate accounts:
+  - company_name
+  - company_email
+  - billing_type (invoice / prepaid wallet / hybrid)
+  - monthly_limit (optional)
+  - allowed_ride_types
+- Assign riders to corporate accounts
+- Assign directors to manage corporate drivers (optional)
+- Suspend or terminate corporate accounts
+
+Admin CANNOT:
+- See driver commissions
+- Change ride pricing here
+
+------------------------------------------------
+
+3) CORPORATE RIDES — DIRECTOR VIEW
+
+Directors assigned to a corporate account can:
+- View list of assigned corporate drivers
+- Monitor ride activity (counts only, no revenue values)
+- Flag driver issues
+- Recommend drivers for corporate eligibility
+
+Directors CANNOT:
+- Create corporate accounts
+- Edit billing rules
+- See platform earnings
+
+================================================
+PHASE 3 — SPECIAL RIDES (ADMIN SIDE)
+================================================
+
+4) SPECIAL RIDES — ADMIN PAGE
+
+Route:
+- /admin/special-rides
+
+Admin can:
+- Enable/disable ride types:
+  - Group Rides
+  - Event Rides
+  - Premium (future)
+- Set eligibility rules:
+  - driver trust score minimum
+  - vehicle requirements
+  - city / country availability
+- Assign Directors to manage Special Ride pools
+
+================================================
+PHASE 4 — SPECIAL RIDES (DIRECTOR ROLE)
+================================================
+
+5) DIRECTOR SPECIAL RIDES PANEL
+
+Route:
+- /director/special-rides
+
+Directors can:
+- See drivers under their cell eligible for special rides
+- Recommend drivers for approval
+- Temporarily suspend drivers from special rides
+- View ride demand indicators (non-financial)
+
+Directors CANNOT:
+- Approve final eligibility (Admin only)
+- Modify pricing or customer-facing rules
+
+================================================
+PHASE 5 — ZIBRA SUPPORT INTEGRATION
+================================================
+
+6) ZIBRA CONTEXT AWARENESS
+
+ZIBRA must detect:
+- If user is Admin → explain configuration
+- If user is Director → explain driver management
+- If user is Rider → explain how to request or join
+
+Example:
+Director asks: “Why can’t my driver do corporate rides?”
+ZIBRA responds with:
+- eligibility checklist
+- next admin action
+- no internal metrics exposed
+
+================================================
+PHASE 6 — SAFETY & LEGAL RULES
+================================================
+
+7) LEGAL SAFETY
+- Corporate & Special Rides are facilitation tools
+- ZIBA does not guarantee availability
+- Directors act as managers, not employers
+- Final authority remains with Admin / Super Admin
+
+================================================
+PHASE 7 — TESTING & CONFIRMATION
+================================================
+
+8) CONFIRM:
+✔ Admin pages load
+✔ Director dashboards load
+✔ Role isolation enforced
+✔ No rider sees admin controls
+✔ No pricing leaks
+✔ ZIBRA responds correctly per role
+
+Proceed carefully and confirm completion.
