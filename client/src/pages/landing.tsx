@@ -10,6 +10,7 @@ import { Shield, Clock, MapPin, Users, CheckCircle, Navigation, Wallet, Star, Pl
 import { getAppName } from "@/config/appMode";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { Link } from "wouter";
 
 export default function LandingPage() {
   const appName = getAppName();
@@ -56,6 +57,11 @@ export default function LandingPage() {
       <header className="fixed top-0 left-0 right-0 z-50 border-b bg-background/80 backdrop-blur-md">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <Logo />
+          <nav className="hidden md:flex items-center gap-4">
+            <Link href="/about" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="nav-about">About</Link>
+            <Link href="/how-it-works" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="nav-how-it-works">How It Works</Link>
+            <Link href="/safety" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="nav-safety">Safety</Link>
+          </nav>
           <div className="flex items-center gap-2">
             <ThemeToggle />
             <Button asChild data-testid="button-login">
@@ -94,8 +100,8 @@ export default function LandingPage() {
                 <Button size="lg" asChild className="text-base" data-testid="button-get-started">
                   <a href="/api/login?role=rider">Get Started</a>
                 </Button>
-                <Button size="lg" variant="outline" className="text-base" data-testid="button-learn-more">
-                  <a href="#features">Learn More</a>
+                <Button size="lg" variant="outline" asChild className="text-base" data-testid="button-learn-more">
+                  <Link href="/about">Learn More</Link>
                 </Button>
               </div>
               
@@ -104,10 +110,10 @@ export default function LandingPage() {
                   <CheckCircle className="h-4 w-4 text-green-500" />
                   <span>Free to sign up</span>
                 </div>
-                <div className="flex items-center gap-2">
+                <Link href="/safety/verified-drivers" className="flex items-center gap-2 hover:text-foreground transition-colors" data-testid="link-verified-drivers-badge">
                   <CheckCircle className="h-4 w-4 text-green-500" />
                   <span>Verified drivers</span>
-                </div>
+                </Link>
               </div>
             </div>
           </div>
@@ -125,41 +131,47 @@ export default function LandingPage() {
             </div>
             
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              <Card className="hover-elevate border-0 bg-card">
-                <CardContent className="pt-6">
-                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                    <Shield className="h-6 w-6 text-primary" />
-                  </div>
-                  <h3 className="mb-2 text-lg font-semibold">Verified Drivers</h3>
-                  <p className="text-muted-foreground text-sm">
-                    All drivers are vetted and approved before they can accept rides.
-                  </p>
-                </CardContent>
-              </Card>
+              <Link href="/safety/verified-drivers" data-testid="card-verified-drivers">
+                <Card className="hover-elevate border-0 bg-card cursor-pointer h-full">
+                  <CardContent className="pt-6">
+                    <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                      <Shield className="h-6 w-6 text-primary" />
+                    </div>
+                    <h3 className="mb-2 text-lg font-semibold">Verified Drivers</h3>
+                    <p className="text-muted-foreground text-sm">
+                      All drivers are vetted and approved before they can accept rides.
+                    </p>
+                  </CardContent>
+                </Card>
+              </Link>
               
-              <Card className="hover-elevate border-0 bg-card">
-                <CardContent className="pt-6">
-                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                    <Clock className="h-6 w-6 text-primary" />
-                  </div>
-                  <h3 className="mb-2 text-lg font-semibold">Quick Pickup</h3>
-                  <p className="text-muted-foreground text-sm">
-                    Drivers receive your request instantly and arrive within minutes.
-                  </p>
-                </CardContent>
-              </Card>
+              <Link href="/how-it-works#pickup" data-testid="card-quick-pickup">
+                <Card className="hover-elevate border-0 bg-card cursor-pointer h-full">
+                  <CardContent className="pt-6">
+                    <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                      <Clock className="h-6 w-6 text-primary" />
+                    </div>
+                    <h3 className="mb-2 text-lg font-semibold">Quick Pickup</h3>
+                    <p className="text-muted-foreground text-sm">
+                      Drivers receive your request instantly and arrive within minutes.
+                    </p>
+                  </CardContent>
+                </Card>
+              </Link>
               
-              <Card className="hover-elevate border-0 bg-card">
-                <CardContent className="pt-6">
-                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                    <MapPin className="h-6 w-6 text-primary" />
-                  </div>
-                  <h3 className="mb-2 text-lg font-semibold">Easy Booking</h3>
-                  <p className="text-muted-foreground text-sm">
-                    Simply enter your pickup and destination to request a ride.
-                  </p>
-                </CardContent>
-              </Card>
+              <Link href="/how-it-works#booking" data-testid="card-easy-booking">
+                <Card className="hover-elevate border-0 bg-card cursor-pointer h-full">
+                  <CardContent className="pt-6">
+                    <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                      <MapPin className="h-6 w-6 text-primary" />
+                    </div>
+                    <h3 className="mb-2 text-lg font-semibold">Easy Booking</h3>
+                    <p className="text-muted-foreground text-sm">
+                      Simply enter your pickup and destination to request a ride.
+                    </p>
+                  </CardContent>
+                </Card>
+              </Link>
             </div>
           </div>
         </section>
@@ -176,53 +188,61 @@ export default function LandingPage() {
             </div>
             
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 max-w-5xl mx-auto">
-              <Card className="text-center">
-                <CardContent className="pt-6">
-                  <div className="mb-4 mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                    <Navigation className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <h3 className="mb-2 font-semibold">Live Tracking</h3>
-                  <p className="text-muted-foreground text-sm">
-                    Track your ride in real-time
-                  </p>
-                </CardContent>
-              </Card>
+              <Link href="/features/live-tracking" data-testid="card-live-tracking">
+                <Card className="text-center hover-elevate cursor-pointer h-full">
+                  <CardContent className="pt-6">
+                    <div className="mb-4 mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                      <Navigation className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <h3 className="mb-2 font-semibold">Live Tracking</h3>
+                    <p className="text-muted-foreground text-sm">
+                      Track your ride in real-time
+                    </p>
+                  </CardContent>
+                </Card>
+              </Link>
               
-              <Card className="text-center">
-                <CardContent className="pt-6">
-                  <div className="mb-4 mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
-                    <Wallet className="h-6 w-6 text-green-600 dark:text-green-400" />
-                  </div>
-                  <h3 className="mb-2 font-semibold">Flexible Payments</h3>
-                  <p className="text-muted-foreground text-sm">
-                    Pay using cash or wallet balance. Wallets can be funded using cards or bank transfers.
-                  </p>
-                </CardContent>
-              </Card>
+              <Link href="/features/payments" data-testid="card-flexible-payments">
+                <Card className="text-center hover-elevate cursor-pointer h-full">
+                  <CardContent className="pt-6">
+                    <div className="mb-4 mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
+                      <Wallet className="h-6 w-6 text-green-600 dark:text-green-400" />
+                    </div>
+                    <h3 className="mb-2 font-semibold">Flexible Payments</h3>
+                    <p className="text-muted-foreground text-sm">
+                      Pay using cash or wallet balance. Wallets can be funded using cards or bank transfers.
+                    </p>
+                  </CardContent>
+                </Card>
+              </Link>
               
-              <Card className="text-center">
-                <CardContent className="pt-6">
-                  <div className="mb-4 mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30">
-                    <Star className="h-6 w-6 text-amber-600 dark:text-amber-400" />
-                  </div>
-                  <h3 className="mb-2 font-semibold">Rate Your Trip</h3>
-                  <p className="text-muted-foreground text-sm">
-                    Help us maintain quality
-                  </p>
-                </CardContent>
-              </Card>
+              <Link href="/features/ratings" data-testid="card-rate-trip">
+                <Card className="text-center hover-elevate cursor-pointer h-full">
+                  <CardContent className="pt-6">
+                    <div className="mb-4 mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30">
+                      <Star className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <h3 className="mb-2 font-semibold">Rate Your Trip</h3>
+                    <p className="text-muted-foreground text-sm">
+                      Help us maintain quality
+                    </p>
+                  </CardContent>
+                </Card>
+              </Link>
               
-              <Card className="text-center">
-                <CardContent className="pt-6">
-                  <div className="mb-4 mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-red-100 dark:bg-red-900/30">
-                    <Shield className="h-6 w-6 text-red-600 dark:text-red-400" />
-                  </div>
-                  <h3 className="mb-2 font-semibold">Safety First</h3>
-                  <p className="text-muted-foreground text-sm">
-                    SOS and support always available
-                  </p>
-                </CardContent>
-              </Card>
+              <Link href="/safety" data-testid="card-safety-first">
+                <Card className="text-center hover-elevate cursor-pointer h-full">
+                  <CardContent className="pt-6">
+                    <div className="mb-4 mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-red-100 dark:bg-red-900/30">
+                      <Shield className="h-6 w-6 text-red-600 dark:text-red-400" />
+                    </div>
+                    <h3 className="mb-2 font-semibold">Safety First</h3>
+                    <p className="text-muted-foreground text-sm">
+                      SOS and support always available
+                    </p>
+                  </CardContent>
+                </Card>
+              </Link>
             </div>
           </div>
         </section>
@@ -253,6 +273,12 @@ export default function LandingPage() {
           <div className="flex flex-col gap-6">
             <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
               <Logo size="sm" />
+              <div className="flex items-center gap-4 flex-wrap justify-center">
+                <Link href="/about" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="footer-about">About</Link>
+                <Link href="/how-it-works" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="footer-how-it-works">How It Works</Link>
+                <Link href="/safety" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="footer-safety">Safety</Link>
+                <Link href="/legal" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="footer-legal">Legal</Link>
+              </div>
               <div className="flex items-center gap-4">
                 {simSystemStatus?.enabled && (
                   <button

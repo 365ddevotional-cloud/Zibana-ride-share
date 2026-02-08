@@ -73,6 +73,13 @@ const TripSharePage = lazy(() => import("@/pages/trip-share"));
 const SimulationEntryPage = lazy(() => import("@/pages/simulation-entry"));
 const SavedPlaceFormPage = lazy(() => import("@/pages/rider/saved-place-form"));
 const DirectorDashboardPage = lazy(() => import("@/pages/director-dashboard"));
+const AboutPage = lazy(() => import("@/pages/public/about"));
+const HowItWorksPage = lazy(() => import("@/pages/public/how-it-works"));
+const SafetyPage = lazy(() => import("@/pages/public/safety"));
+const VerifiedDriversPage = lazy(() => import("@/pages/public/verified-drivers"));
+const FeatureLiveTrackingPage = lazy(() => import("@/pages/public/feature-live-tracking"));
+const FeaturePaymentsPage = lazy(() => import("@/pages/public/feature-payments"));
+const FeatureRatingsPage = lazy(() => import("@/pages/public/feature-ratings"));
 
 const ADMIN_ROLES = ["super_admin", "admin", "finance_admin", "support_agent", "trip_coordinator", "director"];
 
@@ -463,6 +470,34 @@ function RiderRouter() {
       <Route path="/" component={AuthenticatedRoutes} />
       
       <Route path="/welcome" component={LandingPage} />
+      
+      <Route path="/about">
+        <LazyComponent><AboutPage /></LazyComponent>
+      </Route>
+      
+      <Route path="/how-it-works">
+        <LazyComponent><HowItWorksPage /></LazyComponent>
+      </Route>
+      
+      <Route path="/safety">
+        <LazyComponent><SafetyPage /></LazyComponent>
+      </Route>
+      
+      <Route path="/safety/verified-drivers">
+        <LazyComponent><VerifiedDriversPage /></LazyComponent>
+      </Route>
+      
+      <Route path="/features/live-tracking">
+        <LazyComponent><FeatureLiveTrackingPage /></LazyComponent>
+      </Route>
+      
+      <Route path="/features/payments">
+        <LazyComponent><FeaturePaymentsPage /></LazyComponent>
+      </Route>
+      
+      <Route path="/features/ratings">
+        <LazyComponent><FeatureRatingsPage /></LazyComponent>
+      </Route>
       
       <Route path="/legal">
         <LazyComponent><LegalPage /></LazyComponent>
