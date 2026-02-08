@@ -5,7 +5,7 @@ import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integra
 import { storage } from "./storage";
 import { db } from "./db";
 import { eq, and, count, sql, gte, lt, lte, isNotNull, inArray, desc, or } from "drizzle-orm";
-import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, driverInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages, walletFundingTransactions, walletFundingSettings, driverWallets, directorFundingTransactions, directorFundingSettings, directorFundingAcceptance, directorFundingSuspensions, directorProfiles, directorDriverAssignments, directorActionLogs, driverCoachingLogs, directorCells, directorCommissionSettings, directorPayoutSummaries, referralCodes, directorFraudSignals, directorDisputes, directorDisputeMessages, directorWindDowns, welcomeAnalytics, directorPerformanceScores, directorPerformanceWeights, directorIncentives, directorRestrictions, directorPerformanceLogs, directorSuccessions, directorTerminationTimeline, directorStaff, riderTrustScores, riderTrustWeights, riderLoyaltyIncentives, riderTrustLogs, fundingRelationships, fundingAbuseFlags, thirdPartyFundingConfig, fundingAuditLogs, sponsoredBalances } from "@shared/schema";
+import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, driverInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages, walletFundingTransactions, walletFundingSettings, driverWallets, directorFundingTransactions, directorFundingSettings, directorFundingAcceptance, directorFundingSuspensions, directorProfiles, directorDriverAssignments, directorActionLogs, driverCoachingLogs, directorCells, directorCommissionSettings, directorPayoutSummaries, referralCodes, directorFraudSignals, directorDisputes, directorDisputeMessages, directorWindDowns, welcomeAnalytics, directorPerformanceScores, directorPerformanceWeights, directorIncentives, directorRestrictions, directorPerformanceLogs, directorSuccessions, directorTerminationTimeline, directorStaff, riderTrustScores, riderTrustWeights, riderLoyaltyIncentives, riderTrustLogs, fundingRelationships, fundingAbuseFlags, thirdPartyFundingConfig, fundingAuditLogs, sponsoredBalances, directorCoachingLogs, directorTrainingModules, directorTermsAcceptance, directorTrustScores } from "@shared/schema";
 import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, evaluateAllDrivers, evaluateBehaviorAndWarnings, calculateDriverMatchingScore, getDriverIncentiveProgress, assignFirstRidePromo, assignReturnRiderPromo, applyPromoToTrip, voidPromosOnCancellation } from "./incentives";
 import { notificationService } from "./notification-service";
 import { getCurrencyFromCountry, getCountryConfig, FINANCIAL_ENGINE_LOCKED } from "@shared/currency";
@@ -4929,6 +4929,8 @@ export async function registerRoutes(
       }
       return res.json({
         onboardingCompleted: profile.onboardingCompleted,
+        trainingCompleted: profile.trainingCompleted,
+        termsAccepted: profile.termsAccepted,
         lifecycleStatus: profile.lifecycleStatus,
         directorType: profile.directorType,
         referralCodeId: profile.referralCodeId,
@@ -4936,6 +4938,290 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error getting onboarding status:", error);
       return res.status(500).json({ message: "Failed to get onboarding status" });
+    }
+  });
+
+  // ==========================================
+  // DIRECTOR TRAINING MODULES
+  // ==========================================
+
+  const DIRECTOR_TRAINING_MODULES = [
+    { key: "managing_drivers", title: "Managing Drivers Responsibly" },
+    { key: "suspension_vs_escalation", title: "Suspension vs Escalation" },
+    { key: "staff_management", title: "Staff Management Best Practices" },
+    { key: "avoiding_abuse", title: "Avoiding Abuse & Retaliation" },
+    { key: "understanding_trust", title: "Understanding Your Trust Score" },
+    { key: "working_with_zibra", title: "Working with ZIBRA Insights" },
+  ];
+
+  app.get("/api/director/training", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const completedModules = await db.select().from(directorTrainingModules)
+        .where(eq(directorTrainingModules.directorUserId, userId));
+      const completedKeys = new Set(completedModules.filter(m => m.completedAt).map(m => m.moduleKey));
+      const modules = DIRECTOR_TRAINING_MODULES.map(m => ({
+        ...m,
+        completed: completedKeys.has(m.key),
+        completedAt: completedModules.find(cm => cm.moduleKey === m.key)?.completedAt || null,
+      }));
+      const allCompleted = modules.every(m => m.completed);
+      return res.json({ modules, allCompleted, totalModules: modules.length, completedCount: modules.filter(m => m.completed).length });
+    } catch (error) {
+      console.error("Error getting training modules:", error);
+      return res.status(500).json({ message: "Failed to get training modules" });
+    }
+  });
+
+  app.post("/api/director/training/:moduleKey/complete", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { moduleKey } = req.params;
+
+      const validModule = DIRECTOR_TRAINING_MODULES.find(m => m.key === moduleKey);
+      if (!validModule) return res.status(400).json({ message: "Invalid module key" });
+
+      const [existing] = await db.select().from(directorTrainingModules)
+        .where(and(eq(directorTrainingModules.directorUserId, userId), eq(directorTrainingModules.moduleKey, moduleKey)));
+
+      if (existing?.completedAt) return res.json({ message: "Already completed", module: existing });
+
+      if (existing) {
+        await db.update(directorTrainingModules).set({ completedAt: new Date() })
+          .where(eq(directorTrainingModules.id, existing.id));
+      } else {
+        await db.insert(directorTrainingModules).values({
+          directorUserId: userId,
+          moduleKey,
+          moduleTitle: validModule.title,
+          completedAt: new Date(),
+        });
+      }
+
+      await db.insert(directorActionLogs).values({
+        actorId: userId,
+        actorRole: "director",
+        action: "training_module_completed",
+        targetType: "training",
+        targetId: moduleKey,
+        afterState: JSON.stringify({ moduleKey, moduleTitle: validModule.title }),
+      });
+
+      const allCompleted = await db.select().from(directorTrainingModules)
+        .where(and(eq(directorTrainingModules.directorUserId, userId), isNotNull(directorTrainingModules.completedAt)));
+
+      if (allCompleted.length >= DIRECTOR_TRAINING_MODULES.length) {
+        await db.update(directorProfiles).set({ trainingCompleted: true })
+          .where(eq(directorProfiles.userId, userId));
+        await db.insert(directorActionLogs).values({
+          actorId: userId,
+          actorRole: "director",
+          action: "training_all_completed",
+          targetType: "director",
+          targetId: userId,
+        });
+      }
+
+      return res.json({ message: "Module completed", moduleKey });
+    } catch (error) {
+      console.error("Error completing training module:", error);
+      return res.status(500).json({ message: "Failed to complete training module" });
+    }
+  });
+
+  // ==========================================
+  // DIRECTOR TERMS ACCEPTANCE
+  // ==========================================
+
+  app.get("/api/director/terms", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const [acceptance] = await db.select().from(directorTermsAcceptance)
+        .where(eq(directorTermsAcceptance.directorUserId, userId))
+        .orderBy(desc(directorTermsAcceptance.acceptedAt))
+        .limit(1);
+      const profile = await storage.getDirectorProfile(userId);
+      return res.json({
+        accepted: profile?.termsAccepted || false,
+        acceptedAt: acceptance?.acceptedAt || null,
+        termsVersion: acceptance?.termsVersion || "1.0",
+        currentVersion: "1.0",
+      });
+    } catch (error) {
+      console.error("Error getting director terms:", error);
+      return res.status(500).json({ message: "Failed to get terms status" });
+    }
+  });
+
+  app.post("/api/director/terms/accept", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const profile = await storage.getDirectorProfile(userId);
+      if (!profile) return res.status(404).json({ message: "Director profile not found" });
+      if (profile.termsAccepted) return res.json({ message: "Terms already accepted" });
+
+      await db.insert(directorTermsAcceptance).values({
+        directorUserId: userId,
+        termsVersion: "1.0",
+        ipAddress: req.ip || req.connection?.remoteAddress || null,
+      });
+
+      await db.update(directorProfiles).set({
+        termsAccepted: true,
+        termsAcceptedAt: new Date(),
+      }).where(eq(directorProfiles.userId, userId));
+
+      await db.insert(directorActionLogs).values({
+        actorId: userId,
+        actorRole: "director",
+        action: "terms_accepted",
+        targetType: "director",
+        targetId: userId,
+        afterState: JSON.stringify({ termsVersion: "1.0" }),
+        ipAddress: req.ip || req.connection?.remoteAddress || null,
+      });
+
+      return res.json({ message: "Terms accepted successfully" });
+    } catch (error) {
+      console.error("Error accepting director terms:", error);
+      return res.status(500).json({ message: "Failed to accept terms" });
+    }
+  });
+
+  // ==========================================
+  // DIRECTOR TRUST SCORE (ADMIN ONLY VIEW)
+  // ==========================================
+
+  app.get("/api/admin/directors/:directorUserId/trust-score", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { directorUserId } = req.params;
+      const [score] = await db.select().from(directorTrustScores)
+        .where(eq(directorTrustScores.directorUserId, directorUserId));
+
+      if (!score) {
+        return res.json({
+          directorUserId,
+          score: 100,
+          riskLevel: "low",
+          driverComplaints: 0,
+          excessiveSuspensions: 0,
+          staffAbuseFlags: 0,
+          missedCompliance: 0,
+          zibraAlerts: 0,
+          adminWarnings: 0,
+          lastCalculatedAt: null,
+        });
+      }
+      return res.json(score);
+    } catch (error) {
+      console.error("Error getting trust score:", error);
+      return res.status(500).json({ message: "Failed to get trust score" });
+    }
+  });
+
+  app.post("/api/admin/directors/:directorUserId/trust-score/recalculate", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { directorUserId } = req.params;
+      const adminUserId = req.user.claims.sub;
+
+      const disputes = await db.select().from(directorDisputes)
+        .where(eq(directorDisputes.directorUserId, directorUserId));
+      const driverComplaints = disputes.filter(d => d.disputeType === "driver_complaint" || d.disputeType === "unfair_treatment").length;
+
+      const actionLogs = await db.select().from(directorActionLogs)
+        .where(eq(directorActionLogs.actorId, directorUserId));
+      const suspensionActions = actionLogs.filter(l => l.action === "driver_suspended");
+      const excessiveSuspensions = suspensionActions.length > 10 ? suspensionActions.length - 10 : 0;
+
+      const retaliationFlags = actionLogs.filter(l => l.action === "retaliation_flag" && l.targetId === directorUserId);
+      const staffAbuseFlags = retaliationFlags.length;
+
+      const coachingLogs = await db.select().from(directorCoachingLogs)
+        .where(eq(directorCoachingLogs.directorUserId, directorUserId));
+      const zibraAlerts = coachingLogs.filter(l => l.severity === "critical" || l.severity === "warning").length;
+
+      const adminWarningLogs = actionLogs.filter(l => l.action === "admin_warning" || l.action === "flag_for_review");
+      const adminWarnings = adminWarningLogs.length;
+
+      const missedCompliance = 0;
+
+      let score = 100;
+      score -= driverComplaints * 5;
+      score -= excessiveSuspensions * 3;
+      score -= staffAbuseFlags * 10;
+      score -= missedCompliance * 4;
+      score -= zibraAlerts * 2;
+      score -= adminWarnings * 8;
+      score = Math.max(0, Math.min(100, score));
+
+      let riskLevel = "low";
+      if (score < 40) riskLevel = "high";
+      else if (score < 70) riskLevel = "medium";
+
+      const [existing] = await db.select().from(directorTrustScores)
+        .where(eq(directorTrustScores.directorUserId, directorUserId));
+
+      if (existing) {
+        await db.update(directorTrustScores).set({
+          score, riskLevel, driverComplaints, excessiveSuspensions,
+          staffAbuseFlags, missedCompliance, zibraAlerts, adminWarnings,
+          lastCalculatedAt: new Date(),
+        }).where(eq(directorTrustScores.directorUserId, directorUserId));
+      } else {
+        await db.insert(directorTrustScores).values({
+          directorUserId, score, riskLevel, driverComplaints, excessiveSuspensions,
+          staffAbuseFlags, missedCompliance, zibraAlerts, adminWarnings,
+          lastCalculatedAt: new Date(),
+        });
+      }
+
+      if (score < 40) {
+        await db.insert(directorCoachingLogs).values({
+          directorUserId,
+          coachingType: "low_trust_warning",
+          message: "Your operational patterns have been flagged for review. Focus on policy compliance and driver satisfaction to improve your standing.",
+          severity: "critical",
+        });
+        await storage.createNotification({
+          userId: directorUserId,
+          type: "warning",
+          title: "Operational Review Notice",
+          message: "ZIBRA has flagged operational patterns for improvement. Check your coaching insights.",
+        });
+      }
+
+      await db.insert(directorActionLogs).values({
+        actorId: adminUserId,
+        actorRole: "admin",
+        action: "trust_score_recalculated",
+        targetType: "director",
+        targetId: directorUserId,
+        afterState: JSON.stringify({ score, riskLevel, driverComplaints, excessiveSuspensions, staffAbuseFlags, missedCompliance, zibraAlerts, adminWarnings }),
+      });
+
+      return res.json({ score, riskLevel, driverComplaints, excessiveSuspensions, staffAbuseFlags, missedCompliance, zibraAlerts, adminWarnings });
+    } catch (error) {
+      console.error("Error recalculating trust score:", error);
+      return res.status(500).json({ message: "Failed to recalculate trust score" });
+    }
+  });
+
+  // Admin view training status
+  app.get("/api/admin/directors/:directorUserId/training", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { directorUserId } = req.params;
+      const completedModules = await db.select().from(directorTrainingModules)
+        .where(eq(directorTrainingModules.directorUserId, directorUserId));
+      const completedKeys = new Set(completedModules.filter(m => m.completedAt).map(m => m.moduleKey));
+      const modules = DIRECTOR_TRAINING_MODULES.map(m => ({
+        ...m,
+        completed: completedKeys.has(m.key),
+        completedAt: completedModules.find(cm => cm.moduleKey === m.key)?.completedAt || null,
+      }));
+      return res.json({ modules, allCompleted: modules.every(m => m.completed), completedCount: modules.filter(m => m.completed).length, totalModules: modules.length });
+    } catch (error) {
+      console.error("Error getting admin training:", error);
+      return res.status(500).json({ message: "Failed to get training status" });
     }
   });
 

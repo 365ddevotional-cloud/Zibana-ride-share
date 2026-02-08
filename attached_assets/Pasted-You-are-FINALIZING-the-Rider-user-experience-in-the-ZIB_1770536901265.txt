@@ -1,0 +1,155 @@
+You are FINALIZING the Rider user experience in the ZIBA app.
+
+GOAL:
+- Eliminate dead UI
+- Make Account & Settings fully functional
+- Improve visual quality to match Welcome page
+- Ensure smooth navigation
+- Prepare Rider app for store approval
+
+DO NOT change pricing logic, commissions, or Director/Admin logic.
+
+================================================
+PHASE 1 — RIDER ACCOUNT PAGE FIXES
+================================================
+
+1) ACCOUNT PAGE CLICKABILITY
+
+On /rider/account:
+- Make ALL boxes clickable:
+  - Profile
+  - Payment Methods
+  - Saved Places
+  - Trips
+  - Inbox
+  - Settings
+  - Help & Support
+  - Terms & Privacy
+
+No static boxes allowed.
+
+Each box must route to a relevant page.
+If page does not exist → create a basic functional page.
+
+================================================
+PHASE 2 — PROFILE PICTURE UPLOAD
+================================================
+
+2) PROFILE PICTURE FEATURE
+
+Add to Rider Profile:
+- Upload profile picture
+- Change picture
+- Remove picture
+
+Rules:
+- Image validation (size/type)
+- Store securely
+- Show placeholder if none uploaded
+- Profile picture visible to:
+  - Rider
+  - Assigned Driver during trip
+
+================================================
+PHASE 3 — PROFILE PAGE
+================================================
+
+3) PROFILE PAGE CONTENT
+
+Route:
+- /rider/account/profile
+
+Editable fields:
+- Full name
+- Phone (read-only if verified)
+- Email
+- Profile photo
+
+Buttons:
+- Save
+- Cancel
+- Back to Account
+
+================================================
+PHASE 4 — SETTINGS PAGE (FULL)
+================================================
+
+4) SETTINGS PAGE
+
+Route:
+- /rider/account/settings
+
+Sections:
+- Notifications (default ON)
+- Appearance:
+  - Light
+  - Dark
+  - System Auto
+- Language (future-ready)
+- Privacy & Data
+- Safety
+- About ZIBA
+
+Persist all preferences.
+
+================================================
+PHASE 5 — THEME & TYPOGRAPHY CONSISTENCY
+================================================
+
+5) GLOBAL THEME FIX
+
+- Move theme controller to global app shell
+- Ensure Welcome page + authenticated pages use same:
+  - Font family
+  - Font scale
+  - Spacing
+  - Heading hierarchy
+
+Result:
+- Authenticated Rider pages look as polished as Welcome page.
+
+================================================
+PHASE 6 — NAVIGATION RULES
+================================================
+
+6) NAVIGATION CONSISTENCY
+
+Every Rider page must have:
+- Clear page title
+- Back button
+- Predictable return flow
+
+No page should trap the user.
+
+================================================
+PHASE 7 — ZIBRA SUPPORT INTEGRATION
+================================================
+
+7) ZIBRA IN RIDER ACCOUNT
+
+ZIBRA available in:
+- Profile help
+- Payment help
+- Saved places
+- Settings
+
+ZIBRA must:
+- Explain features
+- Guide steps
+- Avoid guarantees
+- Avoid legal exposure
+
+================================================
+PHASE 8 — TESTING
+================================================
+
+8) CONFIRM:
+✔ All account boxes clickable
+✔ Profile photo works
+✔ Settings save correctly
+✔ Theme switcher works everywhere
+✔ Fonts consistent
+✔ Navigation smooth
+✔ No dead UI
+
+Proceed step-by-step and confirm completion.
