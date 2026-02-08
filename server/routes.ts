@@ -2033,6 +2033,40 @@ export async function registerRoutes(
     }
   });
 
+  // Update rider profile (phone, etc.)
+  app.put("/api/rider/profile", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { phone } = req.body;
+      
+      const profile = await storage.getRiderProfile(userId);
+      if (!profile) {
+        return res.status(404).json({ message: "Rider profile not found" });
+      }
+
+      const updates: Record<string, any> = {};
+      if (phone !== undefined) {
+        if (typeof phone === "string" && phone.length > 0 && phone.length < 7) {
+          return res.status(400).json({ message: "Phone number must be at least 7 characters" });
+        }
+        updates.phone = phone || null;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await db
+          .update(riderProfiles)
+          .set(updates)
+          .where(eq(riderProfiles.userId, userId));
+      }
+
+      const updated = await storage.getRiderProfile(userId);
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error updating rider profile:", error);
+      return res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
   // Get rider wallet
   app.get("/api/rider/wallet", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
     try {
@@ -11577,16 +11611,29 @@ export async function registerRoutes(
       const userId = req.user?.claims?.sub;
       const { photoData } = req.body;
 
-      if (!photoData) {
+      if (photoData === undefined || photoData === null) {
         return res.status(400).json({ message: "Photo data is required" });
       }
 
+      if (typeof photoData === "string" && photoData.length > 0) {
+        const validPrefixes = ["data:image/jpeg", "data:image/png", "data:image/webp"];
+        if (!validPrefixes.some(p => photoData.startsWith(p))) {
+          return res.status(400).json({ message: "Invalid image format. Use JPG, PNG, or WebP." });
+        }
+        const base64Part = photoData.split(",")[1] || "";
+        const sizeBytes = Math.ceil(base64Part.length * 0.75);
+        if (sizeBytes > 5 * 1024 * 1024) {
+          return res.status(400).json({ message: "Image must be under 5MB." });
+        }
+      }
+
       const role = await storage.getUserRole(userId);
+      const photo = photoData === "" ? null : photoData;
       
       if (role?.role === "driver") {
-        await storage.updateDriverProfilePhoto(userId, photoData);
+        await storage.updateDriverProfilePhoto(userId, photo || "");
       } else if (role?.role === "rider") {
-        await storage.updateRiderProfilePhoto(userId, photoData);
+        await storage.updateRiderProfilePhoto(userId, photo || "");
       } else {
         return res.status(400).json({ message: "Profile photos are for riders and drivers only" });
       }

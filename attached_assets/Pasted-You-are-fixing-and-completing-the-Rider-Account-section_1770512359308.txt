@@ -1,0 +1,104 @@
+You are fixing and completing the Rider Account section in the ZIBA platform.
+
+OBJECTIVE:
+Make the Rider Account fully functional, intuitive, and production-ready without breaking existing logic.
+
+DO NOT:
+- Change authentication
+- Change role permissions
+- Change business rules
+- Remove existing UI
+- Introduce new breaking routes
+
+====================================
+PART 1 — PROFILE PICTURE (AVATAR)
+====================================
+
+1) Add profile picture support for Rider accounts:
+- Avatar displayed at top of Account page
+- Clickable avatar opens Profile page
+- Allow user to:
+  - Upload image (jpg/png/webp)
+  - Preview before save
+  - Remove/change picture later
+
+2) Backend:
+- Extend user profile model:
+  - profileImageUrl (nullable)
+- Add endpoint:
+  - POST /profile/avatar
+  - Accept multipart upload
+  - Validate file type + size
+  - Store securely
+  - Return updated URL
+
+3) Frontend:
+- If profileImageUrl exists → show image
+- Else → show initials fallback
+- Persist across sessions
+
+====================================
+PART 2 — MAKE ALL ACCOUNT ITEMS CLICKABLE
+====================================
+
+Ensure ALL rows navigate correctly:
+
+Account list → Destination page
+------------------------------------------------
+Profile          → /account/profile
+Email            → /account/email
+Phone            → /account/phone
+Saved Places     → /account/saved-places
+Notifications    → /account/notifications
+Marketing        → /account/marketing
+Data Usage       → /account/data-usage
+Ride History     → /account/ride-history
+Trusted Contacts → /account/trusted-contacts
+Ride PIN         → /account/ride-pin
+Emergency        → /account/emergency
+Help Center      → /help
+
+Each item must:
+- Be visually clickable
+- Use cursor/press feedback
+- Navigate reliably
+
+====================================
+PART 3 — DETAIL PAGES (SUB-SCREENS)
+====================================
+
+For each destination page:
+
+- Add header with:
+  - Title (e.g. “Profile”, “Notifications”)
+  - Back arrow
+- Back arrow ALWAYS returns to /account
+- Use shared AccountLayout wrapper
+
+Editable pages must have:
+- Save / Update button
+- Client-side validation
+- Success or error feedback
+
+====================================
+PART 4 — NAVIGATION SAFETY
+====================================
+
+- Preserve browser back behavior
+- Ensure no dead-end pages
+- Ensure mobile and desktop work
+
+====================================
+PART 5 — TESTING CHECKLIST
+====================================
+
+Confirm:
+- Avatar upload works
+- Avatar persists after refresh
+- Every Account row navigates correctly
+- Every sub-page has a working back button
+- No console errors
+- No auth regressions
+
+Implement incrementally.
+Do not mark complete until all items pass manual test.
