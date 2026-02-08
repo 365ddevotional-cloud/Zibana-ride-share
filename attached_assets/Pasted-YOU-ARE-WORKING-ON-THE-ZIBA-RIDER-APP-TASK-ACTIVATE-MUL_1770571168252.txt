@@ -1,0 +1,200 @@
+YOU ARE WORKING ON THE ZIBA RIDER APP.
+TASK: ACTIVATE MULTI-LANGUAGE SUPPORT + MAKE ZIBA SUPPORT (Z-ASSIST) FLOATING ICON MOVABLE.
+
+DO NOT REMOVE EXISTING FEATURES.
+DO NOT BREAK CURRENT UI.
+AUDIT FIRST, THEN IMPLEMENT.
+
+====================================================
+PHASE 0 — AUDIT CURRENT STATE
+====================================================
+
+1) Identify Language section in Settings:
+- Currently shows “Language – English (Coming Soon)”
+- Confirm it has no route or handler
+
+2) Identify ZIBA Support floating icon:
+- Currently fixed position
+- Not draggable
+
+====================================================
+PHASE 1 — ACTIVATE LANGUAGE SELECTION (LIVE)
+====================================================
+
+A) MAKE LANGUAGE SECTION CLICKABLE
+Settings → Language → /settings/language
+
+Remove “Coming Soon”.
+
+====================================================
+B) CREATE LANGUAGE SELECTION SCREEN
+====================================================
+
+/settings/language screen must contain:
+
+TITLE:
+- “Choose Language”
+
+SUBTITLE:
+- “Select your preferred language. You can change this anytime.”
+
+LANGUAGE LIST (GROUPED):
+
+GLOBAL LANGUAGES:
+- English (Default)
+- French
+- Arabic
+
+NIGERIA:
+- Hausa
+- Igbo
+- Yoruba
+
+SOUTHERN & EASTERN AFRICA:
+- Swahili
+- Zulu
+- Xhosa
+- Afrikaans
+
+OPTIONAL (future-ready but visible):
+- Portuguese
+- Spanish
+
+Each language row:
+- Language name in native script + English
+  Example:
+  - العربية (Arabic)
+  - Yoruba (Yorùbá)
+  - Hausa (Hausa)
+- Radio / check indicator
+- Entire row clickable
+
+====================================================
+PHASE 2 — LANGUAGE SWITCHING LOGIC
+====================================================
+
+1) On language selection:
+- Save preference in:
+  - Database (user.language)
+  - Local storage/session
+- Trigger app-wide re-render
+
+2) All text in app updates dynamically:
+- Home
+- Services
+- Account
+- Inbox
+- ZIBA Support messages
+- Buttons, headers, labels
+
+3) DEFAULT FALLBACK:
+- If translation key missing → show English text
+
+====================================================
+PHASE 3 — SAFETY MECHANISM (ANTI-CONFUSION)
+====================================================
+
+IMPORTANT: USER MUST NEVER GET STUCK.
+
+A) ALWAYS SHOW ENGLISH RESET ACCESS
+Add one or more of the following:
+
+1) In Language screen:
+- First item always:
+  “English (Default) – Reset”
+
+2) Add small English helper text:
+- “Reset to English” (always in English)
+- Visible even when app is Arabic or local language
+
+3) In Settings header:
+- Small “EN” shortcut button → resets language to English
+
+4) ZIBA Support auto-response:
+If user types:
+- “Help”
+- “English”
+- “Reset language”
+
+ZIBA Support replies:
+- “You can reset language from Settings → Language → English.”
+
+====================================================
+PHASE 4 — TRANSLATION SYSTEM DESIGN
+====================================================
+
+IMPLEMENT TRANSLATION VIA:
+- i18n / translation key system
+
+Example:
+- en.json
+- fr.json
+- ar.json
+- ha.json
+- ig.json
+- yo.json
+- sw.json
+- zu.json
+- xh.json
+- af.json
+
+DO NOT hardcode text.
+
+====================================================
+PHASE 5 — ZIBA SUPPORT (Z-ASSIST) FLOATING ICON
+====================================================
+
+A) MAKE ICON DRAGGABLE
+- User can long-press and drag
+- Icon snaps to nearest screen edge
+- Position persists per user
+
+Store:
+- supportIconPositionX
+- supportIconPositionY
+
+B) RESTRICTIONS:
+- Must not block critical buttons
+- Must stay within screen bounds
+- Reset position option in Settings → Support
+
+C) DEFAULT POSITION:
+- Bottom right (current behavior)
+
+====================================================
+PHASE 6 — ACCESSIBILITY & UX
+====================================================
+
+- Language names readable
+- RTL layout support for Arabic
+- Smooth transition animation on language change
+- No page reload required
+
+====================================================
+PHASE 7 — QA CHECKLIST (MANDATORY)
+====================================================
+
+Test:
+- Switch English → Arabic → English
+- Switch English → Yoruba → English
+- Confirm ALL screens update
+- Confirm ZIBA Support messages respect language
+- Drag support icon, refresh page, confirm position saved
+- Confirm reset always works
+
+====================================================
+FINAL RULES
+====================================================
+
+- NO “Coming Soon” remains
+- Language feature is LIVE
+- User can NEVER get stuck
+- ZIBA Support icon is movable and persistent
+- All changes respect existing ZIBA design system
+
+IMPLEMENT NOW.
+AFTER IMPLEMENTATION, REPORT:
+- Routes added
+- Languages enabled
+- Storage used
+- Any known limitations
