@@ -1,0 +1,110 @@
+You are implementing FINAL Contract Director Governance for the ZIBA platform.
+
+THIS PROMPT IS AUTHORITATIVE AND OVERRIDES PRIOR ASSUMPTIONS.
+Do NOT change commission logic.
+Do NOT expose platform revenue.
+Do NOT break existing flows.
+
+====================================================
+PHASE 27 — CONTRACT DIRECTOR LIFESPAN
+====================================================
+
+Implement lifespan controls for Contract Directors:
+- lifespan_start_date
+- lifespan_end_date
+- status auto-updates on expiry
+
+Rules:
+- Lifespan set/updated by Admin or Super Admin only
+- On expiry:
+  - Director status → suspended
+  - Commissions frozen
+  - Driver cells locked pending review
+- ZIBRA notifies Director before expiry (14 days, 7 days, 1 day)
+
+====================================================
+PHASE 28 — MULTI-CELL SUPPORT
+====================================================
+
+Enable up to 3 driver cells per Contract Director.
+
+Each cell:
+- Max drivers: 1,300
+- Max commissionable drivers per day: 1,000
+- 77% daily active rule applies per cell
+
+Dashboard must show:
+- Cell 1 / Cell 2 / Cell 3
+- Counts only (no money)
+
+====================================================
+PHASE 29 — DIRECTOR DASHBOARD (PRIVATE)
+====================================================
+
+Create Director Dashboard:
+- Visible only to Director, Admin, Super Admin
+- Separate from Admin dashboard
+
+Include:
+- Driver counts (per cell)
+- Active drivers today
+- Commissionable drivers today
+- Staff list & roles
+- Alerts & performance prompts
+
+====================================================
+PHASE 30 — DIRECTOR STAFF & TEAM ROLES
+====================================================
+
+Allow Contract Directors to create Staff accounts.
+
+Rules:
+- Staff roles are scoped (section-level access)
+- Staff cannot see full dashboard unless permitted
+- Admin/Super Admin must approve staff roles
+- Directors can discipline staff with Admin permission
+
+====================================================
+PHASE 31 — AUDIT & ACCOUNTABILITY
+====================================================
+
+Log ALL actions:
+- actorId
+- role
+- action
+- target
+- timestamp
+- before/after state
+
+Logs visible to Admin & Super Admin only.
+
+====================================================
+PHASE 32 — ZIBRA DIRECTOR PERFORMANCE COACHING
+====================================================
+
+ZIBRA must:
+- Monitor Director performance trends
+- Send proactive coaching prompts
+- Warn about:
+  - Low activity
+  - High suspensions
+  - Cell health
+  - Lifespan expiry
+- Use calm, non-threatening language
+- Never promise earnings
+- Never expose financials
+
+====================================================
+PHASE 33 — FINAL VALIDATION
+====================================================
+
+Confirm:
+✔ Lifespan enforcement works
+✔ 3-cell limit enforced
+✔ Director dashboards isolated
+✔ Staff permissions scoped
+✔ Audit trail complete
+✔ ZIBRA coaching active
+✔ Admin/Super Admin supremacy intact
+
+Do NOT mark complete until all checks pass.
