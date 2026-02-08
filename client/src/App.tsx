@@ -24,6 +24,8 @@ const RiderHomePage = lazy(() => import("@/pages/rider/home"));
 const RiderTripsPage = lazy(() => import("@/pages/rider/trips"));
 const RiderWalletPage = lazy(() => import("@/pages/rider/wallet"));
 const RiderPaymentsPage = lazy(() => import("@/pages/rider/payments"));
+const RiderFundUserPage = lazy(() => import("@/pages/rider/fund-user"));
+const DirectorFundDriverPage = lazy(() => import("@/pages/director/fund-driver"));
 const RiderProfilePage = lazy(() => import("@/pages/rider/profile"));
 const RiderSupportPage = lazy(() => import("@/pages/rider/support"));
 const UnauthorizedPage = lazy(() => import("@/pages/unauthorized"));
@@ -361,6 +363,9 @@ function AdminRouter() {
       <Route path="/director/funding">
         <LazyComponent><DirectorDashboardPage /></LazyComponent>
       </Route>
+      <Route path="/director/wallet/fund-driver">
+        <LazyComponent><DirectorFundDriverPage /></LazyComponent>
+      </Route>
       <Route path="/director/staff">
         <LazyComponent><DirectorDashboardPage /></LazyComponent>
       </Route>
@@ -677,6 +682,11 @@ function RiderRouter() {
         </ProtectedRoute>
       </Route>
       
+      <Route path="/rider/payments/fund-user">
+        <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["rider"]}>
+          <LazyComponent><RiderFundUserPage /></LazyComponent>
+        </ProtectedRoute>
+      </Route>
       <Route path="/rider/payments">
         <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["rider"]}>
           <LazyComponent><RiderPaymentsPage /></LazyComponent>

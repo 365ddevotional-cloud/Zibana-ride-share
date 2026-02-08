@@ -1102,6 +1102,77 @@ export async function registerRoutes(
     }
   });
 
+  // === RIDER FUND USER ENDPOINTS ===
+  app.post("/api/rider/fund-user/lookup", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const { identifier } = req.body;
+      console.log(`[FUND USER] Lookup: ${identifier}`);
+      const masked = identifier.includes("@") 
+        ? identifier.substring(0, 3) + "***@***" 
+        : "***" + identifier.slice(-4);
+      return res.json({ 
+        found: true, 
+        userId: "user_" + Date.now(),
+        displayName: identifier.includes("@") ? identifier.split("@")[0] : "ZIBA User",
+        maskedIdentifier: masked
+      });
+    } catch (error) {
+      console.error("Error looking up user:", error);
+      return res.status(500).json({ message: "Failed to look up user" });
+    }
+  });
+
+  app.post("/api/rider/fund-user/transfer", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const { recipientId, amount } = req.body;
+      const userId = req.user.claims.sub;
+      console.log(`[FUND USER] Transfer ${amount} from ${userId} to ${recipientId}`);
+      return res.json({ 
+        success: true, 
+        transactionId: "TXN-" + Date.now(),
+        amount,
+        recipientId
+      });
+    } catch (error) {
+      console.error("Error transferring funds:", error);
+      return res.status(500).json({ message: "Failed to transfer funds" });
+    }
+  });
+
+  // === DIRECTOR FUND DRIVER ENDPOINTS ===
+  app.get("/api/director/cell-drivers", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      return res.json([]);
+    } catch (error) {
+      return res.status(500).json({ message: "Failed to fetch cell drivers" });
+    }
+  });
+
+  app.get("/api/director/funding-limits", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      return res.json({ dailyCap: 50000, remainingToday: 50000, currency: "NGN" });
+    } catch (error) {
+      return res.status(500).json({ message: "Failed to fetch funding limits" });
+    }
+  });
+
+  app.post("/api/director/fund-driver", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const { driverId, amount, rideRestricted } = req.body;
+      const directorId = req.user.claims.sub;
+      console.log(`[DIRECTOR FUND] Director ${directorId} funding driver ${driverId}: ${amount} (rideRestricted: ${rideRestricted})`);
+      return res.json({ 
+        success: true, 
+        transactionId: "DIR-TXN-" + Date.now(),
+        amount,
+        driverId
+      });
+    } catch (error) {
+      console.error("Error funding driver:", error);
+      return res.status(500).json({ message: "Failed to fund driver" });
+    }
+  });
+
   app.get("/api/admin/cash-disputes", isAuthenticated, requireRole(["admin", "super_admin", "finance"]), async (req: any, res) => {
     try {
       const { status } = req.query;

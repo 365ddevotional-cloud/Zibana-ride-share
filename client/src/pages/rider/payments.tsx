@@ -9,7 +9,8 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { 
-  Wallet, CheckCircle, ArrowLeft, AlertCircle, Beaker, Banknote, HandCoins, CreditCard, HelpCircle
+  Wallet, CheckCircle, ArrowLeft, AlertCircle, Beaker, Banknote, 
+  HandCoins, ChevronRight, HelpCircle, Users, Send, MessageCircle
 } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -89,17 +90,16 @@ export default function RiderPayments() {
     const backendMethod = method === "SPONSORED_WALLET" ? "MAIN_WALLET" : method;
     setSelectedMethod(method);
     updateDefaultMethod.mutate(backendMethod as PaymentMethod);
-    setTimeout(() => setLocation("/rider/home"), 600);
   };
 
   const formatCurrency = (amount: string | null | undefined, currency: string) => {
     if (!amount) return `${getCurrencySymbol(currency)} 0.00`;
-    const symbols: Record<string, string> = { NGN: "₦", USD: "$", ZAR: "R" };
+    const symbols: Record<string, string> = { NGN: "\u20A6", USD: "$", ZAR: "R" };
     return `${symbols[currency] || currency} ${parseFloat(amount).toLocaleString()}`;
   };
 
   const getCurrencySymbol = (currency: string) => {
-    const symbols: Record<string, string> = { NGN: "₦", USD: "$", ZAR: "R" };
+    const symbols: Record<string, string> = { NGN: "\u20A6", USD: "$", ZAR: "R" };
     return symbols[currency] || currency;
   };
 
@@ -119,37 +119,91 @@ export default function RiderPayments() {
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <h1 className="text-2xl font-bold" data-testid="text-payments-title">
-              Choose Payment Method
-            </h1>
+            <div>
+              <h1 className="text-2xl font-bold" data-testid="text-payments-title">
+                Payments
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Manage your payment methods and wallet
+              </p>
+            </div>
           </div>
 
-          <Card className="bg-muted/50">
-            <CardContent className="p-4">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-medium text-sm">How payments work</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    You can change your payment method before the trip starts.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {isLoading ? (
+            <div className="space-y-4">
+              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-20 w-full" />
+            </div>
+          ) : (
+            <>
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2 flex-wrap">
+                    <Wallet className="h-4 w-4" />
+                    Wallet Balance
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <p className="text-2xl font-bold" data-testid="text-main-balance">
+                        {formatCurrency(walletData?.mainBalance, currency)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">ZIBA Wallet</p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setLocation("/rider/wallet")}
+                      data-testid="button-manage-wallet"
+                    >
+                      Manage Wallet
+                    </Button>
+                  </div>
 
-          <div className="space-y-3">
-            <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-              Payment Options
-            </h2>
+                  {hasSponsoredFunds && (
+                    <div className="flex items-center justify-between gap-2 pt-2 border-t">
+                      <div className="flex items-center gap-2">
+                        <HandCoins className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                        <div>
+                          <p className="font-medium text-sm" data-testid="text-sponsored-balance">
+                            {formatCurrency(totalSponsoredBalance.toFixed(2), currency)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Sponsored by {sponsoredBalances.length === 1 
+                              ? (sponsoredBalances[0].funderName || "a supporter")
+                              : `${sponsoredBalances.length} supporters`}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
-            {isLoading ? (
+                  {isTester && (
+                    <div className="flex items-center justify-between gap-2 pt-2 border-t">
+                      <div className="flex items-center gap-2">
+                        <Beaker className="h-4 w-4 text-amber-500" />
+                        <div>
+                          <p className="font-medium text-sm" data-testid="text-test-balance">
+                            {formatCurrency(walletData?.testBalance, currency)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">Test credits</p>
+                        </div>
+                      </div>
+                      <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                        Test Mode
+                      </Badge>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
               <div className="space-y-3">
-                <Skeleton className="h-24 w-full" />
-                <Skeleton className="h-24 w-full" />
-              </div>
-            ) : (
-              <div className="space-y-3">
+                <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                  Current Payment Method
+                </h2>
+
                 <Card 
                   className={`cursor-pointer transition-all ${
                     selectedMethod === "MAIN_WALLET" 
@@ -161,38 +215,19 @@ export default function RiderPayments() {
                 >
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                          <Wallet className="h-6 w-6 text-primary" />
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                          <Wallet className="h-5 w-5 text-primary" />
                         </div>
                         <div>
-                          <div className="flex items-center gap-2">
-                            <p className="font-semibold">ZIBA Wallet</p>
-                            <Badge variant="outline" className="text-xs">
-                              {currency}
-                            </Badge>
-                          </div>
-                          <p className="text-lg font-bold mt-1" data-testid="text-main-balance">
-                            {formatCurrency(walletData?.mainBalance, currency)}
+                          <p className="font-medium text-sm">ZIBA Wallet</p>
+                          <p className="text-xs text-muted-foreground">
+                            Pay securely in the app
                           </p>
-                          {parseFloat(walletData?.mainBalance || "0") === 0 && selectedMethod === "MAIN_WALLET" ? (
-                            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                              Your wallet is empty. You can still select it, but please fund your wallet before requesting a ride.
-                            </p>
-                          ) : (
-                            <p className="text-xs text-muted-foreground">
-                              Pay securely in the app
-                            </p>
-                          )}
                         </div>
                       </div>
                       {selectedMethod === "MAIN_WALLET" && (
-                        <div className="flex items-center gap-2">
-                          <Badge className="bg-primary text-primary-foreground">
-                            Default
-                          </Badge>
-                          <CheckCircle className="h-6 w-6 text-primary" />
-                        </div>
+                        <CheckCircle className="h-5 w-5 text-primary shrink-0" />
                       )}
                     </div>
                   </CardContent>
@@ -211,30 +246,19 @@ export default function RiderPayments() {
                 >
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="h-12 w-12 rounded-full bg-emerald-100 dark:bg-emerald-900 flex items-center justify-center">
-                          <Banknote className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-emerald-100 dark:bg-emerald-900 flex items-center justify-center">
+                          <Banknote className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                         </div>
                         <div>
-                          <p className="font-semibold">Cash</p>
-                          {cashRestricted ? (
-                            <p className="text-sm text-muted-foreground mt-1">
-                              Cash payments are temporarily unavailable
-                            </p>
-                          ) : (
-                            <p className="text-sm text-muted-foreground mt-1">
-                              Pay the driver directly in cash
-                            </p>
-                          )}
+                          <p className="font-medium text-sm">Cash</p>
+                          <p className="text-xs text-muted-foreground">
+                            {cashRestricted ? "Temporarily unavailable" : "Pay the driver directly"}
+                          </p>
                         </div>
                       </div>
                       {selectedMethod === "CASH" && !cashRestricted && (
-                        <div className="flex items-center gap-2">
-                          <Badge className="bg-emerald-500 text-white">
-                            Default
-                          </Badge>
-                          <CheckCircle className="h-6 w-6 text-emerald-500" />
-                        </div>
+                        <CheckCircle className="h-5 w-5 text-emerald-500 shrink-0" />
                       )}
                     </div>
                   </CardContent>
@@ -252,61 +276,24 @@ export default function RiderPayments() {
                   >
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="h-12 w-12 rounded-full bg-violet-100 dark:bg-violet-900 flex items-center justify-center">
-                            <HandCoins className="h-6 w-6 text-violet-600 dark:text-violet-400" />
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-full bg-violet-100 dark:bg-violet-900 flex items-center justify-center">
+                            <HandCoins className="h-5 w-5 text-violet-600 dark:text-violet-400" />
                           </div>
                           <div>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <p className="font-semibold">Sponsored Wallet</p>
-                              <Badge variant="outline" className="text-xs">
-                                {currency}
-                              </Badge>
-                            </div>
-                            <p className="text-lg font-bold mt-1" data-testid="text-sponsored-balance">
-                              {formatCurrency(totalSponsoredBalance.toFixed(2), currency)}
-                            </p>
+                            <p className="font-medium text-sm">Sponsored Wallet</p>
                             <p className="text-xs text-muted-foreground">
-                              Funded by {sponsoredBalances.length === 1 
-                                ? (sponsoredBalances[0].funderName || "a supporter")
-                                : `${sponsoredBalances.length} supporters`}
+                              Funds from your supporters
                             </p>
                           </div>
                         </div>
                         {selectedMethod === "SPONSORED_WALLET" && (
-                          <div className="flex items-center gap-2">
-                            <Badge className="bg-violet-500 text-white">
-                              Default
-                            </Badge>
-                            <CheckCircle className="h-6 w-6 text-violet-500" />
-                          </div>
+                          <CheckCircle className="h-5 w-5 text-violet-500 shrink-0" />
                         )}
                       </div>
                     </CardContent>
                   </Card>
                 )}
-
-                <Card 
-                  className="opacity-50 cursor-not-allowed"
-                  data-testid="payment-method-card-coming-soon"
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
-                          <CreditCard className="h-6 w-6 text-muted-foreground" />
-                        </div>
-                        <div>
-                          <p className="font-semibold text-muted-foreground">Card / Bank</p>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            Pay with debit card or bank transfer
-                          </p>
-                        </div>
-                      </div>
-                      <Badge variant="secondary" className="text-xs">Coming soon</Badge>
-                    </div>
-                  </CardContent>
-                </Card>
 
                 {isTester && (
                   <Card 
@@ -320,111 +307,102 @@ export default function RiderPayments() {
                   >
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="h-12 w-12 rounded-full bg-amber-100 dark:bg-amber-900 flex items-center justify-center">
-                            <Beaker className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-full bg-amber-100 dark:bg-amber-900 flex items-center justify-center">
+                            <Beaker className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                           </div>
                           <div>
-                            <div className="flex items-center gap-2">
-                              <p className="font-semibold">Test Wallet</p>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-medium text-sm">Test Wallet</p>
                               <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-                                Test Mode
-                              </Badge>
-                              <Badge variant="outline" className="text-xs">
-                                {currency}
+                                Test
                               </Badge>
                             </div>
-                            <p className="text-lg font-bold mt-1" data-testid="text-test-balance">
-                              {formatCurrency(walletData?.testBalance, currency)}
-                            </p>
                             <p className="text-xs text-muted-foreground">
                               Test credits — no real charge
                             </p>
                           </div>
                         </div>
                         {selectedMethod === "TEST_WALLET" && (
-                          <div className="flex items-center gap-2">
-                            <Badge className="bg-amber-500 text-white">
-                              Default
-                            </Badge>
-                            <CheckCircle className="h-6 w-6 text-amber-500" />
-                          </div>
+                          <CheckCircle className="h-5 w-5 text-amber-500 shrink-0" />
                         )}
                       </div>
                     </CardContent>
                   </Card>
                 )}
               </div>
-            )}
-          </div>
 
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Current Selection</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between gap-2 p-3 rounded-lg bg-muted">
-                <div className="flex items-center gap-3">
-                  {selectedMethod === "SPONSORED_WALLET" ? (
-                    <HandCoins className="h-5 w-5 text-violet-600" />
-                  ) : selectedMethod === "MAIN_WALLET" ? (
-                    <Wallet className="h-5 w-5 text-primary" />
-                  ) : selectedMethod === "CASH" ? (
-                    <Banknote className="h-5 w-5 text-emerald-600" />
-                  ) : (
-                    <Beaker className="h-5 w-5 text-amber-500" />
-                  )}
-                  <div>
-                    <p className="font-medium">
-                      {selectedMethod === "SPONSORED_WALLET" ? "Sponsored Wallet" : selectedMethod === "MAIN_WALLET" ? "Main Wallet" : selectedMethod === "CASH" ? "Cash" : "Test Wallet"}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {selectedMethod === "CASH" ? "Pay the driver directly in cash" : selectedMethod === "SPONSORED_WALLET" ? "Funds from your supporters" : "Pay securely in the app"}
-                    </p>
-                  </div>
-                </div>
-                {selectedMethod !== "CASH" && (
-                  <p className="font-bold">
-                    {formatCurrency(
-                      selectedMethod === "SPONSORED_WALLET"
-                        ? totalSponsoredBalance.toFixed(2)
-                        : selectedMethod === "MAIN_WALLET" 
-                          ? walletData?.mainBalance 
-                          : walletData?.testBalance, 
-                      currency
-                    )}
-                  </p>
-                )}
+              <div className="space-y-3">
+                <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                  More Options
+                </h2>
+
+                <Card
+                  className="hover-elevate cursor-pointer"
+                  onClick={() => setLocation("/rider/payments/fund-user")}
+                  data-testid="card-fund-another-user"
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                          <Send className="h-5 w-5 text-green-600 dark:text-green-400" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">Fund Another User</p>
+                          <p className="text-xs text-muted-foreground">
+                            Send funds to a family member, friend, or colleague
+                          </p>
+                        </div>
+                      </div>
+                      <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card
+                  className="hover-elevate cursor-pointer"
+                  onClick={() => setLocation("/rider/wallet")}
+                  data-testid="card-wallet-management"
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                          <Wallet className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">Wallet Management</p>
+                          <p className="text-xs text-muted-foreground">
+                            View transactions, add funds, manage your wallet
+                          </p>
+                        </div>
+                      </div>
+                      <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
-            </CardContent>
-          </Card>
 
-          <Card className="border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30">
-            <CardContent className="p-4">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-medium text-sm text-amber-800 dark:text-amber-200">
-                    Insufficient Balance?
-                  </p>
-                  <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
-                    If your selected wallet doesn't have enough funds for a ride, 
-                    you'll see a clear error message. You can then:
-                  </p>
-                  <ul className="text-sm text-amber-700 dark:text-amber-300 mt-2 space-y-1 list-disc list-inside">
-                    <li>Add funds to your wallet</li>
-                    <li>Switch to a different payment method</li>
-                  </ul>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="flex items-center justify-center gap-2">
-            <p className="text-xs text-muted-foreground text-center">
-              You can change your payment method before the trip starts.
-            </p>
-          </div>
+              {parseFloat(walletData?.mainBalance || "0") === 0 && selectedMethod === "MAIN_WALLET" && (
+                <Card className="border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30">
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-medium text-sm text-amber-800 dark:text-amber-200">
+                          Wallet Empty
+                        </p>
+                        <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                          Your wallet has no funds. Add funds before requesting a ride, or switch to cash.
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </>
+          )}
 
           <div className="flex justify-center">
             <Button

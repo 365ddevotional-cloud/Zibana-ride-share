@@ -1,0 +1,151 @@
+You are activating the “Corporate Rides” and “Special Rides” features
+inside the ZIBA Rider Services section.
+
+GOALS:
+- Remove “Coming Soon” blockers
+- Make all service cards clickable
+- Create functional placeholder flows where full rollout is pending
+- Keep legal, billing, and role permissions safe
+- Maintain visual and UX consistency with ZIBA
+
+================================================
+PHASE 1 — SERVICES PAGE CLICKABILITY
+================================================
+
+1) SERVICES PAGE FIX
+
+On /rider/services:
+- Make ALL service cards clickable:
+  ✔ Schedule a Ride
+  ✔ Corporate Rides
+  ✔ Special Rides
+
+No disabled or dead cards allowed.
+
+================================================
+PHASE 2 — CORPORATE RIDES (RIDER)
+================================================
+
+2) CORPORATE RIDES ENTRY PAGE
+
+Route:
+- /rider/services/corporate
+
+Purpose:
+Allow riders to request rides billed to a company account.
+
+------------------------------------------------
+
+3) CORPORATE RIDES PAGE CONTENT
+
+Sections:
+- What are Corporate Rides?
+- Who can use them?
+- How billing works
+- How to join a corporate account
+
+Buttons:
+- Join a Corporate Account
+- Request Corporate Ride
+- Contact Corporate Admin
+- Learn More
+
+------------------------------------------------
+
+4) CORPORATE ACCESS RULES
+
+- Rider must be invited or approved by a company
+- Company controls spending limits
+- Monthly invoicing handled by ZIBA
+- Rider cannot see company financials
+- ZIBA acts as facilitator, not employer
+
+------------------------------------------------
+
+5) PLACEHOLDER MODE (SAFE)
+
+If corporate billing engine is not live:
+- Allow “Request Access” only
+- Show:
+  “Corporate Rides are being activated in your area.
+   You can request access or join an existing company.”
+
+================================================
+PHASE 3 — SPECIAL RIDES (RIDER)
+================================================
+
+6) SPECIAL RIDES ENTRY PAGE
+
+Route:
+- /rider/services/special
+
+Purpose:
+Premium and non-standard ride options.
+
+------------------------------------------------
+
+7) SPECIAL RIDES TYPES (DISPLAY)
+
+Cards:
+- Group Rides
+- Event Rides
+- Premium Ride (future)
+- Long-Distance Ride (future)
+
+Each card clickable.
+
+------------------------------------------------
+
+8) SPECIAL RIDES BEHAVIOR
+
+For available types:
+- Allow request flow
+
+For unavailable types:
+- Show informational page
+- Allow “Notify me when available”
+
+No dead UI.
+
+================================================
+PHASE 4 — ZIBRA SUPPORT INTEGRATION
+================================================
+
+9) ZIBRA SUPPORT — SERVICES RESPONSES
+
+ZIBRA may say:
+- “Corporate Rides allow approved riders to bill trips to a company.”
+- “Special Rides offer additional ride options based on availability.”
+- “Some services may require approval before use.”
+
+ZIBRA must never say:
+- “Guaranteed availability”
+- “Company will pay all rides”
+- “ZIBA covers ride costs”
+
+================================================
+PHASE 5 — LEGAL SAFETY
+================================================
+
+10) TERMS INSERTION
+
+Show short disclaimers:
+- Corporate Rides:
+  “Corporate rides are subject to company approval and billing rules.”
+- Special Rides:
+  “Availability and pricing may vary. ZIBA does not guarantee service availability.”
+
+================================================
+PHASE 6 — TESTING
+================================================
+
+11) CONFIRM:
+✔ Services cards clickable
+✔ Corporate page loads
+✔ Special rides page loads
+✔ No broken routes
+✔ No dead UI
+✔ ZIBRA responses correct
+✔ Legal disclaimers present
+
+Proceed step-by-step and confirm completion.
