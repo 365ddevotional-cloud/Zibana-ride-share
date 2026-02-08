@@ -20590,6 +20590,539 @@ export async function registerRoutes(
     }
   });
 
+  // =============================================
+  // PHASES 27-32: DIRECTOR GOVERNANCE
+  // =============================================
+
+  app.post("/api/admin/directors/:directorUserId/lifespan", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const { directorUserId } = req.params;
+      const { startDate, endDate } = req.body;
+
+      if (!startDate || !endDate) {
+        return res.status(400).json({ message: "startDate and endDate are required" });
+      }
+
+      if (new Date(endDate) <= new Date(startDate)) {
+        return res.status(400).json({ message: "endDate must be after startDate" });
+      }
+
+      await storage.setDirectorLifespan(directorUserId, new Date(startDate), new Date(endDate), adminUserId);
+
+      await storage.createDirectorActionLog({
+        actorId: adminUserId,
+        actorRole: "admin",
+        action: "set_director_lifespan",
+        targetType: "director",
+        targetId: directorUserId,
+        beforeState: null,
+        afterState: JSON.stringify({ startDate, endDate }),
+        metadata: null,
+      });
+
+      return res.json({ message: "Director lifespan set" });
+    } catch (error) {
+      console.error("Error setting director lifespan:", error);
+      return res.status(500).json({ message: "Failed to set director lifespan" });
+    }
+  });
+
+  app.post("/api/admin/directors/check-lifespan-expiry", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const expiredDirectors = await storage.getExpiredDirectors();
+      let processedCount = 0;
+
+      for (const director of expiredDirectors) {
+        await storage.updateDirectorLifecycleStatus(director.userId, "suspended", { suspendedBy: "system" });
+        await storage.createDirectorCoachingLog({
+          directorUserId: director.userId,
+          coachingType: "lifespan_expired",
+          message: "Your contract lifespan has expired. Your account has been suspended and commissions frozen pending review.",
+          severity: "critical",
+        });
+        processedCount++;
+      }
+
+      return res.json({ message: "Lifespan expiry check complete", processedCount });
+    } catch (error) {
+      console.error("Error checking lifespan expiry:", error);
+      return res.status(500).json({ message: "Failed to check lifespan expiry" });
+    }
+  });
+
+  app.get("/api/director/lifespan", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const profile = await storage.getDirectorProfile(userId);
+      if (!profile) {
+        return res.status(404).json({ message: "Director profile not found" });
+      }
+
+      let daysRemaining: number | null = null;
+      if (profile.lifespanEndDate) {
+        const now = new Date();
+        const end = new Date(profile.lifespanEndDate);
+        daysRemaining = Math.max(0, Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+      }
+
+      return res.json({
+        lifespanStartDate: profile.lifespanStartDate || null,
+        lifespanEndDate: profile.lifespanEndDate || null,
+        daysRemaining,
+      });
+    } catch (error) {
+      console.error("Error getting director lifespan:", error);
+      return res.status(500).json({ message: "Failed to get director lifespan" });
+    }
+  });
+
+  app.post("/api/director/cells", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const profile = await storage.getDirectorProfile(userId);
+      if (!profile) {
+        return res.status(404).json({ message: "Director profile not found" });
+      }
+
+      if (profile.directorType !== "contract") {
+        return res.status(403).json({ message: "Only contract directors can create cells" });
+      }
+
+      const existingCells = await storage.getDirectorCells(userId);
+      if (existingCells.length >= 3) {
+        return res.status(400).json({ message: "Maximum of 3 cells allowed" });
+      }
+
+      const { cellName } = req.body;
+      const cell = await storage.createDirectorCell({
+        directorUserId: userId,
+        cellNumber: existingCells.length + 1,
+        cellName: cellName || "Cell " + (existingCells.length + 1),
+      });
+
+      return res.json(cell);
+    } catch (error) {
+      console.error("Error creating director cell:", error);
+      return res.status(500).json({ message: "Failed to create director cell" });
+    }
+  });
+
+  app.get("/api/director/cells", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const cells = await storage.getDirectorCells(userId);
+
+      const cellsWithCounts = await Promise.all(
+        cells.map(async (cell: any) => {
+          const driverCount = await storage.getDriverCountInCell(userId, cell.cellNumber);
+          return { ...cell, driverCount };
+        })
+      );
+
+      return res.json(cellsWithCounts);
+    } catch (error) {
+      console.error("Error getting director cells:", error);
+      return res.status(500).json({ message: "Failed to get director cells" });
+    }
+  });
+
+  app.get("/api/director/cells/:cellNumber/metrics", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { cellNumber } = req.params;
+      const metrics = await storage.getCellMetrics(userId, parseInt(cellNumber));
+      return res.json(metrics);
+    } catch (error) {
+      console.error("Error getting cell metrics:", error);
+      return res.status(500).json({ message: "Failed to get cell metrics" });
+    }
+  });
+
+  app.get("/api/director/dashboard/full", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const profile = await storage.getDirectorProfile(userId);
+      if (!profile) {
+        return res.status(404).json({ message: "Director profile not found" });
+      }
+
+      const metrics = await storage.getDirectorDailyMetrics(userId);
+      const cells = await storage.getDirectorCells(userId);
+      const cellsWithCounts = await Promise.all(
+        cells.map(async (cell: any) => {
+          const driverCount = await storage.getDriverCountInCell(userId, cell.cellNumber);
+          return { ...cell, driverCount };
+        })
+      );
+      const staff = await storage.getDirectorStaff(userId);
+      const coachingLogs = await storage.getDirectorCoachingLogs(userId);
+
+      let daysRemaining: number | null = null;
+      if (profile.lifespanEndDate) {
+        const now = new Date();
+        const end = new Date(profile.lifespanEndDate);
+        daysRemaining = Math.max(0, Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+      }
+
+      return res.json({
+        directorType: profile.directorType,
+        status: profile.status,
+        lifecycleStatus: profile.lifecycleStatus,
+        onboardingCompleted: profile.onboardingCompleted,
+        activationThreshold: profile.activationThreshold,
+        maxCellSize: profile.maxCellSize,
+        totalDrivers: metrics.totalDrivers,
+        activeDriversToday: metrics.activeDriversToday,
+        suspendedDrivers: metrics.suspendedDrivers,
+        cells: cellsWithCounts,
+        staff,
+        coachingLogs,
+        lifespan: {
+          startDate: profile.lifespanStartDate || null,
+          endDate: profile.lifespanEndDate || null,
+          daysRemaining,
+        },
+      });
+    } catch (error) {
+      console.error("Error getting full director dashboard:", error);
+      return res.status(500).json({ message: "Failed to get full director dashboard" });
+    }
+  });
+
+  app.get("/api/admin/directors/:directorUserId/dashboard", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { directorUserId } = req.params;
+      const profile = await storage.getDirectorProfile(directorUserId);
+      if (!profile) {
+        return res.status(404).json({ message: "Director profile not found" });
+      }
+
+      const metrics = await storage.getDirectorDailyMetrics(directorUserId);
+      const cells = await storage.getDirectorCells(directorUserId);
+      const cellsWithCounts = await Promise.all(
+        cells.map(async (cell: any) => {
+          const driverCount = await storage.getDriverCountInCell(directorUserId, cell.cellNumber);
+          return { ...cell, driverCount };
+        })
+      );
+      const staff = await storage.getDirectorStaff(directorUserId);
+      const coachingLogs = await storage.getDirectorCoachingLogs(directorUserId);
+
+      let daysRemaining: number | null = null;
+      if (profile.lifespanEndDate) {
+        const now = new Date();
+        const end = new Date(profile.lifespanEndDate);
+        daysRemaining = Math.max(0, Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+      }
+
+      return res.json({
+        directorType: profile.directorType,
+        status: profile.status,
+        lifecycleStatus: profile.lifecycleStatus,
+        onboardingCompleted: profile.onboardingCompleted,
+        activationThreshold: profile.activationThreshold,
+        maxCellSize: profile.maxCellSize,
+        totalDrivers: metrics.totalDrivers,
+        activeDriversToday: metrics.activeDriversToday,
+        suspendedDrivers: metrics.suspendedDrivers,
+        cells: cellsWithCounts,
+        staff,
+        coachingLogs,
+        lifespan: {
+          startDate: profile.lifespanStartDate || null,
+          endDate: profile.lifespanEndDate || null,
+          daysRemaining,
+        },
+      });
+    } catch (error) {
+      console.error("Error getting director dashboard for admin:", error);
+      return res.status(500).json({ message: "Failed to get director dashboard" });
+    }
+  });
+
+  app.post("/api/director/staff", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const profile = await storage.getDirectorProfile(userId);
+      if (!profile) {
+        return res.status(404).json({ message: "Director profile not found" });
+      }
+
+      if (profile.directorType !== "contract") {
+        return res.status(403).json({ message: "Only contract directors can add staff" });
+      }
+
+      const { staffUserId, staffRole, permissions } = req.body;
+      if (!staffUserId || !staffRole) {
+        return res.status(400).json({ message: "staffUserId and staffRole are required" });
+      }
+
+      const staffRecord = await storage.createDirectorStaff({
+        directorUserId: userId,
+        staffUserId,
+        staffRole,
+        permissions: permissions || null,
+        status: "pending",
+      });
+
+      await storage.createDirectorActionLog({
+        actorId: userId,
+        actorRole: "director",
+        action: "add_staff",
+        targetType: "staff",
+        targetId: staffUserId,
+        beforeState: null,
+        afterState: JSON.stringify({ staffRole, permissions }),
+        metadata: null,
+      });
+
+      return res.json({ message: "Staff request submitted for admin approval", staff: staffRecord });
+    } catch (error) {
+      console.error("Error adding director staff:", error);
+      return res.status(500).json({ message: "Failed to add director staff" });
+    }
+  });
+
+  app.get("/api/director/staff", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const staff = await storage.getDirectorStaff(userId);
+      return res.json(staff);
+    } catch (error) {
+      console.error("Error getting director staff:", error);
+      return res.status(500).json({ message: "Failed to get director staff" });
+    }
+  });
+
+  app.post("/api/admin/director-staff/:id/approve", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const { id } = req.params;
+
+      await storage.updateDirectorStaffStatus(parseInt(id), {
+        status: "approved",
+        approvedByAdmin: true,
+        approvedBy: adminUserId,
+      });
+
+      await storage.createDirectorActionLog({
+        actorId: adminUserId,
+        actorRole: "admin",
+        action: "approve_staff",
+        targetType: "staff",
+        targetId: id,
+        beforeState: JSON.stringify({ status: "pending" }),
+        afterState: JSON.stringify({ status: "approved" }),
+        metadata: null,
+      });
+
+      return res.json({ message: "Staff approved" });
+    } catch (error) {
+      console.error("Error approving director staff:", error);
+      return res.status(500).json({ message: "Failed to approve director staff" });
+    }
+  });
+
+  app.post("/api/admin/director-staff/:id/reject", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      await storage.updateDirectorStaffStatus(parseInt(id), { status: "rejected" });
+      return res.json({ message: "Staff rejected" });
+    } catch (error) {
+      console.error("Error rejecting director staff:", error);
+      return res.status(500).json({ message: "Failed to reject director staff" });
+    }
+  });
+
+  app.delete("/api/director/staff/:id", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { id } = req.params;
+
+      const staff = await storage.getDirectorStaffById(parseInt(id));
+      if (!staff || staff.directorUserId !== userId) {
+        return res.status(403).json({ message: "Staff does not belong to this director" });
+      }
+
+      await storage.removeDirectorStaff(parseInt(id));
+
+      await storage.createDirectorActionLog({
+        actorId: userId,
+        actorRole: "director",
+        action: "remove_staff",
+        targetType: "staff",
+        targetId: id,
+        beforeState: JSON.stringify({ staffUserId: staff.staffUserId, staffRole: staff.staffRole }),
+        afterState: null,
+        metadata: null,
+      });
+
+      return res.json({ message: "Staff removed" });
+    } catch (error) {
+      console.error("Error removing director staff:", error);
+      return res.status(500).json({ message: "Failed to remove director staff" });
+    }
+  });
+
+  app.get("/api/admin/director-staff/pending", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const pendingStaff = await storage.getAllPendingDirectorStaff();
+      return res.json(pendingStaff);
+    } catch (error) {
+      console.error("Error getting pending director staff:", error);
+      return res.status(500).json({ message: "Failed to get pending director staff" });
+    }
+  });
+
+  app.get("/api/admin/director-action-logs", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { actorId, targetId, action, limit } = req.query;
+      const filters: any = {};
+      if (actorId) filters.actorId = actorId;
+      if (targetId) filters.targetId = targetId;
+      if (action) filters.action = action;
+
+      const logs = await storage.getDirectorActionLogs(filters, limit ? parseInt(limit as string) : undefined);
+      return res.json(logs);
+    } catch (error) {
+      console.error("Error getting director action logs:", error);
+      return res.status(500).json({ message: "Failed to get director action logs" });
+    }
+  });
+
+  app.get("/api/director/action-logs", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const logs = await storage.getDirectorActionLogs({ actorId: userId });
+      return res.json(logs);
+    } catch (error) {
+      console.error("Error getting director action logs:", error);
+      return res.status(500).json({ message: "Failed to get director action logs" });
+    }
+  });
+
+  app.get("/api/director/coaching", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const logs = await storage.getDirectorCoachingLogs(userId);
+      return res.json(logs);
+    } catch (error) {
+      console.error("Error getting director coaching logs:", error);
+      return res.status(500).json({ message: "Failed to get director coaching logs" });
+    }
+  });
+
+  app.post("/api/director/coaching/:id/dismiss", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      await storage.dismissDirectorCoachingLog(parseInt(id));
+      return res.json({ message: "Coaching log dismissed" });
+    } catch (error) {
+      console.error("Error dismissing coaching log:", error);
+      return res.status(500).json({ message: "Failed to dismiss coaching log" });
+    }
+  });
+
+  app.post("/api/director/coaching/generate", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const profile = await storage.getDirectorProfile(userId);
+      if (!profile) {
+        return res.status(404).json({ message: "Director profile not found" });
+      }
+
+      const metrics = await storage.getDirectorDailyMetrics(userId);
+      const generated: any[] = [];
+
+      if (metrics.totalDrivers > 0 && metrics.activeDriversToday / metrics.totalDrivers < 0.5) {
+        const log = await storage.createDirectorCoachingLog({
+          directorUserId: userId,
+          coachingType: "low_activity",
+          message: "Less than half of your drivers were active today. Consider reaching out to inactive drivers to boost engagement.",
+          severity: "warning",
+        });
+        generated.push(log);
+      }
+
+      if (metrics.totalDrivers > 0 && metrics.suspendedDrivers / metrics.totalDrivers > 0.3) {
+        const log = await storage.createDirectorCoachingLog({
+          directorUserId: userId,
+          coachingType: "high_suspensions",
+          message: "A significant portion of your drivers are suspended. Review their cases and work on compliance to reduce suspensions.",
+          severity: "warning",
+        });
+        generated.push(log);
+      }
+
+      if (profile.lifespanEndDate) {
+        const now = new Date();
+        const end = new Date(profile.lifespanEndDate);
+        const daysLeft = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        if (daysLeft <= 14 && daysLeft > 0) {
+          const log = await storage.createDirectorCoachingLog({
+            directorUserId: userId,
+            coachingType: "lifespan_expiry",
+            message: `Your contract expires in ${daysLeft} days. Contact administration for renewal.`,
+            severity: "critical",
+          });
+          generated.push(log);
+        }
+      }
+
+      const maxCellSize = profile.maxCellSize || 1300;
+      if (maxCellSize > 0 && metrics.totalDrivers / maxCellSize > 0.9) {
+        const log = await storage.createDirectorCoachingLog({
+          directorUserId: userId,
+          coachingType: "approaching_capacity",
+          message: "You are approaching your maximum driver capacity. Consider optimizing your cell structure or requesting a capacity increase.",
+          severity: "info",
+        });
+        generated.push(log);
+      }
+
+      return res.json(generated);
+    } catch (error) {
+      console.error("Error generating coaching prompts:", error);
+      return res.status(500).json({ message: "Failed to generate coaching prompts" });
+    }
+  });
+
+  app.post("/api/admin/directors/:directorUserId/coaching/send", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const { directorUserId } = req.params;
+      const { coachingType, message, severity } = req.body;
+
+      if (!coachingType || !message) {
+        return res.status(400).json({ message: "coachingType and message are required" });
+      }
+
+      const log = await storage.createDirectorCoachingLog({
+        directorUserId,
+        coachingType,
+        message,
+        severity: severity || "info",
+      });
+
+      await storage.createDirectorActionLog({
+        actorId: adminUserId,
+        actorRole: "admin",
+        action: "send_coaching",
+        targetType: "director",
+        targetId: directorUserId,
+        beforeState: null,
+        afterState: JSON.stringify({ coachingType, message, severity }),
+        metadata: null,
+      });
+
+      return res.json(log);
+    } catch (error) {
+      console.error("Error sending coaching prompt:", error);
+      return res.status(500).json({ message: "Failed to send coaching prompt" });
+    }
+  });
+
   app.get("/api/training/modules/:role", isAuthenticated, async (req: any, res) => {
     try {
       const { role } = req.params;
