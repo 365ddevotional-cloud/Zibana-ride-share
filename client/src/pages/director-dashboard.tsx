@@ -140,6 +140,31 @@ function statusVariant(status: string): "default" | "secondary" | "destructive" 
   }
 }
 
+const PAYOUT_STATE_LABELS: Record<string, string> = {
+  calculating: "Calculating",
+  pending_review: "Under Review",
+  approved: "Approved",
+  scheduled: "Scheduled",
+  released: "Released",
+  held: "On Hold",
+  reversed: "Reversed",
+};
+
+function payoutStateVariant(state: string): "default" | "secondary" | "destructive" | "outline" {
+  switch (state) {
+    case "released":
+      return "default";
+    case "held":
+    case "reversed":
+      return "destructive";
+    case "approved":
+    case "scheduled":
+      return "outline";
+    default:
+      return "secondary";
+  }
+}
+
 function driverStatusVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
   switch (status?.toLowerCase()) {
     case "active":
@@ -698,6 +723,73 @@ function FundDriverDialog({
   );
 }
 
+function DisputeSection({ disputeablePayouts }: { disputeablePayouts: Array<{ id: string; periodDate: string; payoutState: string; estimatedEarnings: string }> }) {
+  const { toast } = useToast();
+  const [explanations, setExplanations] = useState<Record<string, string>>({});
+  const [submittingId, setSubmittingId] = useState<string | null>(null);
+
+  const disputeMutation = useMutation({
+    mutationFn: async ({ payoutId, explanation }: { payoutId: string; explanation: string }) => {
+      setSubmittingId(payoutId);
+      await apiRequest("POST", `/api/director/payout/${payoutId}/dispute`, { explanation });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/director/earnings"] });
+      toast({ title: "Explanation Submitted", description: "Your explanation has been submitted for review." });
+      setSubmittingId(null);
+    },
+    onError: (err: Error) => {
+      toast({ title: "Submission Failed", description: err.message, variant: "destructive" });
+      setSubmittingId(null);
+    },
+  });
+
+  return (
+    <Card data-testid="card-dispute-section">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Shield className="h-4 w-4" />
+          Submit Explanation
+        </CardTitle>
+        <CardDescription>Provide context for payouts under review</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {disputeablePayouts.map((payout) => (
+          <div key={payout.id} className="space-y-2 p-3 rounded-md border" data-testid={`dispute-payout-${payout.id}`}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium" data-testid={`text-dispute-period-${payout.id}`}>
+                  {formatDate(payout.periodDate)}
+                </span>
+                <Badge variant={payoutStateVariant(payout.payoutState)} data-testid={`badge-dispute-state-${payout.id}`}>
+                  {PAYOUT_STATE_LABELS[payout.payoutState] || payout.payoutState}
+                </Badge>
+              </div>
+              <span className="text-sm text-muted-foreground" data-testid={`text-dispute-amount-${payout.id}`}>
+                Est. {parseFloat(payout.estimatedEarnings) > 0 ? parseFloat(payout.estimatedEarnings).toFixed(0) : "---"}
+              </span>
+            </div>
+            <Textarea
+              placeholder="Provide your explanation..."
+              value={explanations[payout.id] || ""}
+              onChange={(e) => setExplanations((prev) => ({ ...prev, [payout.id]: e.target.value }))}
+              data-testid={`textarea-dispute-${payout.id}`}
+            />
+            <Button
+              variant="outline"
+              onClick={() => disputeMutation.mutate({ payoutId: payout.id, explanation: explanations[payout.id] || "" })}
+              disabled={(explanations[payout.id] || "").length < 5 || (submittingId === payout.id && disputeMutation.isPending)}
+              data-testid={`button-dispute-submit-${payout.id}`}
+            >
+              {submittingId === payout.id && disputeMutation.isPending ? "Submitting..." : "Submit Explanation"}
+            </Button>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function DirectorDashboard() {
   const { toast } = useToast();
   const [location] = useLocation();
@@ -776,9 +868,15 @@ export default function DirectorDashboard() {
     eligibleDrivers: number;
     estimatedEarnings: string;
     payoutStatus: string;
+    payoutState: string;
+    lastPayoutDate: string | null;
+    heldCount: number;
+    holdNotice: string | null;
     commissionFrozen: boolean;
     lifecycleStatus: string;
     history: Array<{ date: string; activeDrivers: number; commissionableDrivers: number; payoutStatus: string }>;
+    disputeablePayouts: Array<{ id: string; periodDate: string; payoutState: string; estimatedEarnings: string }>;
+    payouts: Array<{ id: string; periodDate: string; payoutState: string; payoutStatus: string; estimatedEarnings: string; partialReleaseAmount: string | null; releasedAt: string | null; disputeSubmitted: boolean }>;
     legalDisclaimer: string;
   }>({
     queryKey: ["/api/director/earnings"],
@@ -1723,7 +1821,7 @@ export default function DirectorDashboard() {
             <div className="py-8 text-center text-muted-foreground" data-testid="text-earnings-loading">Loading earnings data...</div>
           ) : earningsData ? (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <Card data-testid="card-active-drivers-today">
                   <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Active Drivers Today</CardTitle>
@@ -1771,23 +1869,47 @@ export default function DirectorDashboard() {
                   </CardHeader>
                   <CardContent>
                     <Badge
-                      variant={
-                        earningsData.payoutStatus === "released" ? "default"
-                        : earningsData.payoutStatus === "on_hold" ? "destructive"
-                        : "secondary"
-                      }
+                      variant={payoutStateVariant(earningsData.payoutState || earningsData.payoutStatus)}
                       data-testid="badge-payout-status"
                     >
-                      {earningsData.payoutStatus === "released" ? "Released"
-                       : earningsData.payoutStatus === "on_hold" ? "On Hold"
-                       : "Pending"}
+                      {PAYOUT_STATE_LABELS[earningsData.payoutState] || earningsData.payoutState || earningsData.payoutStatus || "Pending"}
                     </Badge>
                     {earningsData.commissionFrozen && (
                       <p className="text-xs text-destructive mt-1">Commissions frozen</p>
                     )}
                   </CardContent>
                 </Card>
+                <Card data-testid="card-last-payout">
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Last Payout</CardTitle>
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold" data-testid="text-last-payout-date">
+                      {earningsData.lastPayoutDate ? formatDate(earningsData.lastPayoutDate) : "---"}
+                    </div>
+                    <p className="text-xs text-muted-foreground" data-testid="text-last-payout-label">
+                      {earningsData.lastPayoutDate ? "Most recent payout" : "No payouts yet"}
+                    </p>
+                  </CardContent>
+                </Card>
               </div>
+
+              {earningsData.holdNotice && (
+                <Card className="border-yellow-500/50" data-testid="card-hold-notice">
+                  <CardContent className="flex items-start gap-3 p-4">
+                    <AlertTriangle className="h-5 w-5 text-yellow-500 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium" data-testid="text-hold-notice">{earningsData.holdNotice}</p>
+                      {earningsData.heldCount > 0 && (
+                        <p className="text-xs text-muted-foreground mt-1" data-testid="text-held-count">
+                          {earningsData.heldCount} payout{earningsData.heldCount !== 1 ? "s" : ""} currently held
+                        </p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               {earningsData.history && earningsData.history.length > 0 && (
                 <Card data-testid="card-earnings-history">
@@ -1817,16 +1939,10 @@ export default function DirectorDashboard() {
                               <TableCell data-testid={`text-earnings-comm-${i}`}>{row.commissionableDrivers}</TableCell>
                               <TableCell>
                                 <Badge
-                                  variant={
-                                    row.payoutStatus === "released" ? "default"
-                                    : row.payoutStatus === "on_hold" ? "destructive"
-                                    : "secondary"
-                                  }
+                                  variant={payoutStateVariant(row.payoutStatus)}
                                   data-testid={`badge-earnings-status-${i}`}
                                 >
-                                  {row.payoutStatus === "released" ? "Released"
-                                   : row.payoutStatus === "on_hold" ? "On Hold"
-                                   : "Pending"}
+                                  {PAYOUT_STATE_LABELS[row.payoutStatus] || row.payoutStatus || "Pending"}
                                 </Badge>
                               </TableCell>
                             </TableRow>
@@ -1838,7 +1954,62 @@ export default function DirectorDashboard() {
                 </Card>
               )}
 
-              {earningsData.history?.length === 0 && (
+              {earningsData.payouts && earningsData.payouts.length > 0 && (
+                <Card data-testid="card-payout-history">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <History className="h-4 w-4" />
+                      Payout History
+                    </CardTitle>
+                    <CardDescription>Detailed payout records</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Period</TableHead>
+                            <TableHead>State</TableHead>
+                            <TableHead>Amount</TableHead>
+                            <TableHead>Partial</TableHead>
+                            <TableHead>Released Date</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {earningsData.payouts.map((payout, i) => (
+                            <TableRow key={payout.id} data-testid={`row-payout-${i}`}>
+                              <TableCell data-testid={`text-payout-period-${i}`}>{formatDate(payout.periodDate)}</TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant={payoutStateVariant(payout.payoutState)}
+                                  data-testid={`badge-payout-state-${i}`}
+                                >
+                                  {PAYOUT_STATE_LABELS[payout.payoutState] || payout.payoutState}
+                                </Badge>
+                              </TableCell>
+                              <TableCell data-testid={`text-payout-amount-${i}`}>
+                                {parseFloat(payout.estimatedEarnings) > 0 ? parseFloat(payout.estimatedEarnings).toFixed(0) : "---"}
+                              </TableCell>
+                              <TableCell data-testid={`text-payout-partial-${i}`}>
+                                {payout.partialReleaseAmount ? parseFloat(payout.partialReleaseAmount).toFixed(0) : "---"}
+                              </TableCell>
+                              <TableCell data-testid={`text-payout-released-${i}`}>
+                                {payout.releasedAt ? formatDate(payout.releasedAt) : "---"}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {earningsData.disputeablePayouts && earningsData.disputeablePayouts.length > 0 && (
+                <DisputeSection disputeablePayouts={earningsData.disputeablePayouts} />
+              )}
+
+              {earningsData.history?.length === 0 && (!earningsData.payouts || earningsData.payouts.length === 0) && (
                 <Card>
                   <CardContent className="py-8 text-center text-muted-foreground">
                     <DollarSign className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
