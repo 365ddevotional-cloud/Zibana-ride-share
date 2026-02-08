@@ -4,12 +4,15 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Bell, Shield, Globe, Palette } from "lucide-react";
+import { ArrowLeft, Bell, Shield, Globe, Palette, ChevronRight } from "lucide-react";
 import { useLocation } from "wouter";
+import { useTranslation, LANGUAGES } from "@/i18n";
 
 export default function SettingsPage() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
+  const { t, language } = useTranslation();
+  const currentLang = LANGUAGES.find((l) => l.code === language);
 
   const { data: userRole } = useQuery<{ role: string } | null>({
     queryKey: ["/api/user/role"],
@@ -95,7 +98,16 @@ export default function SettingsPage() {
           </CardHeader>
         </Card>
 
-        <Card>
+        <Card className="cursor-pointer hover-elevate" onClick={() => {
+          const role = userRole?.role;
+          if (role === "admin" || role === "super_admin" || role === "director" || role === "finance") {
+            navigate("/admin/settings/language");
+          } else if (role === "driver") {
+            navigate("/driver/settings/language");
+          } else {
+            navigate("/rider/settings/language");
+          }
+        }} data-testid="card-language-settings">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Globe className="h-5 w-5" />
@@ -104,7 +116,10 @@ export default function SettingsPage() {
             <CardDescription>Set your preferred language and region</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">English (Nigeria)</p>
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">{currentLang ? `${currentLang.nativeName} (${currentLang.name})` : "English"}</p>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </div>
           </CardContent>
         </Card>
       </main>

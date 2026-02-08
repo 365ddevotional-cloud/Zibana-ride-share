@@ -41,6 +41,7 @@ const AppearancePage = lazy(() => import("@/pages/settings/appearance"));
 
 const AdminDashboard = lazy(() => import("@/pages/admin/index"));
 const ApprovalsPage = lazy(() => import("@/pages/admin/approvals"));
+const AdminLanguagePage = lazy(() => import("@/pages/admin/language"));
 
 const DriverDashboard = lazy(() => import("@/pages/driver/dashboard"));
 const DriverTripsPage = lazy(() => import("@/pages/driver/trips"));
@@ -384,6 +385,9 @@ function AdminRouter() {
       </Route>
       <Route path="/admin/profile">
         <LazyComponent><ProfilePage /></LazyComponent>
+      </Route>
+      <Route path="/admin/settings/language">
+        <LazyComponent><AdminLanguagePage /></LazyComponent>
       </Route>
       <Route path="/admin/settings">
         <LazyComponent><SettingsPage /></LazyComponent>
