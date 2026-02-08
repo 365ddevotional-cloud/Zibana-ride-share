@@ -1739,6 +1739,62 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
   },
 
   {
+    id: "d-perf-score-meaning",
+    role: "director",
+    category: "director_performance",
+    keywords: ["performance score", "my score", "what is my score", "DPS", "score meaning", "how scored"],
+    response: "Your Director Performance Score (DPS) is a 0-100 rating based on five components: driver activity, driver quality, driver retention, compliance & safety, and admin feedback. It is recalculated periodically and determines your performance tier. This score is informational and does not guarantee income or status.",
+    priority: 85
+  },
+  {
+    id: "d-perf-tier-explain",
+    role: "director",
+    category: "director_performance",
+    keywords: ["tier", "gold", "silver", "bronze", "at risk", "my tier", "performance tier"],
+    response: "Performance tiers are assigned based on your score: Gold (85-100), Silver (70-84), Bronze (55-69), and At-Risk (below 55). Higher tiers may unlock discretionary benefits like expanded caps. Tiers are informational and do not constitute guarantees of any kind. ZIBA retains full discretion over tier-related decisions.",
+    priority: 85
+  },
+  {
+    id: "d-perf-improve",
+    role: "director",
+    category: "director_performance",
+    keywords: ["improve score", "raise score", "better score", "increase score", "how to improve"],
+    response: "To improve your performance score, focus on:\n1. Keeping drivers active and engaged daily\n2. Maintaining high driver trust scores\n3. Reducing driver suspensions and churn\n4. Addressing compliance flags promptly\n5. Responding to admin feedback constructively\n\nConsistent quality management is more effective than short-term boosts.",
+    priority: 80
+  },
+  {
+    id: "d-perf-score-dropped",
+    role: "director",
+    category: "director_performance",
+    keywords: ["score dropped", "score went down", "lower score", "why did score drop", "score decrease"],
+    response: "Score changes reflect shifts in your operational metrics over the most recent period. Common factors include reduced driver activity, increased suspensions, or new compliance flags. Review the component breakdown on your Performance tab for specific areas. Scores fluctuate naturally and a single drop does not indicate a permanent trend.",
+    priority: 85
+  },
+  {
+    id: "d-perf-incentive",
+    role: "director",
+    category: "director_performance",
+    keywords: ["incentive", "reward", "bonus", "benefit", "perk", "what do I get"],
+    response: "Incentives are discretionary recognitions that may be granted based on sustained performance. They can include temporary cap increases, priority access, or visibility boosts. Incentives are not guaranteed, not cash-based, and may be adjusted or revoked at any time. They do not constitute employment benefits or contractual obligations.",
+    priority: 80
+  },
+  {
+    id: "d-perf-restriction",
+    role: "director",
+    category: "director_performance",
+    keywords: ["restriction", "restricted", "frozen", "can't add drivers", "limited", "why restricted"],
+    response: "Restrictions are protective measures applied when performance falls below thresholds. They may include pausing new driver activations or requiring admin review. Restrictions are lifted automatically when your score improves above the threshold, or manually by an administrator after review. Focus on the improvement areas highlighted in your Performance tab.",
+    priority: 85
+  },
+  {
+    id: "d-perf-at-risk",
+    role: "director",
+    category: "director_performance",
+    keywords: ["at risk", "at-risk", "below threshold", "poor performance", "will I be terminated"],
+    response: "An At-Risk status means your performance metrics need attention. This is an opportunity to improve, not a penalty. Review your driver activity, quality, and compliance metrics. ZIBA provides guidance and time to address performance gaps. The platform retains discretion over all operational decisions.",
+    priority: 90
+  },
+  {
     id: "x-general-help",
     role: ["rider", "driver", "admin", "super_admin", "director", "general"],
     category: "general_help",
