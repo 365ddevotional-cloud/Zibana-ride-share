@@ -1,0 +1,165 @@
+You are implementing DIRECTOR TERMINATION, SUCCESSION, AND CELL CONTINUITY
+for the ZIBA platform.
+
+OBJECTIVE:
+Ensure Directors (Contract & Employee) can be suspended, terminated, or replaced
+without disrupting drivers, earnings, safety, or platform stability,
+while maintaining full legal protection and auditability.
+
+DO NOT delete historical data.
+DO NOT penalize drivers for Director issues.
+DO NOT expose internal calculations.
+Admin and Super Admin retain absolute authority.
+
+=====================================================
+PHASE 1 — TERMINATION TYPES
+=====================================================
+
+1) TERMINATION MODES
+A) EXPIRATION
+- Contract end date reached
+- No automatic renewal
+- Requires Super Admin action to extend
+
+B) SUSPENSION
+- Temporary
+- Triggered by:
+  - Compliance review
+  - Fraud investigation
+  - Performance failure
+- Director dashboard locked (read-only)
+
+C) TERMINATION
+- Permanent removal
+- Triggered by:
+  - Confirmed fraud
+  - Repeated violations
+  - Admin/Super Admin decision
+
+=====================================================
+PHASE 2 — TERMINATION EFFECTS
+=====================================================
+
+2) IMMEDIATE SYSTEM ACTIONS
+When Director status ≠ Active:
+- Disable:
+  - Driver activation
+  - Funding drivers
+  - Staff management
+- Freeze payouts (pending review)
+- Dashboard becomes read-only
+
+=====================================================
+PHASE 3 — DRIVER PROTECTION (CRITICAL)
+=====================================================
+
+3) DRIVER HANDLING RULES
+- Drivers remain ACTIVE
+- No earnings impact
+- No account flags
+- Drivers receive neutral message:
+  “Your Director assignment has been updated.”
+
+Admin decides:
+- Temporary unassigned state
+- Reassignment to new Director
+- Platform-managed state
+
+=====================================================
+PHASE 4 — SUCCESSION LOGIC
+=====================================================
+
+4) SUCCESSION OPTIONS (ADMIN / SUPER ADMIN)
+- Assign drivers to:
+  A) Another existing Director
+  B) Newly appointed Director
+  C) Platform-managed pool
+
+Rules:
+- No automatic succession
+- No driver consent required
+- Full audit trail required
+
+=====================================================
+PHASE 5 — STAFF HANDLING
+=====================================================
+
+5) DIRECTOR STAFF
+- All Director staff accounts:
+  - Immediately disabled
+  - Cannot log in
+  - Data preserved
+- Staff must be rehired under new Director if needed
+
+=====================================================
+PHASE 6 — PAYOUT WIND-DOWN
+=====================================================
+
+6) PAYOUT PROCESS
+- Calculate final eligible payouts
+- Apply all caps & compliance rules
+- Admin / Super Admin decides:
+  - Release
+  - Hold
+  - Partial release
+  - Forfeit (with reason)
+
+Director notified with neutral language only.
+
+=====================================================
+PHASE 7 — ZIBRA ROLE
+=====================================================
+
+7) ZIBRA MONITORING & GUIDANCE
+ZIBRA must:
+- Detect termination triggers early
+- Warn Admin/Super Admin
+- Prepare succession summary:
+  - Driver counts
+  - Performance history
+  - Compliance risks
+
+ZIBRA must NEVER:
+- Inform drivers prematurely
+- Promise reinstatement
+- Auto-reassign drivers
+
+=====================================================
+PHASE 8 — AUDIT & LOGGING
+=====================================================
+
+8) LOG EVERYTHING
+Log:
+- Termination type
+- Reason
+- Actor
+- Timestamp
+- Drivers affected
+- Payout decisions
+
+Logs immutable.
+Visible to Admin & Super Admin.
+
+=====================================================
+PHASE 9 — LEGAL SAFETY
+=====================================================
+
+9) TERMS INSERT
+“Director appointments are facilitation roles subject to review,
+suspension, expiration, or termination at ZIBA’s discretion.
+No continuity, income, or renewal is guaranteed.”
+
+=====================================================
+FINAL CONFIRMATION
+=====================================================
+
+Confirm:
+✔ Directors can be safely terminated
+✔ Drivers unaffected
+✔ Data preserved
+✔ Admin/Super Admin control intact
+✔ No legal exposure
+✔ ZIBRA oversight active
+
+Proceed step-by-step.
+Confirm each phase before completion.

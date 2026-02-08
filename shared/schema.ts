@@ -5414,6 +5414,102 @@ export const directorWindDowns = pgTable("director_wind_downs", {
   status: varchar("status", { length: 20 }).notNull().default("in_progress"),
 });
 
+export const directorPerformanceTierEnum = pgEnum("director_performance_tier", [
+  "gold", "silver", "bronze", "at_risk"
+]);
+
+export const directorPerformanceScores = pgTable("director_performance_scores", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  directorUserId: varchar("director_user_id").notNull(),
+  score: integer("score").notNull().default(0),
+  tier: directorPerformanceTierEnum("tier").notNull().default("bronze"),
+  driverActivityScore: integer("driver_activity_score").notNull().default(0),
+  driverQualityScore: integer("driver_quality_score").notNull().default(0),
+  driverRetentionScore: integer("driver_retention_score").notNull().default(0),
+  complianceSafetyScore: integer("compliance_safety_score").notNull().default(0),
+  adminFeedbackScore: integer("admin_feedback_score").notNull().default(0),
+  calculatedAt: timestamp("calculated_at").defaultNow().notNull(),
+  periodStart: timestamp("period_start").notNull(),
+  periodEnd: timestamp("period_end").notNull(),
+});
+
+export const insertDirectorPerformanceScoreSchema = createInsertSchema(directorPerformanceScores).omit({ id: true, calculatedAt: true });
+export type DirectorPerformanceScore = typeof directorPerformanceScores.$inferSelect;
+
+export const directorPerformanceWeights = pgTable("director_performance_weights", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  driverActivityWeight: integer("driver_activity_weight").notNull().default(30),
+  driverQualityWeight: integer("driver_quality_weight").notNull().default(25),
+  driverRetentionWeight: integer("driver_retention_weight").notNull().default(20),
+  complianceSafetyWeight: integer("compliance_safety_weight").notNull().default(15),
+  adminFeedbackWeight: integer("admin_feedback_weight").notNull().default(10),
+  goldThreshold: integer("gold_threshold").notNull().default(85),
+  silverThreshold: integer("silver_threshold").notNull().default(70),
+  bronzeThreshold: integer("bronze_threshold").notNull().default(55),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  updatedBy: varchar("updated_by"),
+});
+
+export type DirectorPerformanceWeights = typeof directorPerformanceWeights.$inferSelect;
+
+export const directorIncentiveTypeEnum = pgEnum("director_incentive_type", [
+  "increased_driver_cap", "priority_leads", "reduced_funding_restrictions", "visibility_boost"
+]);
+
+export const directorIncentives = pgTable("director_incentives", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  directorUserId: varchar("director_user_id").notNull(),
+  incentiveType: directorIncentiveTypeEnum("incentive_type").notNull(),
+  description: text("description").notNull(),
+  appliedAt: timestamp("applied_at").defaultNow().notNull(),
+  expiresAt: timestamp("expires_at"),
+  isActive: boolean("is_active").notNull().default(true),
+  triggeredByScore: integer("triggered_by_score"),
+  triggeredByTier: directorPerformanceTierEnum("triggered_by_tier"),
+  revokedAt: timestamp("revoked_at"),
+  revokedBy: varchar("revoked_by"),
+  revokeReason: text("revoke_reason"),
+});
+
+export const insertDirectorIncentiveSchema = createInsertSchema(directorIncentives).omit({ id: true, appliedAt: true, revokedAt: true });
+export type DirectorIncentive = typeof directorIncentives.$inferSelect;
+
+export const directorRestrictionTypeEnum = pgEnum("director_restriction_type", [
+  "freeze_new_drivers", "reduced_funding_limits", "admin_review_required", "growth_paused"
+]);
+
+export const directorRestrictions = pgTable("director_restrictions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  directorUserId: varchar("director_user_id").notNull(),
+  restrictionType: directorRestrictionTypeEnum("restriction_type").notNull(),
+  description: text("description").notNull(),
+  appliedAt: timestamp("applied_at").defaultNow().notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+  triggeredByScore: integer("triggered_by_score"),
+  triggeredByTier: directorPerformanceTierEnum("triggered_by_tier"),
+  liftedAt: timestamp("lifted_at"),
+  liftedBy: varchar("lifted_by"),
+  liftReason: text("lift_reason"),
+});
+
+export const insertDirectorRestrictionSchema = createInsertSchema(directorRestrictions).omit({ id: true, appliedAt: true, liftedAt: true });
+export type DirectorRestriction = typeof directorRestrictions.$inferSelect;
+
+export const directorPerformanceLogs = pgTable("director_performance_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  directorUserId: varchar("director_user_id").notNull(),
+  action: varchar("action", { length: 50 }).notNull(),
+  previousScore: integer("previous_score"),
+  newScore: integer("new_score"),
+  previousTier: varchar("previous_tier", { length: 20 }),
+  newTier: varchar("new_tier", { length: 20 }),
+  details: text("details"),
+  performedBy: varchar("performed_by").notNull().default("system"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type DirectorPerformanceLog = typeof directorPerformanceLogs.$inferSelect;
+
 export const welcomeAnalytics = pgTable("welcome_analytics", {
   id: serial("id").primaryKey(),
   sessionId: varchar("session_id", { length: 64 }).notNull(),
