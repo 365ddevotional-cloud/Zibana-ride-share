@@ -1044,6 +1044,7 @@ export default function DirectorDashboard() {
   const isExpired = dashboard.profile?.lifecycleStatus === "expired";
   const isTerminated = dashboard.profile?.lifecycleStatus === "terminated";
   const isDashboardLocked = isSuspended || isTerminated;
+  const isReadOnly = ["suspended", "terminated", "expired"].includes(dashboard.profile?.lifecycleStatus);
 
   const { profile, lifespan, cells, metrics, staff, coaching, actionLogs, trustScoreSummary } = dashboard;
   const activeCoaching = coaching?.filter((c) => !c.isDismissed) ?? [];
@@ -1116,36 +1117,55 @@ export default function DirectorDashboard() {
         </div>
       </div>
 
-      {isDashboardLocked && (
-        <Card className="border-destructive" data-testid="card-dashboard-locked">
-          <CardContent className="flex items-center gap-3 p-4">
-            <Ban className="h-5 w-5 text-destructive shrink-0" />
-            <div>
-              <p className="font-medium text-destructive" data-testid="text-locked-title">
-                {isTerminated ? "Director Appointment Terminated" : "Director Account Suspended"}
-              </p>
-              <p className="text-sm text-muted-foreground" data-testid="text-locked-message">
-                {isTerminated
-                  ? "Your director appointment has been terminated. Access has been revoked. Contact support for more information."
-                  : "Your director account is currently suspended. Dashboard actions are disabled pending review. You may submit an appeal through support."}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+      {isSuspended && (
+        <div
+          className="flex items-center gap-3 p-4 rounded-md border border-yellow-500/50 bg-yellow-500/5"
+          data-testid="banner-readonly-suspended"
+        >
+          <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 shrink-0" />
+          <div>
+            <p className="font-medium text-yellow-700 dark:text-yellow-300" data-testid="text-readonly-title-suspended">
+              Read-Only Mode
+            </p>
+            <p className="text-sm text-muted-foreground" data-testid="text-readonly-message-suspended">
+              Your dashboard is in read-only mode while under review. You can view your information but cannot take actions.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {isTerminated && (
+        <div
+          className="flex items-center gap-3 p-4 rounded-md border border-destructive/50 bg-destructive/5"
+          data-testid="banner-readonly-terminated"
+        >
+          <Ban className="h-5 w-5 text-destructive shrink-0" />
+          <div>
+            <p className="font-medium text-destructive" data-testid="text-readonly-title-terminated">
+              Read-Only Mode
+            </p>
+            <p className="text-sm text-muted-foreground" data-testid="text-readonly-message-terminated">
+              Your director appointment has been concluded. Your dashboard is in read-only mode. Contact support for questions.
+            </p>
+          </div>
+        </div>
       )}
 
       {isExpired && (
-        <Card className="border-yellow-500/50" data-testid="card-dashboard-expired">
-          <CardContent className="flex items-center gap-3 p-4">
-            <Clock className="h-5 w-5 text-yellow-500 shrink-0" />
-            <div>
-              <p className="font-medium" data-testid="text-expired-title">Contract Expired</p>
-              <p className="text-sm text-muted-foreground" data-testid="text-expired-message">
-                Your director contract has expired. The dashboard is in read-only mode. Contact your administrator for renewal.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        <div
+          className="flex items-center gap-3 p-4 rounded-md border border-muted bg-muted/30"
+          data-testid="banner-readonly-expired"
+        >
+          <Clock className="h-5 w-5 text-muted-foreground shrink-0" />
+          <div>
+            <p className="font-medium" data-testid="text-readonly-title-expired">
+              Read-Only Mode
+            </p>
+            <p className="text-sm text-muted-foreground" data-testid="text-readonly-message-expired">
+              Your contract has expired. Your dashboard is in read-only mode. Contact your administrator for renewal.
+            </p>
+          </div>
+        </div>
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -1410,7 +1430,7 @@ export default function DirectorDashboard() {
                   size="sm"
                   variant="outline"
                   onClick={() => generateMutation.mutate()}
-                  disabled={generateMutation.isPending}
+                  disabled={isReadOnly || generateMutation.isPending}
                   data-testid="button-generate-coaching"
                 >
                   <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${generateMutation.isPending ? "animate-spin" : ""}`} />
@@ -1435,7 +1455,7 @@ export default function DirectorDashboard() {
                           <p className="text-sm">{item.message}</p>
                         </div>
                       </div>
-                      <Button size="icon" variant="ghost" onClick={() => dismissMutation.mutate(item.id)} disabled={dismissMutation.isPending} data-testid={`button-dismiss-coaching-${item.id}`}>
+                      <Button size="icon" variant="ghost" onClick={() => dismissMutation.mutate(item.id)} disabled={isReadOnly || dismissMutation.isPending} data-testid={`button-dismiss-coaching-${item.id}`}>
                         <X className="h-4 w-4" />
                       </Button>
                     </div>
@@ -1630,7 +1650,7 @@ export default function DirectorDashboard() {
                         <Button
                           size="sm"
                           onClick={() => handleFundDriver(driver)}
-                          disabled={suspensionStatus?.suspended}
+                          disabled={isReadOnly || suspensionStatus?.suspended}
                           data-testid={`button-fund-driver-${driver.userId}`}
                         >
                           <Wallet className="h-3.5 w-3.5 mr-1.5" />
@@ -1641,6 +1661,7 @@ export default function DirectorDashboard() {
                           variant="outline"
                           className="border-yellow-500/50 text-yellow-600 dark:text-yellow-400"
                           onClick={() => handleDiscipline(driver, "warn")}
+                          disabled={isReadOnly}
                           data-testid={`button-warn-driver-${driver.userId}`}
                         >
                           <AlertTriangle className="h-3.5 w-3.5 mr-1.5" />
@@ -1650,6 +1671,7 @@ export default function DirectorDashboard() {
                           size="sm"
                           variant="destructive"
                           onClick={() => handleDiscipline(driver, "suspend")}
+                          disabled={isReadOnly}
                           data-testid={`button-suspend-driver-${driver.userId}`}
                         >
                           <Ban className="h-3.5 w-3.5 mr-1.5" />
@@ -1682,7 +1704,7 @@ export default function DirectorDashboard() {
                   <p><strong>Limitation of Liability:</strong> ZIBA facilitates wallet transfers and does not assume responsibility for agreements, expectations, or disputes arising from voluntary support.</p>
                   <p><strong>Platform Role:</strong> ZIBA is not an employer, lender, or guarantor. Directors act independently within platform rules.</p>
                 </div>
-                <Button onClick={() => acceptMutation.mutate()} disabled={acceptMutation.isPending} data-testid="button-accept-terms">
+                <Button onClick={() => acceptMutation.mutate()} disabled={isReadOnly || acceptMutation.isPending} data-testid="button-accept-terms">
                   {acceptMutation.isPending ? "Accepting..." : "I Accept These Terms"}
                 </Button>
               </CardContent>
@@ -1755,7 +1777,7 @@ export default function DirectorDashboard() {
                       variant="outline"
                       className="justify-start gap-2 h-auto py-2"
                       onClick={() => handleFundDriver(driver)}
-                      disabled={!acceptanceData?.accepted || suspensionStatus?.suspended}
+                      disabled={isReadOnly || !acceptanceData?.accepted || suspensionStatus?.suspended}
                       data-testid={`button-select-fund-${driver.userId}`}
                     >
                       <div className={`w-2 h-2 rounded-full shrink-0 ${driver.isOnline ? "bg-green-500" : "bg-muted-foreground"}`} />
@@ -1816,6 +1838,7 @@ export default function DirectorDashboard() {
               <Button
                 size="sm"
                 onClick={() => setCreateStaffOpen(true)}
+                disabled={isReadOnly}
                 data-testid="button-open-create-staff"
               >
                 <UserPlus className="h-3.5 w-3.5 mr-1.5" />
@@ -1838,6 +1861,7 @@ export default function DirectorDashboard() {
                           size="icon"
                           variant="ghost"
                           onClick={() => handleRemoveStaff(member.id)}
+                          disabled={isReadOnly}
                           data-testid={`button-remove-staff-${member.id}`}
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
@@ -2348,7 +2372,7 @@ export default function DirectorDashboard() {
               <div className="flex justify-end">
                 <Button
                   onClick={() => calcPerformanceMutation.mutate()}
-                  disabled={calcPerformanceMutation.isPending}
+                  disabled={isReadOnly || calcPerformanceMutation.isPending}
                   data-testid="button-recalculate-score"
                 >
                   <RefreshCw className={`h-4 w-4 mr-1 ${calcPerformanceMutation.isPending ? "animate-spin" : ""}`} />
@@ -2426,6 +2450,7 @@ export default function DirectorDashboard() {
               <Button
                 onClick={() => submitDisputeMutation.mutate()}
                 disabled={
+                  isReadOnly ||
                   !disputeType ||
                   !disputeSubject ||
                   disputeDescription.length < 20 ||
@@ -2548,6 +2573,7 @@ export default function DirectorDashboard() {
                                   })
                                 }
                                 disabled={
+                                  isReadOnly ||
                                   !(disputeReplyText[dispute.id] || "").trim() ||
                                   replyDisputeMutation.isPending
                                 }

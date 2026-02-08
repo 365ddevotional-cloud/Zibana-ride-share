@@ -1036,6 +1036,355 @@ function TerminationWindDownPanel({ directorUserId, directorLifecycle, isSuperAd
   );
 }
 
+function SuccessionTimelineItem({ successionId }: { successionId: string }) {
+  const { data: timelineSteps = [] } = useQuery<any[]>({
+    queryKey: ["/api/admin/directors/succession", successionId, "timeline"],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/directors/succession/${successionId}/timeline`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!successionId,
+  });
+
+  if (timelineSteps.length === 0) return null;
+
+  return (
+    <div className="ml-4 mt-2 space-y-1" data-testid={`succession-timeline-steps-${successionId}`}>
+      {timelineSteps.map((step: any, idx: number) => (
+        <div key={step.id || idx} className="flex items-start gap-2 text-xs" data-testid={`timeline-step-${successionId}-${idx}`}>
+          {step.completedAt || step.status === "completed" ? (
+            <CheckCircle className="h-3.5 w-3.5 text-green-500 mt-0.5 shrink-0" />
+          ) : (
+            <Clock className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+          )}
+          <div>
+            <span className="font-medium">{step.stepName || step.action || step.type || `Step ${idx + 1}`}</span>
+            {step.description && <span className="text-muted-foreground ml-1">{step.description}</span>}
+            {step.completedAt && (
+              <span className="text-muted-foreground ml-1">({new Date(step.completedAt).toLocaleDateString()})</span>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SuccessionPlanningPanel({ directorUserId, isSuperAdmin }: { directorUserId: string; isSuperAdmin: boolean }) {
+  const { toast } = useToast();
+  const [zibraSummary, setZibraSummary] = useState<any>(null);
+  const [generatingSummary, setGeneratingSummary] = useState(false);
+  const [terminationType, setTerminationType] = useState("");
+  const [terminationReason, setTerminationReason] = useState("");
+  const [successionType, setSuccessionType] = useState("");
+  const [successorDirectorId, setSuccessorDirectorId] = useState("");
+  const [payoutDecision, setPayoutDecision] = useState("");
+  const [payoutAmount, setPayoutAmount] = useState("");
+  const [payoutReason, setPayoutReason] = useState("");
+  const [creatingPlan, setCreatingPlan] = useState(false);
+  const [createdSuccessionId, setCreatedSuccessionId] = useState<string | null>(null);
+  const [executingPlan, setExecutingPlan] = useState(false);
+
+  const { data: successionRecords = [], refetch: refetchSuccession } = useQuery<any[]>({
+    queryKey: ["/api/admin/directors", directorUserId, "succession"],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/directors/${directorUserId}/succession`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!directorUserId,
+  });
+
+  const handleGenerateSummary = async () => {
+    setGeneratingSummary(true);
+    try {
+      const res = await apiRequest("POST", `/api/admin/directors/${directorUserId}/zibra-succession-summary`);
+      const data = await res.json();
+      setZibraSummary(data);
+      toast({ title: "Summary generated", description: "ZIBRA succession summary is ready" });
+    } catch {
+      toast({ title: "Failed to generate summary", variant: "destructive" });
+    } finally {
+      setGeneratingSummary(false);
+    }
+  };
+
+  const handleCreatePlan = async () => {
+    if (!terminationType || !successionType || !payoutDecision) {
+      toast({ title: "Missing fields", description: "Please fill in termination type, succession type, and payout decision", variant: "destructive" });
+      return;
+    }
+    setCreatingPlan(true);
+    try {
+      const res = await apiRequest("POST", `/api/admin/directors/${directorUserId}/succession`, {
+        terminationType,
+        terminationReason,
+        successionType,
+        successorDirectorId: successionType === "reassign_to_director" ? successorDirectorId : undefined,
+        payoutDecision,
+        payoutAmount: payoutDecision === "partial_release" ? payoutAmount : undefined,
+        payoutReason,
+      });
+      const data = await res.json();
+      setCreatedSuccessionId(data.id || data.successionId || null);
+      toast({ title: "Succession plan created", description: "The plan is ready for execution" });
+      refetchSuccession();
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/directors/succession/active"] });
+      setTerminationType("");
+      setTerminationReason("");
+      setSuccessionType("");
+      setSuccessorDirectorId("");
+      setPayoutDecision("");
+      setPayoutAmount("");
+      setPayoutReason("");
+    } catch {
+      toast({ title: "Failed to create plan", variant: "destructive" });
+    } finally {
+      setCreatingPlan(false);
+    }
+  };
+
+  const handleExecutePlan = async (successionId: string) => {
+    setExecutingPlan(true);
+    try {
+      await apiRequest("POST", `/api/admin/directors/succession/${successionId}/execute`);
+      toast({ title: "Plan executed", description: "Succession plan is now being executed" });
+      refetchSuccession();
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/directors", directorUserId, "lifecycle"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/directors"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/directors/succession/active"] });
+      setCreatedSuccessionId(null);
+    } catch {
+      toast({ title: "Execution failed", variant: "destructive" });
+    } finally {
+      setExecutingPlan(false);
+    }
+  };
+
+  return (
+    <Card data-testid="succession-planning-panel">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <ArrowLeftRight className="h-5 w-5" />
+          Succession Planning
+        </CardTitle>
+        <CardDescription>Create and manage director succession plans</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={handleGenerateSummary}
+            disabled={generatingSummary}
+            data-testid="button-generate-zibra-summary"
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            {generatingSummary ? "Generating..." : "Generate ZIBRA Summary"}
+          </Button>
+        </div>
+
+        {zibraSummary && (
+          <div className="grid gap-3 sm:grid-cols-3 p-3 rounded-md border" data-testid="zibra-summary-data">
+            <div className="space-y-1 text-sm">
+              <p className="text-muted-foreground">Driver Count</p>
+              <p className="font-medium" data-testid="text-summary-driver-count">{zibraSummary.driverCount ?? "-"}</p>
+            </div>
+            <div className="space-y-1 text-sm">
+              <p className="text-muted-foreground">Staff Count</p>
+              <p className="font-medium" data-testid="text-summary-staff-count">{zibraSummary.staffCount ?? "-"}</p>
+            </div>
+            <div className="space-y-1 text-sm">
+              <p className="text-muted-foreground">Performance Score</p>
+              <p className="font-medium" data-testid="text-summary-perf-score">{zibraSummary.performanceScore != null ? Number(zibraSummary.performanceScore).toFixed(1) : "-"}</p>
+            </div>
+            <div className="space-y-1 text-sm">
+              <p className="text-muted-foreground">Tier</p>
+              <p className="font-medium" data-testid="text-summary-tier">{zibraSummary.tier || "-"}</p>
+            </div>
+            <div className="space-y-1 text-sm">
+              <p className="text-muted-foreground">Fraud Signals</p>
+              <p className="font-medium" data-testid="text-summary-fraud-signals">{zibraSummary.fraudSignals ?? "-"}</p>
+            </div>
+            <div className="space-y-1 text-sm">
+              <p className="text-muted-foreground">Compliance Risks</p>
+              <p className="font-medium" data-testid="text-summary-compliance-risks">{zibraSummary.complianceRisks ?? "-"}</p>
+            </div>
+          </div>
+        )}
+
+        {isSuperAdmin && (
+          <div className="border-t pt-4 space-y-3" data-testid="succession-form">
+            <p className="text-sm font-medium">Create Succession Plan</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Termination Type</Label>
+                <Select value={terminationType} onValueChange={setTerminationType}>
+                  <SelectTrigger data-testid="select-termination-type">
+                    <SelectValue placeholder="Select type..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="expiration">Expiration</SelectItem>
+                    <SelectItem value="suspension">Suspension</SelectItem>
+                    <SelectItem value="termination">Termination</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Succession Type</Label>
+                <Select value={successionType} onValueChange={setSuccessionType}>
+                  <SelectTrigger data-testid="select-succession-type">
+                    <SelectValue placeholder="Select type..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="reassign_to_director">Reassign to Director</SelectItem>
+                    <SelectItem value="new_director">New Director</SelectItem>
+                    <SelectItem value="platform_pool">Platform Pool</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">Termination Reason</Label>
+              <Textarea
+                value={terminationReason}
+                onChange={(e) => setTerminationReason(e.target.value)}
+                placeholder="Reason for this succession plan..."
+                data-testid="textarea-succession-termination-reason"
+              />
+            </div>
+
+            {successionType === "reassign_to_director" && (
+              <div className="space-y-1">
+                <Label className="text-xs">Successor Director ID</Label>
+                <Input
+                  value={successorDirectorId}
+                  onChange={(e) => setSuccessorDirectorId(e.target.value)}
+                  placeholder="Enter director ID to receive assets..."
+                  data-testid="input-successor-director-id"
+                />
+              </div>
+            )}
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Payout Decision</Label>
+                <Select value={payoutDecision} onValueChange={setPayoutDecision}>
+                  <SelectTrigger data-testid="select-payout-decision">
+                    <SelectValue placeholder="Select decision..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="release">Release</SelectItem>
+                    <SelectItem value="hold">Hold</SelectItem>
+                    <SelectItem value="partial_release">Partial Release</SelectItem>
+                    <SelectItem value="forfeit">Forfeit</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {payoutDecision === "partial_release" && (
+                <div className="space-y-1">
+                  <Label className="text-xs">Payout Amount</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={payoutAmount}
+                    onChange={(e) => setPayoutAmount(e.target.value)}
+                    placeholder="Amount to release..."
+                    data-testid="input-payout-amount"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">Payout Reason</Label>
+              <Textarea
+                value={payoutReason}
+                onChange={(e) => setPayoutReason(e.target.value)}
+                placeholder="Justification for payout decision..."
+                data-testid="textarea-payout-reason"
+              />
+            </div>
+
+            <Button
+              onClick={handleCreatePlan}
+              disabled={creatingPlan}
+              data-testid="button-create-succession-plan"
+            >
+              {creatingPlan ? "Creating..." : "Create Succession Plan"}
+            </Button>
+          </div>
+        )}
+
+        {createdSuccessionId && (
+          <div className="flex flex-wrap items-center gap-2 p-3 rounded-md border border-primary/30 bg-primary/5" data-testid="execute-plan-section">
+            <p className="text-sm font-medium">Plan ready for execution</p>
+            <Button
+              onClick={() => handleExecutePlan(createdSuccessionId)}
+              disabled={executingPlan}
+              data-testid="button-execute-succession-plan"
+            >
+              <Play className="h-4 w-4 mr-2" />
+              {executingPlan ? "Executing..." : "Execute Plan"}
+            </Button>
+          </div>
+        )}
+
+        {successionRecords.length > 0 && (
+          <div className="border-t pt-4 space-y-3" data-testid="succession-timeline-display">
+            <p className="text-sm font-medium">Succession Records ({successionRecords.length})</p>
+            {successionRecords.map((record: any) => (
+              <div key={record.id} className="p-3 rounded-md border space-y-2" data-testid={`succession-record-${record.id}`}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant={record.status === "executed" || record.status === "completed" ? "default" : record.status === "pending" ? "outline" : "secondary"} className="text-xs" data-testid={`badge-succession-status-${record.id}`}>
+                      {record.status}
+                    </Badge>
+                    <span className="text-sm font-medium">{record.terminationType?.replace(/_/g, " ") || record.type || "Succession"}</span>
+                    {record.successionType && (
+                      <Badge variant="outline" className="text-xs">{record.successionType.replace(/_/g, " ")}</Badge>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {record.driverCount != null && (
+                      <span className="text-xs text-muted-foreground" data-testid={`text-succession-drivers-${record.id}`}>
+                        {record.driverCount} drivers
+                      </span>
+                    )}
+                    <span className="text-xs text-muted-foreground">
+                      {record.createdAt ? new Date(record.createdAt).toLocaleDateString() : ""}
+                    </span>
+                  </div>
+                </div>
+                {record.payoutDecision && (
+                  <p className="text-xs text-muted-foreground" data-testid={`text-payout-decision-${record.id}`}>
+                    Payout: {record.payoutDecision.replace(/_/g, " ")}{record.payoutAmount ? ` (${record.payoutAmount})` : ""}
+                  </p>
+                )}
+                {record.status === "pending" && !createdSuccessionId && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleExecutePlan(record.id)}
+                    disabled={executingPlan}
+                    data-testid={`button-execute-record-${record.id}`}
+                  >
+                    <Play className="h-3 w-3 mr-1" />
+                    Execute
+                  </Button>
+                )}
+                <SuccessionTimelineItem successionId={record.id} />
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function DirectorDisputesPanel() {
   const { toast } = useToast();
   const [selectedDisputeId, setSelectedDisputeId] = useState<string | null>(null);
@@ -1502,6 +1851,16 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
   const { data: perfWeights, refetch: refetchPerfWeights } = useQuery<any>({
     queryKey: ["/api/admin/director-performance/weights"],
     enabled: !!user && isSuperAdmin && activeTab === "director-performance",
+  });
+
+  const { data: expiringDirectors = [] } = useQuery<any[]>({
+    queryKey: ["/api/admin/directors/expiring"],
+    enabled: !!user && isSuperAdmin && (activeTab === "directors" || activeTab === "director-settings"),
+  });
+
+  const { data: activeSuccessions = [] } = useQuery<any[]>({
+    queryKey: ["/api/admin/directors/succession/active"],
+    enabled: !!user && isSuperAdmin && (activeTab === "directors" || activeTab === "director-settings"),
   });
 
   const [perfWeightsForm, setPerfWeightsForm] = useState({
@@ -3327,6 +3686,11 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <TabsTrigger value="directors" className="admin-nav-trigger rounded-md" data-testid="tab-directors">
                 <Briefcase className="h-4 w-4 mr-2" />
                 Directors
+                {activeSuccessions.length > 0 && (
+                  <Badge variant="secondary" className="ml-2 text-xs" data-testid="badge-active-successions-count">
+                    {activeSuccessions.length}
+                  </Badge>
+                )}
               </TabsTrigger>
             )}
             {!isDirector && (
@@ -5496,6 +5860,37 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
 
           {!isDirector && (
             <TabsContent value="directors">
+              {expiringDirectors.length > 0 && (
+                <Card className="mb-4 border-yellow-500/30" data-testid="expiring-directors-warning">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                      Directors Approaching Expiry
+                    </CardTitle>
+                    <CardDescription>The following directors are nearing their contract end date</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {expiringDirectors.map((d: any) => (
+                      <div key={d.id || d.userId} className="flex flex-wrap items-center justify-between gap-2 p-2 rounded-md border text-sm" data-testid={`expiring-director-row-${d.id || d.userId}`}>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-medium" data-testid={`text-expiring-name-${d.id || d.userId}`}>{d.fullName || d.name || d.email || "Unknown"}</span>
+                          <Badge variant="outline" className="text-xs" data-testid={`badge-days-remaining-${d.id || d.userId}`}>
+                            {d.daysRemaining != null ? `${d.daysRemaining} days remaining` : "Expiring soon"}
+                          </Badge>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setSelectedDirectorId(d.userId || d.id)}
+                          data-testid={`button-plan-succession-${d.id || d.userId}`}
+                        >
+                          Plan Succession
+                        </Button>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
               <Card>
                 <CardHeader>
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -6154,6 +6549,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                   <TerminationWindDownPanel
                     directorUserId={selectedDirectorId!}
                     directorLifecycle={directorLifecycle}
+                    isSuperAdmin={isSuperAdmin}
+                  />
+
+                  {/* Succession Planning */}
+                  <SuccessionPlanningPanel
+                    directorUserId={selectedDirectorId!}
                     isSuperAdmin={isSuperAdmin}
                   />
                 </div>
