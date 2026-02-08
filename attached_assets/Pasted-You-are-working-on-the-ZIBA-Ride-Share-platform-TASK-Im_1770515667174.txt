@@ -1,0 +1,212 @@
+You are working on the ZIBA Ride-Share platform.
+
+TASK: Implement the complete “Director Funding Drivers” system with UI, legal protection, fraud prevention, and ZIBRA Support responses — without breaking any existing logic.
+
+CRITICAL RULES:
+- Do NOT change pricing splits, platform commission visibility, or driver earnings logic.
+- Do NOT convert funding into loans, advances, wages, or repayment schemes.
+- Do NOT expose internal calculations to Drivers or Riders.
+- All actions must be auditable, reversible only by Admin/Super Admin, and legally safe.
+
+====================================================================
+SECTION 1 — DIRECTOR DASHBOARD UI (EXACT SCREENS)
+====================================================================
+
+Create a dedicated Director Dashboard accessible ONLY by:
+- Contract Directors
+- Employee Directors
+- Admin
+- Super Admin
+
+ROUTES:
+- /director/dashboard
+- /director/drivers
+- /director/funding
+- /director/staff
+- /director/activity-log
+
+VISIBILITY:
+- Directors see ONLY their own cell(s)
+- Admin/Super Admin see all
+- Every action must store actor_id, role, timestamp, IP
+
+UI SCREENS:
+
+1) Director Overview
+- Active Drivers (today)
+- Total Drivers in Cell
+- Commissionable Drivers Today
+- Funding Given (today / week / month)
+- Trust Score Summary
+- Performance Prompt from ZIBRA
+
+2) Drivers List
+- Driver Name / ID
+- Status (Active / Suspended / Pending)
+- Online Today (Yes/No)
+- Fund Wallet Button (if eligible)
+- Discipline Options:
+  - Warning
+  - Temporary Suspension (requires Admin confirmation)
+
+3) Funding Screen
+- Select Driver (only assigned)
+- Amount Input
+- Purpose Tag (required):
+  - Ride fuel support
+  - Network availability boost
+  - Emergency assistance
+  - Temporary balance top-up
+- Show daily / weekly remaining limits
+- Confirmation checkbox:
+  “This is support, not a loan or obligation.”
+
+4) Staff Management (Director-Owned)
+- Create staff accounts
+- Role-based permissions (checkboxes)
+- Staff can see ONLY permitted sections
+- Director can discipline staff
+- Admin/Super Admin override everything
+
+5) Activity Log (Immutable)
+- Funding events
+- Discipline actions
+- Staff changes
+- ZIBRA warnings
+- Cannot be edited or deleted
+
+====================================================================
+SECTION 2 — FINAL LEGAL TERMS WORDING (GLOBAL-READY)
+====================================================================
+
+Add the following clauses to Terms & Conditions
+(Modular, reusable across all countries):
+
+DIRECTOR FUNDING DISCLAIMER:
+“Any wallet funding provided by a Director to a Driver is voluntary support and does not constitute a loan, wage, salary, advance, or repayment obligation. ZIBA does not guarantee continued funding, activity, or earnings.”
+
+NO COERCION CLAUSE:
+“Directors may not require, imply, or enforce performance, repayment, or compliance as a condition for wallet funding.”
+
+LIMITATION OF LIABILITY:
+“ZIBA facilitates wallet transfers and does not assume responsibility for agreements, expectations, or disputes arising from voluntary support.”
+
+PLATFORM ROLE CLARIFICATION:
+“ZIBA is not an employer, lender, or guarantor. Directors act independently within platform rules.”
+
+Include acceptance:
+- Driver must accept once (recorded)
+- Director must accept once (recorded)
+
+====================================================================
+SECTION 3 — FRAUD & ABUSE DETECTION RULES
+====================================================================
+
+Create automated monitoring rules:
+
+FLAG CONDITIONS:
+- Repeated funding to same driver within short time
+- Funding followed by forced driver activity patterns
+- Director funding exceeding configured thresholds
+- Drivers reporting coercion
+- Directors attaching conditions in messages
+
+SYSTEM RESPONSE:
+- Soft warning from ZIBRA
+- Temporary funding suspension
+- Escalation to Admin review
+- Trust score impact (Director & Driver)
+
+NO AUTOMATIC PUNISHMENTS WITHOUT ADMIN CONFIRMATION.
+
+====================================================================
+SECTION 4 — DIRECTOR FUNDING RULES (ADVANCED)
+====================================================================
+
+ELIGIBILITY:
+- Director must be active
+- Director must have ≥10 drivers
+- Driver must be active and assigned
+
+LIMITS:
+- Hard caps configurable by Super Admin
+- Per-driver daily / weekly / monthly caps
+- Per-director total funding caps
+
+ABSOLUTE PROHIBITIONS:
+- No repayment
+- No deductions
+- No conditional funding
+- No auto-funding
+- No earnings manipulation
+
+DATA MODEL:
+DirectorFunding {
+  id
+  director_id
+  driver_id
+  amount
+  purpose_tag
+  created_at
+  created_by
+  ip_address
+}
+
+====================================================================
+SECTION 5 — ZIBRA SUPPORT RESPONSE TEMPLATES
+====================================================================
+
+ZIBRA (User-Facing Name: “ZIBA Support”)
+
+DIRECTOR TEMPLATES:
+
+Q: “Can I expect repayment?”
+A: “Funding is voluntary support and does not involve repayment or obligations.”
+
+Q: “Can I require drivers to stay online?”
+A: “Support funding should never be used to influence driver decisions.”
+
+Q: “Why was my funding paused?”
+A: “Your funding activity triggered a review to ensure fairness and compliance.”
+
+DRIVER TEMPLATES:
+
+Q: “Do I have to pay this back?”
+A: “No. Director funding is voluntary support and not a loan.”
+
+Q: “Can I refuse funding?”
+A: “Yes. Accepting support is optional.”
+
+Q: “Can funding affect my account?”
+A: “Support funding does not change your earnings or account standing.”
+
+ADMIN TEMPLATES:
+- Explain flags
+- Guide reviews
+- Summarize patterns
+- No legal promises
+
+====================================================================
+SECTION 6 — WORST-CASE ABUSE SIMULATIONS (MUST PASS)
+====================================================================
+
+Simulate and confirm safe outcomes for:
+
+1) Director demands repayment → blocked + logged
+2) Driver claims coercion → funding paused + admin alert
+3) Excessive funding attempts → hard stop
+4) Director staff misuse → role-based restriction enforced
+5) Legal threat language → ZIBRA neutral response only
+
+====================================================================
+FINAL REQUIREMENTS
+====================================================================
+
+- Everything role-aware
+- Everything logged
+- No legal exposure
+- No silent failures
+- Confirm each section works end-to-end
+
+Proceed step-by-step.
+Do not mark complete until all simulations pass.

@@ -5157,3 +5157,89 @@ export type InsertWalletFundingTransaction = z.infer<typeof insertWalletFundingT
 export type WalletFundingTransaction = typeof walletFundingTransactions.$inferSelect;
 
 export type WalletFundingSettings = typeof walletFundingSettings.$inferSelect;
+
+// =============================================
+// DIRECTOR FUNDING SYSTEM
+// =============================================
+
+export const directorFundingPurposeEnum = pgEnum("director_funding_purpose", [
+  "ride_fuel_support",
+  "network_availability_boost",
+  "emergency_assistance",
+  "temporary_balance_topup"
+]);
+
+export const directorFundingStatusEnum = pgEnum("director_funding_status", [
+  "completed",
+  "failed",
+  "flagged",
+  "reversed"
+]);
+
+export const directorFundingTransactions = pgTable("director_funding_transactions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  directorUserId: varchar("director_user_id").notNull(),
+  driverUserId: varchar("driver_user_id").notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 3 }).notNull().default("NGN"),
+  purposeTag: directorFundingPurposeEnum("purpose_tag").notNull(),
+  status: directorFundingStatusEnum("status").notNull().default("completed"),
+  disclaimerAccepted: boolean("disclaimer_accepted").notNull().default(false),
+  flagged: boolean("flagged").notNull().default(false),
+  flagReason: text("flag_reason"),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  reversedAt: timestamp("reversed_at"),
+  reversedBy: varchar("reversed_by"),
+  reversalReason: text("reversal_reason"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertDirectorFundingTransactionSchema = createInsertSchema(directorFundingTransactions).omit({ id: true, createdAt: true, reversedAt: true });
+export type InsertDirectorFundingTransaction = z.infer<typeof insertDirectorFundingTransactionSchema>;
+export type DirectorFundingTransaction = typeof directorFundingTransactions.$inferSelect;
+
+export const directorFundingSettings = pgTable("director_funding_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  isEnabled: boolean("is_enabled").notNull().default(true),
+  perTransactionMin: decimal("per_transaction_min", { precision: 10, scale: 2 }).notNull().default("500.00"),
+  perTransactionMax: decimal("per_transaction_max", { precision: 10, scale: 2 }).notNull().default("50000.00"),
+  perDriverDailyLimit: decimal("per_driver_daily_limit", { precision: 10, scale: 2 }).notNull().default("50000.00"),
+  perDriverWeeklyLimit: decimal("per_driver_weekly_limit", { precision: 10, scale: 2 }).notNull().default("200000.00"),
+  perDriverMonthlyLimit: decimal("per_driver_monthly_limit", { precision: 10, scale: 2 }).notNull().default("500000.00"),
+  perDirectorDailyLimit: decimal("per_director_daily_limit", { precision: 10, scale: 2 }).notNull().default("500000.00"),
+  perDirectorWeeklyLimit: decimal("per_director_weekly_limit", { precision: 10, scale: 2 }).notNull().default("2000000.00"),
+  perDirectorMonthlyLimit: decimal("per_director_monthly_limit", { precision: 10, scale: 2 }).notNull().default("5000000.00"),
+  minDriversRequired: integer("min_drivers_required").notNull().default(10),
+  repeatFundingThreshold: integer("repeat_funding_threshold").notNull().default(3),
+  repeatFundingWindowHours: integer("repeat_funding_window_hours").notNull().default(24),
+  fundingSuspensionEnabled: boolean("funding_suspension_enabled").notNull().default(true),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  updatedBy: varchar("updated_by"),
+});
+
+export type DirectorFundingSettings = typeof directorFundingSettings.$inferSelect;
+
+export const directorFundingAcceptance = pgTable("director_funding_acceptance", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  userRole: varchar("user_role", { length: 30 }).notNull(),
+  acceptedTermsVersion: varchar("accepted_terms_version", { length: 20 }).notNull().default("1.0"),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type DirectorFundingAcceptance = typeof directorFundingAcceptance.$inferSelect;
+
+export const directorFundingSuspensions = pgTable("director_funding_suspensions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  directorUserId: varchar("director_user_id").notNull(),
+  reason: text("reason").notNull(),
+  suspendedBy: varchar("suspended_by").notNull(),
+  suspendedAt: timestamp("suspended_at").defaultNow().notNull(),
+  liftedAt: timestamp("lifted_at"),
+  liftedBy: varchar("lifted_by"),
+  isActive: boolean("is_active").notNull().default(true),
+});
+
+export type DirectorFundingSuspension = typeof directorFundingSuspensions.$inferSelect;
