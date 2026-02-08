@@ -126,6 +126,7 @@ export function calculateCompleteFare(params: {
   waitingStartedAt?: Date | null;
   tripEndedAt?: Date;
   currencyCode: string;
+  fareMultiplier?: number;
 }): FareBreakdown {
   const {
     distanceKm,
@@ -133,30 +134,24 @@ export function calculateCompleteFare(params: {
     estimatedDurationMin = durationMin,
     waitingStartedAt = null,
     tripEndedAt = new Date(),
-    currencyCode
+    currencyCode,
+    fareMultiplier = 1.0
   } = params;
 
-  // Base fare
-  const baseFare = BASE_FARE;
+  const multiplier = Math.max(1.0, fareMultiplier);
 
-  // Distance fare
-  const distanceFare = distanceKm * DISTANCE_RATE_PER_KM;
+  const baseFare = BASE_FARE * multiplier;
+  const distanceFare = distanceKm * DISTANCE_RATE_PER_KM * multiplier;
+  const timeFare = durationMin * TIME_RATE_PER_MINUTE * multiplier;
 
-  // Time fare
-  const timeFare = durationMin * TIME_RATE_PER_MINUTE;
-
-  // Calculate waiting fee
   const waitingBreakdown = calculateWaitingFee(waitingStartedAt, tripEndedAt);
   const waitingFee = waitingBreakdown.totalWaitingFee;
 
-  // Calculate traffic/overrun fee
   const trafficAdjustment = calculateTrafficAdjustment(estimatedDurationMin, durationMin);
   const trafficFee = trafficAdjustment.trafficFee;
 
-  // Total fare
   const totalFare = baseFare + distanceFare + timeFare + waitingFee + trafficFee;
 
-  // Platform commission
   const platformFee = (totalFare * PLATFORM_COMMISSION_PERCENT) / 100;
   const driverEarning = totalFare - platformFee;
 
@@ -327,11 +322,13 @@ export function recalculateFareForEarlyStop(params: {
  */
 export function calculateEstimatedFare(
   estimatedDistanceKm: number,
-  estimatedDurationMin: number
+  estimatedDurationMin: number,
+  fareMultiplier: number = 1.0
 ): number {
-  const baseFare = BASE_FARE;
-  const distanceFare = estimatedDistanceKm * DISTANCE_RATE_PER_KM;
-  const timeFare = estimatedDurationMin * TIME_RATE_PER_MINUTE;
+  const multiplier = Math.max(1.0, fareMultiplier);
+  const baseFare = BASE_FARE * multiplier;
+  const distanceFare = estimatedDistanceKm * DISTANCE_RATE_PER_KM * multiplier;
+  const timeFare = estimatedDurationMin * TIME_RATE_PER_MINUTE * multiplier;
   return round(baseFare + distanceFare + timeFare);
 }
 
@@ -449,13 +446,14 @@ function round(value: number, decimals: number = 2): number {
  */
 export function calculateFareEstimateRange(
   estimatedDistanceKm: number,
-  estimatedDurationMin: number
+  estimatedDurationMin: number,
+  fareMultiplier: number = 1.0
 ): { min: number; max: number; estimate: number } {
-  const estimate = calculateEstimatedFare(estimatedDistanceKm, estimatedDurationMin);
+  const estimate = calculateEstimatedFare(estimatedDistanceKm, estimatedDurationMin, fareMultiplier);
   
-  // Traffic can add 10-30% to time, which affects fare
+  const multiplier = Math.max(1.0, fareMultiplier);
   const minFare = estimate;
-  const maxFare = estimate + (estimatedDurationMin * 0.3 * TRAFFIC_OVERRUN_RATE_PER_MINUTE);
+  const maxFare = estimate + (estimatedDurationMin * 0.3 * TRAFFIC_OVERRUN_RATE_PER_MINUTE * multiplier);
   
   return {
     min: round(minFare),

@@ -208,6 +208,9 @@ export const trustAuditActionEnum = pgEnum("trust_audit_action", [
   "RATING_FLAGGED_MANIPULATION", "RATING_DAMPENED", "OUTLIER_DETECTED"
 ]);
 
+// Phase 22 - Ride Classification
+export const rideClassEnum = pgEnum("ride_class", ["go", "plus", "comfort", "elite", "pet_ride", "safe_teen"]);
+
 // Phase 22 - Enhanced Ride Lifecycle enums
 export const rideStatusEnum = pgEnum("ride_status", [
   "requested",
@@ -1007,6 +1010,8 @@ export const rides = pgTable("rides", {
   riderId: varchar("rider_id").notNull(),
   driverId: varchar("driver_id"),
   status: rideStatusEnum("status").notNull().default("requested"),
+  rideClass: rideClassEnum("ride_class").notNull().default("go"),
+  fareMultiplier: decimal("fare_multiplier", { precision: 4, scale: 2 }).notNull().default("1.00"),
   
   // Location fields
   pickupLat: decimal("pickup_lat", { precision: 10, scale: 7 }).notNull(),

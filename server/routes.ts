@@ -2839,6 +2839,51 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/ride-classes", isAuthenticated, async (req: any, res) => {
+    try {
+      const { RIDE_CLASS_LIST } = await import("@shared/ride-classes");
+      return res.json(RIDE_CLASS_LIST);
+    } catch (error) {
+      console.error("Error getting ride classes:", error);
+      return res.status(500).json({ message: "Failed to get ride classes" });
+    }
+  });
+
+  app.post("/api/rider/fare-estimate", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const { rideClassId } = req.body;
+      const { getRideClassMultiplier, isValidRideClass } = await import("@shared/ride-classes");
+      const { calculateFareEstimateRange } = await import("./fare-calculation");
+
+      const classId = rideClassId && isValidRideClass(rideClassId) ? rideClassId : "go";
+      const multiplier = getRideClassMultiplier(classId);
+
+      const estimatedDistanceKm = Math.random() * 15 + 3;
+      const estimatedDurationMin = estimatedDistanceKm * 3 + Math.random() * 10;
+
+      const range = calculateFareEstimateRange(estimatedDistanceKm, estimatedDurationMin, multiplier);
+
+      const userId = req.user.claims.sub;
+      const { getCountryConfig } = await import("@shared/countries");
+      const userRole = await storage.getUserRole(userId);
+      const countryCode = userRole?.countryCode || "NG";
+      const countryConfig = getCountryConfig(countryCode);
+
+      return res.json({
+        rideClass: classId,
+        fareMultiplier: multiplier,
+        estimatedFare: range.estimate,
+        fareRange: { min: range.min, max: range.max },
+        currencyCode: countryConfig.currencyCode,
+        estimatedDistanceKm: parseFloat(estimatedDistanceKm.toFixed(1)),
+        estimatedDurationMin: Math.round(estimatedDurationMin),
+      });
+    } catch (error) {
+      console.error("Error calculating fare estimate:", error);
+      return res.status(500).json({ message: "Failed to calculate fare estimate" });
+    }
+  });
+
   app.get("/api/rider/current-trip", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -11647,6 +11692,10 @@ export async function registerRoutes(
       }
 
       // Create the ride with payment source snapshot
+      const { getRideClassMultiplier, isValidRideClass } = await import("@shared/ride-classes");
+      const selectedRideClass = req.body.rideClass && isValidRideClass(req.body.rideClass) ? req.body.rideClass : "go";
+      const rideClassMultiplier = getRideClassMultiplier(selectedRideClass);
+
       const ride = await storage.createRide({
         riderId: userId,
         pickupLat: pickupLat.toString(),
@@ -11659,6 +11708,8 @@ export async function registerRoutes(
         currencyCode,
         paymentSource: resolvedPaymentSource,
         paymentMethodId: paymentMethod?.id || null,
+        rideClass: selectedRideClass,
+        fareMultiplier: rideClassMultiplier.toString(),
       });
 
       console.log(`[RIDE CREATED] rideId=${ride.id}, userId=${userId}, paymentSource=${resolvedPaymentSource}, currency=${currencyCode}, isTester=${isTester}`);
@@ -12154,7 +12205,8 @@ export async function registerRoutes(
         estimatedDurationMin: parseFloat(ride.estimatedDurationMin || "0"),
         waitingStartedAt: ride.waitingStartedAt ? new Date(ride.waitingStartedAt) : null,
         tripEndedAt: completedAt,
-        currencyCode
+        currencyCode,
+        fareMultiplier: parseFloat(ride.fareMultiplier || "1.00"),
       });
 
       // Handle early stop case
