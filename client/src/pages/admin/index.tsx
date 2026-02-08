@@ -52,6 +52,7 @@ import { ZibraGovernancePanel } from "@/components/zibra-governance-panel";
 import { ZibaSupport } from "@/components/ziba-support";
 import { TrainingCenter } from "@/components/training-center";
 import { HealthAlertsPanel } from "@/components/admin/health-alerts-panel";
+import { WalletFundingPanel } from "@/components/admin/wallet-funding-panel";
 import { StoreCompliancePanel } from "@/components/admin/store-compliance-panel";
 import { OperationalReadinessPanel } from "@/components/admin/operational-readiness-panel";
 import { useAuth } from "@/hooks/use-auth";
@@ -110,7 +111,8 @@ import {
   Package,
   Heart,
   Headphones,
-  Mail
+  Mail,
+  Send
 } from "lucide-react";
 import type { DriverProfile, Trip, User } from "@shared/schema";
 import { NotificationBell } from "@/components/notification-bell";
@@ -2523,6 +2525,10 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                 </span>
               )}
             </TabsTrigger>
+            <TabsTrigger value="wallet-funding" className="admin-nav-trigger rounded-md" data-testid="tab-wallet-funding">
+              <Send className="h-4 w-4 mr-2" />
+              Wallet Funding
+            </TabsTrigger>
             {isDirector && (
               <TabsTrigger value="my-drivers" className="admin-nav-trigger rounded-md" data-testid="tab-my-drivers">
                 <Users className="h-4 w-4 mr-2" />
@@ -4582,6 +4588,10 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               )}
             </DialogContent>
           </Dialog>
+
+          <TabsContent value="wallet-funding">
+            <WalletFundingPanel />
+          </TabsContent>
 
           {isDirector && (
             <TabsContent value="my-drivers">
