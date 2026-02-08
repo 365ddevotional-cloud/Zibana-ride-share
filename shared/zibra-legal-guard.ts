@@ -53,7 +53,7 @@ export function scanForLegalRisks(message: string): LegalGuardResult {
   for (const { pattern, keyword, level } of RISK_PATTERNS) {
     if (pattern.test(message)) {
       matchedKeywords.push(keyword);
-      if (level === "escalate" && highestLevel !== "block") {
+      if (level === "escalate" && highestLevel !== "escalate") {
         highestLevel = "escalate";
       } else if (level === "monitor" && highestLevel === "none") {
         highestLevel = "monitor";

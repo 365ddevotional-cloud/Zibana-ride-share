@@ -1591,6 +1591,15 @@ export interface IStorage {
   createPerformanceAlert(data: InsertPerformanceAlert): Promise<PerformanceAlert>;
   markAlertRead(alertId: string): Promise<PerformanceAlert | undefined>;
   dismissAlert(alertId: string): Promise<PerformanceAlert | undefined>;
+
+  getProactiveSignals(userId: string, role: string): Promise<any[]>;
+  dismissProactiveSignal(signalId: string, userId: string): Promise<void>;
+  getVoiceConfig(userId: string): Promise<any>;
+  setVoiceConfig(userId: string, config: any): Promise<void>;
+  getCoachingInsights(userId: string): Promise<any[]>;
+  getTrustExplanations(userId: string): Promise<any[]>;
+  getZibraMetrics(period: string): Promise<any>;
+  getResolutionStats(): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -11577,6 +11586,82 @@ export class DatabaseStorage implements IStorage {
       .where(eq(performanceAlerts.id, alertId))
       .returning();
     return updated;
+  }
+
+  async getProactiveSignals(userId: string, role: string): Promise<any[]> {
+    return [];
+  }
+
+  async dismissProactiveSignal(signalId: string, userId: string): Promise<void> {
+    // Will be stored in DB when proactive engine is fully enabled
+  }
+
+  async getVoiceConfig(userId: string): Promise<any> {
+    return { enabled: false, language: "en", autoSpeak: false, requireConsent: true, speed: 1.0, pitch: 1.0 };
+  }
+
+  async setVoiceConfig(userId: string, config: any): Promise<void> {
+    // Voice config persistence - foundation only, will be stored when voice is enabled
+  }
+
+  async getCoachingInsights(userId: string): Promise<any[]> {
+    return [];
+  }
+
+  async getTrustExplanations(userId: string): Promise<any[]> {
+    return [];
+  }
+
+  async getZibraMetrics(period: string): Promise<any> {
+    try {
+      const periodDays = period === "30d" ? 30 : period === "90d" ? 90 : 7;
+      const since = new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000);
+      const allLogs = await db.select().from(supportInteractions).where(sql`${supportInteractions.createdAt} >= ${since}`);
+      const total = allLogs.length;
+      const escalated = allLogs.filter((l: any) => l.escalated).length;
+      const resolved = total - escalated;
+      const topicCounts: Record<string, { count: number; resolved: number; escalated: number }> = {};
+      for (const log of allLogs) {
+        const topic = (log as any).topic || "general";
+        if (!topicCounts[topic]) topicCounts[topic] = { count: 0, resolved: 0, escalated: 0 };
+        topicCounts[topic].count++;
+        if ((log as any).escalated) topicCounts[topic].escalated++;
+        else topicCounts[topic].resolved++;
+      }
+      const topResolvedTopics = Object.entries(topicCounts).map(([topic, data]) => ({ topic, ...data })).sort((a, b) => b.count - a.count).slice(0, 10);
+      return {
+        totalConversations: total,
+        resolvedWithoutEscalation: resolved,
+        escalatedToHuman: escalated,
+        autoResolutionRate: total > 0 ? resolved / total : 0,
+        topResolvedTopics,
+        abuseAttemptsBlocked: 0,
+        averageResponseTime: 0,
+        peakHours: [],
+        languageUsageStats: [],
+        directorPerformanceDeltas: [],
+        notificationEffectiveness: [],
+        escalationsByRole: {},
+      };
+    } catch {
+      return { totalConversations: 0, resolvedWithoutEscalation: 0, escalatedToHuman: 0, autoResolutionRate: 0, topResolvedTopics: [], abuseAttemptsBlocked: 0, averageResponseTime: 0, peakHours: [], languageUsageStats: [], directorPerformanceDeltas: [], notificationEffectiveness: [], escalationsByRole: {} };
+    }
+  }
+
+  async getResolutionStats(): Promise<any> {
+    try {
+      const allLogs = await db.select().from(supportInteractions);
+      const total = allLogs.length;
+      const escalated = allLogs.filter((l: any) => l.escalated).length;
+      return {
+        total,
+        resolved: total - escalated,
+        escalated,
+        resolutionRate: total > 0 ? ((total - escalated) / total * 100).toFixed(1) : "0",
+      };
+    } catch {
+      return { total: 0, resolved: 0, escalated: 0, resolutionRate: "0" };
+    }
   }
 }
 

@@ -17726,6 +17726,122 @@ export async function registerRoutes(
   });
 
   // ==========================================
+  // ZIBRA PROACTIVE SIGNALS, COACHING, TRUST, VOICE & METRICS
+  // ==========================================
+
+  app.get("/api/zibra/proactive-signals", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const allRoles = await storage.getAllUserRoles(userId);
+      const roleList = allRoles.map((r: any) => r.role);
+      const primaryRole = roleList.includes("super_admin") ? "super_admin"
+        : roleList.includes("admin") ? "admin"
+        : roleList.includes("director") ? "director"
+        : roleList.includes("driver") ? "driver"
+        : "rider";
+      const signals = await storage.getProactiveSignals(userId, primaryRole);
+      res.json(signals);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch proactive signals" });
+    }
+  });
+
+  app.post("/api/zibra/proactive-signals/dismiss", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const { signalId } = req.body;
+      if (!signalId) return res.status(400).json({ message: "Signal ID required" });
+      await storage.dismissProactiveSignal(signalId, userId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to dismiss signal" });
+    }
+  });
+
+  app.get("/api/zibra/voice-config", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const config = await storage.getVoiceConfig(userId);
+      res.json(config || { enabled: false, language: "en", autoSpeak: false, requireConsent: true, speed: 1.0, pitch: 1.0 });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch voice config" });
+    }
+  });
+
+  app.post("/api/zibra/voice-config", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const { enabled, language, speed, pitch } = req.body;
+      await storage.setVoiceConfig(userId, { enabled: enabled ?? false, language: language || "en", autoSpeak: false, requireConsent: true, speed: speed ?? 1.0, pitch: pitch ?? 1.0 });
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to save voice config" });
+    }
+  });
+
+  app.get("/api/zibra/coaching", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const allRoles = await storage.getAllUserRoles(userId);
+      const roleList = allRoles.map((r: any) => r.role);
+      if (!roleList.includes("director")) {
+        return res.status(403).json({ message: "Director access required" });
+      }
+      const insights = await storage.getCoachingInsights(userId);
+      res.json(insights);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch coaching insights" });
+    }
+  });
+
+  app.get("/api/zibra/trust-explanation", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const explanations = await storage.getTrustExplanations(userId);
+      res.json(explanations);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch trust explanations" });
+    }
+  });
+
+  app.get("/api/admin/zibra/insights", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user as any;
+      const allRoles = await storage.getAllUserRoles(user.claims?.sub);
+      const roleList = allRoles.map((r: any) => r.role);
+      if (!roleList.includes("admin") && !roleList.includes("super_admin")) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      const { period } = req.query;
+      const metrics = await storage.getZibraMetrics(period as string || "7d");
+      res.json(metrics);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch ZIBRA insights" });
+    }
+  });
+
+  app.get("/api/admin/zibra/resolution-stats", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user as any;
+      const allRoles = await storage.getAllUserRoles(user.claims?.sub);
+      const roleList = allRoles.map((r: any) => r.role);
+      if (!roleList.includes("admin") && !roleList.includes("super_admin")) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      const stats = await storage.getResolutionStats();
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch resolution stats" });
+    }
+  });
+
+  // ==========================================
   // ZIBRA ESCALATION PIPELINE (Phase I)
   // ==========================================
 
