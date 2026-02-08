@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLocation } from "wouter";
 import { ArrowLeft, FileText, Shield } from "lucide-react";
+import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
 
 export default function RiderTermsPrivacy() {
   const [, setLocation] = useLocation();
@@ -155,6 +156,7 @@ export default function RiderTermsPrivacy() {
               </Card>
             </TabsContent>
           </Tabs>
+          <ZibraFloatingButton />
         </div>
       </RiderLayout>
     </RiderRouteGuard>

@@ -16,6 +16,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { ArrowLeft, Camera, Save, X } from "lucide-react";
+import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
 
 interface RiderProfile {
   rating: number | null;
@@ -310,6 +311,7 @@ export default function RiderProfile() {
               )}
             </CardContent>
           </Card>
+          <ZibraFloatingButton />
         </div>
       </RiderLayout>
     </RiderRouteGuard>

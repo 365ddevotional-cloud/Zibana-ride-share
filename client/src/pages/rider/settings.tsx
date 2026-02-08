@@ -15,6 +15,7 @@ import {
   ArrowLeft, Bell, Sun, Moon, Monitor, Globe, Eye, Shield,
   Info, ChevronRight, Lock, FileText,
 } from "lucide-react";
+import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
 
 export default function RiderSettings() {
   const { toast } = useToast();
@@ -235,6 +236,7 @@ export default function RiderSettings() {
               </CardContent>
             </Card>
           </div>
+          <ZibraFloatingButton />
         </div>
       </RiderLayout>
     </RiderRouteGuard>
