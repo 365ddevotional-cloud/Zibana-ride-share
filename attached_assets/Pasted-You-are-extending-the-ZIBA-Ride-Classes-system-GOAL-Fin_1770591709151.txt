@@ -1,0 +1,149 @@
+You are extending the ZIBA Ride Classes system.
+
+GOAL:
+Finalize ZIBA ride classes so they are fully functional, price-aware, availability-aware, and enforceable across Rider, Driver, Admin, Director, and ZIBRA Support — without breaking existing booking logic.
+
+STRICT RULES:
+- Audit existing ride request flow before adding anything.
+- If logic already exists, UPDATE it.
+- If missing, IMPLEMENT it.
+- Do NOT change platform commission logic.
+- Do NOT reference Uber, Lyft, or competitors anywhere.
+- Keep everything ZIBA-original.
+
+================================================
+PHASE 1 — RIDE CLASS DATA MODEL
+================================================
+Ensure a centralized RideClass model exists:
+
+RideClass:
+- id
+- name (ZIBA Go, ZIBA Plus, etc.)
+- description
+- base_fare
+- per_km_rate
+- per_minute_rate
+- minimum_fare
+- priority_level
+- is_active
+- allowed_driver_vehicle_types
+- allowed_driver_ratings
+- country / city availability
+
+Default ordering (cheapest → highest):
+1) ZIBA Go
+2) ZIBA Plus
+3) ZIBA Comfort
+4) ZIBA PetRide
+5) ZIBA SafeTeen
+6) ZIBA Elite
+
+================================================
+PHASE 2 — PRICING DIFFERENTIATION
+================================================
+Implement fare rules:
+
+- ZIBA Go = cheapest baseline
+- Each higher tier increases:
+  - base fare
+  - per-km rate
+  - priority score
+- Elite has highest minimum fare
+- Teen & Pet may add fixed surcharge
+
+Admin & Super Admin:
+- Can modify pricing per city
+- Can disable a class per region
+
+================================================
+PHASE 3 — AVAILABILITY LOGIC
+================================================
+When Rider opens Request Ride:
+- Only show ride classes that:
+  - Are active
+  - Have eligible drivers online nearby
+  - Are allowed in that city
+
+If no driver available for a class:
+- Show class disabled (not hidden)
+- Label: “No drivers nearby right now”
+
+================================================
+PHASE 4 — DRIVER ELIGIBILITY
+================================================
+Driver eligibility rules:
+- Vehicle type must match class
+- Rating threshold enforced
+- Driver can enable/disable classes they accept
+- Directors may recommend (not force) class participation
+
+Drivers cannot see rider pricing.
+
+================================================
+PHASE 5 — DIRECTOR & ADMIN VISIBILITY
+================================================
+Director Dashboard:
+- View number of drivers per class
+- See daily earnings contribution by class
+- Cannot modify pricing
+
+Admin / Super Admin:
+- Full control over:
+  - activation
+  - pricing
+  - availability
+  - class rules
+
+================================================
+PHASE 6 — REQUEST RIDE FLOW INTEGRATION
+================================================
+Update booking flow:
+- Ride class selection is REQUIRED
+- Fare estimate updates immediately
+- Selected class persists to:
+  - trip record
+  - receipts
+  - activity history
+
+================================================
+PHASE 7 — ACTIVITY, RECEIPTS & HISTORY
+================================================
+Each trip must display:
+- Ride class icon
+- Ride class name
+- Color badge
+- Applied fare rules
+
+================================================
+PHASE 8 — ZIBRA SUPPORT AWARENESS
+================================================
+ZIBRA Support must:
+- Explain differences between classes
+- Recommend cheaper or faster options
+- Never upsell aggressively
+- Never promise availability
+
+================================================
+PHASE 9 — EDGE CASES
+================================================
+Handle:
+- Rider switches class mid-request
+- Driver cancels due to class mismatch
+- Class disabled while booking
+- City without certain classes
+
+================================================
+PHASE 10 — FINAL CHECKS
+================================================
+Confirm:
+- All classes selectable
+- Pricing differs correctly
+- Disabled classes show clearly
+- No “Coming Soon” remains
+- Booking completes successfully
+
+REPORT AFTER COMPLETION:
+- Models touched
+- APIs updated
+- Screens affected
+- How to test end-to-end

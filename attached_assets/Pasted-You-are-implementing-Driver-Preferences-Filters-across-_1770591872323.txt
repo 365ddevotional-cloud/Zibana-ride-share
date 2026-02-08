@@ -1,0 +1,147 @@
+You are implementing Driver Preferences & Filters across the ZIBA platform.
+
+GOAL:
+Give drivers controlled flexibility over what rides they accept, while protecting platform stability, rider experience, and director/admin oversight.
+
+STRICT RULES:
+- Audit existing driver preference logic first.
+- If preferences already exist, UPDATE them.
+- If missing, IMPLEMENT them.
+- Drivers must NOT be able to manipulate pricing, commissions, or platform rules.
+- Admin & Super Admin always override driver preferences.
+- Keep logic fair, enforceable, and abuse-resistant.
+
+================================================
+PHASE 1 — AUDIT FIRST
+================================================
+1) Search for existing driver preference logic:
+   - keywords: preferences, filters, accept, decline, rules
+   - driver settings screens
+   - backend rules controlling ride offers
+
+2) Identify:
+   - which preferences already exist
+   - which are UI-only vs enforced server-side
+   - any disabled or incomplete filters
+
+================================================
+PHASE 2 — DRIVER PREFERENCES (ALLOWED)
+================================================
+Enable the following DRIVER-CONTROLLED preferences:
+
+1) Ride Class Preference
+   - Driver can toggle ON/OFF:
+     - ZIBA Go
+     - ZIBA Plus
+     - ZIBA Comfort
+     - ZIBA PetRide
+     - ZIBA SafeTeen
+     - ZIBA Elite
+   - Only classes the driver is APPROVED for can be toggled.
+
+2) Trip Distance Preference
+   - Short trips
+   - Medium trips
+   - Long trips
+   (Ranges configurable by Admin)
+
+3) Cash / Wallet Acceptance
+   - Driver may toggle cash acceptance (if allowed in country).
+   - Wallet rides always accepted by default.
+
+4) Area Preference (Soft Filter)
+   - Driver can mark preferred zones.
+   - This increases matching priority but does NOT block rides.
+
+================================================
+PHASE 3 — RESTRICTIONS (CRITICAL)
+================================================
+Drivers CANNOT:
+- Filter out riders by rating alone
+- Block specific neighborhoods
+- Force higher pricing
+- Override scheduled or corporate rides
+- Decline rides repeatedly without consequence
+
+================================================
+PHASE 4 — SERVER-SIDE ENFORCEMENT
+================================================
+All preferences must be enforced server-side:
+- Frontend only sends preferences
+- Backend validates against:
+  - Admin rules
+  - Director rules
+  - City rules
+- If conflict exists → Admin rules win.
+
+================================================
+PHASE 5 — ABUSE PREVENTION
+================================================
+Implement safeguards:
+- Excessive declines reduce driver priority score
+- Repeated preference abuse triggers:
+  - warnings
+  - temporary restriction
+  - director/admin review
+- ZIBRA monitors behavior silently
+
+================================================
+PHASE 6 — UI (DRIVER APP)
+================================================
+Driver Preferences Screen:
+- Clean toggles
+- Short explanations
+- Clear note:
+  “Preferences guide matching but do not guarantee trips.”
+
+Include:
+- Save confirmation
+- Revert option
+
+================================================
+PHASE 7 — DIRECTOR & ADMIN VISIBILITY
+================================================
+Director Dashboard:
+- View driver preference summaries
+- Identify drivers over-restricting
+- Recommend preference adjustments (non-forced)
+
+Admin / Super Admin:
+- Full visibility
+- Ability to lock certain preferences
+- Ability to reset preferences for a driver
+
+================================================
+PHASE 8 — MATCHING LOGIC INTEGRATION
+================================================
+Matching priority order:
+1) Safety & compliance
+2) Ride class eligibility
+3) Driver preferences
+4) Proximity
+5) Driver performance score
+
+================================================
+PHASE 9 — ZIBRA SUPPORT INTEGRATION
+================================================
+ZIBRA Support must:
+- Explain how preferences work
+- Calm drivers who feel “not getting trips”
+- Never promise increased earnings
+- Suggest balanced settings
+
+================================================
+PHASE 10 — FINAL VALIDATION
+================================================
+Confirm:
+- Preferences save correctly
+- Preferences affect matching
+- Abuse safeguards trigger correctly
+- Admin overrides work
+- No impact on existing bookings
+
+REPORT AFTER COMPLETION:
+- Preference fields added/updated
+- Backend enforcement points
+- UI screens touched
+- How to test as Driver, Director, Admin
