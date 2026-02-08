@@ -5,7 +5,7 @@ import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integra
 import { storage } from "./storage";
 import { db } from "./db";
 import { eq, and, count, sql, gte, lt, isNotNull, inArray, desc } from "drizzle-orm";
-import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, driverInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages, walletFundingTransactions, walletFundingSettings, driverWallets } from "@shared/schema";
+import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, driverInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages, walletFundingTransactions, walletFundingSettings, driverWallets, directorFundingTransactions, directorFundingSettings, directorFundingAcceptance, directorFundingSuspensions, directorProfiles, directorDriverAssignments, directorActionLogs } from "@shared/schema";
 import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, evaluateAllDrivers, evaluateBehaviorAndWarnings, calculateDriverMatchingScore, getDriverIncentiveProgress, assignFirstRidePromo, assignReturnRiderPromo, applyPromoToTrip, voidPromosOnCancellation } from "./incentives";
 import { notificationService } from "./notification-service";
 import { getCurrencyFromCountry, getCountryConfig, FINANCIAL_ENGINE_LOCKED } from "@shared/currency";
@@ -21594,6 +21594,735 @@ export async function registerRoutes(
       res.json(updated);
     } catch (error) {
       res.status(500).json({ error: "Failed to update funding settings" });
+    }
+  });
+
+  // =============================================
+  // DIRECTOR FUNDING SYSTEM ROUTES
+  // =============================================
+
+  app.get("/api/director/funding/settings", isAuthenticated, requireRole(["director", "admin", "super_admin"]), async (req: any, res) => {
+    try {
+      let [settings] = await db.select().from(directorFundingSettings).limit(1);
+      if (!settings) {
+        [settings] = await db.insert(directorFundingSettings).values({}).returning();
+      }
+      res.json(settings);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to load director funding settings" });
+    }
+  });
+
+  app.get("/api/director/funding/acceptance", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const [acceptance] = await db.select().from(directorFundingAcceptance)
+        .where(eq(directorFundingAcceptance.userId, userId))
+        .limit(1);
+      res.json({ accepted: !!acceptance, acceptance });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to check acceptance" });
+    }
+  });
+
+  app.post("/api/director/funding/acceptance", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const userRoles = req.user.claims.roles || [];
+      const role = userRoles.includes("director") ? "director" : userRoles.includes("driver") ? "driver" : "user";
+      const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress || "unknown";
+      const ua = req.headers["user-agent"] || "unknown";
+
+      const [existing] = await db.select().from(directorFundingAcceptance)
+        .where(eq(directorFundingAcceptance.userId, userId))
+        .limit(1);
+      if (existing) {
+        return res.json({ accepted: true, acceptance: existing });
+      }
+
+      const [acceptance] = await db.insert(directorFundingAcceptance).values({
+        userId,
+        userRole: role,
+        ipAddress: ip,
+        userAgent: ua,
+      }).returning();
+
+      res.json({ accepted: true, acceptance });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to record acceptance" });
+    }
+  });
+
+  app.get("/api/director/funding/eligible-drivers", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const profile = await storage.getDirectorProfile(userId);
+      if (!profile || profile.status !== "active") {
+        return res.status(403).json({ message: "Director must be active to fund drivers" });
+      }
+
+      const assignments = await db.select().from(directorDriverAssignments)
+        .where(eq(directorDriverAssignments.directorUserId, userId));
+
+      const drivers = [];
+      for (const assignment of assignments) {
+        const [driver] = await db.select().from(driverProfiles)
+          .where(eq(driverProfiles.userId, assignment.driverUserId));
+        if (driver && driver.status === "approved") {
+          drivers.push({
+            userId: driver.userId,
+            fullName: driver.fullName,
+            phone: driver.phone,
+            status: driver.status,
+            isOnline: driver.isOnline,
+            walletBalance: driver.walletBalance,
+            cellNumber: assignment.cellNumber,
+          });
+        }
+      }
+
+      res.json(drivers);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to load eligible drivers" });
+    }
+  });
+
+  app.get("/api/director/funding/limits", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      let [settings] = await db.select().from(directorFundingSettings).limit(1);
+      if (!settings) {
+        [settings] = await db.insert(directorFundingSettings).values({}).returning();
+      }
+
+      const now = new Date();
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const startOfWeek = new Date(startOfDay);
+      startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+      const dailyTxns = await db.select({ total: sql<string>`COALESCE(SUM(amount::numeric), 0)` })
+        .from(directorFundingTransactions)
+        .where(and(
+          eq(directorFundingTransactions.directorUserId, userId),
+          gte(directorFundingTransactions.createdAt, startOfDay),
+          eq(directorFundingTransactions.status, "completed")
+        ));
+
+      const weeklyTxns = await db.select({ total: sql<string>`COALESCE(SUM(amount::numeric), 0)` })
+        .from(directorFundingTransactions)
+        .where(and(
+          eq(directorFundingTransactions.directorUserId, userId),
+          gte(directorFundingTransactions.createdAt, startOfWeek),
+          eq(directorFundingTransactions.status, "completed")
+        ));
+
+      const monthlyTxns = await db.select({ total: sql<string>`COALESCE(SUM(amount::numeric), 0)` })
+        .from(directorFundingTransactions)
+        .where(and(
+          eq(directorFundingTransactions.directorUserId, userId),
+          gte(directorFundingTransactions.createdAt, startOfMonth),
+          eq(directorFundingTransactions.status, "completed")
+        ));
+
+      const dailyUsed = parseFloat(dailyTxns[0]?.total || "0");
+      const weeklyUsed = parseFloat(weeklyTxns[0]?.total || "0");
+      const monthlyUsed = parseFloat(monthlyTxns[0]?.total || "0");
+
+      res.json({
+        perTransactionMin: settings.perTransactionMin,
+        perTransactionMax: settings.perTransactionMax,
+        daily: { limit: settings.perDirectorDailyLimit, used: dailyUsed.toFixed(2), remaining: Math.max(0, parseFloat(settings.perDirectorDailyLimit) - dailyUsed).toFixed(2) },
+        weekly: { limit: settings.perDirectorWeeklyLimit, used: weeklyUsed.toFixed(2), remaining: Math.max(0, parseFloat(settings.perDirectorWeeklyLimit) - weeklyUsed).toFixed(2) },
+        monthly: { limit: settings.perDirectorMonthlyLimit, used: monthlyUsed.toFixed(2), remaining: Math.max(0, parseFloat(settings.perDirectorMonthlyLimit) - monthlyUsed).toFixed(2) },
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to load funding limits" });
+    }
+  });
+
+  app.get("/api/director/funding/driver-limits/:driverUserId", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const directorId = req.user.claims.sub;
+      const { driverUserId } = req.params;
+
+      let [settings] = await db.select().from(directorFundingSettings).limit(1);
+      if (!settings) {
+        [settings] = await db.insert(directorFundingSettings).values({}).returning();
+      }
+
+      const now = new Date();
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const startOfWeek = new Date(startOfDay);
+      startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+      const dailyTxns = await db.select({ total: sql<string>`COALESCE(SUM(amount::numeric), 0)` })
+        .from(directorFundingTransactions)
+        .where(and(
+          eq(directorFundingTransactions.directorUserId, directorId),
+          eq(directorFundingTransactions.driverUserId, driverUserId),
+          gte(directorFundingTransactions.createdAt, startOfDay),
+          eq(directorFundingTransactions.status, "completed")
+        ));
+
+      const weeklyTxns = await db.select({ total: sql<string>`COALESCE(SUM(amount::numeric), 0)` })
+        .from(directorFundingTransactions)
+        .where(and(
+          eq(directorFundingTransactions.directorUserId, directorId),
+          eq(directorFundingTransactions.driverUserId, driverUserId),
+          gte(directorFundingTransactions.createdAt, startOfWeek),
+          eq(directorFundingTransactions.status, "completed")
+        ));
+
+      const monthlyTxns = await db.select({ total: sql<string>`COALESCE(SUM(amount::numeric), 0)` })
+        .from(directorFundingTransactions)
+        .where(and(
+          eq(directorFundingTransactions.directorUserId, directorId),
+          eq(directorFundingTransactions.driverUserId, driverUserId),
+          gte(directorFundingTransactions.createdAt, startOfMonth),
+          eq(directorFundingTransactions.status, "completed")
+        ));
+
+      const dailyUsed = parseFloat(dailyTxns[0]?.total || "0");
+      const weeklyUsed = parseFloat(weeklyTxns[0]?.total || "0");
+      const monthlyUsed = parseFloat(monthlyTxns[0]?.total || "0");
+
+      res.json({
+        daily: { limit: settings.perDriverDailyLimit, used: dailyUsed.toFixed(2), remaining: Math.max(0, parseFloat(settings.perDriverDailyLimit) - dailyUsed).toFixed(2) },
+        weekly: { limit: settings.perDriverWeeklyLimit, used: weeklyUsed.toFixed(2), remaining: Math.max(0, parseFloat(settings.perDriverWeeklyLimit) - weeklyUsed).toFixed(2) },
+        monthly: { limit: settings.perDriverMonthlyLimit, used: monthlyUsed.toFixed(2), remaining: Math.max(0, parseFloat(settings.perDriverMonthlyLimit) - monthlyUsed).toFixed(2) },
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to load driver funding limits" });
+    }
+  });
+
+  app.post("/api/director/funding/send", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const directorUserId = req.user.claims.sub;
+      const { driverUserId, amount, purposeTag, disclaimerAccepted } = req.body;
+      const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress || "unknown";
+
+      if (!driverUserId || !amount || !purposeTag || !disclaimerAccepted) {
+        return res.status(400).json({ message: "All fields including disclaimer acceptance are required" });
+      }
+
+      const parsedAmount = parseFloat(amount);
+      if (isNaN(parsedAmount) || parsedAmount <= 0) {
+        return res.status(400).json({ message: "Invalid amount" });
+      }
+
+      let [settings] = await db.select().from(directorFundingSettings).limit(1);
+      if (!settings) {
+        [settings] = await db.insert(directorFundingSettings).values({}).returning();
+      }
+
+      if (!settings.isEnabled) {
+        return res.status(403).json({ message: "Director funding is currently disabled" });
+      }
+
+      const profile = await storage.getDirectorProfile(directorUserId);
+      if (!profile || profile.status !== "active") {
+        return res.status(403).json({ message: "Director must be active" });
+      }
+
+      const [suspension] = await db.select().from(directorFundingSuspensions)
+        .where(and(
+          eq(directorFundingSuspensions.directorUserId, directorUserId),
+          eq(directorFundingSuspensions.isActive, true)
+        ))
+        .limit(1);
+      if (suspension) {
+        return res.status(403).json({ message: "Your funding ability is currently suspended pending admin review" });
+      }
+
+      const assignments = await db.select().from(directorDriverAssignments)
+        .where(eq(directorDriverAssignments.directorUserId, directorUserId));
+      if (assignments.length < settings.minDriversRequired) {
+        return res.status(403).json({ message: `Director must have at least ${settings.minDriversRequired} assigned drivers to use funding` });
+      }
+
+      const isAssigned = assignments.some(a => a.driverUserId === driverUserId);
+      if (!isAssigned) {
+        return res.status(403).json({ message: "Driver is not assigned to your cell" });
+      }
+
+      const [driver] = await db.select().from(driverProfiles)
+        .where(eq(driverProfiles.userId, driverUserId));
+      if (!driver || driver.status !== "approved") {
+        return res.status(400).json({ message: "Driver must be active and approved" });
+      }
+
+      if (parsedAmount < parseFloat(settings.perTransactionMin)) {
+        return res.status(400).json({ message: `Minimum amount is ${settings.perTransactionMin}` });
+      }
+      if (parsedAmount > parseFloat(settings.perTransactionMax)) {
+        return res.status(400).json({ message: `Maximum amount is ${settings.perTransactionMax}` });
+      }
+
+      const now = new Date();
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const startOfWeek = new Date(startOfDay);
+      startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+      const [dirDailyTotal] = await db.select({ total: sql<string>`COALESCE(SUM(amount::numeric), 0)` })
+        .from(directorFundingTransactions)
+        .where(and(
+          eq(directorFundingTransactions.directorUserId, directorUserId),
+          gte(directorFundingTransactions.createdAt, startOfDay),
+          eq(directorFundingTransactions.status, "completed")
+        ));
+      if (parseFloat(dirDailyTotal?.total || "0") + parsedAmount > parseFloat(settings.perDirectorDailyLimit)) {
+        return res.status(400).json({ message: "Director daily funding limit exceeded" });
+      }
+
+      const [dirWeeklyTotal] = await db.select({ total: sql<string>`COALESCE(SUM(amount::numeric), 0)` })
+        .from(directorFundingTransactions)
+        .where(and(
+          eq(directorFundingTransactions.directorUserId, directorUserId),
+          gte(directorFundingTransactions.createdAt, startOfWeek),
+          eq(directorFundingTransactions.status, "completed")
+        ));
+      if (parseFloat(dirWeeklyTotal?.total || "0") + parsedAmount > parseFloat(settings.perDirectorWeeklyLimit)) {
+        return res.status(400).json({ message: "Director weekly funding limit exceeded" });
+      }
+
+      const [dirMonthlyTotal] = await db.select({ total: sql<string>`COALESCE(SUM(amount::numeric), 0)` })
+        .from(directorFundingTransactions)
+        .where(and(
+          eq(directorFundingTransactions.directorUserId, directorUserId),
+          gte(directorFundingTransactions.createdAt, startOfMonth),
+          eq(directorFundingTransactions.status, "completed")
+        ));
+      if (parseFloat(dirMonthlyTotal?.total || "0") + parsedAmount > parseFloat(settings.perDirectorMonthlyLimit)) {
+        return res.status(400).json({ message: "Director monthly funding limit exceeded" });
+      }
+
+      const [drvDailyTotal] = await db.select({ total: sql<string>`COALESCE(SUM(amount::numeric), 0)` })
+        .from(directorFundingTransactions)
+        .where(and(
+          eq(directorFundingTransactions.directorUserId, directorUserId),
+          eq(directorFundingTransactions.driverUserId, driverUserId),
+          gte(directorFundingTransactions.createdAt, startOfDay),
+          eq(directorFundingTransactions.status, "completed")
+        ));
+      if (parseFloat(drvDailyTotal?.total || "0") + parsedAmount > parseFloat(settings.perDriverDailyLimit)) {
+        return res.status(400).json({ message: "Per-driver daily funding limit exceeded" });
+      }
+
+      const [drvWeeklyTotal] = await db.select({ total: sql<string>`COALESCE(SUM(amount::numeric), 0)` })
+        .from(directorFundingTransactions)
+        .where(and(
+          eq(directorFundingTransactions.directorUserId, directorUserId),
+          eq(directorFundingTransactions.driverUserId, driverUserId),
+          gte(directorFundingTransactions.createdAt, startOfWeek),
+          eq(directorFundingTransactions.status, "completed")
+        ));
+      if (parseFloat(drvWeeklyTotal?.total || "0") + parsedAmount > parseFloat(settings.perDriverWeeklyLimit)) {
+        return res.status(400).json({ message: "Per-driver weekly funding limit exceeded" });
+      }
+
+      const [drvMonthlyTotal] = await db.select({ total: sql<string>`COALESCE(SUM(amount::numeric), 0)` })
+        .from(directorFundingTransactions)
+        .where(and(
+          eq(directorFundingTransactions.directorUserId, directorUserId),
+          eq(directorFundingTransactions.driverUserId, driverUserId),
+          gte(directorFundingTransactions.createdAt, startOfMonth),
+          eq(directorFundingTransactions.status, "completed")
+        ));
+      if (parseFloat(drvMonthlyTotal?.total || "0") + parsedAmount > parseFloat(settings.perDriverMonthlyLimit)) {
+        return res.status(400).json({ message: "Per-driver monthly funding limit exceeded" });
+      }
+
+      let flagged = false;
+      let flagReason: string | null = null;
+
+      const repeatWindow = new Date(now.getTime() - (settings.repeatFundingWindowHours * 60 * 60 * 1000));
+      const [repeatCount] = await db.select({ cnt: count() })
+        .from(directorFundingTransactions)
+        .where(and(
+          eq(directorFundingTransactions.directorUserId, directorUserId),
+          eq(directorFundingTransactions.driverUserId, driverUserId),
+          gte(directorFundingTransactions.createdAt, repeatWindow),
+          eq(directorFundingTransactions.status, "completed")
+        ));
+      if ((repeatCount?.cnt || 0) >= settings.repeatFundingThreshold) {
+        flagged = true;
+        flagReason = `Repeat funding: ${repeatCount.cnt + 1} transactions to same driver within ${settings.repeatFundingWindowHours}h`;
+      }
+
+      if (parsedAmount >= parseFloat(settings.perTransactionMax) * 0.9) {
+        flagged = true;
+        flagReason = (flagReason ? flagReason + "; " : "") + "Amount near maximum per-transaction limit";
+      }
+
+      const [txn] = await db.insert(directorFundingTransactions).values({
+        directorUserId,
+        driverUserId,
+        amount: parsedAmount.toFixed(2),
+        purposeTag,
+        disclaimerAccepted: true,
+        flagged,
+        flagReason,
+        ipAddress: ip,
+        status: "completed",
+      }).returning();
+
+      await db.update(driverProfiles)
+        .set({ walletBalance: sql`(wallet_balance::numeric + ${parsedAmount})::text` })
+        .where(eq(driverProfiles.userId, driverUserId));
+
+      const [driverWallet] = await db.select().from(driverWallets)
+        .where(eq(driverWallets.userId, driverUserId));
+      if (driverWallet) {
+        await db.update(driverWallets)
+          .set({ balance: sql`(balance::numeric + ${parsedAmount})::text`, updatedAt: new Date() })
+          .where(eq(driverWallets.userId, driverUserId));
+      }
+
+      await storage.createDirectorActionLog({
+        actorId: directorUserId,
+        actorRole: "director",
+        action: "fund_driver",
+        targetType: "driver",
+        targetId: driverUserId,
+        beforeState: null,
+        afterState: JSON.stringify({ amount: parsedAmount, purposeTag, flagged, transactionId: txn.id }),
+        metadata: JSON.stringify({ ip }),
+      });
+
+      try {
+        const purposeLabels: Record<string, string> = {
+          ride_fuel_support: "Ride fuel support",
+          network_availability_boost: "Network availability boost",
+          emergency_assistance: "Emergency assistance",
+          temporary_balance_topup: "Temporary balance top-up",
+        };
+        const purposeLabel = purposeLabels[purposeTag] || purposeTag;
+
+        await notificationService.createNotification(
+          driverUserId,
+          "wallet",
+          "Director Support Received",
+          `Your director has sent you ${parsedAmount.toFixed(2)} as ${purposeLabel}. This is voluntary support and not a loan.`,
+          { transactionId: txn.id, amount: parsedAmount, purpose: purposeTag }
+        );
+
+        await notificationService.createNotification(
+          directorUserId,
+          "wallet",
+          "Funding Sent",
+          `You sent ${parsedAmount.toFixed(2)} to ${driver.fullName} as ${purposeLabel}.`,
+          { transactionId: txn.id, driverUserId, amount: parsedAmount }
+        );
+      } catch (_notifError) {}
+
+      if (flagged && settings.fundingSuspensionEnabled) {
+        const [existingSuspension] = await db.select().from(directorFundingSuspensions)
+          .where(and(
+            eq(directorFundingSuspensions.directorUserId, directorUserId),
+            eq(directorFundingSuspensions.isActive, true)
+          ))
+          .limit(1);
+        if (!existingSuspension) {
+          await db.insert(directorFundingSuspensions).values({
+            directorUserId,
+            reason: `Auto-suspended: ${flagReason}`,
+            suspendedBy: "system",
+          });
+
+          await storage.createDirectorCoachingLog({
+            directorUserId,
+            coachingType: "funding_suspended",
+            message: "Your funding ability has been temporarily suspended due to flagged activity. An admin will review your account.",
+            severity: "critical",
+          });
+        }
+      }
+
+      res.json({ transaction: txn, flagged });
+    } catch (error) {
+      console.error("Director funding error:", error);
+      res.status(500).json({ error: "Failed to process funding" });
+    }
+  });
+
+  app.get("/api/director/funding/history", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const txns = await db.select().from(directorFundingTransactions)
+        .where(eq(directorFundingTransactions.directorUserId, userId))
+        .orderBy(desc(directorFundingTransactions.createdAt))
+        .limit(100);
+
+      const enriched = [];
+      for (const txn of txns) {
+        const [driver] = await db.select().from(driverProfiles)
+          .where(eq(driverProfiles.userId, txn.driverUserId));
+        enriched.push({
+          ...txn,
+          driverName: driver?.fullName || "Unknown Driver",
+        });
+      }
+
+      res.json(enriched);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to load funding history" });
+    }
+  });
+
+  app.get("/api/director/funding/suspension-status", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const [suspension] = await db.select().from(directorFundingSuspensions)
+        .where(and(
+          eq(directorFundingSuspensions.directorUserId, userId),
+          eq(directorFundingSuspensions.isActive, true)
+        ))
+        .limit(1);
+      res.json({ suspended: !!suspension, suspension });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to check suspension status" });
+    }
+  });
+
+  // Admin Director Funding Routes
+  app.get("/api/admin/director-funding/transactions", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { flagged, directorId } = req.query;
+      let query = db.select().from(directorFundingTransactions).orderBy(desc(directorFundingTransactions.createdAt)).limit(200);
+
+      let txns;
+      if (flagged === "true" && directorId) {
+        txns = await db.select().from(directorFundingTransactions)
+          .where(and(eq(directorFundingTransactions.flagged, true), eq(directorFundingTransactions.directorUserId, directorId as string)))
+          .orderBy(desc(directorFundingTransactions.createdAt)).limit(200);
+      } else if (flagged === "true") {
+        txns = await db.select().from(directorFundingTransactions)
+          .where(eq(directorFundingTransactions.flagged, true))
+          .orderBy(desc(directorFundingTransactions.createdAt)).limit(200);
+      } else if (directorId) {
+        txns = await db.select().from(directorFundingTransactions)
+          .where(eq(directorFundingTransactions.directorUserId, directorId as string))
+          .orderBy(desc(directorFundingTransactions.createdAt)).limit(200);
+      } else {
+        txns = await db.select().from(directorFundingTransactions)
+          .orderBy(desc(directorFundingTransactions.createdAt)).limit(200);
+      }
+
+      const enriched = [];
+      for (const txn of txns) {
+        const dirProfile = await storage.getDirectorProfile(txn.directorUserId);
+        const [driver] = await db.select().from(driverProfiles)
+          .where(eq(driverProfiles.userId, txn.driverUserId));
+        enriched.push({
+          ...txn,
+          directorName: dirProfile?.fullName || "Unknown Director",
+          driverName: driver?.fullName || "Unknown Driver",
+        });
+      }
+
+      res.json(enriched);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to load director funding transactions" });
+    }
+  });
+
+  app.get("/api/admin/director-funding/suspensions", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const suspensions = await db.select().from(directorFundingSuspensions)
+        .orderBy(desc(directorFundingSuspensions.suspendedAt))
+        .limit(100);
+
+      const enriched = [];
+      for (const s of suspensions) {
+        const dirProfile = await storage.getDirectorProfile(s.directorUserId);
+        enriched.push({
+          ...s,
+          directorName: dirProfile?.fullName || "Unknown Director",
+        });
+      }
+
+      res.json(enriched);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to load suspensions" });
+    }
+  });
+
+  app.post("/api/admin/director-funding/suspend/:directorUserId", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const { directorUserId } = req.params;
+      const { reason } = req.body;
+
+      const [existing] = await db.select().from(directorFundingSuspensions)
+        .where(and(
+          eq(directorFundingSuspensions.directorUserId, directorUserId),
+          eq(directorFundingSuspensions.isActive, true)
+        )).limit(1);
+
+      if (existing) {
+        return res.status(400).json({ message: "Director funding is already suspended" });
+      }
+
+      const [suspension] = await db.insert(directorFundingSuspensions).values({
+        directorUserId,
+        reason: reason || "Admin-initiated suspension",
+        suspendedBy: adminId,
+      }).returning();
+
+      await storage.createDirectorActionLog({
+        actorId: adminId,
+        actorRole: "admin",
+        action: "suspend_director_funding",
+        targetType: "director",
+        targetId: directorUserId,
+        beforeState: null,
+        afterState: JSON.stringify({ suspensionId: suspension.id, reason }),
+      });
+
+      res.json(suspension);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to suspend director funding" });
+    }
+  });
+
+  app.post("/api/admin/director-funding/lift-suspension/:directorUserId", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const { directorUserId } = req.params;
+
+      const [suspension] = await db.select().from(directorFundingSuspensions)
+        .where(and(
+          eq(directorFundingSuspensions.directorUserId, directorUserId),
+          eq(directorFundingSuspensions.isActive, true)
+        )).limit(1);
+
+      if (!suspension) {
+        return res.status(400).json({ message: "No active suspension found" });
+      }
+
+      await db.update(directorFundingSuspensions)
+        .set({ isActive: false, liftedAt: new Date(), liftedBy: adminId })
+        .where(eq(directorFundingSuspensions.id, suspension.id));
+
+      await storage.createDirectorActionLog({
+        actorId: adminId,
+        actorRole: "admin",
+        action: "lift_director_funding_suspension",
+        targetType: "director",
+        targetId: directorUserId,
+        beforeState: JSON.stringify({ suspensionId: suspension.id }),
+        afterState: JSON.stringify({ lifted: true }),
+      });
+
+      res.json({ message: "Suspension lifted" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to lift suspension" });
+    }
+  });
+
+  app.put("/api/admin/director-funding/settings", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      let [settings] = await db.select().from(directorFundingSettings).limit(1);
+      if (!settings) {
+        [settings] = await db.insert(directorFundingSettings).values({}).returning();
+      }
+
+      const updates: any = { updatedAt: new Date(), updatedBy: adminId };
+      const allowedFields = [
+        "isEnabled", "perTransactionMin", "perTransactionMax",
+        "perDriverDailyLimit", "perDriverWeeklyLimit", "perDriverMonthlyLimit",
+        "perDirectorDailyLimit", "perDirectorWeeklyLimit", "perDirectorMonthlyLimit",
+        "minDriversRequired", "repeatFundingThreshold", "repeatFundingWindowHours",
+        "fundingSuspensionEnabled"
+      ];
+
+      for (const field of allowedFields) {
+        if (req.body[field] !== undefined) {
+          if (typeof req.body[field] === "number" && !["minDriversRequired", "repeatFundingThreshold", "repeatFundingWindowHours"].includes(field) && typeof req.body[field] !== "boolean") {
+            updates[field] = String(req.body[field]);
+          } else {
+            updates[field] = req.body[field];
+          }
+        }
+      }
+
+      const [updated] = await db.update(directorFundingSettings)
+        .set(updates)
+        .where(eq(directorFundingSettings.id, settings.id))
+        .returning();
+
+      await storage.createDirectorActionLog({
+        actorId: adminId,
+        actorRole: "super_admin",
+        action: "update_director_funding_settings",
+        targetType: "settings",
+        targetId: settings.id,
+        beforeState: JSON.stringify(settings),
+        afterState: JSON.stringify(updated),
+      });
+
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update director funding settings" });
+    }
+  });
+
+  app.post("/api/driver/report-coercion", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const driverUserId = req.user.claims.sub;
+      const { directorUserId, description } = req.body;
+
+      if (!description) {
+        return res.status(400).json({ message: "Description is required" });
+      }
+
+      const [assignment] = await db.select().from(directorDriverAssignments)
+        .where(eq(directorDriverAssignments.driverUserId, driverUserId))
+        .limit(1);
+
+      const resolvedDirectorId = directorUserId || assignment?.directorUserId;
+      if (!resolvedDirectorId) {
+        return res.status(400).json({ message: "Could not determine director" });
+      }
+
+      await db.insert(directorFundingSuspensions).values({
+        directorUserId: resolvedDirectorId,
+        reason: `Coercion report from driver ${driverUserId}: ${description}`,
+        suspendedBy: "system",
+      });
+
+      await storage.createDirectorActionLog({
+        actorId: driverUserId,
+        actorRole: "driver",
+        action: "report_coercion",
+        targetType: "director",
+        targetId: resolvedDirectorId,
+        beforeState: null,
+        afterState: JSON.stringify({ description }),
+      });
+
+      try {
+        const admins = await db.select().from(users)
+          .where(sql`roles::text LIKE '%admin%'`);
+        for (const admin of admins) {
+          await notificationService.createNotification(
+            admin.id,
+            "system",
+            "Coercion Report",
+            `Driver ${driverUserId} has reported potential coercion from a director. Funding has been paused pending review.`,
+            { driverUserId, directorUserId: resolvedDirectorId }
+          );
+        }
+      } catch (_notifError) {}
+
+      res.json({ message: "Report submitted. The director's funding has been paused and admin has been notified." });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to submit coercion report" });
     }
   });
 

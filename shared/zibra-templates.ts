@@ -1579,6 +1579,117 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     response: "Your cell is approaching its maximum capacity. Focus on quality over quantity for your remaining slots. Confirm that new driver additions meet platform standards. If you need additional capacity, discuss options with administration."
   },
 
+  // ============================
+  // DIRECTOR FUNDING TEMPLATES
+  // ============================
+
+  {
+    id: "d-funding-repayment",
+    role: "director",
+    category: "director_drivers",
+    keywords: ["repayment", "pay back", "pay me back", "return money", "expect repayment", "get my money back", "reimburse"],
+    response: "Funding is voluntary support and does not involve repayment or obligations. Director funding is a one-way transfer to support drivers. ZIBA does not facilitate, enforce, or track repayment of any kind. Any attempt to require repayment may result in a compliance review.",
+    priority: 95
+  },
+  {
+    id: "d-funding-require-online",
+    role: "director",
+    category: "director_drivers",
+    keywords: ["stay online", "require online", "must be online", "force online", "demand online", "keep driving"],
+    response: "Support funding should never be used to influence driver decisions. Drivers maintain full autonomy over when and how they use the platform. Conditioning funding on activity or availability is a policy violation and may trigger a compliance review.",
+    priority: 95
+  },
+  {
+    id: "d-funding-paused",
+    role: "director",
+    category: "director_drivers",
+    keywords: ["funding paused", "can't fund", "funding suspended", "funding stopped", "why paused", "funding blocked"],
+    response: "Your funding activity triggered a review to ensure fairness and compliance. Funding pauses are temporary and are lifted after admin review. You can view your funding history and limits on the Funding tab of your Director Dashboard.",
+    priority: 90
+  },
+  {
+    id: "d-funding-how",
+    role: "director",
+    category: "director_drivers",
+    keywords: ["how to fund", "fund driver", "send money to driver", "support driver", "give money"],
+    response: "To fund a driver's wallet:\n1. Go to your Director Dashboard.\n2. Open the Funding tab.\n3. Select an eligible driver from your cell.\n4. Enter the amount and select a purpose.\n5. Accept the disclaimer and confirm.\n\nFunding is subject to daily, weekly, and monthly limits.",
+    priority: 85
+  },
+  {
+    id: "d-funding-limits",
+    role: "director",
+    category: "director_drivers",
+    keywords: ["funding limit", "how much can I fund", "maximum fund", "daily limit", "weekly limit", "monthly limit"],
+    response: "Funding limits are configured by platform administrators and include per-transaction, per-driver, and per-director caps across daily, weekly, and monthly periods. Your remaining limits are displayed on the Funding tab of your Director Dashboard.",
+    priority: 85
+  },
+  {
+    id: "d-funding-conditions",
+    role: "director",
+    category: "director_drivers",
+    keywords: ["condition", "conditional", "in exchange", "trade", "deal", "agreement", "contract"],
+    response: "Director funding must be unconditional. You may not attach conditions, expectations, or agreements to wallet funding. Any attempt to create conditional funding arrangements is a policy violation. ZIBA monitors funding patterns for compliance.",
+    priority: 95
+  },
+
+  {
+    id: "dr-funding-payback",
+    role: "driver",
+    category: "driver_wallet",
+    keywords: ["pay back", "repay", "owe", "pay this back", "repayment", "do I owe"],
+    response: "No. Director funding is voluntary support and not a loan. You are under no obligation to repay, return, or compensate for any funding received from a director. If anyone suggests otherwise, please report it through the Help Center.",
+    priority: 95
+  },
+  {
+    id: "dr-funding-refuse",
+    role: "driver",
+    category: "driver_wallet",
+    keywords: ["refuse funding", "reject funding", "don't want funding", "decline funding", "can I refuse"],
+    response: "Yes. Accepting support is optional. Funding is credited to your wallet automatically, but you are never required to accept conditions or obligations in exchange for it. If a director implies conditions, please report it.",
+    priority: 90
+  },
+  {
+    id: "dr-funding-affect-account",
+    role: "driver",
+    category: "driver_wallet",
+    keywords: ["affect account", "affect earnings", "change standing", "impact account", "funding impact"],
+    response: "Support funding does not change your earnings or account standing. Your driver status, ratings, and earnings are determined independently by the platform. Director funding is a separate voluntary support mechanism.",
+    priority: 90
+  },
+  {
+    id: "dr-funding-coercion",
+    role: "driver",
+    category: "driver_wallet",
+    keywords: ["coercion", "forced", "pressured", "threatened", "director demanding", "director forcing", "must stay online"],
+    response: "No one may force, pressure, or coerce you based on funding. If you are experiencing this, please report it immediately through the Help Center or submit a support ticket. ZIBA takes coercion reports seriously and will investigate promptly.",
+    priority: 100
+  },
+
+  {
+    id: "a-funding-flags",
+    role: ["admin", "super_admin"],
+    category: "audit",
+    keywords: ["funding flag", "flagged funding", "funding review", "funding abuse", "suspicious funding"],
+    response: "Flagged director funding transactions are available in the Director Funding section of the admin panel. Flags are triggered by repeat funding patterns, threshold violations, or coercion reports. Review each case individually before taking action. No automatic punishments are applied without admin confirmation.",
+    priority: 85
+  },
+  {
+    id: "a-funding-patterns",
+    role: ["admin", "super_admin"],
+    category: "audit",
+    keywords: ["funding pattern", "funding summary", "director funding overview", "who is funding"],
+    response: "Director funding patterns can be reviewed in the Director Funding admin panel. Look for repeat funding to the same driver, funding amounts near limits, and timing patterns. The system automatically flags suspicious patterns for your review.",
+    priority: 80
+  },
+  {
+    id: "a-funding-suspend",
+    role: ["admin", "super_admin"],
+    category: "audit",
+    keywords: ["suspend funding", "pause director funding", "stop director funding", "block funding"],
+    response: "You can suspend a director's funding ability from the Director Funding admin panel. This temporarily prevents the director from sending funds while maintaining their other director privileges. Document the reason for the suspension in the notes field.",
+    priority: 85
+  },
+
   {
     id: "x-general-help",
     role: ["rider", "driver", "admin", "super_admin", "director", "general"],
