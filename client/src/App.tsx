@@ -94,6 +94,7 @@ const TripSharePage = lazy(() => import("@/pages/trip-share"));
 const SimulationEntryPage = lazy(() => import("@/pages/simulation-entry"));
 const SavedPlaceFormPage = lazy(() => import("@/pages/rider/saved-place-form"));
 const DirectorDashboardPage = lazy(() => import("@/pages/director-dashboard"));
+const DirectorLanguagePage = lazy(() => import("@/pages/director/language"));
 const AboutPage = lazy(() => import("@/pages/public/about"));
 const HowItWorksPage = lazy(() => import("@/pages/public/how-it-works"));
 const SafetyPage = lazy(() => import("@/pages/public/safety"));
@@ -413,6 +414,9 @@ function AdminRouter() {
       </Route>
       <Route path="/director/reports">
         <LazyComponent><DirectorReportsPage /></LazyComponent>
+      </Route>
+      <Route path="/director/settings/language">
+        <LazyComponent><DirectorLanguagePage /></LazyComponent>
       </Route>
       <Route path="/director/training">
         <LazyComponent><DirectorTrainingPage /></LazyComponent>

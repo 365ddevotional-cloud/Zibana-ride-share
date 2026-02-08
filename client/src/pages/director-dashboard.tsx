@@ -20,10 +20,11 @@ import {
   Users, Shield, Clock, AlertTriangle, Activity, UserPlus, ChevronRight,
   Calendar, Bell, X, RefreshCw, Wallet, Send, Ban, History, DollarSign,
   CheckCircle, XCircle, Eye, Trash2, Lightbulb, MessageCircle,
-  TrendingUp, BarChart3, Building2, Star, Crown, BookOpen
+  TrendingUp, BarChart3, Building2, Star, Crown, BookOpen, Globe, Settings2
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation, LANGUAGES } from "@/i18n";
 
 type DashboardData = {
   profile: {
@@ -816,6 +817,8 @@ function DisputeSection({ disputeablePayouts }: { disputeablePayouts: Array<{ id
 export default function DirectorDashboard() {
   const { toast } = useToast();
   const [location, setLocation] = useLocation();
+  const { t, language } = useTranslation();
+  const currentLang = LANGUAGES.find((l) => l.code === language);
   const getInitialTab = () => {
     if (location === "/director/drivers") return "drivers";
     if (location === "/director/funding") return "funding";
@@ -1241,6 +1244,9 @@ export default function DirectorDashboard() {
           <TabsTrigger value="special-rides" disabled={trainingStatus && !trainingStatus.allCompleted && !isReadOnly} data-testid="tab-special-rides">
             <Crown className="h-4 w-4 mr-1" />
             Special Rides
+          </TabsTrigger>
+          <TabsTrigger value="settings" data-testid="tab-settings">
+            <Settings2 className="w-3 h-3 mr-1" /> Settings
           </TabsTrigger>
         </TabsList>
 
@@ -2710,6 +2716,42 @@ export default function DirectorDashboard() {
         {/* SPECIAL RIDES TAB */}
         <TabsContent value="special-rides" className="space-y-4">
           <DirectorSpecialRidesPanel />
+        </TabsContent>
+
+        <TabsContent value="settings" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings2 className="h-5 w-5" />
+                {t("director.settings")}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("settings.language")}</p>
+                <Card>
+                  <CardContent className="p-0">
+                    <button
+                      className="w-full p-4 flex items-center gap-3 hover-elevate cursor-pointer"
+                      data-testid="button-director-language"
+                      onClick={() => setLocation("/director/settings/language")}
+                    >
+                      <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center text-muted-foreground shrink-0">
+                        <Globe className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1 min-w-0 text-left">
+                        <p className="font-medium text-sm">{t("settings.language")}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {currentLang ? `${currentLang.nativeName} (${currentLang.name})` : "English"}
+                        </p>
+                      </div>
+                      <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+                    </button>
+                  </CardContent>
+                </Card>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 

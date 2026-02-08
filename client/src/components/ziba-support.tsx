@@ -160,7 +160,7 @@ interface ZibaSupportProps {
 export function ZibaSupport({ onClose, forceRole }: ZibaSupportProps) {
   const { user } = useAuth();
   const [pathname] = useLocation();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const detectedRole = forceRole || detectRole(pathname, (user as any)?.roles);
   const screen = getScreenContext(pathname);
 
@@ -206,7 +206,8 @@ export function ZibaSupport({ onClose, forceRole }: ZibaSupportProps) {
     const isLanguageHelp = languageKeywords.some(kw => msg.toLowerCase().includes(kw));
 
     if (isLanguageHelp) {
-      const langHelpMsg = t("support.helpReset") + "\n\nTo reset: Settings → Language → English";
+      const roleSettingsPath = detectedRole === "driver" ? "Settings → Language" : detectedRole === "director" ? "Dashboard → Settings tab → Language" : "Settings → Language";
+      const langHelpMsg = t("support.helpReset") + `\n\nTo reset: ${roleSettingsPath} → English`;
       const supportMsg: SupportMessage = {
         id: `support-${Date.now()}`,
         role: "support",
@@ -223,7 +224,7 @@ export function ZibaSupport({ onClose, forceRole }: ZibaSupportProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ message: msg, conversationId, currentScreen: screen }),
+        body: JSON.stringify({ message: msg, conversationId, currentScreen: screen, userLanguage: language }),
       });
       if (res.ok) {
         const data = await res.json();

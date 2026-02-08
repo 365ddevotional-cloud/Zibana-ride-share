@@ -17432,7 +17432,8 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const { message, conversationId, currentScreen } = req.body;
+      const { message, conversationId, currentScreen, userLanguage: rawUserLanguage } = req.body;
+      const userLanguage = rawUserLanguage || "en";
       if (!message || typeof message !== "string") {
         return res.status(400).json({ message: "Message is required" });
       }
@@ -17526,6 +17527,7 @@ export async function registerRoutes(
         response,
         conversationId: convId,
         role: detectedRole,
+        userLanguage,
       });
     } catch (error) {
       console.error("Error in support chat:", error);
@@ -17549,6 +17551,26 @@ export async function registerRoutes(
       res.json(results);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch interactions" });
+    }
+  });
+
+  app.get("/api/admin/user-languages", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const userRole = await storage.getUserRole(userId);
+      if (!userRole || !["admin", "super_admin"].includes(userRole.role)) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      const result = await db.select({
+        language: users.language,
+        count: sql`count(*)::int`
+      }).from(users).groupBy(users.language);
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Error fetching user languages:", error);
+      res.status(500).json({ message: "Failed to fetch language stats" });
     }
   });
 
