@@ -1,0 +1,140 @@
+You are updating the ZIBA Rider App.  
+
+GOAL:
+Restore and activate ride classification selection in the “Request a Ride” flow using ORIGINAL ZIBA ride classes (not Uber-branded), ensure pricing tiers are different, and make all related UI elements clickable and functional.
+
+CRITICAL RULES:
+- Audit existing code first.
+- If a feature already exists, UPDATE it.
+- If missing, IMPLEMENT it.
+- Do NOT break existing booking, pricing, or driver-matching logic.
+- Do NOT reference Uber or Lyft anywhere in code or UI.
+- Keep naming 100% ZIBA-original.
+
+================================================
+PHASE 1 — AUDIT FIRST (MANDATORY)
+================================================
+1) Search for existing ride class logic:
+   - rideType, serviceType, vehicleClass, tripClass, fareClass
+   - UI components in Request Ride, Services, Preferences
+2) Check if ride class filtering was removed or hidden.
+3) Identify why ride class selector is no longer visible in the Request Ride flow.
+4) Re-enable or reinsert the selector where it was originally intended.
+
+================================================
+PHASE 2 — DEFINE ZIBA ORIGINAL RIDE CLASSES
+================================================
+Create or update the following DEFAULT ZIBA ride classes:
+
+1) ZIBA Go
+   - Cheapest option
+   - 4 seats
+   - Everyday rides
+   - Base fare multiplier: 1.0x
+
+2) ZIBA Plus
+   - Larger vehicles (6–7 seats)
+   - Fare multiplier: 1.3x
+
+3) ZIBA Comfort
+   - Newer vehicles, smoother experience
+   - Fare multiplier: 1.5x
+
+4) ZIBA PetRide
+   - Pet-friendly vehicles only
+   - Fare multiplier: 1.5x
+
+5) ZIBA SafeTeen
+   - Teen/youth rides
+   - Extra safety rules
+   - Fare multiplier: 1.4x
+
+6) ZIBA Elite
+   - Premium vehicles and top-rated drivers
+   - Fare multiplier: 2.0x or higher
+
+Store these in a configurable table/model so Super Admin can adjust pricing per country/city.
+
+================================================
+PHASE 3 — REQUEST RIDE UI (RIDER)
+================================================
+On the “Request a Ride” screen:
+- Display ride class selector cards/buttons:
+  [ ZIBA Go | ZIBA Plus | ZIBA Comfort | ZIBA PetRide | ZIBA SafeTeen | ZIBA Elite ]
+- Each class must show:
+  - Estimated fare
+  - ETA
+  - Short description
+- Selecting a class updates fare calculation in real time.
+- Default selection = ZIBA Go.
+
+Ensure this works for:
+- Immediate rides
+- Scheduled rides
+- Corporate rides (if enabled for the user)
+
+================================================
+PHASE 4 — SERVICES PAGE FIX
+================================================
+On the Rider “Services” tab:
+- Remove “Coming Soon” from:
+  - Corporate Rides
+  - Special Rides
+- Make BOTH boxes clickable.
+- Corporate Rides → route to Corporate Rides onboarding/info page.
+- Special Rides → route to ride class explanation page (ZIBA Go → Elite).
+
+If pages do not exist, create minimal functional pages (info + CTA).
+
+================================================
+PHASE 5 — DRIVER ELIGIBILITY LOGIC
+================================================
+Update driver matching rules:
+- Drivers can be eligible for multiple ZIBA ride classes.
+- Eligibility depends on:
+  - Vehicle type
+  - Driver rating
+  - Admin/Director approval
+- ZIBA Elite and SafeTeen require extra approval flags.
+
+================================================
+PHASE 6 — ADMIN & DIRECTOR CONTROLS
+================================================
+Admin / Super Admin:
+- Enable/disable ride classes per city/country.
+- Adjust fare multipliers.
+- Set eligibility rules.
+
+Directors:
+- View which drivers qualify for which ride classes.
+- Cannot change pricing.
+- Can recommend drivers for higher classes (approval required).
+
+================================================
+PHASE 7 — ZIBRA (ZIBA SUPPORT) RESPONSES
+================================================
+Add response templates for:
+- “What is ZIBA Go?”
+- “Why is ZIBA Elite more expensive?”
+- “How do I choose the best ride class?”
+- “Why can’t I see some ride options?”
+
+Language rules:
+- Advisory only
+- No guarantees
+- No liability admission
+
+================================================
+PHASE 8 — FINAL CHECKS
+================================================
+- All ride class boxes must be clickable.
+- Ride class selection must affect pricing.
+- No “Coming Soon” labels remain.
+- UI must match existing ZIBA theme.
+- Log changes clearly.
+
+CONFIRMATION REQUIRED:
+After implementation, report:
+- What files/routes were updated
+- How to test ride class selection end-to-end
+- Any remaining limitations
