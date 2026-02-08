@@ -15,7 +15,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Users, Shield, Clock, AlertTriangle, Activity, UserPlus, ChevronRight,
   Calendar, Bell, X, RefreshCw, Wallet, Send, Ban, History, DollarSign,
-  CheckCircle, XCircle, Eye, Trash2, Lightbulb, MessageCircle
+  CheckCircle, XCircle, Eye, Trash2, Lightbulb, MessageCircle,
+  TrendingUp, BarChart3
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -743,6 +744,30 @@ export default function DirectorDashboard() {
     enabled: activeTab === "funding",
   });
 
+  const { data: analytics } = useQuery<{
+    totalDrivers: number;
+    activeDriversToday: number;
+    commissionableToday: number;
+    driversByStatus: Record<string, number>;
+    weeklyGrowth: Array<{ week: string; count: number }>;
+    fundingCount: number;
+    fundingThisMonth: number;
+    avgTrustScore: number;
+    lowTrustCount: number;
+    cellHealthBadge: "healthy" | "at_risk" | "under_review";
+    activityRatio: number;
+  }>({
+    queryKey: ["/api/director/analytics"],
+    enabled: activeTab === "overview",
+  });
+
+  const { data: oversightSignals } = useQuery<{
+    signals: Array<{ type: string; severity: "info" | "warning" | "critical"; message: string; triggeredAt: string }>;
+  }>({
+    queryKey: ["/api/director/oversight-signals"],
+    enabled: activeTab === "overview",
+  });
+
   const { data: acceptanceData } = useQuery<{ accepted: boolean }>({
     queryKey: ["/api/director/funding/acceptance"],
   });
@@ -1105,6 +1130,119 @@ export default function DirectorDashboard() {
               </div>
             </CardContent>
           </Card>
+
+          {analytics && (
+            <Card data-testid="card-performance-overview">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4" />
+                  Performance Overview
+                </CardTitle>
+                <Badge
+                  variant={analytics.cellHealthBadge === "healthy" ? "default" : analytics.cellHealthBadge === "at_risk" ? "secondary" : "destructive"}
+                  data-testid="badge-cell-health"
+                >
+                  {analytics.cellHealthBadge === "healthy" ? "Healthy Cell" : analytics.cellHealthBadge === "at_risk" ? "At Risk" : "Under Review"}
+                </Badge>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="p-3 rounded-md border">
+                    <p className="text-xs text-muted-foreground">Activity Ratio</p>
+                    <p className="text-xl font-bold" data-testid="text-activity-ratio">{analytics.activityRatio}%</p>
+                  </div>
+                  <div className="p-3 rounded-md border">
+                    <p className="text-xs text-muted-foreground">Commissionable</p>
+                    <p className="text-xl font-bold" data-testid="text-analytics-commissionable">{analytics.commissionableToday}</p>
+                  </div>
+                  <div className="p-3 rounded-md border">
+                    <p className="text-xs text-muted-foreground">Avg Trust Score</p>
+                    <p className="text-xl font-bold" data-testid="text-analytics-trust">{analytics.avgTrustScore}</p>
+                  </div>
+                  <div className="p-3 rounded-md border">
+                    <p className="text-xs text-muted-foreground">Funding This Month</p>
+                    <p className="text-xl font-bold" data-testid="text-analytics-funding-count">{analytics.fundingThisMonth}</p>
+                    <p className="text-xs text-muted-foreground">{analytics.fundingCount} total</p>
+                  </div>
+                </div>
+
+                {analytics.weeklyGrowth && analytics.weeklyGrowth.length > 0 && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-2">Driver Growth (4 Weeks)</p>
+                    <div className="flex items-end gap-2 h-24">
+                      {analytics.weeklyGrowth.map((week, i) => {
+                        const maxCount = Math.max(...analytics.weeklyGrowth.map(w => w.count), 1);
+                        const height = (week.count / maxCount) * 100;
+                        return (
+                          <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                            <span className="text-xs font-medium" data-testid={`text-growth-count-${i}`}>{week.count}</span>
+                            <div
+                              className="w-full bg-primary/20 rounded-t-sm relative"
+                              style={{ height: `${Math.max(height, 5)}%` }}
+                            >
+                              <div className="absolute inset-0 bg-primary rounded-t-sm" style={{ opacity: 0.7 }} />
+                            </div>
+                            <span className="text-[10px] text-muted-foreground truncate max-w-full">{week.week}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {Object.keys(analytics.driversByStatus || {}).length > 0 && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-2">Driver Status Breakdown</p>
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(analytics.driversByStatus).map(([status, count]) => (
+                        <Badge key={status} variant="outline" data-testid={`badge-status-${status}`}>
+                          {status}: {count}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {analytics.lowTrustCount > 0 && (
+                  <div className="p-3 rounded-md border border-yellow-500/30 bg-yellow-500/5">
+                    <p className="text-sm flex items-center gap-2" data-testid="text-low-trust-warning">
+                      <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                      {analytics.lowTrustCount} driver{analytics.lowTrustCount !== 1 ? "s" : ""} with low trust scores
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {oversightSignals && oversightSignals.signals.length > 0 && (
+            <Card data-testid="card-oversight-signals">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Eye className="h-4 w-4" />
+                  ZIBA Oversight
+                </CardTitle>
+                <Badge variant="outline" data-testid="badge-signal-count">{oversightSignals.signals.length}</Badge>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {oversightSignals.signals.map((signal, i) => (
+                    <div key={i} className="flex items-start gap-3 py-2 border-b border-border last:border-0" data-testid={`oversight-signal-${i}`}>
+                      <AlertTriangle className={`h-4 w-4 mt-0.5 shrink-0 ${signal.severity === "critical" ? "text-destructive" : signal.severity === "warning" ? "text-yellow-500" : "text-muted-foreground"}`} />
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-0.5">
+                          <Badge variant={signal.severity === "critical" ? "destructive" : signal.severity === "warning" ? "secondary" : "outline"}>
+                            {signal.severity}
+                          </Badge>
+                        </div>
+                        <p className="text-sm">{signal.message}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* DRIVERS TAB */}

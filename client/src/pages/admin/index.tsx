@@ -809,6 +809,17 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
   const [payoutPeriodStart, setPayoutPeriodStart] = useState("");
   const [payoutPeriodEnd, setPayoutPeriodEnd] = useState("");
   const [zAssistOpen, setZAssistOpen] = useState(false);
+  const [selectedDirectorId, setSelectedDirectorId] = useState<string | null>(null);
+
+  const { data: directorLifecycle, isLoading: lifecycleLoading } = useQuery<any>({
+    queryKey: ["/api/admin/directors", selectedDirectorId, "lifecycle"],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/directors/${selectedDirectorId}/lifecycle`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to load");
+      return res.json();
+    },
+    enabled: !!selectedDirectorId,
+  });
 
   const { data: driverWallets = [], isLoading: walletsLoading } = useQuery<WalletWithDetails[]>({
     queryKey: ["/api/admin/wallets"],
@@ -4730,6 +4741,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                             <TableHead>Drivers</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead>Joined</TableHead>
+                            <TableHead>Details</TableHead>
                             {isSuperAdmin && <TableHead>Actions</TableHead>}
                           </TableRow>
                         </TableHeader>
@@ -4751,6 +4763,16 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                                 {director.createdAt 
                                   ? new Date(director.createdAt).toLocaleDateString() 
                                   : "-"}
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  data-testid={`button-view-director-${director.id}`}
+                                  onClick={() => setSelectedDirectorId(director.id)}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
                               </TableCell>
                               {isSuperAdmin && (
                                 <TableCell>
@@ -4825,6 +4847,219 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               </Card>
             </TabsContent>
           )}
+
+          <Dialog open={!!selectedDirectorId} onOpenChange={(v) => { if (!v) setSelectedDirectorId(null); }}>
+            <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Shield className="h-5 w-5" />
+                  Director Lifecycle
+                </DialogTitle>
+                <DialogDescription>
+                  Manage lifecycle, status, and lifespan for this director
+                </DialogDescription>
+              </DialogHeader>
+
+              {lifecycleLoading ? (
+                <div className="py-8 text-center text-muted-foreground">Loading lifecycle data...</div>
+              ) : directorLifecycle ? (
+                <div className="space-y-4">
+                  <Card>
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="font-medium text-lg" data-testid="text-lifecycle-director-name">{directorLifecycle.director.displayName}</p>
+                          <p className="text-sm text-muted-foreground">{directorLifecycle.director.email}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={directorLifecycle.director.directorType === "contract" ? "default" : "secondary"}>
+                            {directorLifecycle.director.directorType}
+                          </Badge>
+                          <Badge variant={directorLifecycle.director.lifecycleStatus === "active" ? "default" : directorLifecycle.director.lifecycleStatus === "terminated" ? "destructive" : "secondary"}>
+                            {directorLifecycle.director.lifecycleStatus}
+                          </Badge>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <Card>
+                      <CardContent className="p-3">
+                        <p className="text-xs text-muted-foreground">Drivers</p>
+                        <p className="text-xl font-bold" data-testid="text-lifecycle-driver-count">{directorLifecycle.driverCount}</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-3">
+                        <p className="text-xs text-muted-foreground">Cells</p>
+                        <p className="text-xl font-bold" data-testid="text-lifecycle-cell-count">{directorLifecycle.cells?.length || 0}</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-3">
+                        <p className="text-xs text-muted-foreground">Max Cells</p>
+                        <p className="text-xl font-bold" data-testid="text-lifecycle-max-cells">{directorLifecycle.director.maxCells || 3}</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium">Lifespan</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Start Date</p>
+                          <p className="text-sm font-medium" data-testid="text-lifecycle-start-date">
+                            {directorLifecycle.director.lifespanStartDate
+                              ? new Date(directorLifecycle.director.lifespanStartDate).toLocaleDateString()
+                              : "Not set"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">End Date</p>
+                          <p className="text-sm font-medium" data-testid="text-lifecycle-end-date">
+                            {directorLifecycle.director.lifespanEndDate
+                              ? new Date(directorLifecycle.director.lifespanEndDate).toLocaleDateString()
+                              : "Not set"}
+                          </p>
+                        </div>
+                      </div>
+
+                      {isSuperAdmin && directorLifecycle.director.lifecycleStatus !== "terminated" && (
+                        <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            data-testid="button-lifecycle-set-dates"
+                            onClick={async () => {
+                              const startStr = prompt("Start date (YYYY-MM-DD):", directorLifecycle.director.lifespanStartDate ? new Date(directorLifecycle.director.lifespanStartDate).toISOString().split("T")[0] : "");
+                              if (!startStr) return;
+                              const endStr = prompt("End date (YYYY-MM-DD):");
+                              if (!endStr) return;
+                              try {
+                                await apiRequest("POST", `/api/admin/directors/${selectedDirectorId}/lifespan`, {
+                                  lifespanStartDate: startStr,
+                                  lifespanEndDate: endStr,
+                                });
+                                queryClient.invalidateQueries({ queryKey: ["/api/admin/directors", selectedDirectorId, "lifecycle"] });
+                                queryClient.invalidateQueries({ queryKey: ["/api/admin/directors"] });
+                                toast({ title: "Lifespan updated" });
+                              } catch (e) {
+                                toast({ title: "Failed to update lifespan", variant: "destructive" });
+                              }
+                            }}
+                          >
+                            <Calendar className="h-4 w-4 mr-1" /> Set Dates
+                          </Button>
+
+                          {directorLifecycle.director.lifecycleStatus === "active" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              data-testid="button-lifecycle-suspend"
+                              onClick={async () => {
+                                const reason = prompt("Reason for suspension:");
+                                if (!reason) return;
+                                try {
+                                  await apiRequest("POST", `/api/admin/directors/${selectedDirectorId}/suspend`, { reason });
+                                  queryClient.invalidateQueries({ queryKey: ["/api/admin/directors", selectedDirectorId, "lifecycle"] });
+                                  queryClient.invalidateQueries({ queryKey: ["/api/admin/directors"] });
+                                  toast({ title: "Director suspended" });
+                                } catch (e) {
+                                  toast({ title: "Failed to suspend", variant: "destructive" });
+                                }
+                              }}
+                            >
+                              Suspend
+                            </Button>
+                          )}
+
+                          {(directorLifecycle.director.lifecycleStatus === "suspended" || directorLifecycle.director.lifecycleStatus === "inactive") && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              data-testid="button-lifecycle-reactivate"
+                              onClick={async () => {
+                                try {
+                                  await apiRequest("POST", `/api/admin/directors/${selectedDirectorId}/reactivate`);
+                                  queryClient.invalidateQueries({ queryKey: ["/api/admin/directors", selectedDirectorId, "lifecycle"] });
+                                  queryClient.invalidateQueries({ queryKey: ["/api/admin/directors"] });
+                                  toast({ title: "Director reactivated" });
+                                } catch (e) {
+                                  toast({ title: "Failed to reactivate", variant: "destructive" });
+                                }
+                              }}
+                            >
+                              Reactivate
+                            </Button>
+                          )}
+
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            data-testid="button-lifecycle-terminate"
+                            onClick={async () => {
+                              const reason = prompt("This action is irreversible. Reason for termination:");
+                              if (!reason) return;
+                              if (!confirm("Are you sure you want to terminate this director? This cannot be undone.")) return;
+                              try {
+                                await apiRequest("POST", `/api/admin/directors/${selectedDirectorId}/terminate`, { reason });
+                                queryClient.invalidateQueries({ queryKey: ["/api/admin/directors", selectedDirectorId, "lifecycle"] });
+                                queryClient.invalidateQueries({ queryKey: ["/api/admin/directors"] });
+                                toast({ title: "Director terminated" });
+                              } catch (e) {
+                                toast({ title: "Failed to terminate", variant: "destructive" });
+                              }
+                            }}
+                          >
+                            Terminate
+                          </Button>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {directorLifecycle.director.terminatedAt && (
+                    <Card className="border-destructive/30">
+                      <CardContent className="p-4">
+                        <p className="text-sm font-medium text-destructive">Terminated</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(directorLifecycle.director.terminatedAt).toLocaleString()}
+                          {directorLifecycle.director.terminationReason && ` — ${directorLifecycle.director.terminationReason}`}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {directorLifecycle.recentLogs && directorLifecycle.recentLogs.length > 0 && (
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium">Recent Activity</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2 max-h-48 overflow-y-auto">
+                          {directorLifecycle.recentLogs.slice(0, 20).map((log: any, i: number) => (
+                            <div key={i} className="flex flex-wrap items-center justify-between gap-2 py-1 border-b border-border last:border-0 text-xs" data-testid={`lifecycle-log-${i}`}>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="text-xs">{log.actorRole}</Badge>
+                                <span className="text-muted-foreground">{log.action?.replace(/_/g, " ")}</span>
+                              </div>
+                              <span className="text-muted-foreground">{new Date(log.createdAt).toLocaleString()}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              ) : (
+                <div className="py-8 text-center text-muted-foreground">Unable to load lifecycle data.</div>
+              )}
+            </DialogContent>
+          </Dialog>
 
           {!isDirector && (
             <TabsContent value="reports">
