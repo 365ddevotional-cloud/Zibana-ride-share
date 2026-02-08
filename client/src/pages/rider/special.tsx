@@ -31,8 +31,8 @@ const rideTypes: RideType[] = [
     icon: Crown,
     iconBg: "bg-amber-100 dark:bg-amber-900/30",
     iconColor: "text-amber-600 dark:text-amber-400",
-    available: false,
-    badge: "Coming Soon",
+    available: true,
+    badge: "Available",
     detail: "Experience ZIBA in style with our premium fleet. Luxury vehicles, professional drivers, and priority service for those moments that matter most.",
   },
   {
@@ -64,8 +64,8 @@ const rideTypes: RideType[] = [
     icon: Route,
     iconBg: "bg-sky-100 dark:bg-sky-900/30",
     iconColor: "text-sky-600 dark:text-sky-400",
-    available: false,
-    badge: "Coming Soon",
+    available: true,
+    badge: "Available",
     detail: "Need to travel between cities or book a vehicle for a full day? Our long-distance charter service is designed for extended trips with transparent pricing.",
   },
 ];
@@ -266,6 +266,13 @@ export default function SpecialRides() {
                 </Card>
               );
             })}
+          </div>
+
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-muted">
+            <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+            <p className="text-xs text-muted-foreground" data-testid="text-special-disclaimer">
+              ZIBA facilitates ride access. Availability and eligibility may vary.
+            </p>
           </div>
 
           <div className="flex justify-center pt-2">

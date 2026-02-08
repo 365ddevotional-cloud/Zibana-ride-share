@@ -24,6 +24,7 @@ import {
   User, Star, ChevronRight, LogOut, Trash2,
   Camera, MapPin, Wallet, Settings, HelpCircle,
   FileText, Mail as MailIcon, Clock, X,
+  Bell, Megaphone, Database, Shield, Lock, Phone, Users,
 } from "lucide-react";
 
 interface RiderProfile {
@@ -324,6 +325,58 @@ export default function RiderAccount() {
                   sublabel="Notifications, theme, privacy, safety"
                   onClick={() => setLocation("/rider/settings")}
                   testId="button-settings"
+                />
+                <AccountRow
+                  icon={<Bell className="h-5 w-5" />}
+                  label="Notifications"
+                  sublabel="Manage notification preferences"
+                  onClick={() => setLocation("/rider/account-notifications")}
+                  testId="button-notifications"
+                />
+                <AccountRow
+                  icon={<Megaphone className="h-5 w-5" />}
+                  label="Marketing"
+                  sublabel="Promotions and offers"
+                  onClick={() => setLocation("/rider/account-marketing")}
+                  testId="button-marketing"
+                />
+                <AccountRow
+                  icon={<Database className="h-5 w-5" />}
+                  label="Data Usage"
+                  sublabel="Your data and privacy controls"
+                  onClick={() => setLocation("/rider/account-data-usage")}
+                  testId="button-data-usage"
+                />
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="space-y-1">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1 mb-2">
+              Safety
+            </p>
+            <Card>
+              <CardContent className="p-0 divide-y">
+                <AccountRow
+                  icon={<Users className="h-5 w-5" />}
+                  label="Trusted Contacts"
+                  sublabel="People who can track your rides"
+                  onClick={() => setLocation("/rider/trusted-contacts")}
+                  testId="button-trusted-contacts"
+                />
+                <AccountRow
+                  icon={<Lock className="h-5 w-5" />}
+                  label="Ride PIN"
+                  sublabel="Verify your driver before riding"
+                  onClick={() => setLocation("/rider/account-ride-pin")}
+                  testId="button-ride-pin"
+                />
+                <AccountRow
+                  icon={<Shield className="h-5 w-5" />}
+                  label="Emergency"
+                  sublabel="Emergency contacts and SOS settings"
+                  onClick={() => setLocation("/rider/account-emergency")}
+                  testId="button-emergency"
                 />
               </CardContent>
             </Card>

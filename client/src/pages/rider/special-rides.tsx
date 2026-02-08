@@ -35,7 +35,7 @@ const rideTypes = [
     icon: Crown,
     iconBg: "bg-amber-100 dark:bg-amber-900/30",
     iconColor: "text-amber-600 dark:text-amber-400",
-    available: false,
+    available: true,
   },
   {
     id: "longdistance",
@@ -44,7 +44,7 @@ const rideTypes = [
     icon: Route,
     iconBg: "bg-sky-100 dark:bg-sky-900/30",
     iconColor: "text-sky-600 dark:text-sky-400",
-    available: false,
+    available: true,
   },
 ];
 
@@ -114,11 +114,11 @@ export default function SpecialRides() {
                               {rideType.title}
                             </p>
                             <Badge
-                              variant={rideType.available ? "default" : "secondary"}
-                              className={rideType.available ? "bg-green-600 text-white" : ""}
+                              variant="default"
+                              className="bg-green-600 text-white"
                               data-testid={`badge-special-${rideType.id}`}
                             >
-                              {rideType.available ? "Available" : "Learn More"}
+                              Available
                             </Badge>
                           </div>
                           <p className="text-sm text-muted-foreground" data-testid={`text-special-${rideType.id}-desc`}>
