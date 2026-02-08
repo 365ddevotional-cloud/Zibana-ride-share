@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Users, Shield, Clock, AlertTriangle, Activity, UserPlus, ChevronRight,
   Calendar, Bell, X, RefreshCw, Wallet, Send, Ban, History, DollarSign,
@@ -705,6 +706,7 @@ export default function DirectorDashboard() {
     if (location === "/director/funding") return "funding";
     if (location === "/director/staff") return "staff";
     if (location === "/director/activity") return "activity";
+    if (location === "/director/earnings") return "earnings";
     return "overview";
   };
   const [activeTab, setActiveTab] = useState(getInitialTab);
@@ -766,6 +768,21 @@ export default function DirectorDashboard() {
   }>({
     queryKey: ["/api/director/oversight-signals"],
     enabled: activeTab === "overview",
+  });
+
+  const { data: earningsData, isLoading: earningsLoading } = useQuery<{
+    activeDriversToday: number;
+    commissionableDriversToday: number;
+    eligibleDrivers: number;
+    estimatedEarnings: string;
+    payoutStatus: string;
+    commissionFrozen: boolean;
+    lifecycleStatus: string;
+    history: Array<{ date: string; activeDrivers: number; commissionableDrivers: number; payoutStatus: string }>;
+    legalDisclaimer: string;
+  }>({
+    queryKey: ["/api/director/earnings"],
+    enabled: activeTab === "earnings",
   });
 
   const { data: acceptanceData } = useQuery<{ accepted: boolean }>({
@@ -896,6 +913,7 @@ export default function DirectorDashboard() {
           <TabsTrigger value="funding" data-testid="tab-funding">Funding</TabsTrigger>
           <TabsTrigger value="staff" data-testid="tab-staff">Staff</TabsTrigger>
           <TabsTrigger value="activity" data-testid="tab-activity">Activity Log</TabsTrigger>
+          <TabsTrigger value="earnings" data-testid="tab-earnings">Earnings</TabsTrigger>
         </TabsList>
 
         {/* OVERVIEW TAB */}
@@ -1579,6 +1597,154 @@ export default function DirectorDashboard() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* EARNINGS TAB */}
+        <TabsContent value="earnings" className="space-y-4">
+          {earningsLoading ? (
+            <div className="py-8 text-center text-muted-foreground" data-testid="text-earnings-loading">Loading earnings data...</div>
+          ) : earningsData ? (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                <Card data-testid="card-active-drivers-today">
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Active Drivers Today</CardTitle>
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold" data-testid="text-earnings-active-drivers">{earningsData.activeDriversToday}</div>
+                  </CardContent>
+                </Card>
+                <Card data-testid="card-commissionable-drivers">
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Commissionable Drivers</CardTitle>
+                    <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold" data-testid="text-earnings-commissionable">{earningsData.commissionableDriversToday}</div>
+                  </CardContent>
+                </Card>
+                <Card data-testid="card-eligible-drivers">
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Eligible Drivers</CardTitle>
+                    <Activity className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold" data-testid="text-earnings-eligible">{earningsData.eligibleDrivers}</div>
+                    <p className="text-xs text-muted-foreground">77% rule applied</p>
+                  </CardContent>
+                </Card>
+                <Card data-testid="card-estimated-earnings">
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Estimated Earnings</CardTitle>
+                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold" data-testid="text-estimated-earnings">
+                      {parseFloat(earningsData.estimatedEarnings) > 0 ? `${parseFloat(earningsData.estimatedEarnings).toFixed(0)}` : "---"}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Rounded estimate</p>
+                  </CardContent>
+                </Card>
+                <Card data-testid="card-payout-status">
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Payout Status</CardTitle>
+                    <Wallet className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <Badge
+                      variant={
+                        earningsData.payoutStatus === "released" ? "default"
+                        : earningsData.payoutStatus === "on_hold" ? "destructive"
+                        : "secondary"
+                      }
+                      data-testid="badge-payout-status"
+                    >
+                      {earningsData.payoutStatus === "released" ? "Released"
+                       : earningsData.payoutStatus === "on_hold" ? "On Hold"
+                       : "Pending"}
+                    </Badge>
+                    {earningsData.commissionFrozen && (
+                      <p className="text-xs text-destructive mt-1">Commissions frozen</p>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {earningsData.history && earningsData.history.length > 0 && (
+                <Card data-testid="card-earnings-history">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4" />
+                      Earnings History
+                    </CardTitle>
+                    <CardDescription>Recent daily activity and payout status</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Active Drivers</TableHead>
+                            <TableHead>Commissionable Drivers</TableHead>
+                            <TableHead>Payout Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {earningsData.history.map((row, i) => (
+                            <TableRow key={row.date} data-testid={`row-earnings-${i}`}>
+                              <TableCell data-testid={`text-earnings-date-${i}`}>{row.date}</TableCell>
+                              <TableCell data-testid={`text-earnings-active-${i}`}>{row.activeDrivers}</TableCell>
+                              <TableCell data-testid={`text-earnings-comm-${i}`}>{row.commissionableDrivers}</TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant={
+                                    row.payoutStatus === "released" ? "default"
+                                    : row.payoutStatus === "on_hold" ? "destructive"
+                                    : "secondary"
+                                  }
+                                  data-testid={`badge-earnings-status-${i}`}
+                                >
+                                  {row.payoutStatus === "released" ? "Released"
+                                   : row.payoutStatus === "on_hold" ? "On Hold"
+                                   : "Pending"}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {earningsData.history?.length === 0 && (
+                <Card>
+                  <CardContent className="py-8 text-center text-muted-foreground">
+                    <DollarSign className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                    <p data-testid="text-no-earnings">No earnings data available yet.</p>
+                  </CardContent>
+                </Card>
+              )}
+
+              <Card data-testid="card-legal-disclaimer">
+                <CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground italic" data-testid="text-legal-disclaimer">
+                    {earningsData.legalDisclaimer}
+                  </p>
+                </CardContent>
+              </Card>
+            </>
+          ) : (
+            <Card>
+              <CardContent className="py-8 text-center text-muted-foreground">
+                <DollarSign className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                <p>Unable to load earnings data.</p>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
 

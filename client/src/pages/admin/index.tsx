@@ -850,6 +850,17 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
     enabled: !!selectedDirectorId,
   });
 
+  const { data: directorEarnings } = useQuery<any>({
+    queryKey: ["/api/admin/directors", selectedDirectorId, "earnings"],
+    queryFn: async () => {
+      if (!selectedDirectorId) return null;
+      const res = await fetch(`/api/admin/directors/${selectedDirectorId}/earnings`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    enabled: !!selectedDirectorId,
+  });
+
   const { data: driverWallets = [], isLoading: walletsLoading } = useQuery<WalletWithDetails[]>({
     queryKey: ["/api/admin/wallets"],
     enabled: !!user,
@@ -5134,6 +5145,179 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                       </CardContent>
                     </Card>
                   )}
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <DollarSign className="h-4 w-4" />
+                        Earnings & Payout Details
+                      </CardTitle>
+                      <CardDescription>Full commission calculation details (admin only)</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {directorEarnings ? (
+                        <>
+                          <div className="grid grid-cols-2 gap-3 text-sm">
+                            <div>
+                              <p className="text-muted-foreground">Commission Rate</p>
+                              <p className="font-medium" data-testid="text-admin-commission-rate">{directorEarnings.director?.commissionRatePercent || 12}%</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Max Commissionable/Day</p>
+                              <p className="font-medium" data-testid="text-admin-max-commissionable">{directorEarnings.director?.maxCommissionablePerDay || 1000}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Active Ratio</p>
+                              <p className="font-medium" data-testid="text-admin-active-ratio">{directorEarnings.globalSettings?.activeRatio || "0.77"}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Commission Frozen</p>
+                              <p className="font-medium" data-testid="text-admin-frozen">{directorEarnings.director?.commissionFrozen ? "Yes" : "No"}</p>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                            <div>
+                              <p className="text-muted-foreground">Total Drivers</p>
+                              <p className="font-bold text-lg" data-testid="text-admin-total-drivers">{directorEarnings.todayMetrics?.totalDrivers || 0}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Active Today</p>
+                              <p className="font-bold text-lg" data-testid="text-admin-active-today">{directorEarnings.todayMetrics?.activeDriversToday || 0}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Commissionable</p>
+                              <p className="font-bold text-lg" data-testid="text-admin-commissionable">{directorEarnings.todayMetrics?.commissionableDrivers || 0}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Suspended</p>
+                              <p className="font-bold text-lg" data-testid="text-admin-suspended">{directorEarnings.todayMetrics?.suspendedDrivers || 0}</p>
+                            </div>
+                          </div>
+
+                          {directorEarnings.history?.length > 0 && (
+                            <div className="overflow-x-auto mt-2">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead>Date</TableHead>
+                                    <TableHead>Total</TableHead>
+                                    <TableHead>Active</TableHead>
+                                    <TableHead>Comm.</TableHead>
+                                    <TableHead>Rate</TableHead>
+                                    <TableHead>Earnings</TableHead>
+                                    <TableHead>Cap</TableHead>
+                                    <TableHead>Fraud</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    {isSuperAdmin && <TableHead>Actions</TableHead>}
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {directorEarnings.history.slice(0, 15).map((row: any, i: number) => (
+                                    <TableRow key={row.date} data-testid={`row-admin-earnings-${i}`}>
+                                      <TableCell className="text-xs">{row.date}</TableCell>
+                                      <TableCell>{row.totalDrivers}</TableCell>
+                                      <TableCell>{row.activeDrivers}</TableCell>
+                                      <TableCell>{row.commissionableDrivers}</TableCell>
+                                      <TableCell>{row.commissionRate}</TableCell>
+                                      <TableCell className="font-medium">{row.estimatedEarnings}</TableCell>
+                                      <TableCell>{row.capEnforced ? <Badge variant="outline">Cap</Badge> : "-"}</TableCell>
+                                      <TableCell>{row.fraudFlagged ? <Badge variant="destructive">Flag</Badge> : "-"}</TableCell>
+                                      <TableCell>
+                                        <Badge variant={row.payoutStatus === "released" ? "default" : row.payoutStatus === "on_hold" ? "destructive" : "secondary"}>
+                                          {row.payoutStatus}
+                                        </Badge>
+                                      </TableCell>
+                                      {isSuperAdmin && (
+                                        <TableCell>
+                                          <div className="flex items-center gap-1">
+                                            {row.payoutId && row.payoutStatus === "pending" && (
+                                              <>
+                                                <Button
+                                                  size="sm"
+                                                  variant="default"
+                                                  data-testid={`button-release-payout-${i}`}
+                                                  onClick={async () => {
+                                                    const reason = prompt("Reason for releasing this payout:");
+                                                    if (!reason) return;
+                                                    try {
+                                                      await apiRequest("POST", `/api/admin/directors/${selectedDirectorId}/payout`, {
+                                                        action: "release",
+                                                        payoutId: row.payoutId,
+                                                        reason,
+                                                      });
+                                                      queryClient.invalidateQueries({ queryKey: ["/api/admin/directors", selectedDirectorId, "earnings"] });
+                                                      toast({ title: "Payout released" });
+                                                    } catch (e) {
+                                                      toast({ title: "Failed to release payout", variant: "destructive" });
+                                                    }
+                                                  }}
+                                                >
+                                                  Release
+                                                </Button>
+                                                <Button
+                                                  size="sm"
+                                                  variant="outline"
+                                                  data-testid={`button-hold-payout-${i}`}
+                                                  onClick={async () => {
+                                                    const reason = prompt("Reason for holding this payout:");
+                                                    if (!reason) return;
+                                                    try {
+                                                      await apiRequest("POST", `/api/admin/directors/${selectedDirectorId}/payout`, {
+                                                        action: "hold",
+                                                        payoutId: row.payoutId,
+                                                        reason,
+                                                      });
+                                                      queryClient.invalidateQueries({ queryKey: ["/api/admin/directors", selectedDirectorId, "earnings"] });
+                                                      toast({ title: "Payout placed on hold" });
+                                                    } catch (e) {
+                                                      toast({ title: "Failed to hold payout", variant: "destructive" });
+                                                    }
+                                                  }}
+                                                >
+                                                  Hold
+                                                </Button>
+                                              </>
+                                            )}
+                                          </div>
+                                        </TableCell>
+                                      )}
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          )}
+
+                          {isSuperAdmin && (
+                            <Button
+                              variant="outline"
+                              className="w-full"
+                              data-testid="button-create-payout-summary"
+                              onClick={async () => {
+                                const reason = prompt("Reason for creating payout summary:");
+                                if (!reason) return;
+                                try {
+                                  await apiRequest("POST", `/api/admin/directors/${selectedDirectorId}/payout`, {
+                                    action: "create",
+                                    reason,
+                                  });
+                                  queryClient.invalidateQueries({ queryKey: ["/api/admin/directors", selectedDirectorId, "earnings"] });
+                                  toast({ title: "Payout summary created" });
+                                } catch (e) {
+                                  toast({ title: "Failed to create payout summary", variant: "destructive" });
+                                }
+                              }}
+                            >
+                              Create Payout Summary for Today
+                            </Button>
+                          )}
+                        </>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">Loading earnings data...</p>
+                      )}
+                    </CardContent>
+                  </Card>
                 </div>
               ) : (
                 <div className="py-8 text-center text-muted-foreground">Unable to load lifecycle data.</div>

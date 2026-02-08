@@ -5,7 +5,7 @@ import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integra
 import { storage } from "./storage";
 import { db } from "./db";
 import { eq, and, count, sql, gte, lt, isNotNull, inArray, desc, or } from "drizzle-orm";
-import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, driverInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages, walletFundingTransactions, walletFundingSettings, driverWallets, directorFundingTransactions, directorFundingSettings, directorFundingAcceptance, directorFundingSuspensions, directorProfiles, directorDriverAssignments, directorActionLogs, driverCoachingLogs, directorCells, directorCommissionSettings, referralCodes } from "@shared/schema";
+import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, driverInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages, walletFundingTransactions, walletFundingSettings, driverWallets, directorFundingTransactions, directorFundingSettings, directorFundingAcceptance, directorFundingSuspensions, directorProfiles, directorDriverAssignments, directorActionLogs, driverCoachingLogs, directorCells, directorCommissionSettings, directorPayoutSummaries, referralCodes } from "@shared/schema";
 import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, evaluateAllDrivers, evaluateBehaviorAndWarnings, calculateDriverMatchingScore, getDriverIncentiveProgress, assignFirstRidePromo, assignReturnRiderPromo, applyPromoToTrip, voidPromosOnCancellation } from "./incentives";
 import { notificationService } from "./notification-service";
 import { getCurrencyFromCountry, getCountryConfig, FINANCIAL_ENGINE_LOCKED } from "@shared/currency";
@@ -23198,6 +23198,209 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Oversight signals error:", error);
       res.status(500).json({ error: "Failed to load oversight signals" });
+    }
+  });
+
+  app.get("/api/director/earnings", isAuthenticated, requireRole(["director", "admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const directorUserId = req.query.directorId || userId;
+      const userRoles = await storage.getUserRoles(userId);
+      const isAdmin = userRoles.includes("admin") || userRoles.includes("super_admin");
+      if (directorUserId !== userId && !isAdmin) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      const [director] = await db.select().from(directorProfiles)
+        .where(eq(directorProfiles.userId, directorUserId));
+      if (!director) return res.status(404).json({ error: "Director not found" });
+      const metrics = await storage.getDirectorDailyMetrics(directorUserId);
+      const payouts = await db.select().from(directorPayoutSummaries)
+        .where(eq(directorPayoutSummaries.directorUserId, directorUserId))
+        .orderBy(desc(directorPayoutSummaries.createdAt))
+        .limit(30);
+      const commissionLogs = await storage.getDirectorCommissionLogs(directorUserId, 30);
+      const todayDate = new Date().toISOString().split("T")[0];
+      const todayPayout = payouts.find(p => p.periodDate === todayDate);
+      const history = commissionLogs.map(log => {
+        const matchingPayout = payouts.find(p => p.periodDate === log.date);
+        return {
+          date: log.date,
+          activeDrivers: log.activeDriversToday,
+          commissionableDrivers: log.commissionableDrivers,
+          payoutStatus: matchingPayout?.payoutStatus || "pending",
+        };
+      });
+      res.json({
+        activeDriversToday: metrics.activeDriversToday,
+        commissionableDriversToday: metrics.commissionableDrivers,
+        eligibleDrivers: metrics.commissionableDrivers,
+        estimatedEarnings: todayPayout?.estimatedEarnings || "0",
+        payoutStatus: todayPayout?.payoutStatus || "pending",
+        commissionFrozen: director.commissionFrozen,
+        lifecycleStatus: director.lifecycleStatus,
+        history,
+        legalDisclaimer: "Director earnings are estimates based on platform activity and are subject to verification, caps, and policy rules. ZIBA does not guarantee earnings or payout timelines.",
+      });
+    } catch (error) {
+      console.error("Director earnings error:", error);
+      res.status(500).json({ error: "Failed to load earnings data" });
+    }
+  });
+
+  app.get("/api/admin/directors/:directorUserId/earnings", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { directorUserId } = req.params;
+      const [director] = await db.select().from(directorProfiles)
+        .where(eq(directorProfiles.userId, directorUserId));
+      if (!director) return res.status(404).json({ error: "Director not found" });
+      const metrics = await storage.getDirectorDailyMetrics(directorUserId);
+      const settings = await storage.getDirectorCommissionSettings();
+      const payouts = await db.select().from(directorPayoutSummaries)
+        .where(eq(directorPayoutSummaries.directorUserId, directorUserId))
+        .orderBy(desc(directorPayoutSummaries.createdAt))
+        .limit(60);
+      const commissionLogs = await storage.getDirectorCommissionLogs(directorUserId, 60);
+      const history = commissionLogs.map(log => {
+        const matchingPayout = payouts.find(p => p.periodDate === log.date);
+        return {
+          date: log.date,
+          totalDrivers: log.totalDrivers,
+          activeDrivers: log.activeDriversToday,
+          commissionableDrivers: log.commissionableDrivers,
+          commissionRate: log.commissionRate,
+          activeRatio: log.activeRatio,
+          estimatedEarnings: matchingPayout?.estimatedEarnings || "0",
+          payoutStatus: matchingPayout?.payoutStatus || "pending",
+          capEnforced: matchingPayout?.capEnforced || false,
+          fraudFlagged: matchingPayout?.fraudFlagged || false,
+          adminNotes: matchingPayout?.adminNotes,
+          holdReason: matchingPayout?.holdReason,
+          releasedAt: matchingPayout?.releasedAt,
+          releasedBy: matchingPayout?.releasedBy,
+          payoutId: matchingPayout?.id,
+        };
+      });
+      res.json({
+        director: {
+          userId: director.userId,
+          fullName: director.fullName,
+          directorType: director.directorType,
+          commissionRatePercent: director.commissionRatePercent,
+          maxCommissionablePerDay: director.maxCommissionablePerDay,
+          commissionFrozen: director.commissionFrozen,
+          lifecycleStatus: director.lifecycleStatus,
+        },
+        todayMetrics: {
+          totalDrivers: metrics.totalDrivers,
+          activeDriversToday: metrics.activeDriversToday,
+          commissionableDrivers: metrics.commissionableDrivers,
+          suspendedDrivers: metrics.suspendedDrivers,
+        },
+        globalSettings: {
+          commissionRate: settings?.commissionRate || "0.12",
+          activeRatio: settings?.activeRatio || "0.77",
+          maxCommissionableDrivers: settings?.maxCommissionableDrivers || 1000,
+          maxCellSize: settings?.maxCellSize || 1300,
+        },
+        history,
+        payouts,
+      });
+    } catch (error) {
+      console.error("Admin director earnings error:", error);
+      res.status(500).json({ error: "Failed to load earnings data" });
+    }
+  });
+
+  app.post("/api/admin/directors/:directorUserId/payout", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const adminUserId = req.user?.claims?.sub;
+      const { directorUserId } = req.params;
+      const { action, payoutId, reason, periodDate } = req.body;
+      if (!action || !["release", "hold", "create"].includes(action)) {
+        return res.status(400).json({ error: "action must be 'release', 'hold', or 'create'" });
+      }
+      const [director] = await db.select().from(directorProfiles)
+        .where(eq(directorProfiles.userId, directorUserId));
+      if (!director) return res.status(404).json({ error: "Director not found" });
+      if (action === "create") {
+        const targetDate = periodDate || new Date().toISOString().split("T")[0];
+        const metrics = await storage.getDirectorDailyMetrics(directorUserId);
+        const settings = await storage.getDirectorCommissionSettings();
+        const commissionRate = director.commissionRatePercent / 100;
+        const estimated = (metrics.commissionableDrivers * commissionRate * 100).toFixed(2);
+        const [payout] = await db.insert(directorPayoutSummaries).values({
+          directorUserId,
+          periodDate: targetDate,
+          activeDrivers: metrics.activeDriversToday,
+          commissionableDrivers: metrics.commissionableDrivers,
+          eligibleDrivers: metrics.commissionableDrivers,
+          estimatedEarnings: estimated,
+          commissionRateApplied: String(director.commissionRatePercent),
+          capEnforced: metrics.commissionableDrivers >= (director.maxCommissionablePerDay || 1000),
+          payoutStatus: "pending",
+        }).returning();
+        await db.insert(directorActionLogs).values({
+          actorId: adminUserId,
+          actorRole: "super_admin",
+          action: "create_payout_summary",
+          targetType: "director",
+          targetId: directorUserId,
+          beforeState: null,
+          afterState: JSON.stringify({ payoutId: payout.id, periodDate: targetDate, estimated }),
+          metadata: JSON.stringify({ reason: reason || "Manual payout creation" }),
+          ipAddress: req.ip || req.connection?.remoteAddress || null,
+        });
+        return res.json({ success: true, payout });
+      }
+      if (!payoutId) return res.status(400).json({ error: "payoutId is required for release/hold" });
+      if (!reason) return res.status(400).json({ error: "reason is required" });
+      const [payout] = await db.select().from(directorPayoutSummaries)
+        .where(eq(directorPayoutSummaries.id, payoutId));
+      if (!payout) return res.status(404).json({ error: "Payout not found" });
+      const beforeState = { payoutStatus: payout.payoutStatus };
+      if (action === "release") {
+        await db.update(directorPayoutSummaries).set({
+          payoutStatus: "released",
+          releasedAt: new Date(),
+          releasedBy: adminUserId,
+          adminNotes: reason,
+        }).where(eq(directorPayoutSummaries.id, payoutId));
+        await storage.createNotification({
+          userId: directorUserId,
+          role: "director",
+          type: "info",
+          title: "Payout Released",
+          message: `Your payout for ${payout.periodDate} has been released.`,
+        });
+      } else if (action === "hold") {
+        await db.update(directorPayoutSummaries).set({
+          payoutStatus: "on_hold",
+          holdReason: reason,
+          adminNotes: reason,
+        }).where(eq(directorPayoutSummaries.id, payoutId));
+        await storage.createNotification({
+          userId: directorUserId,
+          role: "director",
+          type: "warning",
+          title: "Payout On Hold",
+          message: `Your payout for ${payout.periodDate} has been placed on hold. Contact support for details.`,
+        });
+      }
+      await db.insert(directorActionLogs).values({
+        actorId: adminUserId,
+        actorRole: "super_admin",
+        action: `payout_${action}`,
+        targetType: "director",
+        targetId: directorUserId,
+        beforeState: JSON.stringify(beforeState),
+        afterState: JSON.stringify({ payoutStatus: action === "release" ? "released" : "on_hold" }),
+        metadata: JSON.stringify({ payoutId, reason }),
+        ipAddress: req.ip || req.connection?.remoteAddress || null,
+      });
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Payout control error:", error);
+      res.status(500).json({ error: "Failed to process payout action" });
     }
   });
 

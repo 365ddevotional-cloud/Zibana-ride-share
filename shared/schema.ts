@@ -529,6 +529,25 @@ export const directorCommissionLogs = pgTable("director_commission_logs", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const directorPayoutSummaries = pgTable("director_payout_summaries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  directorUserId: varchar("director_user_id").notNull(),
+  periodDate: varchar("period_date").notNull(),
+  activeDrivers: integer("active_drivers").notNull().default(0),
+  commissionableDrivers: integer("commissionable_drivers").notNull().default(0),
+  eligibleDrivers: integer("eligible_drivers").notNull().default(0),
+  estimatedEarnings: varchar("estimated_earnings").notNull().default("0"),
+  commissionRateApplied: varchar("commission_rate_applied"),
+  capEnforced: boolean("cap_enforced").notNull().default(false),
+  payoutStatus: varchar("payout_status", { length: 20 }).notNull().default("pending"),
+  releasedAt: timestamp("released_at"),
+  releasedBy: varchar("released_by"),
+  holdReason: text("hold_reason"),
+  adminNotes: text("admin_notes"),
+  fraudFlagged: boolean("fraud_flagged").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const directorDriverAssignments = pgTable("director_driver_assignments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   directorUserId: varchar("director_user_id").notNull(),
@@ -2050,6 +2069,13 @@ export type DirectorCommissionSettings = typeof directorCommissionSettings.$infe
 export type DirectorCommissionLog = typeof directorCommissionLogs.$inferSelect;
 export type DirectorDriverAssignment = typeof directorDriverAssignments.$inferSelect;
 export type DirectorSettingsAuditLog = typeof directorSettingsAuditLogs.$inferSelect;
+
+export const insertDirectorPayoutSummarySchema = createInsertSchema(directorPayoutSummaries).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertDirectorPayoutSummary = z.infer<typeof insertDirectorPayoutSummarySchema>;
+export type DirectorPayoutSummary = typeof directorPayoutSummaries.$inferSelect;
 
 export const insertDirectorAppealSchema = createInsertSchema(directorAppeals).omit({ id: true, createdAt: true, reviewedBy: true, reviewNotes: true, reviewedAt: true });
 export type InsertDirectorAppeal = z.infer<typeof insertDirectorAppealSchema>;

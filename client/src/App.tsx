@@ -353,6 +353,9 @@ function AdminRouter() {
       <Route path="/director/activity">
         <LazyComponent><DirectorDashboardPage /></LazyComponent>
       </Route>
+      <Route path="/director/earnings">
+        <LazyComponent><DirectorDashboardPage /></LazyComponent>
+      </Route>
       <Route>
         <Redirect to="/admin" />
       </Route>
