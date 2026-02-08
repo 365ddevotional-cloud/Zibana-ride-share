@@ -2179,6 +2179,53 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     priority: 85
   },
 
+  // ============================
+  // RIDE CLASS TEMPLATES (Rider)
+  // ============================
+
+  {
+    id: "r-rideclass-go",
+    role: "rider",
+    category: "booking",
+    keywords: ["ziba go", "what is go", "go ride", "cheapest ride", "affordable ride", "basic ride", "standard ride", "go class"],
+    response: "ZIBA Go is the most affordable everyday ride option on the platform. It seats up to 4 passengers and uses the standard fare rate (1.0x multiplier), making it the best value for daily commutes and short trips. Any available driver can offer Go rides, so pickup times tend to be quick. You can select ZIBA Go when booking from the Home screen. Let me know if you'd like help with the next step."
+  },
+  {
+    id: "r-rideclass-elite-cost",
+    role: "rider",
+    category: "booking",
+    keywords: ["elite expensive", "why elite cost", "elite price", "elite fare", "elite multiplier", "premium cost", "elite worth it", "why is elite more"],
+    response: "ZIBA Elite is priced at a 2.0x fare multiplier because it provides a premium experience. Elite rides feature newer, high-end vehicles (2022 or newer) and top-rated drivers with a minimum 4.8 rating. Amenities may include complimentary water and a quieter, more refined ride experience. The higher fare reflects the quality of service and vehicle standards. You can compare ride classes when booking to choose what suits your needs best."
+  },
+  {
+    id: "r-rideclass-choose",
+    role: "rider",
+    category: "booking",
+    keywords: ["choose ride class", "which ride", "best ride class", "ride options", "compare rides", "ride types", "all ride classes", "ride class list", "which class", "difference between rides"],
+    response: "ZIBA offers 6 ride classes to suit different needs:\n\n1. **Go** — Most affordable, 4 seats, standard fare (1.0x).\n2. **Plus** — Larger vehicles with 6–7 seats, ideal for groups (1.3x).\n3. **Comfort** — Newer vehicles (2020+), smoother and quieter ride (1.5x).\n4. **PetRide** — Pet-friendly vehicles with trained drivers (1.5x).\n5. **SafeTeen** — Safe rides for teen passengers with verified drivers and guardian alerts (1.4x).\n6. **Elite** — Premium vehicles, top-rated drivers, luxury experience (2.0x).\n\nYou can view and compare available classes when booking a ride. Availability may vary by location and driver supply. Let me know if you'd like more details on any class."
+  },
+  {
+    id: "r-rideclass-unavailable",
+    role: "rider",
+    category: "booking",
+    keywords: ["can't see ride", "missing ride option", "ride not available", "no elite option", "no petride", "no safeteen", "ride class missing", "why can't I see", "unavailable ride", "limited options"],
+    response: "Some ride classes may not appear if there are no eligible drivers currently available in your area. Classes like Elite, PetRide, and SafeTeen require drivers who meet specific qualifications (vehicle standards, ratings, certifications). Additionally, certain ride classes may not yet be available in all cities or regions. You can try again later when more drivers are online, or choose from the classes currently shown. Let me know if you need further guidance."
+  },
+  {
+    id: "r-rideclass-petride",
+    role: "rider",
+    category: "booking",
+    keywords: ["petride", "pet ride", "ziba petride", "ride with pet", "pet friendly", "bring pet", "dog ride", "cat ride", "animal ride", "pet in car"],
+    response: "ZIBA PetRide is designed for riders traveling with pets. PetRide vehicles are driven by pet-approved drivers who are comfortable with animals, and vehicles are equipped with pet seat covers and extra space. The fare uses a 1.5x multiplier to account for the specialized service. Up to 3 passengers can ride alongside your pet. You can select PetRide when booking if eligible drivers are available in your area. Let me know if you'd like help with the next step."
+  },
+  {
+    id: "r-rideclass-safeteen",
+    role: "rider",
+    category: "booking",
+    keywords: ["safeteen", "safe teen", "ziba safeteen", "teen ride", "ride for teenager", "child ride", "minor ride", "teen safety", "guardian ride", "teen transport"],
+    response: "ZIBA SafeTeen provides safe rides specifically designed for teen passengers. SafeTeen drivers are verified with enhanced background checks and maintain a minimum 4.7 rating. Features include live trip sharing and automatic guardian alerts so parents or guardians can monitor the ride in real time. The fare uses a 1.4x multiplier to reflect the additional safety measures. Up to 3 passengers per ride. You can select SafeTeen when booking if eligible drivers are available in your area. Let me know if you'd like help with the next step."
+  },
+
   {
     id: "x-general-help",
     role: ["rider", "driver", "admin", "super_admin", "director", "general"],

@@ -11897,6 +11897,28 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Ride not found" });
       }
 
+      // Ride class eligibility check
+      if (ride.rideClass && ride.rideClass !== "go") {
+        const { getDriverEligibleClasses } = await import("@shared/ride-classes");
+        const driverRating = driverProfile?.averageRating ? parseFloat(String(driverProfile.averageRating)) : 0;
+        const vehicleYear = driverProfile?.vehicleYear ? parseInt(String(driverProfile.vehicleYear)) : null;
+        const eligibleClasses = getDriverEligibleClasses({
+          driverRating,
+          vehicleYear,
+          hasPetApproval: !!(driverProfile as any)?.petApproved,
+          hasBackgroundCheck: !!(driverProfile as any)?.backgroundCheckVerified,
+          hasEliteApproval: !!(driverProfile as any)?.eliteApproved,
+        });
+        const isEligible = eligibleClasses.some(ec => ec.id === ride.rideClass);
+        if (!isEligible) {
+          return res.status(403).json({
+            message: "You are not eligible for this ride class",
+            code: "RIDE_CLASS_INELIGIBLE",
+            rideClass: ride.rideClass,
+          });
+        }
+      }
+
       // Validate action using lifecycle rules
       const { validateAction } = await import("./ride-lifecycle.js");
       const validation = validateAction("accept_ride", "driver", ride.status as any, {

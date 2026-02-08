@@ -1,16 +1,28 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { RiderLayout } from "@/components/rider/RiderLayout";
 import { RiderRouteGuard } from "@/components/rider/RiderRouteGuard";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft, Crown, Users, PartyPopper, Route, ChevronRight,
-  MessageCircle, Bell, CheckCircle, Star, Info
+  MessageCircle, Bell, CheckCircle, Star, Info,
+  Car, CarFront, Armchair, PawPrint, ShieldCheck
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
+import type { RideClassDefinition } from "@shared/ride-classes";
+
+const ICON_MAP: Record<string, typeof Car> = {
+  "car": Car,
+  "car-front": CarFront,
+  "armchair": Armchair,
+  "crown": Crown,
+  "paw-print": PawPrint,
+  "shield-check": ShieldCheck,
+};
 
 interface RideType {
   id: string;
@@ -78,6 +90,10 @@ export default function SpecialRides() {
   const [notifiedTypes, setNotifiedTypes] = useState<Set<string>>(new Set());
   const [interestedTypes, setInterestedTypes] = useState<Set<string>>(new Set());
 
+  const { data: rideClasses = [] } = useQuery<RideClassDefinition[]>({
+    queryKey: ["/api/ride-classes"],
+  });
+
   const handleNotifyMe = (typeId: string) => {
     setNotifiedTypes((prev) => new Set(prev).add(typeId));
     toast({
@@ -130,6 +146,53 @@ export default function SpecialRides() {
             </div>
           </div>
 
+          <Card className="bg-primary/5 border-primary/20">
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Car className="h-5 w-5 text-primary" />
+                <h3 className="font-semibold" data-testid="text-ride-classes-section">ZIBA Ride Classes</h3>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Choose the ride that fits your needs. Select your class when requesting a ride from the home screen.
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {rideClasses.map((rc) => {
+                  const IconComp = ICON_MAP[rc.icon] || Car;
+                  return (
+                    <button
+                      key={rc.id}
+                      className="flex items-center gap-2 p-2 rounded-md hover-elevate text-left"
+                      onClick={() => {
+                        setLocation("/rider/home");
+                        toast({ title: `${rc.name} selected`, description: rc.description });
+                      }}
+                      data-testid={`button-class-info-${rc.id}`}
+                    >
+                      <div
+                        className="h-8 w-8 rounded-full flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: `${rc.color}20` }}
+                      >
+                        <IconComp className="h-4 w-4" style={{ color: rc.color }} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium truncate">{rc.name}</p>
+                        <p className="text-xs text-muted-foreground">{rc.fareMultiplier}x fare</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              <Button
+                variant="default"
+                className="w-full"
+                onClick={() => setLocation("/rider/home")}
+                data-testid="button-book-ride-class"
+              >
+                Book a Ride Now
+              </Button>
+            </CardContent>
+          </Card>
+
           <Card className="bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800">
             <CardContent className="p-4">
               <div className="flex gap-3">
@@ -138,7 +201,7 @@ export default function SpecialRides() {
                 </div>
                 <div>
                   <p className="font-medium text-amber-900 dark:text-amber-100" data-testid="text-special-intro-title">
-                    Explore Special Ride Options
+                    Additional Ride Options
                   </p>
                   <p className="text-sm text-amber-700 dark:text-amber-300 mt-1" data-testid="text-special-intro-description">
                     From group trips to event coordination, ZIBA offers ride types tailored to your unique travel needs.
