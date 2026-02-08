@@ -1506,6 +1506,293 @@ export async function registerRoutes(
     }
   });
 
+  // =============================================
+  // DRIVER PREFERENCES - FULL SYSTEM
+  // =============================================
+
+  // GET all driver preferences
+  app.get("/api/driver/preferences", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const profile = await storage.getDriverProfile(userId);
+      if (!profile) {
+        return res.status(404).json({ message: "Driver profile not found" });
+      }
+
+      const p = profile as any;
+      return res.json({
+        tripDistancePreference: p.tripDistancePreference || ["short", "medium", "long"],
+        cashAcceptance: p.cashAcceptance !== false,
+        preferredAreas: p.preferredAreas || [],
+        acceptedRideClasses: p.acceptedRideClasses || ["go"],
+        preferencesLocked: !!p.preferencesLockedBy,
+        preferencesLockedBy: p.preferencesLockedBy || null,
+        declineCount: p.declineCount || 0,
+        preferenceWarnings: p.preferenceWarnings || 0,
+        preferenceRestricted: p.preferenceRestricted || false,
+        preferenceRestrictedUntil: p.preferenceRestrictedUntil || null,
+      });
+    } catch (error) {
+      console.error("Error getting driver preferences:", error);
+      return res.status(500).json({ message: "Failed to get preferences" });
+    }
+  });
+
+  // UPDATE driver preferences (with server-side enforcement)
+  app.put("/api/driver/preferences", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const profile = await storage.getDriverProfile(userId);
+      if (!profile) {
+        return res.status(404).json({ message: "Driver profile not found" });
+      }
+
+      const p = profile as any;
+
+      // Check if preferences are locked by admin/director
+      if (p.preferencesLockedBy) {
+        return res.status(403).json({
+          message: "Your preferences have been locked by an administrator. Contact support for assistance.",
+          code: "PREFERENCES_LOCKED",
+          lockedBy: p.preferencesLockedBy,
+        });
+      }
+
+      // Check if driver is restricted
+      if (p.preferenceRestricted && p.preferenceRestrictedUntil && new Date(p.preferenceRestrictedUntil) > new Date()) {
+        return res.status(403).json({
+          message: "Your preference changes are temporarily restricted due to excessive ride declines.",
+          code: "PREFERENCES_RESTRICTED",
+          restrictedUntil: p.preferenceRestrictedUntil,
+        });
+      }
+
+      const { tripDistancePreference, cashAcceptance, preferredAreas } = req.body;
+
+      // Validate trip distance preferences
+      const validDistances = ["short", "medium", "long"];
+      const distPrefs = Array.isArray(tripDistancePreference)
+        ? tripDistancePreference.filter((d: string) => validDistances.includes(d))
+        : ["short", "medium", "long"];
+
+      // Must select at least one distance preference
+      if (distPrefs.length === 0) {
+        return res.status(400).json({ message: "You must accept at least one trip distance category." });
+      }
+
+      // Validate preferred areas (max 5)
+      const areas = Array.isArray(preferredAreas) ? preferredAreas.slice(0, 5) : [];
+
+      // Validate cash acceptance (boolean)
+      const cash = typeof cashAcceptance === "boolean" ? cashAcceptance : true;
+
+      // Update using raw SQL since these are new columns
+      const { db } = await import("./db");
+      const { driverProfiles } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+      await db.update(driverProfiles).set({
+        tripDistancePreference: distPrefs,
+        cashAcceptance: cash,
+        preferredAreas: areas,
+      } as any).where(eq(driverProfiles.userId, userId));
+
+      return res.json({
+        message: "Preferences updated successfully",
+        tripDistancePreference: distPrefs,
+        cashAcceptance: cash,
+        preferredAreas: areas,
+      });
+    } catch (error) {
+      console.error("Error updating driver preferences:", error);
+      return res.status(500).json({ message: "Failed to update preferences" });
+    }
+  });
+
+  // RECORD a ride decline (for abuse tracking)
+  app.post("/api/driver/record-decline", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const profile = await storage.getDriverProfile(userId);
+      if (!profile) {
+        return res.status(404).json({ message: "Driver profile not found" });
+      }
+
+      const p = profile as any;
+      const currentDeclines = (p.declineCount || 0) + 1;
+      const currentWarnings = p.preferenceWarnings || 0;
+
+      const { db } = await import("./db");
+      const { driverProfiles } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+
+      // Thresholds for abuse prevention
+      const WARNING_THRESHOLD = 5;
+      const RESTRICTION_THRESHOLD = 10;
+      const RESTRICTION_HOURS = 2;
+
+      let warning = null;
+      let restricted = false;
+
+      if (currentDeclines >= RESTRICTION_THRESHOLD) {
+        // Apply temporary restriction
+        const restrictedUntil = new Date();
+        restrictedUntil.setHours(restrictedUntil.getHours() + RESTRICTION_HOURS);
+        
+        await db.update(driverProfiles).set({
+          declineCount: currentDeclines,
+          preferenceWarnings: currentWarnings + 1,
+          preferenceRestricted: true,
+          preferenceRestrictedUntil: restrictedUntil,
+        } as any).where(eq(driverProfiles.userId, userId));
+
+        restricted = true;
+        warning = `You have been temporarily restricted from changing preferences for ${RESTRICTION_HOURS} hours due to excessive ride declines.`;
+      } else if (currentDeclines >= WARNING_THRESHOLD) {
+        await db.update(driverProfiles).set({
+          declineCount: currentDeclines,
+          preferenceWarnings: currentWarnings + 1,
+        } as any).where(eq(driverProfiles.userId, userId));
+
+        warning = `You have declined ${currentDeclines} rides. Continued excessive declines may result in temporary restrictions.`;
+      } else {
+        await db.update(driverProfiles).set({
+          declineCount: currentDeclines,
+        } as any).where(eq(driverProfiles.userId, userId));
+      }
+
+      return res.json({
+        declineCount: currentDeclines,
+        warning,
+        restricted,
+      });
+    } catch (error) {
+      console.error("Error recording decline:", error);
+      return res.status(500).json({ message: "Failed to record decline" });
+    }
+  });
+
+  // ADMIN: Get all driver preference summaries
+  app.get("/api/admin/driver-preferences", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { db } = await import("./db");
+      const { driverProfiles, users } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+
+      const drivers = await db.select({
+        userId: driverProfiles.userId,
+        fullName: driverProfiles.fullName,
+        acceptedRideClasses: driverProfiles.acceptedRideClasses,
+        tripDistancePreference: (driverProfiles as any).tripDistancePreference,
+        cashAcceptance: (driverProfiles as any).cashAcceptance,
+        preferredAreas: (driverProfiles as any).preferredAreas,
+        preferencesLockedBy: (driverProfiles as any).preferencesLockedBy,
+        declineCount: (driverProfiles as any).declineCount,
+        preferenceWarnings: (driverProfiles as any).preferenceWarnings,
+        preferenceRestricted: (driverProfiles as any).preferenceRestricted,
+        status: driverProfiles.status,
+        averageRating: driverProfiles.averageRating,
+      }).from(driverProfiles);
+
+      return res.json({ drivers });
+    } catch (error) {
+      console.error("Error getting driver preferences:", error);
+      return res.status(500).json({ message: "Failed to get driver preferences" });
+    }
+  });
+
+  // ADMIN: Lock/unlock driver preferences
+  app.post("/api/admin/driver-preferences/:userId/lock", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const { lock } = req.body;
+      const adminId = req.user.claims.sub;
+
+      const { db } = await import("./db");
+      const { driverProfiles } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+
+      if (lock) {
+        await db.update(driverProfiles).set({
+          preferencesLockedBy: adminId,
+          preferencesLockedAt: new Date(),
+        } as any).where(eq(driverProfiles.userId, userId));
+      } else {
+        await db.update(driverProfiles).set({
+          preferencesLockedBy: null,
+          preferencesLockedAt: null,
+        } as any).where(eq(driverProfiles.userId, userId));
+      }
+
+      return res.json({ message: lock ? "Preferences locked" : "Preferences unlocked" });
+    } catch (error) {
+      console.error("Error toggling preference lock:", error);
+      return res.status(500).json({ message: "Failed to update preference lock" });
+    }
+  });
+
+  // ADMIN: Reset driver preferences to defaults
+  app.post("/api/admin/driver-preferences/:userId/reset", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+
+      const { db } = await import("./db");
+      const { driverProfiles } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+
+      await db.update(driverProfiles).set({
+        tripDistancePreference: ["short", "medium", "long"],
+        cashAcceptance: true,
+        preferredAreas: [],
+        acceptedRideClasses: ["go"],
+        preferencesLockedBy: null,
+        preferencesLockedAt: null,
+        declineCount: 0,
+        preferenceWarnings: 0,
+        preferenceRestricted: false,
+        preferenceRestrictedUntil: null,
+      } as any).where(eq(driverProfiles.userId, userId));
+
+      return res.json({ message: "Driver preferences reset to defaults" });
+    } catch (error) {
+      console.error("Error resetting preferences:", error);
+      return res.status(500).json({ message: "Failed to reset preferences" });
+    }
+  });
+
+  // DIRECTOR: View driver preference summaries for their region
+  app.get("/api/director/driver-preferences", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const { db } = await import("./db");
+      const { driverProfiles } = await import("@shared/schema");
+
+      const drivers = await db.select({
+        userId: driverProfiles.userId,
+        fullName: driverProfiles.fullName,
+        acceptedRideClasses: driverProfiles.acceptedRideClasses,
+        tripDistancePreference: (driverProfiles as any).tripDistancePreference,
+        cashAcceptance: (driverProfiles as any).cashAcceptance,
+        preferredAreas: (driverProfiles as any).preferredAreas,
+        declineCount: (driverProfiles as any).declineCount,
+        preferenceWarnings: (driverProfiles as any).preferenceWarnings,
+        preferenceRestricted: (driverProfiles as any).preferenceRestricted,
+        status: driverProfiles.status,
+        averageRating: driverProfiles.averageRating,
+      }).from(driverProfiles);
+
+      // Identify over-restricting drivers (less than 2 distance preferences or less than 2 ride classes)
+      const overRestricting = drivers.filter((d: any) => {
+        const distPrefs = d.tripDistancePreference || ["short", "medium", "long"];
+        const classPrefs = d.acceptedRideClasses || ["go"];
+        return distPrefs.length < 2 || classPrefs.length < 2 || d.declineCount > 5;
+      });
+
+      return res.json({ drivers, overRestrictingCount: overRestricting.length, overRestricting });
+    } catch (error) {
+      console.error("Error getting director driver preferences:", error);
+      return res.status(500).json({ message: "Failed to get driver preferences" });
+    }
+  });
+
   app.get("/api/driver/cancellation-metrics", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
