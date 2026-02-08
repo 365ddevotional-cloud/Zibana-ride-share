@@ -1,0 +1,224 @@
+You are FINALIZING the Driver user experience in the ZIBA app.
+
+GOAL:
+- Eliminate dead UI on Driver side
+- Make Driver Account & Settings fully functional
+- Improve visual quality to match Welcome page
+- Ensure smooth navigation
+- Preserve all existing Driver logic, payouts, and approvals
+- Prepare Driver app for store approval
+
+DO NOT change:
+- Driver payout rules
+- Commission visibility rules
+- Admin / Director authority
+- Approval logic
+
+================================================
+PHASE 1 — DRIVER ACCOUNT PAGE FIXES
+================================================
+
+1) DRIVER ACCOUNT PAGE CLICKABILITY
+
+On /driver/account:
+- Make ALL boxes clickable:
+  - Profile
+  - Vehicle Information
+  - Documents
+  - Earnings (summary only)
+  - Trips
+  - Inbox
+  - Settings
+  - Help & Support
+  - Terms & Privacy
+
+No static or decorative boxes allowed.
+
+Each box must route to a relevant page.
+If a page does not exist → create a basic functional page.
+
+================================================
+PHASE 2 — DRIVER PROFILE & PHOTO
+================================================
+
+2) DRIVER PROFILE PHOTO
+
+Add:
+- Upload driver profile photo
+- Replace photo
+- Remove photo
+
+Rules:
+- Photo visible to riders after trip acceptance
+- Validate image type/size
+- Store securely
+- Placeholder shown if none uploaded
+
+================================================
+PHASE 3 — DRIVER PROFILE PAGE
+================================================
+
+3) DRIVER PROFILE PAGE
+
+Route:
+- /driver/account/profile
+
+Editable fields:
+- Full name (limited edit)
+- Phone (read-only)
+- Email
+- Profile photo
+
+Buttons:
+- Save
+- Cancel
+- Back to Account
+
+================================================
+PHASE 4 — VEHICLE & DOCUMENT PAGES
+================================================
+
+4) VEHICLE INFORMATION PAGE
+
+Route:
+- /driver/account/vehicle
+
+Show:
+- Vehicle type
+- Plate number
+- Color
+- Model
+- Status (approved / pending)
+
+Edit rules:
+- Changes require re-approval
+- Show “Pending Review” when edited
+
+------------------------------------------------
+
+5) DOCUMENTS PAGE
+
+Route:
+- /driver/account/documents
+
+Documents:
+- Driver license
+- Vehicle license
+- Insurance
+- Any regional requirement
+
+Rules:
+- Upload / replace
+- Status indicators
+- Expired document warnings
+- Admin/Director approval required
+
+================================================
+PHASE 5 — SETTINGS PAGE (DRIVER)
+================================================
+
+6) DRIVER SETTINGS PAGE
+
+Route:
+- /driver/account/settings
+
+Sections:
+- Notifications (default ON)
+- Appearance:
+  - Light
+  - Dark
+  - System Auto
+- Language (future-ready)
+- Safety & Emergency
+- Privacy & Data
+- About ZIBA
+
+Persist preferences.
+
+================================================
+PHASE 6 — THEME & TYPOGRAPHY CONSISTENCY
+================================================
+
+7) GLOBAL THEME FIX (DRIVER)
+
+- Use same typography scale as Welcome page
+- Large, readable headings
+- Clean spacing
+- Same font family
+
+Ensure Driver authenticated pages visually match Welcome page quality.
+
+================================================
+PHASE 7 — NAVIGATION & UX RULES
+================================================
+
+8) NAVIGATION CONSISTENCY
+
+Every Driver page must have:
+- Page title
+- Back button
+- Clear return path to Account or Dashboard
+
+No dead ends.
+
+================================================
+PHASE 8 — DRIVER INBOX & NOTIFICATIONS
+================================================
+
+9) DRIVER INBOX
+
+Ensure:
+- Inbox opens correctly
+- Messages load even if empty
+- Unread badge count visible
+- Welcome message present
+
+------------------------------------------------
+
+10) DRIVER NOTIFICATIONS
+
+Triggers:
+- Ride request
+- Cancellation
+- Wallet alerts
+- Document expiry
+- Admin/Director messages
+
+Notification default = ON.
+Respect OS permissions.
+
+================================================
+PHASE 9 — ZIBRA SUPPORT (DRIVER)
+================================================
+
+11) ZIBRA SUPPORT ACCESS
+
+ZIBRA available in:
+- Driver Help
+- Documents
+- Vehicle
+- Earnings summary
+- Settings
+
+ZIBRA must:
+- Explain driver flows
+- Guide compliance
+- Avoid payout promises
+- Avoid legal exposure
+
+================================================
+PHASE 10 — TESTING
+================================================
+
+12) CONFIRM:
+✔ All account boxes clickable
+✔ Profile photo works
+✔ Vehicle & document pages functional
+✔ Settings save correctly
+✔ Theme switcher works everywhere
+✔ Fonts consistent
+✔ Inbox works
+✔ Navigation smooth
+✔ No dead UI
+
+Proceed step-by-step and confirm completion.
