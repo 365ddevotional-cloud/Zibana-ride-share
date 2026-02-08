@@ -32,7 +32,8 @@ ZIBA includes comprehensive features such as:
 - **Tax Statement System**: Generation of PDF & CSV tax statements.
 - **Universal Identity Framework**: Country-aware identity verification.
 - **Director Logic System**: Manages contract/employed directors, including onboarding, lifecycle, appeals, and termination.
-- **ZIBRA Coaching & Oversight**: Provides coaching for directors and drivers, and oversight signals for operational issues.
+- **ZIBRA Coaching & Oversight**: Provides coaching for directors and drivers, and oversight signals for operational issues. Includes proactive signal engine, director performance coaching module, trust score assistance, legal safety guardrails, and voice-ready architecture (foundation, disabled by default).
+- **ZIBRA Advanced Modules**: Voice-ready foundation (shared/zibra-voice.ts), proactive signal engine (shared/zibra-proactive.ts) with 16 signal types and role-aware actions, director coaching system (shared/zibra-coaching.ts) with performance summaries and guardrails, trust score assistance (shared/zibra-trust.ts) with recovery suggestions, legal safety guardrails (shared/zibra-legal-guard.ts) with keyword scanning and auto-escalation, and metrics/insights system (shared/zibra-metrics.ts). Admin ZIBRA Insights dashboard tab shows resolution rates, top topics, language stats, and system health. Auto-resolution targets: Rider 70%, Driver 60%, Director 50%. Legal guard active in chat - scans for risk keywords and redirects/escalates automatically.
 - **Performance Scoring**: Implements Director Performance Scoring (DPS) and Rider Trust Score (RTS) with auto-assigned tiers and configurable incentives/restrictions.
 - **Third-Party Wallet Funding**: Allows trusted users to fund a rider's wallet with defined relationship types and limits, including fraud detection and admin controls.
 - **Reporting Dashboards**: Read-only dashboards for directors with operational metrics and comparison views for administrators.
