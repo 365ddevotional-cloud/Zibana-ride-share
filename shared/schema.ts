@@ -494,6 +494,9 @@ export const directorProfiles = pgTable("director_profiles", {
   terminatedBy: varchar("terminated_by"),
   terminationReason: text("termination_reason"),
   lifecycleStatus: varchar("lifecycle_status", { length: 20 }).notNull().default("pending"),
+  lifespanStartDate: timestamp("lifespan_start_date"),
+  lifespanEndDate: timestamp("lifespan_end_date"),
+  lifespanSetBy: varchar("lifespan_set_by"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -524,6 +527,7 @@ export const directorDriverAssignments = pgTable("director_driver_assignments", 
   directorUserId: varchar("director_user_id").notNull(),
   driverUserId: varchar("driver_user_id").notNull().unique(),
   assignmentType: varchar("assignment_type").notNull().default("referral"),
+  cellNumber: integer("cell_number").notNull().default(1),
   assignedAt: timestamp("assigned_at").defaultNow(),
   assignedBy: varchar("assigned_by"),
 });
@@ -5033,3 +5037,83 @@ export const performanceAlerts = pgTable("performance_alerts", {
 export const insertPerformanceAlertSchema = createInsertSchema(performanceAlerts).omit({ id: true, createdAt: true });
 export type InsertPerformanceAlert = z.infer<typeof insertPerformanceAlertSchema>;
 export type PerformanceAlert = typeof performanceAlerts.$inferSelect;
+
+// =============================================
+// PHASE 28: MULTI-CELL SUPPORT
+// =============================================
+
+export const directorCells = pgTable("director_cells", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  directorUserId: varchar("director_user_id").notNull(),
+  cellNumber: integer("cell_number").notNull(),
+  cellName: varchar("cell_name", { length: 100 }),
+  maxDrivers: integer("max_drivers").notNull().default(1300),
+  maxCommissionableDrivers: integer("max_commissionable_drivers").notNull().default(1000),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertDirectorCellSchema = createInsertSchema(directorCells).omit({ id: true, createdAt: true });
+export type InsertDirectorCell = z.infer<typeof insertDirectorCellSchema>;
+export type DirectorCell = typeof directorCells.$inferSelect;
+
+// =============================================
+// PHASE 30: DIRECTOR STAFF & TEAM ROLES
+// =============================================
+
+export const directorStaff = pgTable("director_staff", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  directorUserId: varchar("director_user_id").notNull(),
+  staffUserId: varchar("staff_user_id").notNull(),
+  staffRole: varchar("staff_role", { length: 50 }).notNull(),
+  permissions: text("permissions"),
+  approvedByAdmin: boolean("approved_by_admin").notNull().default(false),
+  approvedBy: varchar("approved_by"),
+  approvedAt: timestamp("approved_at"),
+  status: varchar("status", { length: 20 }).notNull().default("pending"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertDirectorStaffSchema = createInsertSchema(directorStaff).omit({ id: true, createdAt: true, approvedAt: true });
+export type InsertDirectorStaff = z.infer<typeof insertDirectorStaffSchema>;
+export type DirectorStaff = typeof directorStaff.$inferSelect;
+
+// =============================================
+// PHASE 31: ENHANCED AUDIT LOGS
+// =============================================
+
+export const directorActionLogs = pgTable("director_action_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  actorId: varchar("actor_id").notNull(),
+  actorRole: varchar("actor_role", { length: 50 }).notNull(),
+  action: varchar("action", { length: 100 }).notNull(),
+  targetType: varchar("target_type", { length: 50 }).notNull(),
+  targetId: varchar("target_id"),
+  beforeState: text("before_state"),
+  afterState: text("after_state"),
+  metadata: text("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertDirectorActionLogSchema = createInsertSchema(directorActionLogs).omit({ id: true, createdAt: true });
+export type InsertDirectorActionLog = z.infer<typeof insertDirectorActionLogSchema>;
+export type DirectorActionLog = typeof directorActionLogs.$inferSelect;
+
+// =============================================
+// PHASE 32: ZIBRA COACHING LOGS
+// =============================================
+
+export const directorCoachingLogs = pgTable("director_coaching_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  directorUserId: varchar("director_user_id").notNull(),
+  coachingType: varchar("coaching_type", { length: 50 }).notNull(),
+  message: text("message").notNull(),
+  severity: varchar("severity", { length: 20 }).notNull().default("info"),
+  isRead: boolean("is_read").notNull().default(false),
+  isDismissed: boolean("is_dismissed").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertDirectorCoachingLogSchema = createInsertSchema(directorCoachingLogs).omit({ id: true, createdAt: true });
+export type InsertDirectorCoachingLog = z.infer<typeof insertDirectorCoachingLogSchema>;
+export type DirectorCoachingLog = typeof directorCoachingLogs.$inferSelect;

@@ -505,9 +505,21 @@ import {
   directorAppeals,
   type InsertDirectorAppeal,
   type DirectorAppeal,
+  directorCells,
+  type DirectorCell,
+  type InsertDirectorCell,
+  directorStaff,
+  type DirectorStaff,
+  type InsertDirectorStaff,
+  directorActionLogs,
+  type DirectorActionLog,
+  type InsertDirectorActionLog,
+  directorCoachingLogs,
+  type DirectorCoachingLog,
+  type InsertDirectorCoachingLog,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull } from "drizzle-orm";
+import { eq, and, or, desc, count, sql, sum, gte, lte, lt, inArray, isNull, isNotNull, ne } from "drizzle-orm";
 import { calculateFare } from "./pricing";
 
 export interface TripFilter {
@@ -835,6 +847,29 @@ export interface IStorage {
   getDirectorAppealById(id: string): Promise<DirectorAppeal | undefined>;
   updateDirectorAppeal(id: string, updates: { status: string; reviewedBy: string; reviewNotes?: string }): Promise<DirectorAppeal | undefined>;
   reassignAllDriversFromDirector(directorUserId: string): Promise<number>;
+
+  setDirectorLifespan(userId: string, startDate: Date, endDate: Date, setBy: string): Promise<DirectorProfile | undefined>;
+  getExpiredDirectors(): Promise<DirectorProfile[]>;
+  getDirectorsExpiringWithin(days: number): Promise<DirectorProfile[]>;
+
+  createDirectorCell(data: InsertDirectorCell): Promise<DirectorCell>;
+  getDirectorCells(directorUserId: string): Promise<DirectorCell[]>;
+  getDriversInCell(directorUserId: string, cellNumber: number): Promise<DirectorDriverAssignment[]>;
+  getDriverCountInCell(directorUserId: string, cellNumber: number): Promise<number>;
+  getCellMetrics(directorUserId: string, cellNumber: number): Promise<{ totalDrivers: number; activeDriversToday: number; commissionableDrivers: number; suspendedDrivers: number }>;
+
+  createDirectorStaff(data: InsertDirectorStaff): Promise<DirectorStaff>;
+  getDirectorStaff(directorUserId: string): Promise<DirectorStaff[]>;
+  updateDirectorStaffStatus(id: string, updates: { status: string; approvedByAdmin?: boolean; approvedBy?: string }): Promise<DirectorStaff | undefined>;
+  getDirectorStaffById(id: string): Promise<DirectorStaff | undefined>;
+  removeDirectorStaff(id: string): Promise<void>;
+
+  createDirectorActionLog(data: InsertDirectorActionLog): Promise<DirectorActionLog>;
+  getDirectorActionLogs(filters?: { actorId?: string; targetId?: string; action?: string }, limit?: number): Promise<DirectorActionLog[]>;
+
+  createDirectorCoachingLog(data: InsertDirectorCoachingLog): Promise<DirectorCoachingLog>;
+  getDirectorCoachingLogs(directorUserId: string, limit?: number): Promise<DirectorCoachingLog[]>;
+  dismissDirectorCoachingLog(id: string): Promise<DirectorCoachingLog | undefined>;
 
   // Phase 14.5 - Trip Coordinator
   getTripCoordinatorProfile(userId: string): Promise<TripCoordinatorProfile | undefined>;
@@ -2877,6 +2912,179 @@ export class DatabaseStorage implements IStorage {
         .where(eq(directorDriverAssignments.directorUserId, directorUserId));
     }
     return count;
+  }
+
+  async setDirectorLifespan(userId: string, startDate: Date, endDate: Date, setBy: string): Promise<DirectorProfile | undefined> {
+    const [updated] = await db.update(directorProfiles)
+      .set({ lifespanStartDate: startDate, lifespanEndDate: endDate, lifespanSetBy: setBy } as any)
+      .where(eq(directorProfiles.userId, userId))
+      .returning();
+    return updated;
+  }
+
+  async getExpiredDirectors(): Promise<DirectorProfile[]> {
+    const now = new Date();
+    return db.select().from(directorProfiles)
+      .where(and(
+        isNotNull(directorProfiles.lifespanEndDate),
+        lte(directorProfiles.lifespanEndDate, now),
+        ne(directorProfiles.lifecycleStatus, "suspended"),
+        ne(directorProfiles.lifecycleStatus, "terminated")
+      ));
+  }
+
+  async getDirectorsExpiringWithin(days: number): Promise<DirectorProfile[]> {
+    const now = new Date();
+    const future = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+    return db.select().from(directorProfiles)
+      .where(and(
+        isNotNull(directorProfiles.lifespanEndDate),
+        gte(directorProfiles.lifespanEndDate, now),
+        lte(directorProfiles.lifespanEndDate, future),
+        ne(directorProfiles.lifecycleStatus, "suspended"),
+        ne(directorProfiles.lifecycleStatus, "terminated")
+      ));
+  }
+
+  async createDirectorCell(data: InsertDirectorCell): Promise<DirectorCell> {
+    const [cell] = await db.insert(directorCells).values(data).returning();
+    return cell;
+  }
+
+  async getDirectorCells(directorUserId: string): Promise<DirectorCell[]> {
+    return db.select().from(directorCells)
+      .where(eq(directorCells.directorUserId, directorUserId))
+      .orderBy(directorCells.cellNumber);
+  }
+
+  async getDriversInCell(directorUserId: string, cellNumber: number): Promise<DirectorDriverAssignment[]> {
+    return db.select().from(directorDriverAssignments)
+      .where(and(
+        eq(directorDriverAssignments.directorUserId, directorUserId),
+        eq(directorDriverAssignments.cellNumber, cellNumber)
+      ));
+  }
+
+  async getDriverCountInCell(directorUserId: string, cellNumber: number): Promise<number> {
+    const [result] = await db.select({ count: count() }).from(directorDriverAssignments)
+      .where(and(
+        eq(directorDriverAssignments.directorUserId, directorUserId),
+        eq(directorDriverAssignments.cellNumber, cellNumber)
+      ));
+    return result?.count || 0;
+  }
+
+  async getCellMetrics(directorUserId: string, cellNumber: number): Promise<{ totalDrivers: number; activeDriversToday: number; commissionableDrivers: number; suspendedDrivers: number }> {
+    const assignments = await this.getDriversInCell(directorUserId, cellNumber);
+    const driverUserIds = assignments.map(a => a.driverUserId);
+
+    if (driverUserIds.length === 0) {
+      return { totalDrivers: 0, activeDriversToday: 0, commissionableDrivers: 0, suspendedDrivers: 0 };
+    }
+
+    const totalDrivers = driverUserIds.length;
+
+    let suspendedDrivers = 0;
+    for (const driverId of driverUserIds) {
+      const [driver] = await db.select().from(driverProfiles).where(eq(driverProfiles.userId, driverId));
+      if (driver?.status === "suspended") {
+        suspendedDrivers++;
+      }
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    let activeDriversToday = 0;
+    for (const driverId of driverUserIds) {
+      const [tripToday] = await db.select({ count: count() }).from(trips)
+        .where(and(eq(trips.driverId, driverId), eq(trips.status, "completed"), gte(trips.completedAt, today)));
+      if (tripToday && tripToday.count > 0) {
+        activeDriversToday++;
+      }
+    }
+
+    const settings = await this.getDirectorCommissionSettings();
+    const activeRatio = parseFloat(settings?.activeRatio || "0.77");
+    const maxCommissionable = settings?.maxCommissionableDrivers || 1000;
+    const commissionableDrivers = Math.min(Math.floor(activeDriversToday * activeRatio), maxCommissionable);
+
+    return { totalDrivers, activeDriversToday, commissionableDrivers, suspendedDrivers };
+  }
+
+  async createDirectorStaff(data: InsertDirectorStaff): Promise<DirectorStaff> {
+    const [staff] = await db.insert(directorStaff).values(data).returning();
+    return staff;
+  }
+
+  async getDirectorStaff(directorUserId: string): Promise<DirectorStaff[]> {
+    return db.select().from(directorStaff)
+      .where(eq(directorStaff.directorUserId, directorUserId))
+      .orderBy(desc(directorStaff.createdAt));
+  }
+
+  async updateDirectorStaffStatus(id: string, updates: { status: string; approvedByAdmin?: boolean; approvedBy?: string }): Promise<DirectorStaff | undefined> {
+    const setData: any = { status: updates.status };
+    if (updates.approvedByAdmin !== undefined) setData.approvedByAdmin = updates.approvedByAdmin;
+    if (updates.approvedBy) {
+      setData.approvedBy = updates.approvedBy;
+      setData.approvedAt = new Date();
+    }
+    const [updated] = await db.update(directorStaff)
+      .set(setData)
+      .where(eq(directorStaff.id, id))
+      .returning();
+    return updated;
+  }
+
+  async getDirectorStaffById(id: string): Promise<DirectorStaff | undefined> {
+    const [staff] = await db.select().from(directorStaff).where(eq(directorStaff.id, id));
+    return staff;
+  }
+
+  async removeDirectorStaff(id: string): Promise<void> {
+    await db.delete(directorStaff).where(eq(directorStaff.id, id));
+  }
+
+  async createDirectorActionLog(data: InsertDirectorActionLog): Promise<DirectorActionLog> {
+    const [log] = await db.insert(directorActionLogs).values(data).returning();
+    return log;
+  }
+
+  async getDirectorActionLogs(filters?: { actorId?: string; targetId?: string; action?: string }, limit: number = 100): Promise<DirectorActionLog[]> {
+    const conditions = [];
+    if (filters?.actorId) conditions.push(eq(directorActionLogs.actorId, filters.actorId));
+    if (filters?.targetId) conditions.push(eq(directorActionLogs.targetId, filters.targetId));
+    if (filters?.action) conditions.push(eq(directorActionLogs.action, filters.action));
+
+    if (conditions.length > 0) {
+      return db.select().from(directorActionLogs)
+        .where(and(...conditions))
+        .orderBy(desc(directorActionLogs.createdAt))
+        .limit(limit);
+    }
+    return db.select().from(directorActionLogs)
+      .orderBy(desc(directorActionLogs.createdAt))
+      .limit(limit);
+  }
+
+  async createDirectorCoachingLog(data: InsertDirectorCoachingLog): Promise<DirectorCoachingLog> {
+    const [log] = await db.insert(directorCoachingLogs).values(data).returning();
+    return log;
+  }
+
+  async getDirectorCoachingLogs(directorUserId: string, limit: number = 50): Promise<DirectorCoachingLog[]> {
+    return db.select().from(directorCoachingLogs)
+      .where(eq(directorCoachingLogs.directorUserId, directorUserId))
+      .orderBy(desc(directorCoachingLogs.createdAt))
+      .limit(limit);
+  }
+
+  async dismissDirectorCoachingLog(id: string): Promise<DirectorCoachingLog | undefined> {
+    const [updated] = await db.update(directorCoachingLogs)
+      .set({ isDismissed: true })
+      .where(eq(directorCoachingLogs.id, id))
+      .returning();
+    return updated;
   }
 
   // Phase 14.5 - Trip Coordinator methods

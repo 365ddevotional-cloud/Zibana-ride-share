@@ -14,7 +14,8 @@ export type ZibraCategory =
   | "role_confusion" | "general_help"
   | "director_cell" | "director_commission" | "director_drivers"
   | "director_performance" | "director_recruiting"
-  | "director_lifecycle" | "director_appeals" | "director_deescalation";
+  | "director_lifecycle" | "director_appeals" | "director_deescalation"
+  | "director_coaching";
 
 export interface ZibraTemplate {
   id: string;
@@ -1521,6 +1522,63 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
   },
 
   // General Help / Default
+  {
+    id: "d-coach-low-activity",
+    role: "director",
+    category: "director_coaching",
+    keywords: ["low activity", "inactive drivers", "quiet cell", "no trips", "activity drop"],
+    response: "Your cell activity has been lower than usual. Consider reaching out to your drivers to understand any challenges they may be facing. Consistent engagement helps maintain a healthy cell."
+  },
+  {
+    id: "d-coach-high-suspensions",
+    role: "director",
+    category: "director_coaching",
+    keywords: ["many suspensions", "too many suspended", "suspension rate", "high suspensions", "driver discipline"],
+    response: "Your cell shows a higher than expected suspension rate. Review your driver management approach and consider whether additional training or support could reduce suspensions. A healthy cell balances accountability with driver retention."
+  },
+  {
+    id: "d-coach-cell-health",
+    role: "director",
+    category: "director_coaching",
+    keywords: ["cell health", "cell performance", "how is my cell", "cell status", "cell check"],
+    response: "Your cell health is determined by active driver percentage, daily trip completion, and suspension rates. Check your Director Dashboard for current metrics. Focus on maintaining consistent driver engagement and addressing issues early."
+  },
+  {
+    id: "d-coach-lifespan-expiry",
+    role: "director",
+    category: "director_coaching",
+    keywords: ["contract expiry", "lifespan ending", "contract ending", "when does contract end", "renewal", "contract renewal"],
+    response: "Your contract lifespan details are visible on your Director Dashboard. As your contract approaches its end date, ensure your cell is in good standing. Contact administration well in advance if you wish to discuss contract extension."
+  },
+  {
+    id: "d-coach-multi-cell",
+    role: "director",
+    category: "director_coaching",
+    keywords: ["multiple cells", "second cell", "third cell", "multi cell", "manage cells", "cell management tips"],
+    response: "Managing multiple cells requires balanced attention across all your driver groups. Monitor each cell independently through your dashboard. Ensure no single cell is neglected, and distribute your management effort proportionally to cell size."
+  },
+  {
+    id: "d-coach-staff-management",
+    role: "director",
+    category: "director_coaching",
+    keywords: ["staff help", "manage staff", "team management", "staff roles", "staff performance"],
+    response: "Your staff members assist with day-to-day cell operations. Assign clear responsibilities, review their performance regularly, and ensure they follow platform guidelines. Staff actions are logged and visible to administration."
+  },
+  {
+    id: "d-coach-performance-tip",
+    role: "director",
+    category: "director_coaching",
+    keywords: ["improve performance", "better results", "growth tips", "how to grow", "director tips"],
+    response: "To maintain strong performance: keep your active driver ratio healthy, address driver concerns promptly, monitor cell metrics daily, and engage with your team regularly. Consistent attention to these areas supports long-term success."
+  },
+  {
+    id: "d-coach-capacity-warning",
+    role: "director",
+    category: "director_coaching",
+    keywords: ["cell almost full", "approaching limit", "near capacity", "running out of space", "cell capacity warning"],
+    response: "Your cell is approaching its maximum capacity. Focus on quality over quantity for your remaining slots. Ensure new driver additions meet platform standards. If you need additional capacity, discuss options with administration."
+  },
+
   {
     id: "x-general-help",
     role: ["rider", "driver", "admin", "super_admin", "director", "general"],
