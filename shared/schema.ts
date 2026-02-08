@@ -5663,3 +5663,131 @@ export const riderTrustLogs = pgTable("rider_trust_logs", {
 });
 
 export type RiderTrustLog = typeof riderTrustLogs.$inferSelect;
+
+// =============================================
+// THIRD-PARTY WALLET FUNDING SYSTEM
+// =============================================
+
+export const fundingRelationshipTypeEnum = pgEnum("funding_relationship_type", [
+  "parent_child",
+  "spouse_spouse",
+  "friend_friend",
+  "employer_employee",
+  "organization_member",
+]);
+
+export const fundingRelationshipStatusEnum = pgEnum("funding_relationship_status", [
+  "pending",
+  "accepted",
+  "declined",
+  "revoked",
+  "frozen",
+]);
+
+export const fundingRelationships = pgTable("funding_relationships", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  funderUserId: varchar("funder_user_id").notNull(),
+  recipientUserId: varchar("recipient_user_id").notNull(),
+  relationshipType: fundingRelationshipTypeEnum("relationship_type").notNull(),
+  status: fundingRelationshipStatusEnum("status").notNull().default("pending"),
+  dailyLimit: decimal("daily_limit", { precision: 10, scale: 2 }),
+  monthlyLimit: decimal("monthly_limit", { precision: 10, scale: 2 }),
+  purposeTag: varchar("purpose_tag", { length: 100 }),
+  totalFunded: decimal("total_funded", { precision: 12, scale: 2 }).notNull().default("0.00"),
+  currentMonthFunded: decimal("current_month_funded", { precision: 12, scale: 2 }).notNull().default("0.00"),
+  currentDayFunded: decimal("current_day_funded", { precision: 12, scale: 2 }).notNull().default("0.00"),
+  lastFundedAt: timestamp("last_funded_at"),
+  lastResetDay: timestamp("last_reset_day"),
+  lastResetMonth: timestamp("last_reset_month"),
+  acceptedAt: timestamp("accepted_at"),
+  declinedAt: timestamp("declined_at"),
+  revokedAt: timestamp("revoked_at"),
+  revokedBy: varchar("revoked_by"),
+  frozenAt: timestamp("frozen_at"),
+  frozenBy: varchar("frozen_by"),
+  frozenReason: text("frozen_reason"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertFundingRelationshipSchema = createInsertSchema(fundingRelationships).omit({
+  id: true, createdAt: true, updatedAt: true, totalFunded: true,
+  currentMonthFunded: true, currentDayFunded: true, lastFundedAt: true,
+  lastResetDay: true, lastResetMonth: true, acceptedAt: true, declinedAt: true,
+  revokedAt: true, revokedBy: true, frozenAt: true, frozenBy: true, frozenReason: true,
+});
+export type InsertFundingRelationship = z.infer<typeof insertFundingRelationshipSchema>;
+export type FundingRelationship = typeof fundingRelationships.$inferSelect;
+
+export const fundingAbuseFlagTypeEnum = pgEnum("funding_abuse_flag_type", [
+  "many_recipients_one_funder",
+  "rapid_fund_spend_refund",
+  "cross_country_anomaly",
+  "repeated_cancellation_abuse",
+  "unusual_amount_pattern",
+  "velocity_alert",
+]);
+
+export const fundingAbuseFlags = pgTable("funding_abuse_flags", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  relationshipId: varchar("relationship_id"),
+  funderUserId: varchar("funder_user_id").notNull(),
+  recipientUserId: varchar("recipient_user_id"),
+  flagType: fundingAbuseFlagTypeEnum("flag_type").notNull(),
+  severity: varchar("severity", { length: 10 }).notNull().default("medium"),
+  details: text("details"),
+  isResolved: boolean("is_resolved").notNull().default(false),
+  resolvedBy: varchar("resolved_by"),
+  resolvedAt: timestamp("resolved_at"),
+  resolution: text("resolution"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type FundingAbuseFlag = typeof fundingAbuseFlags.$inferSelect;
+
+export const thirdPartyFundingConfig = pgTable("third_party_funding_config", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  countryCode: varchar("country_code", { length: 3 }).notNull().default("ALL"),
+  isEnabled: boolean("is_enabled").notNull().default(true),
+  globalDailyLimit: decimal("global_daily_limit", { precision: 10, scale: 2 }).notNull().default("100000.00"),
+  globalMonthlyLimit: decimal("global_monthly_limit", { precision: 12, scale: 2 }).notNull().default("1000000.00"),
+  maxRelationshipsPerFunder: integer("max_relationships_per_funder").notNull().default(10),
+  maxFundersPerRecipient: integer("max_funders_per_recipient").notNull().default(5),
+  minFundingAmount: decimal("min_funding_amount", { precision: 10, scale: 2 }).notNull().default("100.00"),
+  maxSingleFunding: decimal("max_single_funding", { precision: 10, scale: 2 }).notNull().default("50000.00"),
+  sponsoredFundsPriority: boolean("sponsored_funds_priority").notNull().default(true),
+  allowedUsages: text("allowed_usages").notNull().default("rides,cancellation_fees,lost_item_fees"),
+  cashWithdrawalAllowed: boolean("cash_withdrawal_allowed").notNull().default(false),
+  updatedBy: varchar("updated_by"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type ThirdPartyFundingConfig = typeof thirdPartyFundingConfig.$inferSelect;
+
+export const fundingAuditLogs = pgTable("funding_audit_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  action: varchar("action", { length: 50 }).notNull(),
+  actorUserId: varchar("actor_user_id").notNull(),
+  targetUserId: varchar("target_user_id"),
+  relationshipId: varchar("relationship_id"),
+  transactionId: varchar("transaction_id"),
+  details: text("details"),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type FundingAuditLog = typeof fundingAuditLogs.$inferSelect;
+
+export const sponsoredBalances = pgTable("sponsored_balances", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  recipientUserId: varchar("recipient_user_id").notNull(),
+  funderUserId: varchar("funder_user_id").notNull(),
+  relationshipId: varchar("relationship_id").notNull(),
+  balance: decimal("balance", { precision: 10, scale: 2 }).notNull().default("0.00"),
+  totalReceived: decimal("total_received", { precision: 12, scale: 2 }).notNull().default("0.00"),
+  totalUsed: decimal("total_used", { precision: 12, scale: 2 }).notNull().default("0.00"),
+  lastTopUpAt: timestamp("last_top_up_at"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type SponsoredBalance = typeof sponsoredBalances.$inferSelect;

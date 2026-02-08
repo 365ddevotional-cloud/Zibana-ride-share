@@ -1,0 +1,127 @@
+You are fixing the Rider Home screen payment selector
+on the ZIBA Rider app.
+
+ISSUE:
+The “Cash / Payment” box on the Rider Home screen
+is visible but NOT clickable.
+
+GOAL:
+Make the payment box fully clickable and route
+to a dedicated Payment Selection page,
+consistent with ZIBA design and behavior.
+
+DO NOT:
+- Break ride request flow
+- Auto-change payment method without confirmation
+- Expose admin/internal logic
+- Create dead-end pages
+
+========================================
+PHASE 1 — CLICKABLE PAYMENT CARD
+========================================
+
+1) PAYMENT CARD INTERACTION
+- Make the entire “Cash / Payment” card clickable
+- Cursor/press feedback required
+- On tap → navigate to /rider/payment-method
+
+========================================
+PHASE 2 — PAYMENT METHOD PAGE
+========================================
+
+2) CREATE /rider/payment-method PAGE
+
+This page must include:
+
+A) HEADER
+- Title: “Choose Payment Method”
+- Back button → returns to Rider Home
+- Theme-aware (Light/Dark/Auto)
+
+B) PAYMENT OPTIONS (CARDS)
+- Wallet
+- Cash
+- Sponsored Wallet (if funded by others)
+- Future: Card / Bank (disabled with “Coming soon” label)
+
+Each option:
+- Clearly selectable
+- Shows current status (active / insufficient balance)
+- Explains briefly how it works
+
+========================================
+PHASE 3 — SELECTION BEHAVIOR
+========================================
+
+3) PAYMENT SELECTION LOGIC
+
+When rider selects a method:
+- Highlight selection
+- Save selection to rider session
+- Persist in DB as preferred_payment_method
+- Return rider to Home screen
+- Update Home payment card text instantly
+
+Example:
+“Cash” → “Wallet” or “Sponsored Wallet”
+
+========================================
+PHASE 4 — VALIDATION RULES
+========================================
+
+4) SAFETY & VALIDATION
+
+- If Wallet selected and balance is low:
+  Show warning banner (not blocking):
+  “Low balance — you may be asked to top up.”
+
+- If Sponsored Wallet selected:
+  - Respect sponsor limits
+  - Do not show sponsor identity publicly
+
+- Never auto-switch payment without user action
+
+========================================
+PHASE 5 — ZIBRA SUPPORT INTEGRATION
+========================================
+
+5) CONTEXTUAL HELP
+
+On Payment Method page:
+- Add small “Need help?” link
+- Opens ZIBA Support (Z-Assist)
+- ZIBRA may explain:
+  - Difference between Cash and Wallet
+  - Sponsored wallet rules
+  - How to top up
+
+ZIBRA must NOT:
+- Recommend one method as better
+- Promise discounts or refunds
+
+========================================
+PHASE 6 — TESTING CHECKLIST
+========================================
+
+6) CONFIRM ALL WORKS
+
+- Payment card clickable on Rider Home
+- Payment page loads without error
+- Selection persists after reload
+- Back navigation works
+- Ride request uses selected payment
+- No console errors
+- No impact on Admin/Driver flows
+
+========================================
+FINAL CONFIRMATION
+========================================
+
+Confirm:
+✔ Payment box clickable
+✔ Dedicated payment page exists
+✔ Smooth navigation
+✔ Consistent UI
+✔ No broken flows
+
+Proceed safely and confirm completion.
