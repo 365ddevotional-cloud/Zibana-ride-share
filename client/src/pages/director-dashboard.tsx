@@ -20,7 +20,7 @@ import {
   Users, Shield, Clock, AlertTriangle, Activity, UserPlus, ChevronRight,
   Calendar, Bell, X, RefreshCw, Wallet, Send, Ban, History, DollarSign,
   CheckCircle, XCircle, Eye, Trash2, Lightbulb, MessageCircle,
-  TrendingUp, BarChart3, Building2, Star, Crown
+  TrendingUp, BarChart3, Building2, Star, Crown, BookOpen
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -815,7 +815,7 @@ function DisputeSection({ disputeablePayouts }: { disputeablePayouts: Array<{ id
 
 export default function DirectorDashboard() {
   const { toast } = useToast();
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const getInitialTab = () => {
     if (location === "/director/drivers") return "drivers";
     if (location === "/director/funding") return "funding";
@@ -849,6 +849,10 @@ export default function DirectorDashboard() {
 
   const { data: dashboard, isLoading } = useQuery<DashboardData>({
     queryKey: ["/api/director/dashboard/full"],
+  });
+
+  const { data: trainingStatus } = useQuery<{ modules: any[]; allCompleted: boolean; completedCount: number; totalModules: number }>({
+    queryKey: ["/api/director/training"],
   });
 
   const { data: eligibleDrivers, isLoading: driversLoading } = useQuery<EligibleDriver[]>({
@@ -1185,6 +1189,32 @@ export default function DirectorDashboard() {
               Your contract has expired. Your dashboard is in read-only mode. Contact your administrator for renewal.
             </p>
           </div>
+        </div>
+      )}
+
+      {trainingStatus && !trainingStatus.allCompleted && !isReadOnly && (
+        <div
+          className="flex items-center justify-between gap-3 p-4 rounded-md border border-primary/30 bg-primary/5 flex-wrap"
+          data-testid="banner-training-required"
+        >
+          <div className="flex items-center gap-3">
+            <BookOpen className="h-5 w-5 text-primary shrink-0" />
+            <div>
+              <p className="font-medium" data-testid="text-training-title">Training Required</p>
+              <p className="text-sm text-muted-foreground" data-testid="text-training-message">
+                Complete {trainingStatus.totalModules - trainingStatus.completedCount} remaining training module{trainingStatus.totalModules - trainingStatus.completedCount !== 1 ? "s" : ""} to unlock full dashboard access.
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setLocation("/director/training")}
+            data-testid="button-go-to-training"
+          >
+            <BookOpen className="h-4 w-4 mr-1" />
+            Start Training
+          </Button>
         </div>
       )}
 
