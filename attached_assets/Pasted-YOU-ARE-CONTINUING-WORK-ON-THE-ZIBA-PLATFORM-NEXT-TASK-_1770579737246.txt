@@ -1,0 +1,169 @@
+YOU ARE CONTINUING WORK ON THE ZIBA PLATFORM.
+
+NEXT TASK: EVOLVE ZIBRA INTO A PROACTIVE, VOICE-READY, ROLE-INTELLIGENT SUPPORT & PERFORMANCE SYSTEM.
+
+DO NOT EXPOSE THIS AS “AI”.
+DO NOT ADD COMPLEXITY TO USERS.
+BUILD IN LAYERS — NOTHING BREAKS IF A LAYER IS DISABLED.
+
+====================================================
+PHASE 14 — VOICE-READY ZIBRA (SILENT BY DEFAULT)
+====================================================
+
+1) VOICE ARCHITECTURE (FOUNDATION ONLY)
+Prepare ZIBRA for voice output without enabling it by default.
+
+Add internal capability:
+- text → speech ready
+- speech → text ready
+
+Rules:
+- Voice OFF by default
+- Only enabled later via Settings
+- No auto-speaking
+- No recording without consent
+
+2) SUPPORTED VOICE LANGUAGES (MATCH UI)
+Voice-ready for:
+- English
+- Yoruba
+- Hausa
+- Igbo
+- French
+- Arabic
+- Zulu (future)
+
+Fallback:
+- If voice unavailable → text only
+
+====================================================
+PHASE 15 — PROACTIVE ZIBRA (PREVENT PROBLEMS)
+====================================================
+
+3) PROACTIVE SIGNAL ENGINE
+ZIBRA must quietly monitor signals and act BEFORE users complain.
+
+Signals include:
+- repeated ride cancellations
+- wallet low balance patterns
+- frequent lost-item reports
+- driver idle too long
+- director performance decline
+- admin approval backlog
+- inbox messages unread too long
+
+4) PROACTIVE ACTIONS (ROLE-AWARE)
+Rider:
+- gentle tips (“Top up to avoid delays”)
+- reminders (“You have a scheduled ride tomorrow”)
+
+Driver:
+- performance nudges
+- safety reminders
+- inactivity encouragement
+
+Director:
+- cell performance alerts
+- driver churn warnings
+- commission optimization tips
+
+Admin / Super Admin:
+- risk summaries
+- backlog warnings
+- fraud trend alerts
+
+====================================================
+PHASE 16 — DIRECTOR-ONLY ZIBRA COACHING
+====================================================
+
+5) DIRECTOR PERFORMANCE MODE
+When role = Director:
+
+ZIBRA may:
+- summarize driver cell performance
+- highlight inactive drivers
+- explain commission eligibility rules (NO numbers leaked)
+- suggest corrective actions
+- remind of contract lifespan and limits
+- compare director vs anonymized benchmarks
+
+Rules:
+- No other director data shown
+- No platform commission formulas exposed
+- No driver personal data leaked
+
+====================================================
+PHASE 17 — TRUST & DISCIPLINE INTELLIGENCE
+====================================================
+
+6) TRUST SCORE ASSISTANCE
+ZIBRA may:
+- explain why trust score changed (high level)
+- suggest recovery actions
+- warn before penalties escalate
+
+Never:
+- accuse
+- threaten
+- promise reversals
+
+====================================================
+PHASE 18 — HUMAN SUPPORT LOAD REDUCTION
+====================================================
+
+7) AUTO-RESOLUTION TARGET
+ZIBRA must aim to resolve:
+- ≥70% Rider issues
+- ≥60% Driver issues
+- ≥50% Director issues
+without human escalation.
+
+Escalation happens ONLY when:
+- safety risk
+- legal threat
+- repeated failure
+- explicit “Contact Human Support”
+
+====================================================
+PHASE 19 — SAFETY & LEGAL OVERSIGHT
+====================================================
+
+8) LEGAL SAFETY GUARDRAILS
+ZIBRA must:
+- refuse legal admissions
+- redirect lawsuits to policy info
+- log sensitive conversations
+- escalate risk keywords silently to admins
+
+====================================================
+PHASE 20 — METRICS (ADMIN ONLY)
+====================================================
+
+9) ZIBRA INSIGHTS DASHBOARD
+Admin / Super Admin only:
+
+Track:
+- top resolved topics
+- escalation rate
+- abuse attempts blocked
+- director performance deltas
+- language usage stats
+- notification effectiveness
+
+====================================================
+FINAL RULES
+====================================================
+
+- ZIBRA never replaces humans — it filters noise
+- ZIBRA never guarantees outcomes
+- ZIBRA is calm, neutral, professional
+- ZIBRA improves platform trust silently
+
+IMPLEMENT FOUNDATION ONLY.
+DO NOT ENABLE VOICE OR PROACTIVE PUSH WITHOUT TOGGLES.
+
+CONFIRM COMPLETION WITH:
+- New internal modules added
+- No UI disruption
+- Logs verified
+- Roles respected
