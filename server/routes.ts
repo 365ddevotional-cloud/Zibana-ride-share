@@ -3862,6 +3862,52 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/director/drivers/:driverUserId/warn", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { driverUserId } = req.params;
+      const { reason } = req.body;
+      
+      if (!reason || reason.trim().length < 5) {
+        return res.status(400).json({ message: "Warning reason must be at least 5 characters" });
+      }
+
+      const profile = await storage.getDirectorProfile(userId);
+      if (!profile) {
+        return res.status(403).json({ message: "Director profile not found" });
+      }
+
+      const directorForDriver = await storage.getDirectorForDriver(driverUserId);
+      if (!directorForDriver || directorForDriver.directorUserId !== userId) {
+        return res.status(403).json({ message: "Driver not assigned to you" });
+      }
+
+      await storage.createNotification({
+        userId: driverUserId,
+        type: "warning",
+        title: "Director Warning",
+        message: reason.trim(),
+        metadata: JSON.stringify({ issuedBy: userId, issuedByRole: "director" }),
+      });
+
+      await storage.createDirectorActionLog({
+        actorId: userId,
+        actorRole: "director",
+        action: "issue_warning",
+        targetType: "driver",
+        targetId: driverUserId,
+        beforeState: null,
+        afterState: JSON.stringify({ reason: reason.trim() }),
+        metadata: JSON.stringify({ ip: req.ip }),
+      });
+
+      return res.json({ message: "Warning issued to driver" });
+    } catch (error) {
+      console.error("Error issuing driver warning:", error);
+      return res.status(500).json({ message: "Failed to issue warning" });
+    }
+  });
+
   app.get("/api/admin/director-settings", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
     try {
       let settings = await storage.getDirectorCommissionSettings();
@@ -20812,6 +20858,33 @@ export async function registerRoutes(
         daysRemaining = Math.max(0, Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
       }
 
+      const actionLogs = await storage.getDirectorActionLogs({ actorId: userId }) || [];
+
+      let trustScoreSummary = { averageScore: 0, highCount: 0, mediumCount: 0, lowCount: 0, totalDrivers: 0 };
+      try {
+        const drivers = await storage.getDriversUnderDirector(userId);
+        if (drivers && drivers.length > 0) {
+          const driverUserIds = drivers.map((d: any) => d.userId || d.driverUserId);
+          let totalScore = 0;
+          let count = 0;
+          for (const duid of driverUserIds) {
+            const trustProfile = await storage.getUserTrustProfile(duid);
+            if (trustProfile) {
+              const score = typeof trustProfile.trustScore === 'number' ? trustProfile.trustScore : parseFloat(String(trustProfile.trustScore || '75'));
+              totalScore += score;
+              count++;
+              if (score >= 80) trustScoreSummary.highCount++;
+              else if (score >= 60) trustScoreSummary.mediumCount++;
+              else trustScoreSummary.lowCount++;
+            }
+          }
+          trustScoreSummary.totalDrivers = count;
+          trustScoreSummary.averageScore = count > 0 ? Math.round(totalScore / count) : 0;
+        }
+      } catch (e) {
+        console.warn("[DIRECTOR] Failed to compute trust score summary:", e);
+      }
+
       return res.json({
         directorType: profile.directorType,
         status: profile.status,
@@ -20825,6 +20898,8 @@ export async function registerRoutes(
         cells: cellsWithCounts,
         staff,
         coachingLogs,
+        actionLogs: actionLogs.slice(0, 100),
+        trustScoreSummary,
         lifespan: {
           startDate: profile.lifespanStartDate || null,
           endDate: profile.lifespanEndDate || null,

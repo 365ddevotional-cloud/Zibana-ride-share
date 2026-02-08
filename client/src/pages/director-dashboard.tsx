@@ -7,13 +7,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Users, Shield, Clock, AlertTriangle, Activity, UserPlus, ChevronRight,
   Calendar, Bell, X, RefreshCw, Wallet, Send, Ban, History, DollarSign,
-  CheckCircle, XCircle, Eye
+  CheckCircle, XCircle, Eye, Trash2
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -68,6 +69,13 @@ type DashboardData = {
     afterState: string;
     [key: string]: any;
   }>;
+  trustScoreSummary?: {
+    averageScore: number;
+    highCount: number;
+    mediumCount: number;
+    lowCount: number;
+    totalDrivers: number;
+  };
 };
 
 type EligibleDriver = {
@@ -129,6 +137,19 @@ function statusVariant(status: string): "default" | "secondary" | "destructive" 
   }
 }
 
+function driverStatusVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
+  switch (status?.toLowerCase()) {
+    case "active":
+      return "default";
+    case "suspended":
+      return "destructive";
+    case "pending":
+      return "outline";
+    default:
+      return "secondary";
+  }
+}
+
 function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return "N/A";
   try {
@@ -175,6 +196,280 @@ function LoadingSkeleton() {
       <Skeleton className="h-40" />
       <Skeleton className="h-48" />
     </div>
+  );
+}
+
+function DisciplineDialog({
+  driver,
+  actionType,
+  open,
+  onOpenChange,
+}: {
+  driver: EligibleDriver | null;
+  actionType: "warn" | "suspend";
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { toast } = useToast();
+  const [reason, setReason] = useState("");
+
+  const isWarning = actionType === "warn";
+  const title = isWarning ? "Issue Warning" : "Request Suspension";
+  const endpoint = isWarning
+    ? `/api/director/drivers/${driver?.userId}/warn`
+    : `/api/director/drivers/${driver?.userId}/suspend`;
+
+  const disciplineMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", endpoint, { reason });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/director/funding/eligible-drivers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/director/dashboard/full"] });
+      toast({
+        title: isWarning ? "Warning Issued" : "Suspension Requested",
+        description: isWarning
+          ? `Warning issued to ${driver?.fullName}.`
+          : `Suspension request submitted for ${driver?.fullName}.`,
+      });
+      handleClose();
+    },
+    onError: (err: Error) => {
+      toast({
+        title: isWarning ? "Warning Failed" : "Suspension Request Failed",
+        description: err.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleClose = () => {
+    setReason("");
+    onOpenChange(false);
+  };
+
+  if (!driver) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle data-testid="text-discipline-title">{title}</DialogTitle>
+          <DialogDescription>
+            {isWarning
+              ? `Issue a warning to ${driver.fullName}`
+              : `Request suspension for ${driver.fullName}`}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label>Driver</Label>
+            <div className="flex items-center gap-2 mt-1 p-2 rounded-md bg-muted">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium" data-testid="text-discipline-driver-name">{driver.fullName}</span>
+            </div>
+          </div>
+          <div>
+            <Label htmlFor="discipline-reason">Reason</Label>
+            <Textarea
+              id="discipline-reason"
+              placeholder={isWarning ? "Enter warning reason..." : "Enter suspension reason..."}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              className="mt-1"
+              data-testid="textarea-discipline-reason"
+            />
+            {reason.length > 0 && reason.length < 5 && (
+              <p className="text-xs text-destructive mt-1">Reason must be at least 5 characters.</p>
+            )}
+          </div>
+          {!isWarning && (
+            <div className="p-3 rounded-md border border-destructive/30 bg-destructive/5 text-xs text-muted-foreground">
+              Requires Admin confirmation.
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={handleClose} data-testid="button-discipline-cancel">Cancel</Button>
+          <Button
+            variant={isWarning ? "outline" : "destructive"}
+            onClick={() => disciplineMutation.mutate()}
+            disabled={reason.length < 5 || disciplineMutation.isPending}
+            data-testid="button-discipline-submit"
+          >
+            {disciplineMutation.isPending ? "Submitting..." : title}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CreateStaffDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { toast } = useToast();
+  const [staffUserId, setStaffUserId] = useState("");
+  const [staffRole, setStaffRole] = useState("");
+  const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
+
+  const permissionOptions = [
+    { key: "view_drivers", label: "View Drivers" },
+    { key: "view_funding", label: "View Funding History" },
+    { key: "manage_drivers", label: "Manage Drivers" },
+    { key: "view_reports", label: "View Reports" },
+  ];
+
+  const createStaffMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/director/staff", {
+        staffUserId,
+        staffRole,
+        permissions: JSON.stringify(selectedPermissions),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/director/dashboard/full"] });
+      toast({ title: "Staff Created", description: "Staff member has been created successfully." });
+      handleClose();
+    },
+    onError: (err: Error) => {
+      toast({ title: "Failed to Create Staff", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const handleClose = () => {
+    setStaffUserId("");
+    setStaffRole("");
+    setSelectedPermissions([]);
+    onOpenChange(false);
+  };
+
+  const togglePermission = (key: string) => {
+    setSelectedPermissions((prev) =>
+      prev.includes(key) ? prev.filter((p) => p !== key) : [...prev, key]
+    );
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle data-testid="text-create-staff-title">Create Staff</DialogTitle>
+          <DialogDescription>Add a new staff member to your team</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="staff-user-id">Staff User ID</Label>
+            <Input
+              id="staff-user-id"
+              placeholder="Enter user ID"
+              value={staffUserId}
+              onChange={(e) => setStaffUserId(e.target.value)}
+              data-testid="input-staff-user-id"
+            />
+          </div>
+          <div>
+            <Label>Staff Role</Label>
+            <Select value={staffRole} onValueChange={setStaffRole}>
+              <SelectTrigger data-testid="select-staff-role">
+                <SelectValue placeholder="Select a role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="viewer">Viewer</SelectItem>
+                <SelectItem value="coordinator">Coordinator</SelectItem>
+                <SelectItem value="manager">Manager</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Permissions</Label>
+            <div className="space-y-2 mt-2">
+              {permissionOptions.map((perm) => (
+                <div key={perm.key} className="flex items-center gap-2">
+                  <Checkbox
+                    id={`perm-${perm.key}`}
+                    checked={selectedPermissions.includes(perm.key)}
+                    onCheckedChange={() => togglePermission(perm.key)}
+                    data-testid={`checkbox-perm-${perm.key}`}
+                  />
+                  <label htmlFor={`perm-${perm.key}`} className="text-sm cursor-pointer">
+                    {perm.label}
+                  </label>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="p-3 rounded-md border bg-muted/50 text-xs text-muted-foreground">
+            Staff accounts require Admin approval before activation.
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={handleClose} data-testid="button-create-staff-cancel">Cancel</Button>
+          <Button
+            onClick={() => createStaffMutation.mutate()}
+            disabled={!staffUserId || !staffRole || createStaffMutation.isPending}
+            data-testid="button-create-staff-submit"
+          >
+            {createStaffMutation.isPending ? "Creating..." : "Create Staff"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function RemoveStaffDialog({
+  staffId,
+  open,
+  onOpenChange,
+}: {
+  staffId: string | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { toast } = useToast();
+
+  const removeMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("DELETE", `/api/director/staff/${staffId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/director/dashboard/full"] });
+      toast({ title: "Staff Removed", description: "Staff member has been removed." });
+      onOpenChange(false);
+    },
+    onError: (err: Error) => {
+      toast({ title: "Failed to Remove Staff", description: err.message, variant: "destructive" });
+    },
+  });
+
+  if (!staffId) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle data-testid="text-remove-staff-title">Remove Staff Member</DialogTitle>
+          <DialogDescription>Are you sure you want to remove this staff member? This action cannot be undone.</DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} data-testid="button-remove-staff-cancel">Cancel</Button>
+          <Button
+            variant="destructive"
+            onClick={() => removeMutation.mutate()}
+            disabled={removeMutation.isPending}
+            data-testid="button-remove-staff-confirm"
+          >
+            {removeMutation.isPending ? "Removing..." : "Remove"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -405,6 +700,12 @@ export default function DirectorDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
   const [fundDialogOpen, setFundDialogOpen] = useState(false);
   const [selectedDriver, setSelectedDriver] = useState<EligibleDriver | null>(null);
+  const [disciplineDialogOpen, setDisciplineDialogOpen] = useState(false);
+  const [disciplineDriver, setDisciplineDriver] = useState<EligibleDriver | null>(null);
+  const [disciplineAction, setDisciplineAction] = useState<"warn" | "suspend">("warn");
+  const [createStaffOpen, setCreateStaffOpen] = useState(false);
+  const [removeStaffOpen, setRemoveStaffOpen] = useState(false);
+  const [removeStaffId, setRemoveStaffId] = useState<string | null>(null);
 
   const { data: dashboard, isLoading } = useQuery<DashboardData>({
     queryKey: ["/api/director/dashboard/full"],
@@ -480,12 +781,23 @@ export default function DirectorDashboard() {
     );
   }
 
-  const { profile, lifespan, cells, metrics, staff, coaching, actionLogs } = dashboard;
+  const { profile, lifespan, cells, metrics, staff, coaching, actionLogs, trustScoreSummary } = dashboard;
   const activeCoaching = coaching?.filter((c) => !c.isDismissed) ?? [];
 
   const handleFundDriver = (driver: EligibleDriver) => {
     setSelectedDriver(driver);
     setFundDialogOpen(true);
+  };
+
+  const handleDiscipline = (driver: EligibleDriver, action: "warn" | "suspend") => {
+    setDisciplineDriver(driver);
+    setDisciplineAction(action);
+    setDisciplineDialogOpen(true);
+  };
+
+  const handleRemoveStaff = (id: string) => {
+    setRemoveStaffId(id);
+    setRemoveStaffOpen(true);
   };
 
   const todayFunding = fundingHistory?.filter(t => {
@@ -525,7 +837,7 @@ export default function DirectorDashboard() {
 
         {/* OVERVIEW TAB */}
         <TabsContent value="overview" className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <Card data-testid="card-total-drivers">
               <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Drivers</CardTitle>
@@ -561,6 +873,22 @@ export default function DirectorDashboard() {
               <CardContent>
                 <div className="text-2xl font-bold" data-testid="text-funding-today">{todayFundingTotal.toLocaleString()}</div>
                 <p className="text-xs text-muted-foreground">{todayFunding.length} transaction{todayFunding.length !== 1 ? "s" : ""}</p>
+              </CardContent>
+            </Card>
+            <Card data-testid="card-trust-score">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Trust Score</CardTitle>
+                <Shield className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold" data-testid="text-trust-score-avg">
+                  {trustScoreSummary?.averageScore != null ? trustScoreSummary.averageScore.toFixed(1) : "N/A"}
+                </div>
+                {trustScoreSummary && (
+                  <p className="text-xs text-muted-foreground" data-testid="text-trust-score-breakdown">
+                    High: {trustScoreSummary.highCount} / Med: {trustScoreSummary.mediumCount} / Low: {trustScoreSummary.lowCount}
+                  </p>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -695,9 +1023,12 @@ export default function DirectorDashboard() {
                           <p className="text-xs text-muted-foreground">Cell {driver.cellNumber} &middot; {driver.phone}</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={driver.isOnline ? "default" : "secondary"}>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant={driver.isOnline ? "default" : "secondary"} data-testid={`badge-driver-online-${driver.userId}`}>
                           {driver.isOnline ? "Online" : "Offline"}
+                        </Badge>
+                        <Badge variant={driverStatusVariant(driver.status)} data-testid={`badge-driver-status-${driver.userId}`}>
+                          {driver.status ? driver.status.charAt(0).toUpperCase() + driver.status.slice(1) : "Unknown"}
                         </Badge>
                         <Button
                           size="sm"
@@ -707,6 +1038,25 @@ export default function DirectorDashboard() {
                         >
                           <Wallet className="h-3.5 w-3.5 mr-1.5" />
                           Fund
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-yellow-500/50 text-yellow-600 dark:text-yellow-400"
+                          onClick={() => handleDiscipline(driver, "warn")}
+                          data-testid={`button-warn-driver-${driver.userId}`}
+                        >
+                          <AlertTriangle className="h-3.5 w-3.5 mr-1.5" />
+                          Warn
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleDiscipline(driver, "suspend")}
+                          data-testid={`button-suspend-driver-${driver.userId}`}
+                        >
+                          <Ban className="h-3.5 w-3.5 mr-1.5" />
+                          Suspend
                         </Button>
                       </div>
                     </div>
@@ -861,9 +1211,19 @@ export default function DirectorDashboard() {
         {/* STAFF TAB */}
         <TabsContent value="staff" className="space-y-4">
           <Card data-testid="card-staff">
-            <CardHeader>
-              <CardTitle>Staff Members</CardTitle>
-              <CardDescription>Manage your staff accounts and permissions</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
+              <div>
+                <CardTitle>Staff Members</CardTitle>
+                <CardDescription>Manage your staff accounts and permissions</CardDescription>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => setCreateStaffOpen(true)}
+                data-testid="button-open-create-staff"
+              >
+                <UserPlus className="h-3.5 w-3.5 mr-1.5" />
+                Create Staff
+              </Button>
             </CardHeader>
             <CardContent>
               {staff && staff.length > 0 ? (
@@ -872,11 +1232,19 @@ export default function DirectorDashboard() {
                     <div key={member.id} className="flex flex-wrap items-center justify-between gap-2 py-2 border-b border-border last:border-0" data-testid={`staff-row-${member.id}`}>
                       <div className="flex items-center gap-2">
                         <Shield className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm font-medium">{member.staffUserId}</span>
+                        <span className="text-sm font-medium" data-testid={`text-staff-userid-${member.id}`}>{member.staffUserId}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge variant="secondary">{member.staffRole}</Badge>
-                        <Badge variant={statusVariant(member.status)}>{member.status}</Badge>
+                        <Badge variant="secondary" data-testid={`badge-staff-role-${member.id}`}>{member.staffRole}</Badge>
+                        <Badge variant={statusVariant(member.status)} data-testid={`badge-staff-status-${member.id}`}>{member.status}</Badge>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => handleRemoveStaff(member.id)}
+                          data-testid={`button-remove-staff-${member.id}`}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -908,11 +1276,11 @@ export default function DirectorDashboard() {
                     <div key={`${log.actorId}-${log.createdAt}-${index}`} className="flex flex-wrap items-center justify-between gap-2 py-1.5 border-b border-border last:border-0" data-testid={`action-log-row-${index}`}>
                       <div className="flex items-center gap-2 min-w-0">
                         <Activity className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                        <span className="text-sm truncate">{log.action.replace(/_/g, " ")}</span>
+                        <span className="text-sm truncate" data-testid={`text-log-action-${index}`}>{log.action.replace(/_/g, " ")}</span>
                         {log.targetType && <Badge variant="secondary">{log.targetType}</Badge>}
                         {log.actorRole && <Badge variant="outline">{log.actorRole}</Badge>}
                       </div>
-                      <span className="text-xs text-muted-foreground shrink-0">{formatDateTime(log.createdAt)}</span>
+                      <span className="text-xs text-muted-foreground shrink-0" data-testid={`text-log-date-${index}`}>{formatDateTime(log.createdAt)}</span>
                     </div>
                   ))}
                 </div>
@@ -931,6 +1299,24 @@ export default function DirectorDashboard() {
         driver={selectedDriver}
         open={fundDialogOpen}
         onOpenChange={setFundDialogOpen}
+      />
+
+      <DisciplineDialog
+        driver={disciplineDriver}
+        actionType={disciplineAction}
+        open={disciplineDialogOpen}
+        onOpenChange={setDisciplineDialogOpen}
+      />
+
+      <CreateStaffDialog
+        open={createStaffOpen}
+        onOpenChange={setCreateStaffOpen}
+      />
+
+      <RemoveStaffDialog
+        staffId={removeStaffId}
+        open={removeStaffOpen}
+        onOpenChange={setRemoveStaffOpen}
       />
     </div>
   );
