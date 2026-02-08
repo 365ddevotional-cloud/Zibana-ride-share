@@ -82,6 +82,12 @@ Preferred communication style: Simple, everyday language.
 - **Funder Dashboard**: Limited visibility for funders showing total funded, monthly usage, ride count summaries. No access to ride routes, driver identity, exact locations, or trust scores.
 - **Funding Fraud Detection**: Auto-flags for many-recipients-one-funder, rapid fund-spend-refund cycles, cross-country anomalies, cancellation abuse, velocity alerts. Admin review panel with resolution workflow.
 - **Admin Funding Controls**: Global and country-specific configuration (limits, caps, feature toggle), relationship freeze/unfreeze, per-user funding disable, abuse flag management, comprehensive audit logging.
+- **Director Reports Dashboard**: Read-only director reports page (`/director/reports`) with daily, weekly, and monthly summaries. Shows driver counts, activity ratios, commissionable counts, compliance rates, growth indicators, and performance tiers. NO raw money values, NO per-driver revenue — percentages and counts only. Read-only mode for suspended/terminated/expired directors.
+- **Admin Director Reports Panel**: Comparison view of all directors with sortable activity ratio, compliance rate, performance score columns. Search, flag-for-review capability with audit logging and neutral director notification.
+- **Enhanced Director Suspension**: Suspending a director now freezes commission, sets lifecycle to "suspended", and sends neutral notifications to all affected drivers ("Your Director assignment has been updated. Your driver status and earnings are unaffected.").
+- **Enhanced Director Termination**: Terminating a director now automatically unassigns all drivers to the platform pool with per-driver audit logging and neutral driver notifications. Drivers remain active with preserved earnings.
+- **ZIBRA Director Oversight Scheduler**: Runs every 6 hours, auto-detects contract expiry (30-day warnings + auto-expiration), low driver activity alerts (4+ low days in 7), and repeated suspension abuse (5+ in a week). All findings logged and escalated to appropriate admin roles.
+- **Automated Director Commission Engine**: Daily scheduler with 60-minute polling, calculates commission from platform earnings using 77% active ratio, 1000-driver cap, 10-driver activation threshold, lifespan/status/frozen eligibility enforcement, and ZIBRA cap-warning signals at 90% capacity.
 
 ## External Dependencies
 
