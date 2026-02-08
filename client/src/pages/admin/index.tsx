@@ -810,6 +810,35 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
   const [payoutPeriodEnd, setPayoutPeriodEnd] = useState("");
   const [zAssistOpen, setZAssistOpen] = useState(false);
   const [selectedDirectorId, setSelectedDirectorId] = useState<string | null>(null);
+  const [appointDialogOpen, setAppointDialogOpen] = useState(false);
+  const [appointForm, setAppointForm] = useState({
+    userId: "",
+    directorType: "contract" as "contract" | "employed",
+    startDate: new Date().toISOString().split("T")[0],
+    endDate: "",
+    maxCells: 3,
+    commissionRatePercent: 12,
+    maxCommissionablePerDay: 1000,
+    maxCellSize: 1300,
+  });
+  const [userSearch, setUserSearch] = useState("");
+  const [actionDialog, setActionDialog] = useState<{
+    type: string;
+    directorId: string;
+    directorName: string;
+  } | null>(null);
+  const [actionReason, setActionReason] = useState("");
+  const [actionValue, setActionValue] = useState("");
+
+  const { data: availableUsers } = useQuery<any[]>({
+    queryKey: ["/api/admin/directors/available-users", userSearch],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/directors/available-users?search=${encodeURIComponent(userSearch)}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    enabled: appointDialogOpen,
+  });
 
   const { data: directorLifecycle, isLoading: lifecycleLoading } = useQuery<any>({
     queryKey: ["/api/admin/directors", selectedDirectorId, "lifecycle"],
@@ -4714,10 +4743,23 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
             <TabsContent value="directors">
               <Card>
                 <CardHeader>
-                  <CardTitle>Directors</CardTitle>
-                  <CardDescription>
-                    Manage contract and employed directors
-                  </CardDescription>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <CardTitle>Director Appointments</CardTitle>
+                      <CardDescription>
+                        Manage contract and employed directors
+                      </CardDescription>
+                    </div>
+                    {isSuperAdmin && (
+                      <Button
+                        onClick={() => setAppointDialogOpen(true)}
+                        data-testid="button-appoint-director"
+                      >
+                        <UserPlus className="h-4 w-4 mr-2" />
+                        Appoint Director
+                      </Button>
+                    )}
+                  </div>
                 </CardHeader>
                 <CardContent>
                   {directorsLoading ? (
@@ -4728,45 +4770,63 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                     <EmptyState
                       icon={Briefcase}
                       title="No directors yet"
-                      description="Directors will appear here when created"
+                      description="Directors will appear here when appointed"
                     />
                   ) : (
                     <div className="overflow-x-auto">
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Name</TableHead>
+                            <TableHead>Director Name</TableHead>
                             <TableHead>Email</TableHead>
                             <TableHead>Type</TableHead>
-                            <TableHead>Drivers</TableHead>
                             <TableHead>Status</TableHead>
-                            <TableHead>Joined</TableHead>
+                            <TableHead>Drivers</TableHead>
+                            <TableHead>Cells</TableHead>
+                            <TableHead>Start Date</TableHead>
+                            <TableHead>End Date</TableHead>
                             <TableHead>Details</TableHead>
                             {isSuperAdmin && <TableHead>Actions</TableHead>}
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {directors.map((director) => (
+                          {directors.map((director: any) => (
                             <TableRow key={director.id} data-testid={`row-director-${director.id}`}>
                               <TableCell className="font-medium">{director.fullName || "-"}</TableCell>
-                              <TableCell>{director.email || "-"}</TableCell>
+                              <TableCell className="text-sm text-muted-foreground">{director.email || "-"}</TableCell>
                               <TableCell>
                                 <Badge variant={director.directorType === "contract" ? "default" : "secondary"}>
                                   {director.directorType === "contract" ? "Contract" : "Employed"}
                                 </Badge>
                               </TableCell>
-                              <TableCell>{director.driverCount || 0}</TableCell>
                               <TableCell>
-                                <StatusBadge status={director.status as any} />
+                                <Badge
+                                  variant={
+                                    director.lifecycleStatus === "active" ? "default"
+                                    : director.lifecycleStatus === "terminated" ? "destructive"
+                                    : director.lifecycleStatus === "suspended" ? "outline"
+                                    : "secondary"
+                                  }
+                                  data-testid={`badge-director-status-${director.id}`}
+                                >
+                                  {director.lifecycleStatus || director.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell data-testid={`text-director-drivers-${director.id}`}>{director.driverCount || 0}</TableCell>
+                              <TableCell>{director.maxCells || 3}</TableCell>
+                              <TableCell>
+                                {director.lifespanStartDate
+                                  ? new Date(director.lifespanStartDate).toLocaleDateString()
+                                  : "-"}
                               </TableCell>
                               <TableCell>
-                                {director.createdAt 
-                                  ? new Date(director.createdAt).toLocaleDateString() 
+                                {director.lifespanEndDate
+                                  ? new Date(director.lifespanEndDate).toLocaleDateString()
                                   : "-"}
                               </TableCell>
                               <TableCell>
                                 <Button
-                                  size="sm"
+                                  size="icon"
                                   variant="ghost"
                                   data-testid={`button-view-director-${director.id}`}
                                   onClick={() => setSelectedDirectorId(director.id)}
@@ -4776,62 +4836,82 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                               </TableCell>
                               {isSuperAdmin && (
                                 <TableCell>
-                                  <div className="flex items-center gap-1">
-                                    {director.status === "active" ? (
+                                  <div className="flex items-center gap-1 flex-wrap">
+                                    {director.lifecycleStatus === "pending" && (
+                                      <Button
+                                        size="sm"
+                                        variant="default"
+                                        data-testid={`button-activate-director-${director.id}`}
+                                        onClick={() => setActionDialog({ type: "activate", directorId: director.id, directorName: director.fullName })}
+                                      >
+                                        Activate
+                                      </Button>
+                                    )}
+                                    {director.lifecycleStatus === "active" && (
                                       <Button
                                         size="sm"
                                         variant="outline"
                                         data-testid={`button-suspend-director-${director.id}`}
-                                        onClick={async () => {
-                                          const reason = prompt("Reason for suspending this director:");
-                                          if (!reason) return;
-                                          try {
-                                            await apiRequest("POST", `/api/admin/directors/${director.id}/suspend`, { reason });
-                                            queryClient.invalidateQueries({ queryKey: ["/api/admin/directors"] });
-                                            toast({ title: "Director suspended" });
-                                          } catch (e) {
-                                            toast({ title: "Failed to suspend director", variant: "destructive" });
-                                          }
-                                        }}
+                                        onClick={() => setActionDialog({ type: "suspend", directorId: director.id, directorName: director.fullName })}
                                       >
                                         Suspend
                                       </Button>
-                                    ) : (
+                                    )}
+                                    {(director.lifecycleStatus === "suspended" || director.status === "inactive") && director.lifecycleStatus !== "terminated" && (
                                       <Button
                                         size="sm"
                                         variant="outline"
                                         data-testid={`button-reactivate-director-${director.id}`}
-                                        onClick={async () => {
-                                          try {
-                                            await apiRequest("POST", `/api/admin/directors/${director.id}/reactivate`);
-                                            queryClient.invalidateQueries({ queryKey: ["/api/admin/directors"] });
-                                            toast({ title: "Director reactivated" });
-                                          } catch (e) {
-                                            toast({ title: "Failed to reactivate", variant: "destructive" });
-                                          }
-                                        }}
+                                        onClick={() => setActionDialog({ type: "reactivate", directorId: director.id, directorName: director.fullName })}
                                       >
                                         Reactivate
                                       </Button>
                                     )}
-                                    {director.directorType === "contract" && (
+                                    {director.lifecycleStatus !== "terminated" && (
+                                      <>
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          data-testid={`button-extend-lifespan-${director.id}`}
+                                          onClick={() => {
+                                            setActionValue(director.lifespanEndDate ? new Date(director.lifespanEndDate).toISOString().split("T")[0] : "");
+                                            setActionDialog({ type: "extend_lifespan", directorId: director.id, directorName: director.fullName });
+                                          }}
+                                        >
+                                          Extend
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          data-testid={`button-adjust-commission-${director.id}`}
+                                          onClick={() => {
+                                            setActionValue(String(director.commissionRatePercent || 12));
+                                            setActionDialog({ type: "adjust_commission", directorId: director.id, directorName: director.fullName });
+                                          }}
+                                        >
+                                          Commission
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          data-testid={`button-adjust-cells-${director.id}`}
+                                          onClick={() => {
+                                            setActionValue(String(director.maxCells || 3));
+                                            setActionDialog({ type: "adjust_cells", directorId: director.id, directorName: director.fullName });
+                                          }}
+                                        >
+                                          Cells
+                                        </Button>
+                                      </>
+                                    )}
+                                    {director.lifecycleStatus !== "terminated" && (
                                       <Button
                                         size="sm"
-                                        variant="ghost"
-                                        data-testid={`button-freeze-director-${director.id}`}
-                                        onClick={async () => {
-                                          const reason = prompt("Reason for freezing/unfreezing commissions:");
-                                          if (!reason) return;
-                                          try {
-                                            await apiRequest("POST", `/api/admin/directors/${director.id}/freeze`, { frozen: true, reason });
-                                            queryClient.invalidateQueries({ queryKey: ["/api/admin/directors"] });
-                                            toast({ title: "Commission status updated" });
-                                          } catch (e) {
-                                            toast({ title: "Failed to update", variant: "destructive" });
-                                          }
-                                        }}
+                                        variant="destructive"
+                                        data-testid={`button-terminate-director-${director.id}`}
+                                        onClick={() => setActionDialog({ type: "terminate", directorId: director.id, directorName: director.fullName })}
                                       >
-                                        Freeze
+                                        Terminate
                                       </Button>
                                     )}
                                   </div>
@@ -5058,6 +5138,275 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               ) : (
                 <div className="py-8 text-center text-muted-foreground">Unable to load lifecycle data.</div>
               )}
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={appointDialogOpen} onOpenChange={setAppointDialogOpen}>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <UserPlus className="h-5 w-5" />
+                  Appoint Director
+                </DialogTitle>
+                <DialogDescription>
+                  Select a user and configure their director appointment
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-sm font-medium">Search User</Label>
+                  <Input
+                    placeholder="Search by name or email..."
+                    value={userSearch}
+                    onChange={(e) => setUserSearch(e.target.value)}
+                    data-testid="input-search-user"
+                  />
+                  {availableUsers && availableUsers.length > 0 && !appointForm.userId && (
+                    <div className="mt-2 max-h-32 overflow-y-auto border rounded-md">
+                      {availableUsers.map((u: any) => (
+                        <button
+                          key={u.id}
+                          className="w-full text-left px-3 py-2 text-sm hover-elevate border-b border-border last:border-0"
+                          onClick={() => {
+                            setAppointForm(prev => ({ ...prev, userId: u.id }));
+                            setUserSearch(u.email || u.firstName || u.id);
+                          }}
+                          data-testid={`button-select-user-${u.id}`}
+                        >
+                          <span className="font-medium">{u.firstName} {u.lastName}</span>
+                          <span className="text-muted-foreground ml-2">{u.email}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {appointForm.userId && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Selected: {appointForm.userId}
+                      <button className="ml-2 text-primary underline" onClick={() => { setAppointForm(prev => ({ ...prev, userId: "" })); setUserSearch(""); }}>Change</button>
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <Label className="text-sm font-medium">Director Type</Label>
+                  <Select value={appointForm.directorType} onValueChange={(v) => setAppointForm(prev => ({ ...prev, directorType: v as any }))}>
+                    <SelectTrigger data-testid="select-director-type">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="contract">Contract Director</SelectItem>
+                      <SelectItem value="employed">Employed Director</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-sm font-medium">Start Date</Label>
+                    <Input
+                      type="date"
+                      value={appointForm.startDate}
+                      onChange={(e) => setAppointForm(prev => ({ ...prev, startDate: e.target.value }))}
+                      data-testid="input-start-date"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium">End Date</Label>
+                    <Input
+                      type="date"
+                      value={appointForm.endDate}
+                      onChange={(e) => setAppointForm(prev => ({ ...prev, endDate: e.target.value }))}
+                      data-testid="input-end-date"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-sm font-medium">Max Cells (1-3)</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={3}
+                      value={appointForm.maxCells}
+                      onChange={(e) => setAppointForm(prev => ({ ...prev, maxCells: parseInt(e.target.value) || 3 }))}
+                      data-testid="input-max-cells"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium">Commission Rate %</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={50}
+                      value={appointForm.commissionRatePercent}
+                      onChange={(e) => setAppointForm(prev => ({ ...prev, commissionRatePercent: parseInt(e.target.value) || 12 }))}
+                      data-testid="input-commission-rate"
+                    />
+                  </div>
+                </div>
+
+                <Button
+                  className="w-full"
+                  disabled={!appointForm.userId}
+                  data-testid="button-confirm-appoint"
+                  onClick={async () => {
+                    try {
+                      await apiRequest("POST", "/api/admin/directors/appoint", appointForm);
+                      queryClient.invalidateQueries({ queryKey: ["/api/admin/directors"] });
+                      toast({ title: "Director appointed", description: `${appointForm.directorType} director appointed successfully.` });
+                      setAppointDialogOpen(false);
+                      setAppointForm({
+                        userId: "",
+                        directorType: "contract",
+                        startDate: new Date().toISOString().split("T")[0],
+                        endDate: "",
+                        maxCells: 3,
+                        commissionRatePercent: 12,
+                        maxCommissionablePerDay: 1000,
+                        maxCellSize: 1300,
+                      });
+                      setUserSearch("");
+                    } catch (e: any) {
+                      toast({ title: "Failed to appoint", description: e.message || "An error occurred", variant: "destructive" });
+                    }
+                  }}
+                >
+                  Appoint Director
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={!!actionDialog} onOpenChange={(v) => { if (!v) { setActionDialog(null); setActionReason(""); setActionValue(""); } }}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>
+                  {actionDialog?.type === "activate" && "Activate Director"}
+                  {actionDialog?.type === "suspend" && "Suspend Director"}
+                  {actionDialog?.type === "reactivate" && "Reactivate Director"}
+                  {actionDialog?.type === "terminate" && "Terminate Director"}
+                  {actionDialog?.type === "extend_lifespan" && "Extend Lifespan"}
+                  {actionDialog?.type === "adjust_commission" && "Adjust Commission Rate"}
+                  {actionDialog?.type === "adjust_cells" && "Adjust Cell Limits"}
+                </DialogTitle>
+                <DialogDescription>
+                  {actionDialog?.directorName ? `Action for: ${actionDialog.directorName}` : "Confirm this action"}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-3">
+                {actionDialog?.type === "extend_lifespan" && (
+                  <div>
+                    <Label className="text-sm font-medium">New End Date</Label>
+                    <Input
+                      type="date"
+                      value={actionValue}
+                      onChange={(e) => setActionValue(e.target.value)}
+                      data-testid="input-action-end-date"
+                    />
+                  </div>
+                )}
+
+                {actionDialog?.type === "adjust_commission" && (
+                  <div>
+                    <Label className="text-sm font-medium">Commission Rate % (0-50)</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={50}
+                      value={actionValue}
+                      onChange={(e) => setActionValue(e.target.value)}
+                      data-testid="input-action-commission"
+                    />
+                  </div>
+                )}
+
+                {actionDialog?.type === "adjust_cells" && (
+                  <div>
+                    <Label className="text-sm font-medium">Max Cells (1-3)</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={3}
+                      value={actionValue}
+                      onChange={(e) => setActionValue(e.target.value)}
+                      data-testid="input-action-cells"
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <Label className="text-sm font-medium">Reason</Label>
+                  <Textarea
+                    value={actionReason}
+                    onChange={(e) => setActionReason(e.target.value)}
+                    placeholder="Provide a reason for this action..."
+                    data-testid="input-action-reason"
+                  />
+                </div>
+
+                {actionDialog?.type === "terminate" && (
+                  <p className="text-sm text-destructive">
+                    This action is irreversible. The director will be permanently terminated.
+                  </p>
+                )}
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => { setActionDialog(null); setActionReason(""); setActionValue(""); }}
+                    data-testid="button-cancel-action"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant={actionDialog?.type === "terminate" ? "destructive" : "default"}
+                    disabled={!actionReason}
+                    data-testid="button-confirm-action"
+                    onClick={async () => {
+                      if (!actionDialog) return;
+                      try {
+                        const { type, directorId } = actionDialog;
+                        if (type === "activate") {
+                          await apiRequest("POST", `/api/admin/directors/${directorId}/activate`, { reason: actionReason });
+                        } else if (type === "suspend") {
+                          await apiRequest("POST", `/api/admin/directors/${directorId}/suspend`, { reason: actionReason });
+                        } else if (type === "reactivate") {
+                          await apiRequest("POST", `/api/admin/directors/${directorId}/reactivate`, { reason: actionReason });
+                        } else if (type === "terminate") {
+                          await apiRequest("POST", `/api/admin/directors/${directorId}/terminate`, { reason: actionReason });
+                        } else if (type === "extend_lifespan") {
+                          await apiRequest("POST", `/api/admin/directors/${directorId}/lifespan`, {
+                            lifespanEndDate: actionValue,
+                            reason: actionReason,
+                          });
+                        } else if (type === "adjust_commission") {
+                          await apiRequest("POST", `/api/admin/directors/${directorId}/adjust-commission`, {
+                            commissionRatePercent: parseInt(actionValue),
+                            reason: actionReason,
+                          });
+                        } else if (type === "adjust_cells") {
+                          await apiRequest("POST", `/api/admin/directors/${directorId}/adjust-cells`, {
+                            maxCells: parseInt(actionValue),
+                            reason: actionReason,
+                          });
+                        }
+                        queryClient.invalidateQueries({ queryKey: ["/api/admin/directors"] });
+                        queryClient.invalidateQueries({ queryKey: ["/api/admin/directors", directorId, "lifecycle"] });
+                        toast({ title: "Action completed", description: `${type.replace(/_/g, " ")} completed successfully.` });
+                        setActionDialog(null);
+                        setActionReason("");
+                        setActionValue("");
+                      } catch (e: any) {
+                        toast({ title: "Action failed", description: e.message || "An error occurred", variant: "destructive" });
+                      }
+                    }}
+                  >
+                    Confirm
+                  </Button>
+                </div>
+              </div>
             </DialogContent>
           </Dialog>
 

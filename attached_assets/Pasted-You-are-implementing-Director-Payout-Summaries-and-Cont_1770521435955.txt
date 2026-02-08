@@ -1,0 +1,157 @@
+You are implementing Director Payout Summaries and Controls across the ZIBA platform.
+
+OBJECTIVE:
+Provide Directors with transparent but legally safe visibility into their earnings,
+while preventing exposure of platform revenue, commission math, or sensitive internals.
+All calculations must be server-side, auditable, and abuse-resistant.
+
+Do NOT break existing payout logic.
+Do NOT expose platform commission formulas.
+Do NOT allow Directors to control payout execution.
+
+=====================================================
+DIRECTOR TYPES
+=====================================================
+
+- Contract Director
+- Employee Director
+
+Both must follow the same visibility rules.
+Admin and Super Admin retain full control.
+
+=====================================================
+DIRECTOR DASHBOARD — EARNINGS VIEW
+=====================================================
+
+Create a Director Dashboard section:
+
+Route:
+  /director/dashboard/earnings
+
+Visible To:
+  - Contract Director
+  - Employee Director
+  - Admin (read-only)
+  - Super Admin (full access)
+
+-----------------------------------------------------
+DIRECTOR VISIBLE DATA (MASKED VIEW ONLY)
+-----------------------------------------------------
+
+Display ONLY the following cards:
+- Active Drivers Today
+- Commissionable Drivers Today
+- Eligible Drivers (77% rule applied silently)
+- Estimated Earnings (rounded, non-itemized)
+- Payout Status (Pending / Released / On Hold)
+
+Display a table:
+| Date | Active Drivers | Commissionable Drivers | Payout Status |
+
+Director MUST NOT see:
+- Platform fare totals
+- Per-driver revenue
+- Commission formulas
+- Platform percentage splits
+- Daily platform income
+
+-----------------------------------------------------
+ADMIN / SUPER ADMIN VIEW (FULL)
+-----------------------------------------------------
+
+Admins and Super Admins can see:
+- Full commission math
+- Platform earnings per driver
+- Cap enforcement details
+- Fraud flags
+- Manual adjustments
+- Audit trails
+
+=====================================================
+COMMISSION CALCULATION RULES (SERVER-SIDE ONLY)
+=====================================================
+
+Enforce silently:
+- Minimum activation threshold: 10 drivers
+- Commissionable drivers per day = min(77% of active drivers, 1000)
+- Max active drivers per cell = 1300
+- Commission percentage configurable by Super Admin
+- Calculations run daily via backend job
+- NEVER compute on frontend
+
+=====================================================
+PAYOUT CONTROL RULES
+=====================================================
+
+Directors CANNOT:
+- Trigger payouts
+- Modify payout dates
+- Request manual adjustments
+- See commission math
+
+Admin / Super Admin CAN:
+- Release payout
+- Hold payout
+- Adjust discrepancies
+- Freeze Director account
+- Terminate or suspend Director
+
+All actions must be logged.
+
+=====================================================
+ZIBRA MONITORING (DIRECTORS)
+=====================================================
+
+ZIBRA must monitor:
+- Abnormal driver activity spikes
+- Sudden payout growth
+- Repeated short driver sessions
+- Driver churn after payout cycles
+
+ZIBRA actions:
+- Send performance insights to Director
+- Flag Admin silently
+- Recommend Super Admin review
+- NO automatic punishment
+
+=====================================================
+LEGAL SAFETY LANGUAGE (DIRECTORS)
+=====================================================
+
+Display once per month and on payout page:
+
+"Director earnings are estimates based on platform activity and are subject to verification, caps, and policy rules. ZIBA does not guarantee earnings or payout timelines."
+
+=====================================================
+AUDIT & LOGGING (MANDATORY)
+=====================================================
+
+Log each payout cycle:
+- Director ID
+- Active driver count
+- Commissionable driver count
+- Cap enforcement applied
+- Earnings generated
+- Payout status
+- Actor (system/admin/super admin)
+- Timestamp
+
+=====================================================
+SECURITY & COMPLIANCE
+=====================================================
+
+- Directors may manage drivers but cannot deactivate drivers
+- Directors can suspend drivers under policy rules
+- Admin/Super Admin can override all actions
+- All role actions must include actor signature
+
+=====================================================
+DELIVERABLE CONFIRMATION
+=====================================================
+
+After implementation, confirm:
+- What files/endpoints/models changed
+- How to test as Director/Admin/Super Admin
+- What remains pending
+
+Proceed step-by-step and confirm completion.

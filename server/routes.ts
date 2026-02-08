@@ -5,7 +5,7 @@ import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integra
 import { storage } from "./storage";
 import { db } from "./db";
 import { eq, and, count, sql, gte, lt, isNotNull, inArray, desc, or } from "drizzle-orm";
-import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, driverInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages, walletFundingTransactions, walletFundingSettings, driverWallets, directorFundingTransactions, directorFundingSettings, directorFundingAcceptance, directorFundingSuspensions, directorProfiles, directorDriverAssignments, directorActionLogs, driverCoachingLogs, directorCells, directorCommissionSettings } from "@shared/schema";
+import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, driverInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages, walletFundingTransactions, walletFundingSettings, driverWallets, directorFundingTransactions, directorFundingSettings, directorFundingAcceptance, directorFundingSuspensions, directorProfiles, directorDriverAssignments, directorActionLogs, driverCoachingLogs, directorCells, directorCommissionSettings, referralCodes } from "@shared/schema";
 import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, evaluateAllDrivers, evaluateBehaviorAndWarnings, calculateDriverMatchingScore, getDriverIncentiveProgress, assignFirstRidePromo, assignReturnRiderPromo, applyPromoToTrip, voidPromosOnCancellation } from "./incentives";
 import { notificationService } from "./notification-service";
 import { getCurrencyFromCountry, getCountryConfig, FINANCIAL_ENGINE_LOCKED } from "@shared/currency";
@@ -3701,11 +3701,176 @@ export async function registerRoutes(
 
   app.get("/api/admin/directors", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
     try {
-      const directors = await storage.getAllDirectorsWithDetails();
-      return res.json(directors);
+      const allDirectorProfiles = await db.select().from(directorProfiles);
+      const directorsWithDetails = await Promise.all(
+        allDirectorProfiles.map(async (profile) => {
+          const [user] = await db.select().from(users).where(eq(users.id, profile.userId));
+          const [driverCountResult] = await db.select({ count: count() }).from(directorDriverAssignments).where(eq(directorDriverAssignments.directorUserId, profile.userId));
+          let referralCode = null;
+          if (profile.referralCodeId) {
+            const [rc] = await db.select().from(referralCodes).where(eq(referralCodes.id, profile.referralCodeId));
+            referralCode = rc?.code || null;
+          }
+          return {
+            id: profile.userId,
+            email: user?.email || profile.email,
+            firstName: user?.firstName,
+            lastName: user?.lastName,
+            fullName: profile.fullName || (user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user?.email),
+            status: profile.status,
+            directorType: profile.directorType,
+            referralCodeId: profile.referralCodeId,
+            referralCode,
+            lifecycleStatus: profile.lifecycleStatus,
+            lifespanStartDate: profile.lifespanStartDate,
+            lifespanEndDate: profile.lifespanEndDate,
+            maxCells: profile.maxCells,
+            maxCellSize: profile.maxCellSize,
+            commissionRatePercent: profile.commissionRatePercent,
+            maxCommissionablePerDay: profile.maxCommissionablePerDay,
+            approvedBy: profile.approvedBy,
+            driverCount: driverCountResult?.count || 0,
+            createdAt: profile.createdAt,
+          };
+        })
+      );
+      return res.json(directorsWithDetails);
     } catch (error) {
       console.error("Error getting directors:", error);
       return res.status(500).json({ message: "Failed to get directors" });
+    }
+  });
+
+  app.get("/api/admin/directors/available-users", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const search = (req.query.search as string) || "";
+
+      const existingDirectors = await db.select({ userId: directorProfiles.userId }).from(directorProfiles);
+      const directorIds = new Set(existingDirectors.map(d => d.userId));
+
+      let allUsers = await db.select({
+        id: users.id,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+      }).from(users).limit(50);
+
+      let availableUsers = allUsers.filter(u => !directorIds.has(u.id));
+
+      if (search) {
+        const searchLower = search.toLowerCase();
+        availableUsers = availableUsers.filter(u =>
+          u.email?.toLowerCase().includes(searchLower) ||
+          u.firstName?.toLowerCase().includes(searchLower) ||
+          u.lastName?.toLowerCase().includes(searchLower)
+        );
+      }
+
+      res.json(availableUsers.slice(0, 20));
+    } catch (error) {
+      console.error("Available users error:", error);
+      res.status(500).json({ error: "Failed to load available users" });
+    }
+  });
+
+  app.post("/api/admin/directors/appoint", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const adminUserId = req.user?.claims?.sub;
+      const {
+        userId,
+        directorType,
+        startDate,
+        endDate,
+        maxCells,
+        maxCellSize,
+        commissionRatePercent,
+        maxCommissionablePerDay,
+      } = req.body;
+
+      if (!userId || !directorType) {
+        return res.status(400).json({ error: "userId and directorType are required" });
+      }
+
+      if (!["contract", "employed"].includes(directorType)) {
+        return res.status(400).json({ error: "directorType must be 'contract' or 'employed'" });
+      }
+
+      const [targetUser] = await db.select().from(users).where(eq(users.id, userId));
+      if (!targetUser) return res.status(404).json({ error: "User not found" });
+
+      const [existing] = await db.select().from(directorProfiles)
+        .where(eq(directorProfiles.userId, userId));
+      if (existing) return res.status(409).json({ error: "User is already a director" });
+
+      const hasDirectorRole = await storage.hasRole(userId, "director");
+      if (!hasDirectorRole) {
+        await storage.addRoleToUser(userId, "director");
+      }
+
+      let referralCodeId = null;
+      if (directorType === "contract") {
+        const code = "DIR-" + Math.random().toString(36).substring(2, 8).toUpperCase();
+        const [refCode] = await db.insert(referralCodes).values({
+          code,
+          ownerUserId: userId,
+          ownerRole: "director",
+          active: true,
+        }).returning();
+        referralCodeId = refCode.id;
+      }
+
+      const [newDirector] = await db.insert(directorProfiles).values({
+        userId,
+        fullName: targetUser.firstName && targetUser.lastName
+          ? `${targetUser.firstName} ${targetUser.lastName}`
+          : targetUser.email || "Director",
+        email: targetUser.email,
+        directorType: directorType as "contract" | "employed",
+        referralCodeId,
+        lifecycleStatus: "pending",
+        status: "active",
+        lifespanStartDate: startDate ? new Date(startDate) : new Date(),
+        lifespanEndDate: endDate ? new Date(endDate) : null,
+        lifespanSetBy: adminUserId,
+        maxCells: maxCells || 3,
+        maxCellSize: maxCellSize || 1300,
+        commissionRatePercent: commissionRatePercent || 12,
+        maxCommissionablePerDay: maxCommissionablePerDay || 1000,
+        createdBy: adminUserId,
+        lastModifiedBy: adminUserId,
+        lastModifiedAt: new Date(),
+        onboardingCompleted: false,
+      }).returning();
+
+      await db.insert(directorActionLogs).values({
+        actorId: adminUserId,
+        actorRole: "super_admin",
+        action: "appoint_director",
+        targetType: "director",
+        targetId: userId,
+        beforeState: null,
+        afterState: JSON.stringify({
+          directorType,
+          lifecycleStatus: "pending",
+          maxCells: maxCells || 3,
+          commissionRatePercent: commissionRatePercent || 12,
+        }),
+        metadata: JSON.stringify({ referralCodeId }),
+        ipAddress: req.ip || req.connection?.remoteAddress || null,
+      });
+
+      await storage.createNotification({
+        userId,
+        role: "director",
+        type: "info",
+        title: "Director Appointment",
+        message: `You have been appointed as a ${directorType} director. ${directorType === "contract" ? "Recruit at least 10 drivers to activate your appointment." : "Your appointment is pending admin activation."}`,
+      });
+
+      res.json({ success: true, director: newDirector });
+    } catch (error: any) {
+      console.error("Appoint director error:", error);
+      res.status(500).json({ error: "Failed to appoint director" });
     }
   });
 
@@ -3989,6 +4154,168 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error getting audit logs:", error);
       return res.status(500).json({ message: "Failed to get audit logs" });
+    }
+  });
+
+  app.post("/api/admin/directors/:directorUserId/activate", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const adminUserId = req.user?.claims?.sub;
+      const { directorUserId } = req.params;
+      const { reason } = req.body;
+
+      const [director] = await db.select().from(directorProfiles)
+        .where(eq(directorProfiles.userId, directorUserId));
+      if (!director) return res.status(404).json({ error: "Director not found" });
+
+      if (director.lifecycleStatus === "active") {
+        return res.status(400).json({ error: "Director is already active" });
+      }
+
+      if (director.directorType === "contract") {
+        const assignments = await db.select().from(directorDriverAssignments)
+          .where(eq(directorDriverAssignments.directorUserId, directorUserId));
+        if (assignments.length < (director.activationThreshold || 10)) {
+          return res.status(400).json({
+            error: `Contract director needs at least ${director.activationThreshold || 10} recruited drivers to activate. Currently has ${assignments.length}.`,
+          });
+        }
+      }
+
+      const beforeState = { lifecycleStatus: director.lifecycleStatus, status: director.status };
+
+      await db.update(directorProfiles).set({
+        lifecycleStatus: "active",
+        status: "active",
+        approvedBy: adminUserId,
+        lastModifiedBy: adminUserId,
+        lastModifiedAt: new Date(),
+      }).where(eq(directorProfiles.userId, directorUserId));
+
+      await db.insert(directorActionLogs).values({
+        actorId: adminUserId,
+        actorRole: "super_admin",
+        action: "activate_director",
+        targetType: "director",
+        targetId: directorUserId,
+        beforeState: JSON.stringify(beforeState),
+        afterState: JSON.stringify({ lifecycleStatus: "active", status: "active" }),
+        metadata: JSON.stringify({ reason: reason || "Activation approved" }),
+        ipAddress: req.ip || req.connection?.remoteAddress || null,
+      });
+
+      await storage.createNotification({
+        userId: directorUserId,
+        role: "director",
+        type: "info",
+        title: "Director Activated",
+        message: "Your director appointment has been activated.",
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Activate director error:", error);
+      res.status(500).json({ error: "Failed to activate director" });
+    }
+  });
+
+  app.post("/api/admin/directors/:directorUserId/adjust-commission", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const adminUserId = req.user?.claims?.sub;
+      const { directorUserId } = req.params;
+      const { commissionRatePercent, reason } = req.body;
+
+      if (commissionRatePercent == null || !reason) {
+        return res.status(400).json({ error: "commissionRatePercent and reason are required" });
+      }
+
+      if (commissionRatePercent < 0 || commissionRatePercent > 50) {
+        return res.status(400).json({ error: "Commission rate must be between 0 and 50" });
+      }
+
+      const [director] = await db.select().from(directorProfiles)
+        .where(eq(directorProfiles.userId, directorUserId));
+      if (!director) return res.status(404).json({ error: "Director not found" });
+
+      const beforeState = { commissionRatePercent: director.commissionRatePercent };
+
+      await db.update(directorProfiles).set({
+        commissionRatePercent,
+        lastModifiedBy: adminUserId,
+        lastModifiedAt: new Date(),
+      }).where(eq(directorProfiles.userId, directorUserId));
+
+      await db.insert(directorActionLogs).values({
+        actorId: adminUserId,
+        actorRole: "super_admin",
+        action: "adjust_commission_rate",
+        targetType: "director",
+        targetId: directorUserId,
+        beforeState: JSON.stringify(beforeState),
+        afterState: JSON.stringify({ commissionRatePercent }),
+        metadata: JSON.stringify({ reason }),
+        ipAddress: req.ip || req.connection?.remoteAddress || null,
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Adjust commission error:", error);
+      res.status(500).json({ error: "Failed to adjust commission rate" });
+    }
+  });
+
+  app.post("/api/admin/directors/:directorUserId/adjust-cells", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const adminUserId = req.user?.claims?.sub;
+      const { directorUserId } = req.params;
+      const { maxCells, maxCellSize, maxCommissionablePerDay, reason } = req.body;
+
+      if (!reason) return res.status(400).json({ error: "Reason is required" });
+
+      const [director] = await db.select().from(directorProfiles)
+        .where(eq(directorProfiles.userId, directorUserId));
+      if (!director) return res.status(404).json({ error: "Director not found" });
+
+      const updates: any = {
+        lastModifiedBy: adminUserId,
+        lastModifiedAt: new Date(),
+      };
+      const beforeState: any = {};
+
+      if (maxCells != null) {
+        if (maxCells < 1 || maxCells > 3) return res.status(400).json({ error: "maxCells must be 1-3" });
+        beforeState.maxCells = director.maxCells;
+        updates.maxCells = maxCells;
+      }
+      if (maxCellSize != null) {
+        if (maxCellSize < 100 || maxCellSize > 2000) return res.status(400).json({ error: "maxCellSize must be 100-2000" });
+        beforeState.maxCellSize = director.maxCellSize;
+        updates.maxCellSize = maxCellSize;
+      }
+      if (maxCommissionablePerDay != null) {
+        if (maxCommissionablePerDay < 100 || maxCommissionablePerDay > 2000) return res.status(400).json({ error: "maxCommissionablePerDay must be 100-2000" });
+        beforeState.maxCommissionablePerDay = director.maxCommissionablePerDay;
+        updates.maxCommissionablePerDay = maxCommissionablePerDay;
+      }
+
+      await db.update(directorProfiles).set(updates)
+        .where(eq(directorProfiles.userId, directorUserId));
+
+      await db.insert(directorActionLogs).values({
+        actorId: adminUserId,
+        actorRole: "super_admin",
+        action: "adjust_cell_limits",
+        targetType: "director",
+        targetId: directorUserId,
+        beforeState: JSON.stringify(beforeState),
+        afterState: JSON.stringify(updates),
+        metadata: JSON.stringify({ reason }),
+        ipAddress: req.ip || req.connection?.remoteAddress || null,
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Adjust cells error:", error);
+      res.status(500).json({ error: "Failed to adjust cell limits" });
     }
   });
 

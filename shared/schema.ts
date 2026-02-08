@@ -501,6 +501,9 @@ export const directorProfiles = pgTable("director_profiles", {
   createdBy: varchar("created_by"),
   lastModifiedBy: varchar("last_modified_by"),
   lastModifiedAt: timestamp("last_modified_at"),
+  commissionRatePercent: integer("commission_rate_percent").notNull().default(12),
+  maxCommissionablePerDay: integer("max_commissionable_per_day").notNull().default(1000),
+  approvedBy: varchar("approved_by"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
