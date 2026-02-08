@@ -5,7 +5,7 @@ import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integra
 import { storage } from "./storage";
 import { db } from "./db";
 import { eq, and, count, sql, gte, lt, lte, isNotNull, inArray, desc, or } from "drizzle-orm";
-import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, driverInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages, walletFundingTransactions, walletFundingSettings, driverWallets, directorFundingTransactions, directorFundingSettings, directorFundingAcceptance, directorFundingSuspensions, directorProfiles, directorDriverAssignments, directorActionLogs, driverCoachingLogs, directorCells, directorCommissionSettings, directorPayoutSummaries, referralCodes, directorFraudSignals, directorDisputes, directorDisputeMessages, directorWindDowns, welcomeAnalytics, directorPerformanceScores, directorPerformanceWeights, directorIncentives, directorRestrictions, directorPerformanceLogs, directorSuccessions, directorTerminationTimeline, directorStaff, riderTrustScores, riderTrustWeights, riderLoyaltyIncentives, riderTrustLogs } from "@shared/schema";
+import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, driverInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages, walletFundingTransactions, walletFundingSettings, driverWallets, directorFundingTransactions, directorFundingSettings, directorFundingAcceptance, directorFundingSuspensions, directorProfiles, directorDriverAssignments, directorActionLogs, driverCoachingLogs, directorCells, directorCommissionSettings, directorPayoutSummaries, referralCodes, directorFraudSignals, directorDisputes, directorDisputeMessages, directorWindDowns, welcomeAnalytics, directorPerformanceScores, directorPerformanceWeights, directorIncentives, directorRestrictions, directorPerformanceLogs, directorSuccessions, directorTerminationTimeline, directorStaff, riderTrustScores, riderTrustWeights, riderLoyaltyIncentives, riderTrustLogs, fundingRelationships, fundingAbuseFlags, thirdPartyFundingConfig, fundingAuditLogs, sponsoredBalances } from "@shared/schema";
 import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, evaluateAllDrivers, evaluateBehaviorAndWarnings, calculateDriverMatchingScore, getDriverIncentiveProgress, assignFirstRidePromo, assignReturnRiderPromo, applyPromoToTrip, voidPromosOnCancellation } from "./incentives";
 import { notificationService } from "./notification-service";
 import { getCurrencyFromCountry, getCountryConfig, FINANCIAL_ENGINE_LOCKED } from "@shared/currency";
@@ -24975,6 +24975,946 @@ export async function registerRoutes(
       });
     } catch (error) {
       res.status(500).json({ error: "Failed to run governance check" });
+    }
+  });
+
+  // ============================================================
+  // THIRD-PARTY WALLET FUNDING SYSTEM
+  // ============================================================
+
+  // Helper: Get or create the third-party funding config
+  async function getOrCreateFundingConfig() {
+    const existing = await db.select().from(thirdPartyFundingConfig).where(eq(thirdPartyFundingConfig.countryCode, "ALL"));
+    if (existing.length > 0) return existing[0];
+    const [created] = await db.insert(thirdPartyFundingConfig).values({ countryCode: "ALL" }).returning();
+    return created;
+  }
+
+  // PHASE 1 & 2 — FUNDING RELATIONSHIP MANAGEMENT
+
+  // POST /api/funding/invite — Funder initiates a relationship invite
+  app.post("/api/funding/invite", isAuthenticated, async (req: any, res) => {
+    try {
+      const funderUserId = req.user.claims.sub;
+      const { recipientIdentifier, relationshipType, dailyLimit, monthlyLimit, purposeTag } = req.body;
+
+      if (!recipientIdentifier || !relationshipType) {
+        return res.status(400).json({ message: "recipientIdentifier and relationshipType are required" });
+      }
+
+      // Lookup recipient by email, phone, or userId
+      let recipientUser = null;
+      const allUsers = await db.select().from(users);
+      for (const u of allUsers) {
+        if (u.id === recipientIdentifier || u.email === recipientIdentifier || u.username === recipientIdentifier) {
+          recipientUser = u;
+          break;
+        }
+      }
+      if (!recipientUser) {
+        return res.status(404).json({ message: "Recipient not found" });
+      }
+
+      // Cannot invite yourself
+      if (recipientUser.id === funderUserId) {
+        return res.status(400).json({ message: "You cannot fund yourself" });
+      }
+
+      // Check config limits
+      const config = await getOrCreateFundingConfig();
+
+      // Check max relationships per funder
+      const funderRelCount = await db.select({ count: count() }).from(fundingRelationships)
+        .where(and(
+          eq(fundingRelationships.funderUserId, funderUserId),
+          inArray(fundingRelationships.status, ["pending", "accepted"])
+        ));
+      if (funderRelCount[0].count >= config.maxRelationshipsPerFunder) {
+        return res.status(400).json({ message: `You can have at most ${config.maxRelationshipsPerFunder} active funding relationships` });
+      }
+
+      // Check max funders per recipient
+      const recipientFunderCount = await db.select({ count: count() }).from(fundingRelationships)
+        .where(and(
+          eq(fundingRelationships.recipientUserId, recipientUser.id),
+          inArray(fundingRelationships.status, ["pending", "accepted"])
+        ));
+      if (recipientFunderCount[0].count >= config.maxFundersPerRecipient) {
+        return res.status(400).json({ message: `Recipient already has the maximum number of funders (${config.maxFundersPerRecipient})` });
+      }
+
+      // Check for existing pending/accepted relationship between these two
+      const existingRel = await db.select().from(fundingRelationships)
+        .where(and(
+          eq(fundingRelationships.funderUserId, funderUserId),
+          eq(fundingRelationships.recipientUserId, recipientUser.id),
+          inArray(fundingRelationships.status, ["pending", "accepted"])
+        ));
+      if (existingRel.length > 0) {
+        return res.status(400).json({ message: "You already have an active or pending relationship with this recipient" });
+      }
+
+      // Create funding relationship
+      const [relationship] = await db.insert(fundingRelationships).values({
+        funderUserId,
+        recipientUserId: recipientUser.id,
+        relationshipType,
+        status: "pending",
+        dailyLimit: dailyLimit ? String(dailyLimit) : null,
+        monthlyLimit: monthlyLimit ? String(monthlyLimit) : null,
+        purposeTag: purposeTag || null,
+      }).returning();
+
+      // Notify recipient
+      try {
+        await notificationService.createNotification(
+          recipientUser.id,
+          "wallet",
+          "Funding Invite Received",
+          `Someone wants to support your rides. Review and accept or decline this funding invite.`,
+          { relationshipId: relationship.id }
+        );
+      } catch (_e) {}
+
+      // Audit log
+      await db.insert(fundingAuditLogs).values({
+        action: "invite_sent",
+        actorUserId: funderUserId,
+        targetUserId: recipientUser.id,
+        relationshipId: relationship.id,
+        details: JSON.stringify({ relationshipType, dailyLimit, monthlyLimit, purposeTag }),
+      });
+
+      return res.json(relationship);
+    } catch (error) {
+      console.error("Error creating funding invite:", error);
+      return res.status(500).json({ message: "Failed to create funding invite" });
+    }
+  });
+
+  // GET /api/funding/relationships — Get all relationships for current user
+  app.get("/api/funding/relationships", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      // As funder
+      const asFunderRaw = await db.select().from(fundingRelationships)
+        .where(eq(fundingRelationships.funderUserId, userId))
+        .orderBy(desc(fundingRelationships.createdAt));
+
+      // As recipient
+      const asRecipientRaw = await db.select().from(fundingRelationships)
+        .where(eq(fundingRelationships.recipientUserId, userId))
+        .orderBy(desc(fundingRelationships.createdAt));
+
+      // Collect user IDs for name lookup
+      const userIds = new Set<string>();
+      asFunderRaw.forEach(r => userIds.add(r.recipientUserId));
+      asRecipientRaw.forEach(r => userIds.add(r.funderUserId));
+
+      const userMap: Record<string, string> = {};
+      if (userIds.size > 0) {
+        const usersData = await db.select({ id: users.id, username: users.username, firstName: users.firstName, lastName: users.lastName })
+          .from(users).where(inArray(users.id, Array.from(userIds)));
+        usersData.forEach(u => {
+          userMap[u.id] = u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.username || u.id;
+        });
+      }
+
+      const asFunder = asFunderRaw.map(r => ({ ...r, recipientName: userMap[r.recipientUserId] || "Unknown" }));
+      const asRecipient = asRecipientRaw.map(r => ({ ...r, funderName: userMap[r.funderUserId] || "Unknown" }));
+
+      return res.json({ asFunder, asRecipient });
+    } catch (error) {
+      console.error("Error fetching funding relationships:", error);
+      return res.status(500).json({ message: "Failed to fetch relationships" });
+    }
+  });
+
+  // POST /api/funding/relationships/:id/accept — Recipient accepts a pending invite
+  app.post("/api/funding/relationships/:id/accept", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { id } = req.params;
+
+      const [rel] = await db.select().from(fundingRelationships).where(eq(fundingRelationships.id, id));
+      if (!rel) return res.status(404).json({ message: "Relationship not found" });
+      if (rel.recipientUserId !== userId) return res.status(403).json({ message: "Only the recipient can accept this invite" });
+      if (rel.status !== "pending") return res.status(400).json({ message: "This invite is no longer pending" });
+
+      const [updated] = await db.update(fundingRelationships)
+        .set({ status: "accepted", acceptedAt: new Date(), updatedAt: new Date() })
+        .where(eq(fundingRelationships.id, id))
+        .returning();
+
+      // Create sponsored balance record
+      await db.insert(sponsoredBalances).values({
+        recipientUserId: rel.recipientUserId,
+        funderUserId: rel.funderUserId,
+        relationshipId: rel.id,
+      });
+
+      // Notify funder
+      try {
+        await notificationService.createNotification(
+          rel.funderUserId,
+          "wallet",
+          "Funding Invite Accepted",
+          `Your funding invite has been accepted. You can now send funds to support their rides.`,
+          { relationshipId: rel.id }
+        );
+      } catch (_e) {}
+
+      // Audit log
+      await db.insert(fundingAuditLogs).values({
+        action: "invite_accepted",
+        actorUserId: userId,
+        targetUserId: rel.funderUserId,
+        relationshipId: rel.id,
+      });
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error accepting funding invite:", error);
+      return res.status(500).json({ message: "Failed to accept invite" });
+    }
+  });
+
+  // POST /api/funding/relationships/:id/decline — Recipient declines a pending invite
+  app.post("/api/funding/relationships/:id/decline", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { id } = req.params;
+
+      const [rel] = await db.select().from(fundingRelationships).where(eq(fundingRelationships.id, id));
+      if (!rel) return res.status(404).json({ message: "Relationship not found" });
+      if (rel.recipientUserId !== userId) return res.status(403).json({ message: "Only the recipient can decline this invite" });
+      if (rel.status !== "pending") return res.status(400).json({ message: "This invite is no longer pending" });
+
+      const [updated] = await db.update(fundingRelationships)
+        .set({ status: "declined", declinedAt: new Date(), updatedAt: new Date() })
+        .where(eq(fundingRelationships.id, id))
+        .returning();
+
+      // Notify funder
+      try {
+        await notificationService.createNotification(
+          rel.funderUserId,
+          "wallet",
+          "Funding Invite Declined",
+          `Your funding invite was declined.`,
+          { relationshipId: rel.id }
+        );
+      } catch (_e) {}
+
+      // Audit log
+      await db.insert(fundingAuditLogs).values({
+        action: "invite_declined",
+        actorUserId: userId,
+        targetUserId: rel.funderUserId,
+        relationshipId: rel.id,
+      });
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error declining funding invite:", error);
+      return res.status(500).json({ message: "Failed to decline invite" });
+    }
+  });
+
+  // POST /api/funding/relationships/:id/revoke — Either party can revoke an accepted relationship
+  app.post("/api/funding/relationships/:id/revoke", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { id } = req.params;
+
+      const [rel] = await db.select().from(fundingRelationships).where(eq(fundingRelationships.id, id));
+      if (!rel) return res.status(404).json({ message: "Relationship not found" });
+      if (rel.funderUserId !== userId && rel.recipientUserId !== userId) {
+        return res.status(403).json({ message: "You are not part of this relationship" });
+      }
+      if (rel.status !== "accepted") return res.status(400).json({ message: "Only accepted relationships can be revoked" });
+
+      const [updated] = await db.update(fundingRelationships)
+        .set({ status: "revoked", revokedAt: new Date(), revokedBy: userId, updatedAt: new Date() })
+        .where(eq(fundingRelationships.id, id))
+        .returning();
+
+      // Notify the other party
+      const otherParty = rel.funderUserId === userId ? rel.recipientUserId : rel.funderUserId;
+      try {
+        await notificationService.createNotification(
+          otherParty,
+          "wallet",
+          "Funding Relationship Revoked",
+          `A funding relationship has been revoked. No further funds can be sent through this connection.`,
+          { relationshipId: rel.id }
+        );
+      } catch (_e) {}
+
+      // Audit log
+      await db.insert(fundingAuditLogs).values({
+        action: "relationship_revoked",
+        actorUserId: userId,
+        targetUserId: otherParty,
+        relationshipId: rel.id,
+      });
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error revoking funding relationship:", error);
+      return res.status(500).json({ message: "Failed to revoke relationship" });
+    }
+  });
+
+  // PHASE 3 — FUNDED TOP-UP (within relationship)
+
+  // POST /api/funding/top-up — Funder sends funds to recipient
+  app.post("/api/funding/top-up", isAuthenticated, async (req: any, res) => {
+    try {
+      const funderUserId = req.user.claims.sub;
+      const { relationshipId, amount, purpose } = req.body;
+
+      if (!relationshipId || !amount) {
+        return res.status(400).json({ message: "relationshipId and amount are required" });
+      }
+
+      const parsedAmount = parseFloat(amount);
+      if (isNaN(parsedAmount) || parsedAmount <= 0) {
+        return res.status(400).json({ message: "Amount must be a positive number" });
+      }
+
+      // Validate relationship
+      const [rel] = await db.select().from(fundingRelationships).where(eq(fundingRelationships.id, relationshipId));
+      if (!rel) return res.status(404).json({ message: "Relationship not found" });
+      if (rel.funderUserId !== funderUserId) return res.status(403).json({ message: "You are not the funder on this relationship" });
+      if (rel.status === "frozen") return res.status(400).json({ message: "This relationship is frozen by an administrator" });
+      if (rel.status !== "accepted") return res.status(400).json({ message: "Relationship must be accepted to send funds" });
+
+      // Check global config limits
+      const config = await getOrCreateFundingConfig();
+      if (!config.isEnabled) return res.status(400).json({ message: "Third-party funding is currently disabled" });
+      if (parsedAmount < parseFloat(config.minFundingAmount)) {
+        return res.status(400).json({ message: `Minimum funding amount is ${config.minFundingAmount}` });
+      }
+      if (parsedAmount > parseFloat(config.maxSingleFunding)) {
+        return res.status(400).json({ message: `Maximum single funding amount is ${config.maxSingleFunding}` });
+      }
+
+      // Reset daily/monthly counters if needed
+      const now = new Date();
+      let currentDayFunded = parseFloat(rel.currentDayFunded);
+      let currentMonthFunded = parseFloat(rel.currentMonthFunded);
+
+      if (rel.lastResetDay) {
+        const lastDay = new Date(rel.lastResetDay);
+        if (lastDay.toDateString() !== now.toDateString()) {
+          currentDayFunded = 0;
+        }
+      } else {
+        currentDayFunded = 0;
+      }
+
+      if (rel.lastResetMonth) {
+        const lastMonth = new Date(rel.lastResetMonth);
+        if (lastMonth.getMonth() !== now.getMonth() || lastMonth.getFullYear() !== now.getFullYear()) {
+          currentMonthFunded = 0;
+        }
+      } else {
+        currentMonthFunded = 0;
+      }
+
+      // Check relationship daily limit
+      if (rel.dailyLimit && (currentDayFunded + parsedAmount) > parseFloat(rel.dailyLimit)) {
+        return res.status(400).json({ message: `This top-up would exceed the daily limit of ${rel.dailyLimit}` });
+      }
+
+      // Check relationship monthly limit
+      if (rel.monthlyLimit && (currentMonthFunded + parsedAmount) > parseFloat(rel.monthlyLimit)) {
+        return res.status(400).json({ message: `This top-up would exceed the monthly limit of ${rel.monthlyLimit}` });
+      }
+
+      // Check global daily limit
+      if ((currentDayFunded + parsedAmount) > parseFloat(config.globalDailyLimit)) {
+        return res.status(400).json({ message: "Global daily funding limit exceeded" });
+      }
+
+      // Check global monthly limit
+      if ((currentMonthFunded + parsedAmount) > parseFloat(config.globalMonthlyLimit)) {
+        return res.status(400).json({ message: "Global monthly funding limit exceeded" });
+      }
+
+      // Create wallet funding transaction
+      const [txn] = await db.insert(walletFundingTransactions).values({
+        senderUserId: funderUserId,
+        recipientUserId: rel.recipientUserId,
+        amount: parsedAmount.toFixed(2),
+        status: "completed",
+        note: purpose || "Third-party wallet funding",
+        processedAt: now,
+      }).returning();
+
+      // Update sponsored balance
+      await db.update(sponsoredBalances)
+        .set({
+          balance: sql`CAST(${sponsoredBalances.balance} AS numeric) + ${parsedAmount}`,
+          totalReceived: sql`CAST(${sponsoredBalances.totalReceived} AS numeric) + ${parsedAmount}`,
+          lastTopUpAt: now,
+          updatedAt: now,
+        })
+        .where(and(
+          eq(sponsoredBalances.relationshipId, rel.id),
+          eq(sponsoredBalances.recipientUserId, rel.recipientUserId)
+        ));
+
+      // Update relationship counters
+      await db.update(fundingRelationships)
+        .set({
+          totalFunded: sql`CAST(${fundingRelationships.totalFunded} AS numeric) + ${parsedAmount}`,
+          currentDayFunded: sql`${currentDayFunded + parsedAmount}`,
+          currentMonthFunded: sql`${currentMonthFunded + parsedAmount}`,
+          lastFundedAt: now,
+          lastResetDay: now,
+          lastResetMonth: now,
+          updatedAt: now,
+        })
+        .where(eq(fundingRelationships.id, rel.id));
+
+      // Credit the rider's actual riderWallets balance (sponsored balance tracks the source)
+      const existingWallet = await db.select().from(riderWallets).where(eq(riderWallets.userId, rel.recipientUserId));
+      if (existingWallet.length > 0) {
+        await db.update(riderWallets)
+          .set({
+            balance: sql`CAST(${riderWallets.balance} AS numeric) + ${parsedAmount}`,
+            updatedAt: now,
+          })
+          .where(eq(riderWallets.userId, rel.recipientUserId));
+      } else {
+        await db.insert(riderWallets).values({
+          userId: rel.recipientUserId,
+          balance: parsedAmount.toFixed(2),
+        });
+      }
+
+      // Fraud checks: flag if funder has >5 recipients
+      const funderRecipientCount = await db.select({ count: count() }).from(fundingRelationships)
+        .where(and(
+          eq(fundingRelationships.funderUserId, funderUserId),
+          inArray(fundingRelationships.status, ["accepted"])
+        ));
+      if (funderRecipientCount[0].count > 5) {
+        await db.insert(fundingAbuseFlags).values({
+          relationshipId: rel.id,
+          funderUserId,
+          recipientUserId: rel.recipientUserId,
+          flagType: "many_recipients_one_funder",
+          severity: "medium",
+          details: `Funder has ${funderRecipientCount[0].count} active recipients`,
+        });
+      }
+
+      // Fraud check: velocity — >3 top-ups in 1 hour
+      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+      const recentTopUps = await db.select({ count: count() }).from(walletFundingTransactions)
+        .where(and(
+          eq(walletFundingTransactions.senderUserId, funderUserId),
+          gte(walletFundingTransactions.processedAt, oneHourAgo)
+        ));
+      if (recentTopUps[0].count > 3) {
+        await db.insert(fundingAbuseFlags).values({
+          relationshipId: rel.id,
+          funderUserId,
+          recipientUserId: rel.recipientUserId,
+          flagType: "velocity_alert",
+          severity: "high",
+          details: `${recentTopUps[0].count} top-ups in the last hour`,
+        });
+      }
+
+      // Notify recipient
+      try {
+        await notificationService.createNotification(
+          rel.recipientUserId,
+          "wallet",
+          "Funds Received",
+          `You received ${parsedAmount.toFixed(2)} in ride support funds. These funds can be used for rides.`,
+          { transactionId: txn.id, amount: parsedAmount }
+        );
+      } catch (_e) {}
+
+      // Audit log
+      await db.insert(fundingAuditLogs).values({
+        action: "top_up_completed",
+        actorUserId: funderUserId,
+        targetUserId: rel.recipientUserId,
+        relationshipId: rel.id,
+        transactionId: txn.id,
+        details: JSON.stringify({ amount: parsedAmount, purpose }),
+      });
+
+      return res.json(txn);
+    } catch (error) {
+      console.error("Error processing funding top-up:", error);
+      return res.status(500).json({ message: "Failed to process top-up" });
+    }
+  });
+
+  // PHASE 4 — FUNDER DASHBOARD
+
+  // GET /api/funding/dashboard — Get funder dashboard summary
+  app.get("/api/funding/dashboard", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      const relationships = await db.select().from(fundingRelationships)
+        .where(and(
+          eq(fundingRelationships.funderUserId, userId),
+          eq(fundingRelationships.status, "accepted")
+        ));
+
+      if (relationships.length === 0) {
+        return res.json([]);
+      }
+
+      // Get recipient names
+      const recipientIds = relationships.map(r => r.recipientUserId);
+      const recipientUsers = await db.select({ id: users.id, username: users.username, firstName: users.firstName, lastName: users.lastName })
+        .from(users).where(inArray(users.id, recipientIds));
+      const nameMap: Record<string, string> = {};
+      recipientUsers.forEach(u => {
+        nameMap[u.id] = u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.username || u.id;
+      });
+
+      // Get ride usage for each recipient (count of completed rides and total cost — no routes/drivers/locations)
+      const dashboard = await Promise.all(relationships.map(async (rel) => {
+        const rideStats = await db.select({
+          rideCount: count(),
+          totalCost: sql<string>`COALESCE(SUM(CAST(${rides.finalFare} AS numeric)), 0)`,
+        }).from(rides)
+          .where(and(
+            eq(rides.riderId, rel.recipientUserId),
+            eq(rides.status, "completed")
+          ));
+
+        return {
+          relationshipId: rel.id,
+          recipientName: nameMap[rel.recipientUserId] || "Unknown",
+          recipientUserId: rel.recipientUserId,
+          relationshipType: rel.relationshipType,
+          totalFunded: rel.totalFunded,
+          currentMonthFunded: rel.currentMonthFunded,
+          lastFundedAt: rel.lastFundedAt,
+          dailyLimit: rel.dailyLimit,
+          monthlyLimit: rel.monthlyLimit,
+          rideCount: rideStats[0]?.rideCount || 0,
+          totalRideCost: rideStats[0]?.totalCost || "0.00",
+        };
+      }));
+
+      return res.json(dashboard);
+    } catch (error) {
+      console.error("Error fetching funding dashboard:", error);
+      return res.status(500).json({ message: "Failed to fetch dashboard" });
+    }
+  });
+
+  // PHASE 5 — RIDER SPONSORED FUNDS VIEW
+
+  // GET /api/funding/sponsored-balance — Get sponsored balances for current user
+  app.get("/api/funding/sponsored-balance", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      const balances = await db.select().from(sponsoredBalances)
+        .where(eq(sponsoredBalances.recipientUserId, userId));
+
+      if (balances.length === 0) {
+        return res.json([]);
+      }
+
+      // Get relationship details and funder names
+      const relIds = balances.map(b => b.relationshipId);
+      const funderIds = balances.map(b => b.funderUserId);
+
+      const rels = await db.select().from(fundingRelationships)
+        .where(inArray(fundingRelationships.id, relIds));
+      const relMap: Record<string, any> = {};
+      rels.forEach(r => { relMap[r.id] = r; });
+
+      const funderUsers = await db.select({ id: users.id, username: users.username, firstName: users.firstName, lastName: users.lastName })
+        .from(users).where(inArray(users.id, funderIds));
+      const funderNameMap: Record<string, string> = {};
+      funderUsers.forEach(u => {
+        funderNameMap[u.id] = u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.username || u.id;
+      });
+
+      const result = balances.map(b => ({
+        id: b.id,
+        funderName: funderNameMap[b.funderUserId] || "Unknown",
+        relationshipType: relMap[b.relationshipId]?.relationshipType || "unknown",
+        balance: b.balance,
+        totalReceived: b.totalReceived,
+        totalUsed: b.totalUsed,
+        lastTopUpAt: b.lastTopUpAt,
+      }));
+
+      return res.json(result);
+    } catch (error) {
+      console.error("Error fetching sponsored balances:", error);
+      return res.status(500).json({ message: "Failed to fetch sponsored balances" });
+    }
+  });
+
+  // PHASE 6 & 7 — ADMIN CONTROLS
+
+  // GET /api/admin/funding/config — Get third-party funding config
+  app.get("/api/admin/funding/config", isAuthenticated, requireRole(["admin", "super_admin"]), async (_req: any, res) => {
+    try {
+      const config = await getOrCreateFundingConfig();
+      return res.json(config);
+    } catch (error) {
+      console.error("Error fetching funding config:", error);
+      return res.status(500).json({ message: "Failed to fetch config" });
+    }
+  });
+
+  // PUT /api/admin/funding/config — Update third-party funding config (Super Admin only)
+  app.put("/api/admin/funding/config", isAuthenticated, requireSuperAdmin, async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const config = await getOrCreateFundingConfig();
+
+      const {
+        isEnabled, globalDailyLimit, globalMonthlyLimit,
+        maxRelationshipsPerFunder, maxFundersPerRecipient,
+        minFundingAmount, maxSingleFunding, sponsoredFundsPriority,
+        allowedUsages, cashWithdrawalAllowed
+      } = req.body;
+
+      const updateData: any = { updatedBy: adminUserId, updatedAt: new Date() };
+      if (isEnabled !== undefined) updateData.isEnabled = isEnabled;
+      if (globalDailyLimit !== undefined) updateData.globalDailyLimit = String(globalDailyLimit);
+      if (globalMonthlyLimit !== undefined) updateData.globalMonthlyLimit = String(globalMonthlyLimit);
+      if (maxRelationshipsPerFunder !== undefined) updateData.maxRelationshipsPerFunder = maxRelationshipsPerFunder;
+      if (maxFundersPerRecipient !== undefined) updateData.maxFundersPerRecipient = maxFundersPerRecipient;
+      if (minFundingAmount !== undefined) updateData.minFundingAmount = String(minFundingAmount);
+      if (maxSingleFunding !== undefined) updateData.maxSingleFunding = String(maxSingleFunding);
+      if (sponsoredFundsPriority !== undefined) updateData.sponsoredFundsPriority = sponsoredFundsPriority;
+      if (allowedUsages !== undefined) updateData.allowedUsages = allowedUsages;
+      if (cashWithdrawalAllowed !== undefined) updateData.cashWithdrawalAllowed = false; // Funds CANNOT be withdrawn as cash
+
+      const [updated] = await db.update(thirdPartyFundingConfig)
+        .set(updateData)
+        .where(eq(thirdPartyFundingConfig.id, config.id))
+        .returning();
+
+      // Audit log
+      await db.insert(fundingAuditLogs).values({
+        action: "config_updated",
+        actorUserId: adminUserId,
+        details: JSON.stringify(updateData),
+      });
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error updating funding config:", error);
+      return res.status(500).json({ message: "Failed to update config" });
+    }
+  });
+
+  // GET /api/admin/funding/relationships — Get all relationships with pagination
+  app.get("/api/admin/funding/relationships", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { status, limit: limitStr, offset: offsetStr } = req.query;
+      const limit = parseInt(limitStr as string) || 50;
+      const offset = parseInt(offsetStr as string) || 0;
+
+      let query = db.select().from(fundingRelationships).orderBy(desc(fundingRelationships.createdAt)).limit(limit).offset(offset);
+
+      let results;
+      if (status) {
+        results = await db.select().from(fundingRelationships)
+          .where(eq(fundingRelationships.status, status as string))
+          .orderBy(desc(fundingRelationships.createdAt))
+          .limit(limit).offset(offset);
+      } else {
+        results = await db.select().from(fundingRelationships)
+          .orderBy(desc(fundingRelationships.createdAt))
+          .limit(limit).offset(offset);
+      }
+
+      // Get user names
+      const allUserIds = new Set<string>();
+      results.forEach(r => { allUserIds.add(r.funderUserId); allUserIds.add(r.recipientUserId); });
+
+      const nameMap: Record<string, string> = {};
+      if (allUserIds.size > 0) {
+        const usersData = await db.select({ id: users.id, username: users.username, firstName: users.firstName, lastName: users.lastName })
+          .from(users).where(inArray(users.id, Array.from(allUserIds)));
+        usersData.forEach(u => {
+          nameMap[u.id] = u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.username || u.id;
+        });
+      }
+
+      const enriched = results.map(r => ({
+        ...r,
+        funderName: nameMap[r.funderUserId] || "Unknown",
+        recipientName: nameMap[r.recipientUserId] || "Unknown",
+      }));
+
+      return res.json({ relationships: enriched, total: results.length });
+    } catch (error) {
+      console.error("Error fetching admin funding relationships:", error);
+      return res.status(500).json({ message: "Failed to fetch relationships" });
+    }
+  });
+
+  // POST /api/admin/funding/relationships/:id/freeze — Freeze a suspicious relationship
+  app.post("/api/admin/funding/relationships/:id/freeze", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const { id } = req.params;
+      const { reason } = req.body;
+
+      if (!reason) return res.status(400).json({ message: "Reason is required" });
+
+      const [rel] = await db.select().from(fundingRelationships).where(eq(fundingRelationships.id, id));
+      if (!rel) return res.status(404).json({ message: "Relationship not found" });
+
+      const [updated] = await db.update(fundingRelationships)
+        .set({
+          status: "frozen",
+          frozenAt: new Date(),
+          frozenBy: adminUserId,
+          frozenReason: reason,
+          updatedAt: new Date(),
+        })
+        .where(eq(fundingRelationships.id, id))
+        .returning();
+
+      // Notify both parties
+      try {
+        await notificationService.createNotification(
+          rel.funderUserId, "wallet", "Funding Relationship Frozen",
+          `A funding relationship has been frozen by an administrator. Reason: ${reason}`,
+          { relationshipId: rel.id }
+        );
+        await notificationService.createNotification(
+          rel.recipientUserId, "wallet", "Funding Relationship Frozen",
+          `A funding relationship has been frozen by an administrator. Reason: ${reason}`,
+          { relationshipId: rel.id }
+        );
+      } catch (_e) {}
+
+      // Audit log
+      await db.insert(fundingAuditLogs).values({
+        action: "relationship_frozen",
+        actorUserId: adminUserId,
+        targetUserId: rel.funderUserId,
+        relationshipId: rel.id,
+        details: JSON.stringify({ reason }),
+      });
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error freezing funding relationship:", error);
+      return res.status(500).json({ message: "Failed to freeze relationship" });
+    }
+  });
+
+  // POST /api/admin/funding/relationships/:id/unfreeze — Unfreeze a relationship
+  app.post("/api/admin/funding/relationships/:id/unfreeze", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const { id } = req.params;
+
+      const [rel] = await db.select().from(fundingRelationships).where(eq(fundingRelationships.id, id));
+      if (!rel) return res.status(404).json({ message: "Relationship not found" });
+      if (rel.status !== "frozen") return res.status(400).json({ message: "Relationship is not frozen" });
+
+      const [updated] = await db.update(fundingRelationships)
+        .set({
+          status: "accepted",
+          frozenAt: null,
+          frozenBy: null,
+          frozenReason: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(fundingRelationships.id, id))
+        .returning();
+
+      // Audit log
+      await db.insert(fundingAuditLogs).values({
+        action: "relationship_unfrozen",
+        actorUserId: adminUserId,
+        targetUserId: rel.funderUserId,
+        relationshipId: rel.id,
+      });
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error unfreezing funding relationship:", error);
+      return res.status(500).json({ message: "Failed to unfreeze relationship" });
+    }
+  });
+
+  // GET /api/admin/funding/abuse-flags — Get abuse flags with optional filter
+  app.get("/api/admin/funding/abuse-flags", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { resolved } = req.query;
+
+      let results;
+      if (resolved === "false") {
+        results = await db.select().from(fundingAbuseFlags)
+          .where(eq(fundingAbuseFlags.isResolved, false))
+          .orderBy(desc(fundingAbuseFlags.createdAt));
+      } else if (resolved === "true") {
+        results = await db.select().from(fundingAbuseFlags)
+          .where(eq(fundingAbuseFlags.isResolved, true))
+          .orderBy(desc(fundingAbuseFlags.createdAt));
+      } else {
+        results = await db.select().from(fundingAbuseFlags)
+          .orderBy(desc(fundingAbuseFlags.createdAt));
+      }
+
+      // Get user names
+      const allUserIds = new Set<string>();
+      results.forEach(f => {
+        allUserIds.add(f.funderUserId);
+        if (f.recipientUserId) allUserIds.add(f.recipientUserId);
+      });
+
+      const nameMap: Record<string, string> = {};
+      if (allUserIds.size > 0) {
+        const usersData = await db.select({ id: users.id, username: users.username, firstName: users.firstName, lastName: users.lastName })
+          .from(users).where(inArray(users.id, Array.from(allUserIds)));
+        usersData.forEach(u => {
+          nameMap[u.id] = u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.username || u.id;
+        });
+      }
+
+      const enriched = results.map(f => ({
+        ...f,
+        funderName: nameMap[f.funderUserId] || "Unknown",
+        recipientName: f.recipientUserId ? (nameMap[f.recipientUserId] || "Unknown") : null,
+      }));
+
+      return res.json(enriched);
+    } catch (error) {
+      console.error("Error fetching abuse flags:", error);
+      return res.status(500).json({ message: "Failed to fetch abuse flags" });
+    }
+  });
+
+  // POST /api/admin/funding/abuse-flags/:id/resolve — Resolve an abuse flag
+  app.post("/api/admin/funding/abuse-flags/:id/resolve", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const { id } = req.params;
+      const { resolution } = req.body;
+
+      if (!resolution) return res.status(400).json({ message: "Resolution is required" });
+
+      const [flag] = await db.select().from(fundingAbuseFlags).where(eq(fundingAbuseFlags.id, id));
+      if (!flag) return res.status(404).json({ message: "Abuse flag not found" });
+
+      const [updated] = await db.update(fundingAbuseFlags)
+        .set({
+          isResolved: true,
+          resolvedBy: adminUserId,
+          resolvedAt: new Date(),
+          resolution,
+        })
+        .where(eq(fundingAbuseFlags.id, id))
+        .returning();
+
+      // Audit log
+      await db.insert(fundingAuditLogs).values({
+        action: "abuse_flag_resolved",
+        actorUserId: adminUserId,
+        targetUserId: flag.funderUserId,
+        relationshipId: flag.relationshipId,
+        details: JSON.stringify({ resolution, flagType: flag.flagType }),
+      });
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error resolving abuse flag:", error);
+      return res.status(500).json({ message: "Failed to resolve abuse flag" });
+    }
+  });
+
+  // POST /api/admin/funding/disable-user/:userId — Freeze ALL relationships where userId is funder
+  app.post("/api/admin/funding/disable-user/:userId", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const { userId } = req.params;
+      const { reason } = req.body;
+
+      if (!reason) return res.status(400).json({ message: "Reason is required" });
+
+      // Get all active relationships where this user is funder
+      const activeRels = await db.select().from(fundingRelationships)
+        .where(and(
+          eq(fundingRelationships.funderUserId, userId),
+          inArray(fundingRelationships.status, ["pending", "accepted"])
+        ));
+
+      // Freeze all of them
+      for (const rel of activeRels) {
+        await db.update(fundingRelationships)
+          .set({
+            status: "frozen",
+            frozenAt: new Date(),
+            frozenBy: adminUserId,
+            frozenReason: reason,
+            updatedAt: new Date(),
+          })
+          .where(eq(fundingRelationships.id, rel.id));
+      }
+
+      // Audit log
+      await db.insert(fundingAuditLogs).values({
+        action: "user_funding_disabled",
+        actorUserId: adminUserId,
+        targetUserId: userId,
+        details: JSON.stringify({ reason, relationshipsAffected: activeRels.length }),
+      });
+
+      return res.json({ message: `Froze ${activeRels.length} relationship(s) for user ${userId}`, count: activeRels.length });
+    } catch (error) {
+      console.error("Error disabling user funding:", error);
+      return res.status(500).json({ message: "Failed to disable user funding" });
+    }
+  });
+
+  // PHASE 10 — AUDIT LOGS
+
+  // GET /api/admin/funding/audit-logs — Get funding audit logs
+  app.get("/api/admin/funding/audit-logs", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { userId, limit: limitStr } = req.query;
+      const limit = parseInt(limitStr as string) || 50;
+
+      let results;
+      if (userId) {
+        results = await db.select().from(fundingAuditLogs)
+          .where(or(
+            eq(fundingAuditLogs.actorUserId, userId as string),
+            eq(fundingAuditLogs.targetUserId, userId as string)
+          ))
+          .orderBy(desc(fundingAuditLogs.createdAt))
+          .limit(limit);
+      } else {
+        results = await db.select().from(fundingAuditLogs)
+          .orderBy(desc(fundingAuditLogs.createdAt))
+          .limit(limit);
+      }
+
+      return res.json(results);
+    } catch (error) {
+      console.error("Error fetching funding audit logs:", error);
+      return res.status(500).json({ message: "Failed to fetch audit logs" });
     }
   });
 

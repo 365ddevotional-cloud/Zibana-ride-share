@@ -1936,6 +1936,65 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     priority: 80
   },
 
+  // THIRD-PARTY WALLET FUNDING SUPPORT
+
+  {
+    id: "r-third-party-funding-explain",
+    role: "rider",
+    category: "rider_coaching",
+    keywords: ["third party funding", "someone fund my wallet", "how does funding work", "funded wallet", "sponsored"],
+    response: "Third-party wallet funding lets trusted people like family members, friends, or employers add funds to your ZIBA wallet. It is a voluntary convenience feature \u2014 not a loan or financial service. The funder sends an invite, and you choose to accept or decline. You can revoke the link anytime."
+  },
+  {
+    id: "r-funding-accept-decline",
+    role: "rider",
+    category: "rider_coaching",
+    keywords: ["accept funding", "decline funding", "funding invite", "pending invite"],
+    response: "When someone invites you to a funding relationship, you will receive a notification. You can accept to start receiving funds, or decline if you prefer not to. You can also revoke an accepted relationship at any time. No funds will be added without your explicit consent."
+  },
+  {
+    id: "r-sponsored-funds-usage",
+    role: "rider",
+    category: "rider_coaching",
+    keywords: ["sponsored funds", "how to use sponsored", "what can I spend", "funded balance"],
+    response: "Sponsored funds in your wallet can be used for rides, cancellation fees, and lost-item return fees. They cannot be withdrawn as cash. By default, sponsored funds are used first when you take a ride, but you can adjust this in your wallet settings."
+  },
+  {
+    id: "r-funding-revoke",
+    role: "rider",
+    category: "rider_coaching",
+    keywords: ["revoke funding", "stop funding", "remove funder", "cancel funding link"],
+    response: "You can revoke a funding relationship at any time from your wallet settings. Once revoked, the funder can no longer add funds to your wallet. Any remaining sponsored balance stays in your wallet until used. There are no penalties for revoking."
+  },
+  {
+    id: "r-funding-privacy",
+    role: "rider",
+    category: "rider_coaching",
+    keywords: ["can funder see my rides", "funding privacy", "what can funder see", "funder tracking"],
+    response: "Your funder can see the total amount funded and general ride usage summaries. They cannot see your ride routes, driver identity, exact locations, or trust score details. Your privacy is protected."
+  },
+  {
+    id: "r-funding-not-loan",
+    role: "rider",
+    category: "rider_coaching",
+    keywords: ["is funding a loan", "repay funding", "owe money", "debt from funding"],
+    response: "Third-party wallet funding is not a loan. There are no repayment obligations, interest, or debt. It is a voluntary gift from the funder. ZIBA does not act as a lender, escrow, or financial intermediary."
+  },
+  {
+    id: "funder-setup-guide",
+    role: "rider",
+    category: "rider_coaching",
+    keywords: ["how to fund someone", "fund another wallet", "setup funding", "invite to fund"],
+    response: "To fund someone's wallet, go to Fund Another Wallet, search for the recipient by email, phone, or ZIBA ID, choose your relationship type, and set optional limits. The recipient must accept your invite before you can send funds. You can set daily and monthly limits and add a purpose tag."
+  },
+  {
+    id: "funder-employer-setup",
+    role: "rider",
+    category: "rider_coaching",
+    keywords: ["employer funding", "corporate funding", "employee wallet", "organization funding"],
+    response: "Employers and organizations can fund employee wallets for work-related transportation. Set up a funding relationship as Employer-Employee, configure daily and monthly limits, and add a purpose tag like 'work commute'. The employee must accept the invite. You will see high-level usage summaries but not ride details."
+  },
+
   {
     id: "x-general-help",
     role: ["rider", "driver", "admin", "super_admin", "director", "general"],
