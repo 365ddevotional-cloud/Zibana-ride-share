@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Car } from "lucide-react";
+import { useTranslation } from "@/i18n";
 
 export default function RiderWelcomeBack() {
+  const { t } = useTranslation();
   const [, setLocation] = useLocation();
   const [visible, setVisible] = useState(true);
 
@@ -33,10 +35,10 @@ export default function RiderWelcomeBack() {
 
         <div className="space-y-3">
           <h1 className="text-3xl font-bold tracking-tight" data-testid="text-welcome-title">
-            Welcome back
+            {t("onboarding.welcomeBack")}
           </h1>
           <p className="text-muted-foreground text-lg" data-testid="text-welcome-body">
-            Need a ride? Drivers are available around you.
+            {t("onboarding.driversAvailable")}
           </p>
         </div>
 
@@ -47,10 +49,10 @@ export default function RiderWelcomeBack() {
             onClick={handleContinue}
             data-testid="button-request-ride"
           >
-            REQUEST A RIDE
+            {t("onboarding.requestRide")}
           </Button>
           <p className="text-sm text-muted-foreground">
-            Find a nearby driver
+            {t("onboarding.ctaSubtext")}
           </p>
         </div>
       </div>

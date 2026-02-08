@@ -1,0 +1,180 @@
+YOU ARE CONTINUING WORK ON THE ZIBA PLATFORM.
+
+NEXT TASK: IMPLEMENT MULTI-LANGUAGE SUPPORT (LIVE), DRAGGABLE ZIBRA SUPPORT ICON, AND SAFE LANGUAGE RECOVERY MECHANISM.
+
+DO NOT REMOVE EXISTING FEATURES.
+DO NOT BREAK CURRENT FLOWS.
+DO NOT CHANGE LEGAL MEANINGS.
+LANGUAGE CHANGE MUST BE REVERSIBLE AT ALL TIMES.
+
+====================================================
+PHASE 1 — ACTIVATE LANGUAGE SETTINGS (NO “COMING SOON”)
+====================================================
+
+1) ENABLE LANGUAGE SELECTOR
+Make Settings → Language fully clickable.
+
+Replace “Coming Soon” with a live selector page.
+
+Route:
+  /settings/language
+
+====================================================
+PHASE 2 — SUPPORTED LANGUAGES (INITIAL RELEASE)
+====================================================
+
+2) GLOBAL LANGUAGES
+Add the following languages:
+
+GLOBAL:
+- English (Default / fallback)
+- French
+- Arabic
+
+NIGERIA:
+- Yoruba
+- Igbo
+- Hausa
+
+SOUTH AFRICA:
+- English
+- Zulu
+- Xhosa
+- Afrikaans
+- Swahili (regional/business)
+
+OTHER AFRICA:
+- French (Francophone regions)
+
+NOTE:
+- Swahili may be reused across regions.
+- Language list must be expandable later without breaking UI.
+
+====================================================
+PHASE 3 — LANGUAGE ENGINE RULES
+====================================================
+
+3) TRANSLATION STRATEGY
+Implement key-based translation system:
+
+Example:
+  home.title
+  ride.request
+  payment.help
+  support.welcome
+
+Rules:
+- Default fallback = English
+- If translation missing → show English
+- NEVER show blank text
+- NEVER change legal meaning
+
+====================================================
+PHASE 4 — SAFE LANGUAGE RECOVERY (VERY IMPORTANT)
+====================================================
+
+4) “BACK TO ENGLISH” SAFETY MECHANISM
+When user switches language:
+
+- Always keep:
+  “English” visible in the language list (in English text)
+- Add a small fixed helper text on Language page:
+  “Reset to English”
+
+If language = Arabic (RTL):
+- Still show “English” option clearly
+- Keep icons consistent
+- Maintain navigation clarity
+
+====================================================
+PHASE 5 — RTL SUPPORT (ARABIC)
+====================================================
+
+5) RTL LAYOUT HANDLING
+If selected language is Arabic:
+
+- Enable RTL layout
+- Flip padding and alignment
+- Keep icons intuitive
+- Do NOT mirror maps or numbers incorrectly
+
+====================================================
+PHASE 6 — DRAGGABLE ZIBRA SUPPORT ICON
+====================================================
+
+6) MAKE ZIBRA ICON MOVABLE
+ZIBRA Support floating icon must:
+
+- Be draggable by user
+- Remember last position (local storage + DB optional)
+- Never block core buttons
+- Snap to nearest screen edge on release
+
+Icon behavior:
+- Tap → open ZIBA Support
+- Long press → drag
+- Available on all Rider & Driver screens
+- Optional on Admin dashboards (configurable)
+
+====================================================
+PHASE 7 — ZIBRA MULTI-LANGUAGE BEHAVIOR
+====================================================
+
+7) ZIBRA RESPONSE LANGUAGE
+ZIBRA must:
+
+- Respond in user-selected language
+- If translation incomplete:
+  - Respond in English
+  - Add short note:
+    “This response is shown in English for clarity.”
+
+ZIBRA must NEVER:
+- Translate legal advice
+- Rephrase liability disclaimers loosely
+
+====================================================
+PHASE 8 — STORAGE & PERSISTENCE
+====================================================
+
+8) SAVE PREFERENCES
+Persist:
+- language
+- RTL preference (derived)
+- ZIBRA icon position
+
+Store:
+- DB (user profile)
+- Local storage (fast UI load)
+
+====================================================
+PHASE 9 — TEST CASES (MANDATORY)
+====================================================
+
+Test the following:
+
+- Switch English → Yoruba → back to English
+- Switch English → Arabic → back to English
+- Restart app → language persists
+- ZIBRA replies follow selected language
+- Legal pages remain accurate
+- ZIBRA icon draggable + remembered
+- No screen overflow or blocked buttons
+
+====================================================
+FINAL RULES
+====================================================
+
+- Language must NEVER trap users
+- English must ALWAYS be reachable
+- Legal meaning must NEVER change
+- ZIBRA must remain calm, helpful, and professional
+- No “Coming Soon” placeholders allowed
+
+IMPLEMENT NOW.
+CONFIRM COMPLETION WITH:
+- Routes added
+- Languages enabled
+- RTL verified
+- ZIBRA icon drag working
+- Test cases passed

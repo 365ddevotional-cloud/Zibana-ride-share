@@ -41,6 +41,8 @@ import { NAVIGATION_PROVIDERS } from "@shared/navigation-config";
 import { insertUserIdentityProfileSchema } from "@shared/schema";
 import { getIdentityConfig, isValidIdTypeForCountry } from "@shared/identity-config";
 import { getTemplateResponse, matchTemplate, type ZibraRole } from "@shared/zibra-templates";
+import { applyTone } from "@shared/zibra-tone";
+import type { ToneStyle } from "@shared/country-profiles";
 
 function generateSupportResponse(input: string, role: string, _isPrivileged: boolean): string {
   const zibraRole: ZibraRole = (role === "admin" || role === "super_admin" || role === "rider" || role === "driver") ? role : "general";
@@ -17509,6 +17511,23 @@ export async function registerRoutes(
         }
         response = filtered;
       }
+
+      const languageToTone: Record<string, ToneStyle> = {
+        "en": "neutral",
+        "fr": "formal",
+        "ar": "formal",
+        "ha": "friendly",
+        "ig": "friendly",
+        "yo": "friendly",
+        "sw": "neutral",
+        "zu": "neutral",
+        "xh": "neutral",
+        "af": "neutral",
+        "pt": "neutral",
+        "es": "neutral",
+      };
+      const toneStyle = languageToTone[userLanguage] || "neutral";
+      response = applyTone(response, toneStyle);
 
       let convId = conversationId;
       if (!convId) {
