@@ -5011,3 +5011,25 @@ export const trainingAcknowledgements = pgTable("training_acknowledgements", {
 export const insertTrainingAcknowledgementSchema = createInsertSchema(trainingAcknowledgements).omit({ id: true, acknowledgedAt: true });
 export type InsertTrainingAcknowledgement = z.infer<typeof insertTrainingAcknowledgementSchema>;
 export type TrainingAcknowledgement = typeof trainingAcknowledgements.$inferSelect;
+
+// =============================================
+// PERFORMANCE & HEALTH ALERTS
+// =============================================
+
+export const performanceAlerts = pgTable("performance_alerts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  targetUserId: varchar("target_user_id").notNull(),
+  targetRole: varchar("target_role", { length: 50 }).notNull(),
+  alertType: varchar("alert_type", { length: 100 }).notNull(),
+  severity: varchar("severity", { length: 20 }).notNull().default("warning"),
+  title: varchar("title", { length: 200 }).notNull(),
+  message: text("message").notNull(),
+  isRead: boolean("is_read").notNull().default(false),
+  isDismissed: boolean("is_dismissed").notNull().default(false),
+  metadata: text("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertPerformanceAlertSchema = createInsertSchema(performanceAlerts).omit({ id: true, createdAt: true });
+export type InsertPerformanceAlert = z.infer<typeof insertPerformanceAlertSchema>;
+export type PerformanceAlert = typeof performanceAlerts.$inferSelect;

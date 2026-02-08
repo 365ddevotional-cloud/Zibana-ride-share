@@ -50,6 +50,10 @@ import { InboxViewerPanel } from "@/components/admin/inbox-viewer-panel";
 import { ZibraInsightsPanel } from "@/components/zibra-insights-panel";
 import { ZibraGovernancePanel } from "@/components/zibra-governance-panel";
 import { ZibaSupport } from "@/components/ziba-support";
+import { TrainingCenter } from "@/components/training-center";
+import { HealthAlertsPanel } from "@/components/admin/health-alerts-panel";
+import { StoreCompliancePanel } from "@/components/admin/store-compliance-panel";
+import { OperationalReadinessPanel } from "@/components/admin/operational-readiness-panel";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -2744,6 +2748,30 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <TabsTrigger value="inbox" className="admin-nav-trigger rounded-md" data-testid="tab-inbox">
                 <Mail className="h-4 w-4 mr-2" />
                 Inbox
+              </TabsTrigger>
+            )}
+            {(isSuperAdmin || userRole === "admin") && (
+              <TabsTrigger value="health-alerts" className="admin-nav-trigger rounded-md" data-testid="tab-health-alerts">
+                <Activity className="h-4 w-4 mr-2" />
+                Health Alerts
+              </TabsTrigger>
+            )}
+            {isSuperAdmin && (
+              <TabsTrigger value="store-compliance" className="admin-nav-trigger rounded-md" data-testid="tab-store-compliance">
+                <Shield className="h-4 w-4 mr-2" />
+                Store Compliance
+              </TabsTrigger>
+            )}
+            {isSuperAdmin && (
+              <TabsTrigger value="ops-readiness" className="admin-nav-trigger rounded-md" data-testid="tab-ops-readiness">
+                <Rocket className="h-4 w-4 mr-2" />
+                Ops Readiness
+              </TabsTrigger>
+            )}
+            {(isSuperAdmin || userRole === "admin" || isDirector) && (
+              <TabsTrigger value="training-center" className="admin-nav-trigger rounded-md" data-testid="tab-training-center">
+                <BookOpen className="h-4 w-4 mr-2" />
+                Training Center
               </TabsTrigger>
             )}
           </TabsList>
@@ -7459,6 +7487,30 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
           <TabsContent value="inbox">
             <InboxViewerPanel />
           </TabsContent>
+          )}
+
+          {(isSuperAdmin || userRole === "admin") && (
+            <TabsContent value="health-alerts">
+              <HealthAlertsPanel viewMode="admin" />
+            </TabsContent>
+          )}
+
+          {isSuperAdmin && (
+            <TabsContent value="store-compliance">
+              <StoreCompliancePanel />
+            </TabsContent>
+          )}
+
+          {isSuperAdmin && (
+            <TabsContent value="ops-readiness">
+              <OperationalReadinessPanel />
+            </TabsContent>
+          )}
+
+          {(isSuperAdmin || userRole === "admin" || isDirector) && (
+            <TabsContent value="training-center">
+              <TrainingCenter role={isDirector ? "contract_director" : "driver"} />
+            </TabsContent>
           )}
         </Tabs>
         </div>

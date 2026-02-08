@@ -11,6 +11,9 @@ import {
   trainingAcknowledgements,
   type TrainingAcknowledgement,
   type InsertTrainingAcknowledgement,
+  performanceAlerts,
+  type PerformanceAlert,
+  type InsertPerformanceAlert,
   ratings,
   disputes,
   refunds,
@@ -1543,6 +1546,12 @@ export interface IStorage {
 
   getTrainingAcknowledgements(userId: string): Promise<TrainingAcknowledgement[]>;
   acknowledgeTraining(data: InsertTrainingAcknowledgement): Promise<TrainingAcknowledgement>;
+
+  getPerformanceAlerts(userId: string): Promise<PerformanceAlert[]>;
+  getAdminAlerts(): Promise<PerformanceAlert[]>;
+  createPerformanceAlert(data: InsertPerformanceAlert): Promise<PerformanceAlert>;
+  markAlertRead(alertId: string): Promise<PerformanceAlert | undefined>;
+  dismissAlert(alertId: string): Promise<PerformanceAlert | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -11304,6 +11313,41 @@ export class DatabaseStorage implements IStorage {
   async acknowledgeTraining(data: InsertTrainingAcknowledgement): Promise<TrainingAcknowledgement> {
     const [ack] = await db.insert(trainingAcknowledgements).values(data).returning();
     return ack;
+  }
+
+  async getPerformanceAlerts(userId: string): Promise<PerformanceAlert[]> {
+    return db.select().from(performanceAlerts)
+      .where(and(eq(performanceAlerts.targetUserId, userId), eq(performanceAlerts.isDismissed, false)))
+      .orderBy(desc(performanceAlerts.createdAt))
+      .limit(50);
+  }
+
+  async getAdminAlerts(): Promise<PerformanceAlert[]> {
+    return db.select().from(performanceAlerts)
+      .where(and(eq(performanceAlerts.targetRole, "admin"), eq(performanceAlerts.isDismissed, false)))
+      .orderBy(desc(performanceAlerts.createdAt))
+      .limit(100);
+  }
+
+  async createPerformanceAlert(data: InsertPerformanceAlert): Promise<PerformanceAlert> {
+    const [alert] = await db.insert(performanceAlerts).values(data).returning();
+    return alert;
+  }
+
+  async markAlertRead(alertId: string): Promise<PerformanceAlert | undefined> {
+    const [updated] = await db.update(performanceAlerts)
+      .set({ isRead: true })
+      .where(eq(performanceAlerts.id, alertId))
+      .returning();
+    return updated;
+  }
+
+  async dismissAlert(alertId: string): Promise<PerformanceAlert | undefined> {
+    const [updated] = await db.update(performanceAlerts)
+      .set({ isDismissed: true })
+      .where(eq(performanceAlerts.id, alertId))
+      .returning();
+    return updated;
   }
 }
 

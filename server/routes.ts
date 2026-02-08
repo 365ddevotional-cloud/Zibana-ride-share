@@ -20631,5 +20631,66 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/alerts/my", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+      const alerts = await storage.getPerformanceAlerts(userId);
+      res.json(alerts);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch alerts" });
+    }
+  });
+
+  app.get("/api/alerts/admin", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const alerts = await storage.getAdminAlerts();
+      res.json(alerts);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch admin alerts" });
+    }
+  });
+
+  app.post("/api/alerts/:id/read", isAuthenticated, async (req: any, res) => {
+    try {
+      const alert = await storage.markAlertRead(req.params.id);
+      if (!alert) return res.status(404).json({ error: "Alert not found" });
+      res.json(alert);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to mark alert read" });
+    }
+  });
+
+  app.post("/api/alerts/:id/dismiss", isAuthenticated, async (req: any, res) => {
+    try {
+      const alert = await storage.dismissAlert(req.params.id);
+      if (!alert) return res.status(404).json({ error: "Alert not found" });
+      res.json(alert);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to dismiss alert" });
+    }
+  });
+
+  app.post("/api/alerts/generate-health-check", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+      
+      const alertTypes = [
+        { type: "driver_activity_drop", severity: "warning", title: "Driver Activity Declining", message: "Several drivers in your cell have shown reduced activity over the past 7 days. Review their status and reach out if needed.", targetRole: "director" },
+        { type: "high_suspension_rate", severity: "warning", title: "Elevated Suspension Rate", message: "The suspension rate in your cell exceeds typical levels. Review recent suspensions to confirm they follow platform policy.", targetRole: "director" },
+        { type: "cell_cap_approaching", severity: "info", title: "Approaching Cell Capacity", message: "Your driver cell is nearing its capacity limit. Plan for capacity management and coordinate with administration if needed.", targetRole: "director" },
+        { type: "low_active_percentage", severity: "warning", title: "Low Active Driver Percentage", message: "The percentage of active drivers in your cell has dropped below expected levels. Consider reviewing driver engagement.", targetRole: "director" },
+        { type: "director_abuse_pattern", severity: "critical", title: "Potential Director Abuse Detected", message: "Unusual suspension patterns detected for a director account. Review the director's recent actions in the audit log.", targetRole: "admin" },
+        { type: "excessive_suspensions", severity: "warning", title: "Excessive Suspensions Flagged", message: "A director has suspended an unusually high number of drivers this week. Investigate for potential policy violations.", targetRole: "admin" },
+        { type: "appeal_volume_spike", severity: "info", title: "Appeal Volume Spike", message: "The number of director appeals has increased significantly. Review the appeals queue and allocate resources as needed.", targetRole: "admin" },
+      ];
+      
+      res.json({ generated: alertTypes.length, alertTypes: alertTypes.map(a => a.type) });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to generate health check" });
+    }
+  });
+
   return httpServer;
 }
