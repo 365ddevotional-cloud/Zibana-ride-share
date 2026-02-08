@@ -1,0 +1,151 @@
+You are enhancing the ZIBA Rider App UI.
+
+GOAL:
+Add clear, original ZIBA ride-class icons, colors, and visual hierarchy across the Rider app so users can instantly understand and select ride options.
+
+IMPORTANT RULES:
+- Audit existing UI components first.
+- If icons or styles already exist, UPDATE them.
+- If missing, IMPLEMENT them.
+- Do NOT break ride selection, pricing logic, or booking flow.
+- Keep design modern, clean, and consistent with ZIBA branding.
+- Do NOT reference Uber or Lyft visually or textually.
+
+================================================
+PHASE 1 — GLOBAL DESIGN TOKENS
+================================================
+Create or update shared design tokens:
+
+- Ride class icon size: consistent across all screens
+- Ride class color palette (accessible, high contrast)
+- Card elevation + hover/tap feedback
+- Selected vs unselected states
+
+Use tokens so changes apply everywhere automatically.
+
+================================================
+PHASE 2 — ZIBA RIDE CLASS ICONS (ORIGINAL)
+================================================
+Assign ORIGINAL icons (vector / SVG / icon-font) per class:
+
+1) ZIBA Go
+   Icon: 🚗 (simple sedan outline)
+   Color: Neutral Purple
+   Meaning: Everyday, affordable
+
+2) ZIBA Plus
+   Icon: 🚐 (SUV / van outline)
+   Color: Deep Indigo
+   Meaning: Larger vehicles
+
+3) ZIBA Comfort
+   Icon: ✨🚘 (sedan + star)
+   Color: Teal / Soft Blue
+   Meaning: Smooth, upgraded ride
+
+4) ZIBA PetRide
+   Icon: 🐾🚗
+   Color: Warm Orange
+   Meaning: Pet-friendly
+
+5) ZIBA SafeTeen
+   Icon: 🛡️👤
+   Color: Calm Green
+   Meaning: Youth & safety focused
+
+6) ZIBA Elite
+   Icon: 👑🚘
+   Color: Gold / Premium Purple
+   Meaning: Premium experience
+
+Icons must be:
+- Unique
+- Recognizable at small sizes
+- Consistent style (stroke weight, radius)
+
+================================================
+PHASE 3 — REQUEST RIDE SCREEN UI
+================================================
+Update the Ride Class Selector:
+
+- Display ride classes as selectable cards or pills
+- Each card shows:
+  - Icon
+  - Class name
+  - Short descriptor
+  - Estimated fare
+- Selected state:
+  - Highlighted border
+  - Slight scale or glow
+- Default selected: ZIBA Go
+
+Ensure selection updates fare estimate instantly.
+
+================================================
+PHASE 4 — SERVICES PAGE VISUALS
+================================================
+On Services tab:
+- Use same icons/colors for:
+  - Schedule a Ride
+  - Corporate Rides
+  - Special Rides
+- Remove dull/disabled styling.
+- Make all cards visually tappable.
+
+Corporate Rides:
+- Office building icon
+- Professional color tone
+
+Special Rides:
+- Star cluster icon
+- Routes to ride class overview page
+
+================================================
+PHASE 5 — ACTIVITY & HISTORY SCREENS
+================================================
+In Trip History / Activity:
+- Display ride class icon + color on each trip
+- Helps users quickly recognize trip type
+
+================================================
+PHASE 6 — DRIVER & ADMIN VISUAL CONSISTENCY
+================================================
+Driver App:
+- Show which ride classes the driver is eligible for
+- Use same icons/colors (read-only)
+
+Admin / Director Dashboards:
+- Show ride class distribution using icons
+- Do NOT expose pricing details unless permitted
+
+================================================
+PHASE 7 — ACCESSIBILITY & UX POLISH
+================================================
+- Ensure color contrast meets accessibility standards
+- Icons always accompanied by text labels
+- Animations subtle and fast (150–200ms)
+- No flashing or aggressive motion
+
+================================================
+PHASE 8 — ZIBRA SUPPORT AWARENESS
+================================================
+ZIBRA (ZIBA Support) must:
+- Reference ride classes by name + icon
+- Explain differences visually when possible
+- Never compare to Uber/Lyft
+
+================================================
+PHASE 9 — FINAL VALIDATION
+================================================
+Confirm:
+- Icons appear everywhere consistently
+- Colors are unified across screens
+- Ride selection still works end-to-end
+- No “Coming Soon” visuals remain
+- No duplicated components
+
+DELIVERABLE CONFIRMATION:
+After completion, report:
+- Icon assets added/updated
+- Files/components touched
+- How to visually test ride class selection
