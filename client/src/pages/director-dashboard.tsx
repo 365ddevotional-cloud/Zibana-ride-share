@@ -1460,7 +1460,7 @@ export default function DirectorDashboard() {
         {/* OVERVIEW TAB */}
         <TabsContent value="overview" className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
-            <Card data-testid="card-total-drivers">
+            <Card className="cursor-pointer hover-elevate" data-testid="card-total-drivers" onClick={() => setActiveTab("drivers")}>
               <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Drivers</CardTitle>
                 <Users className="h-4 w-4 text-muted-foreground" />
@@ -1469,7 +1469,7 @@ export default function DirectorDashboard() {
                 <div className="text-2xl font-bold" data-testid="text-total-drivers">{metrics?.totalDrivers ?? 0}</div>
               </CardContent>
             </Card>
-            <Card data-testid="card-active-drivers">
+            <Card className="cursor-pointer hover-elevate" data-testid="card-active-drivers" onClick={() => setActiveTab("drivers")}>
               <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Active Today</CardTitle>
                 <Activity className="h-4 w-4 text-muted-foreground" />
@@ -1478,7 +1478,7 @@ export default function DirectorDashboard() {
                 <div className="text-2xl font-bold" data-testid="text-active-drivers">{metrics?.activeDriversToday ?? 0}</div>
               </CardContent>
             </Card>
-            <Card data-testid="card-commissionable-drivers">
+            <Card className="cursor-pointer hover-elevate" data-testid="card-commissionable-drivers" onClick={() => setActiveTab("earnings")}>
               <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Commissionable</CardTitle>
                 <UserPlus className="h-4 w-4 text-muted-foreground" />
@@ -1487,7 +1487,7 @@ export default function DirectorDashboard() {
                 <div className="text-2xl font-bold" data-testid="text-commissionable-drivers">{metrics?.commissionableDrivers ?? 0}</div>
               </CardContent>
             </Card>
-            <Card data-testid="card-funding-today">
+            <Card className="cursor-pointer hover-elevate" data-testid="card-funding-today" onClick={() => setActiveTab("funding")}>
               <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Funding Today</CardTitle>
                 <Wallet className="h-4 w-4 text-muted-foreground" />
@@ -1497,7 +1497,7 @@ export default function DirectorDashboard() {
                 <p className="text-xs text-muted-foreground">{todayFunding.length} transaction{todayFunding.length !== 1 ? "s" : ""}</p>
               </CardContent>
             </Card>
-            <Card data-testid="card-funding-month">
+            <Card className="cursor-pointer hover-elevate" data-testid="card-funding-month" onClick={() => setActiveTab("funding")}>
               <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Funding Given (Month)</CardTitle>
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -1507,7 +1507,7 @@ export default function DirectorDashboard() {
                 <p className="text-xs text-muted-foreground">{monthlyFunding.length} transaction{monthlyFunding.length !== 1 ? "s" : ""}</p>
               </CardContent>
             </Card>
-            <Card data-testid="card-trust-score">
+            <Card className="cursor-pointer hover-elevate" data-testid="card-trust-score" onClick={() => setActiveTab("performance")}>
               <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Trust Score</CardTitle>
                 <Shield className="h-4 w-4 text-muted-foreground" />
@@ -1555,7 +1555,7 @@ export default function DirectorDashboard() {
                 </Button>
               </CardContent>
             </Card>
-            <Card data-testid="card-overview-director-status">
+            <Card className="cursor-pointer hover-elevate" data-testid="card-overview-director-status" onClick={() => setActiveTab("settings")}>
               <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Director Status</CardTitle>
                 <Shield className="h-4 w-4 text-muted-foreground" />
@@ -1595,7 +1595,7 @@ export default function DirectorDashboard() {
           )}
 
           {lifespan && (
-            <Card data-testid="card-lifespan">
+            <Card className="cursor-pointer hover-elevate" data-testid="card-lifespan" onClick={() => setActiveTab("settings")}>
               <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Contract Lifespan</CardTitle>
                 <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -1622,7 +1622,7 @@ export default function DirectorDashboard() {
           )}
 
           {cells && cells.length > 0 && (
-            <Card data-testid="card-cells">
+            <Card className="cursor-pointer hover-elevate" data-testid="card-cells" onClick={() => setActiveTab("cells")}>
               <CardHeader>
                 <CardTitle className="text-sm font-medium">Cell Overview</CardTitle>
               </CardHeader>
@@ -1738,7 +1738,7 @@ export default function DirectorDashboard() {
                   size="sm"
                   variant="outline"
                   className="w-full"
-                  onClick={() => { window.location.href = "/admin"; }}
+                  onClick={() => { const supportButton = document.querySelector('[data-testid="ziba-support-button"]') as HTMLElement; if (supportButton) supportButton.click(); }}
                   data-testid="button-director-contact-support"
                 >
                   <MessageCircle className="h-3.5 w-3.5 mr-1.5" />
@@ -1749,7 +1749,7 @@ export default function DirectorDashboard() {
           </Card>
 
           {analytics && (
-            <Card data-testid="card-performance-overview">
+            <Card className="cursor-pointer hover-elevate" data-testid="card-performance-overview" onClick={() => setActiveTab("performance")}>
               <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
                   <BarChart3 className="h-4 w-4" />
