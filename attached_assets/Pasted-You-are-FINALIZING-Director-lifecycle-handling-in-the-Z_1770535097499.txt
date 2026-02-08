@@ -1,0 +1,150 @@
+You are FINALIZING Director lifecycle handling in the ZIBA platform.
+
+GOAL:
+- Complete Director reporting (read-only, safe)
+- Handle termination / suspension without breaking drivers
+- Reassign drivers cleanly
+- Maintain full auditability
+- Keep Admin / Super Admin authority intact
+
+================================================
+PHASE 1 — DIRECTOR REPORTS (READ-ONLY)
+================================================
+
+1) DIRECTOR REPORTS DASHBOARD
+
+Route:
+- /director/reports
+
+Director can view:
+- Daily summary:
+  - Active drivers
+  - Commissionable drivers count
+- Weekly summary:
+  - Driver activity trends
+  - Compliance indicators
+- Monthly summary:
+  - Performance rating (non-financial)
+  - Growth / decline indicators
+
+Rules:
+- NO raw money values
+- NO per-driver revenue
+- Percentages and counts only
+
+================================================
+PHASE 2 — ADMIN / SUPER ADMIN REPORT VIEW
+================================================
+
+2) ADMIN VIEW
+
+Admin / Super Admin can:
+- View all director reports
+- Compare directors
+- Export reports (counts + ratios only)
+- Flag directors for review
+
+================================================
+PHASE 3 — DIRECTOR TERMINATION & SUSPENSION
+================================================
+
+3) DIRECTOR STATUS CHANGES
+
+Statuses:
+- Active
+- Suspended
+- Terminated
+- Expired (lifespan ended)
+
+Only Super Admin can:
+- Suspend
+- Terminate
+- Extend lifespan
+
+Admin can:
+- Recommend suspension or termination
+
+================================================
+PHASE 4 — DRIVER HANDLING ON DIRECTOR TERMINATION
+================================================
+
+4) DRIVER REASSIGNMENT RULES
+
+When Director is:
+A) Suspended
+- Drivers remain active
+- Director loses dashboard access
+- Commission pauses
+- Drivers temporarily unmanaged
+
+B) Terminated or Expired
+- Drivers are NOT deactivated
+- Drivers move to:
+  - Unassigned pool OR
+  - New Director (Admin/Super Admin choice)
+
+Rules:
+- No driver loses access due to director removal
+- Driver earnings unaffected
+- Reassignment logged
+
+================================================
+PHASE 5 — MULTI-CELL HANDLING
+================================================
+
+5) MULTI-CELL DIRECTORS
+
+Rules:
+- Max 3 cells per Director
+- Each cell managed independently
+- Termination applies to all cells
+- Reassignment happens per cell
+
+================================================
+PHASE 6 — ZIBRA OVERSIGHT & PROMPTS
+================================================
+
+6) ZIBRA DIRECTOR PROMPTS
+
+ZIBRA must:
+- Warn directors before lifespan expiry
+- Notify Admin of risky performance
+- Suggest corrective actions
+- Alert Super Admin of repeated violations
+
+ZIBRA must NOT:
+- Promise continued appointment
+- Discuss commissions with drivers
+- Override Admin authority
+
+================================================
+PHASE 7 — AUDIT & SECURITY
+================================================
+
+7) FULL AUDIT LOGGING
+
+Log:
+- Director status changes
+- Driver reassignment events
+- Admin/Super Admin actions
+- ZIBRA prompts & flags
+
+Each log includes:
+- Actor
+- Timestamp
+- Action
+- Affected entities
+
+================================================
+PHASE 8 — TESTING
+================================================
+
+8) CONFIRM:
+✔ Reports load correctly
+✔ No financial leakage
+✔ Termination does not break drivers
+✔ Reassignment works
+✔ Multi-cell logic enforced
+✔ Audit trail complete
+
+Proceed step-by-step and confirm completion.

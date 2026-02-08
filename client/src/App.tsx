@@ -26,6 +26,7 @@ const RiderWalletPage = lazy(() => import("@/pages/rider/wallet"));
 const RiderPaymentsPage = lazy(() => import("@/pages/rider/payments"));
 const RiderFundUserPage = lazy(() => import("@/pages/rider/fund-user"));
 const DirectorFundDriverPage = lazy(() => import("@/pages/director/fund-driver"));
+const DirectorReportsPage = lazy(() => import("@/pages/director/reports"));
 const RiderProfilePage = lazy(() => import("@/pages/rider/profile"));
 const RiderSupportPage = lazy(() => import("@/pages/rider/support"));
 const UnauthorizedPage = lazy(() => import("@/pages/unauthorized"));
@@ -372,6 +373,9 @@ function AdminRouter() {
       </Route>
       <Route path="/director/earnings">
         <LazyComponent><DirectorDashboardPage /></LazyComponent>
+      </Route>
+      <Route path="/director/reports">
+        <LazyComponent><DirectorReportsPage /></LazyComponent>
       </Route>
       <Route>
         <Redirect to="/admin" />

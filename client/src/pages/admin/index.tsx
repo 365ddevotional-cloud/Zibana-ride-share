@@ -56,6 +56,7 @@ import { TrainingCenter } from "@/components/training-center";
 import { HealthAlertsPanel } from "@/components/admin/health-alerts-panel";
 import { WalletFundingPanel } from "@/components/admin/wallet-funding-panel";
 import { DirectorFundingPanel } from "@/components/admin/director-funding-panel";
+import { DirectorReportsPanel } from "@/components/admin/director-reports-panel";
 import { StoreCompliancePanel } from "@/components/admin/store-compliance-panel";
 import { OperationalReadinessPanel } from "@/components/admin/operational-readiness-panel";
 import { useAuth } from "@/hooks/use-auth";
@@ -6195,6 +6196,9 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
 
               {/* Director Disputes Management */}
               <DirectorDisputesPanel />
+
+              {/* Director Reports Comparison */}
+              <DirectorReportsPanel />
             </TabsContent>
           )}
 
