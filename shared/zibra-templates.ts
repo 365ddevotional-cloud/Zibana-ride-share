@@ -1548,21 +1548,21 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "director",
     category: "director_coaching",
     keywords: ["contract expiry", "lifespan ending", "contract ending", "when does contract end", "renewal", "contract renewal"],
-    response: "Your contract lifespan details are visible on your Director Dashboard. As your contract approaches its end date, ensure your cell is in good standing. Contact administration well in advance if you wish to discuss contract extension."
+    response: "Your contract lifespan details are visible on your Director Dashboard. As your contract approaches its end date, keep your cell in good standing. Contact administration well in advance if you wish to discuss contract extension."
   },
   {
     id: "d-coach-multi-cell",
     role: "director",
     category: "director_coaching",
     keywords: ["multiple cells", "second cell", "third cell", "multi cell", "manage cells", "cell management tips"],
-    response: "Managing multiple cells requires balanced attention across all your driver groups. Monitor each cell independently through your dashboard. Ensure no single cell is neglected, and distribute your management effort proportionally to cell size."
+    response: "Managing multiple cells requires balanced attention across all your driver groups. Monitor each cell independently through your dashboard. Give each cell adequate attention, and distribute your management effort proportionally to cell size."
   },
   {
     id: "d-coach-staff-management",
     role: "director",
     category: "director_coaching",
     keywords: ["staff help", "manage staff", "team management", "staff roles", "staff performance"],
-    response: "Your staff members assist with day-to-day cell operations. Assign clear responsibilities, review their performance regularly, and ensure they follow platform guidelines. Staff actions are logged and visible to administration."
+    response: "Your staff members assist with day-to-day cell operations. Assign clear responsibilities, review their performance regularly, and verify they follow platform guidelines. Staff actions are logged and visible to administration."
   },
   {
     id: "d-coach-performance-tip",
@@ -1576,7 +1576,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "director",
     category: "director_coaching",
     keywords: ["cell almost full", "approaching limit", "near capacity", "running out of space", "cell capacity warning"],
-    response: "Your cell is approaching its maximum capacity. Focus on quality over quantity for your remaining slots. Ensure new driver additions meet platform standards. If you need additional capacity, discuss options with administration."
+    response: "Your cell is approaching its maximum capacity. Focus on quality over quantity for your remaining slots. Confirm that new driver additions meet platform standards. If you need additional capacity, discuss options with administration."
   },
 
   {
