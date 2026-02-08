@@ -2058,6 +2058,127 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     response: "Employers and organizations can fund employee wallets for work-related transportation. Set up a funding relationship as Employer-Employee, configure daily and monthly limits, and add a purpose tag like 'work commute'. The employee must accept the invite. You will see high-level usage summaries but not ride details."
   },
 
+  // ============================
+  // DIRECTOR: Commission Eligibility Coaching
+  // ============================
+
+  {
+    id: "d-earnings-changed",
+    role: "director",
+    category: "director_commission",
+    keywords: ["why did my earnings change", "earnings changed", "earnings dropped", "earnings different", "commission changed", "less earnings", "lower earnings"],
+    response: "Your earnings as a director depend on several factors including the number of active drivers in your cell, daily commissionable caps, and your current eligibility status. Changes in any of these can affect your earnings from one period to the next. ZIBRA recommends reviewing your cell activity and eligibility status on your Director Dashboard. If you believe there is an error, you can submit a support ticket for a detailed review.",
+    priority: 70
+  },
+  {
+    id: "d-eligible-commission",
+    role: "director",
+    category: "director_commission",
+    keywords: ["am I eligible for commission", "eligible commission", "commission eligibility", "do I qualify", "qualify for commission", "can I earn commission"],
+    response: "To be eligible for commission, the following conditions generally apply:\n1. Your director status must be active (not suspended or terminated).\n2. You must be within your contract period.\n3. Your cell must meet the minimum active driver threshold.\n4. Your commission must not be frozen or under review.\n\nYou can check your current eligibility status on your Director Dashboard. If you have questions about a specific condition, ZIBA Support is here to help.",
+    priority: 70
+  },
+  {
+    id: "d-commission-paused-why",
+    role: "director",
+    category: "director_commission",
+    keywords: ["why is my commission paused", "commission paused", "commission stopped", "not receiving commission", "commission on hold", "commission suspended", "no commission"],
+    response: "There are several reasons your commission may be paused:\n- Your active driver count may have fallen below the minimum threshold.\n- Your contract may have expired or is pending renewal.\n- Your commission may have been frozen by administration for review.\n- There may be an ongoing compliance or audit review on your account.\n\nCheck your Director Dashboard for status details. If the reason is unclear, we recommend submitting a support ticket so administration can provide clarity.",
+    priority: 75
+  },
+
+  // ============================
+  // DIRECTOR: Cap Warnings
+  // ============================
+
+  {
+    id: "d-cap-limit-warning",
+    role: "director",
+    category: "director_cell",
+    keywords: ["cap limit", "reaching capacity", "daily cap", "commissionable cap", "driver cap", "hitting cap", "cap reached", "at capacity"],
+    response: "Daily commissionable drivers in your cell are subject to a cap. Once this cap is reached for the day, additional driver activity beyond the cap will not count toward your commission for that period. To make the most of your cap, focus on optimizing driver activity and ensuring your most active drivers are engaged during peak hours. ZIBRA recommends monitoring your daily metrics on the Director Dashboard.",
+    priority: 70
+  },
+  {
+    id: "d-max-drivers-cell",
+    role: "director",
+    category: "director_cell",
+    keywords: ["maximum drivers", "max drivers", "cell capacity", "how many drivers", "driver limit", "cell size limit", "1300 drivers", "multiple cells"],
+    response: "Each cell has a capacity limit of up to 1,300 drivers. As a director, you may manage up to 3 cells depending on your contract and performance level. If your cell is approaching capacity, focus on maintaining driver quality and activity rather than adding more drivers. Contact administration if you need to discuss cell capacity or multi-cell management.",
+    priority: 70
+  },
+
+  // ============================
+  // DIRECTOR: Inactive Driver Coaching
+  // ============================
+
+  {
+    id: "d-inactive-drivers",
+    role: "director",
+    category: "director_coaching",
+    keywords: ["inactive drivers", "drivers not working", "dormant drivers", "drivers offline", "drivers not active", "idle drivers", "sleeping drivers"],
+    response: "Inactive drivers can impact your cell's overall health and your eligibility metrics. Here are some strategies to re-engage them:\n1. Reach out personally to understand why they stopped driving.\n2. Share information about current incentives or bonuses available.\n3. Highlight peak demand times where they could earn more.\n4. Remind them that prolonged inactivity may affect their standing.\n\nKeep in mind that your activity ratio (active vs. total drivers) is a key factor in your cell's performance score. ZIBRA recommends regular check-ins with your driver base.",
+    priority: 70
+  },
+  {
+    id: "d-improve-performance-tips",
+    role: "director",
+    category: "director_performance",
+    keywords: ["how to improve performance", "improve my performance", "better performance", "performance tips", "coaching tips", "manage drivers better", "driver management tips"],
+    response: "Here are coaching tips to improve your performance as a director:\n1. Monitor your cell health dashboard regularly for early warning signs.\n2. Prioritize driver retention over rapid recruitment.\n3. Engage inactive drivers before they become permanently dormant.\n4. Ensure your drivers complete required training and maintain good ratings.\n5. Focus on driver quality and activity consistency rather than just headcount.\n6. Review your daily and weekly metrics to identify trends.\n7. Address driver complaints and issues promptly to reduce churn.\n\nConsistent, hands-on management is the best path to a strong performance score. ZIBRA is here to support your growth.",
+    priority: 65
+  },
+
+  // ============================
+  // DIRECTOR: Contract Expiration
+  // ============================
+
+  {
+    id: "d-contract-expiring-check",
+    role: "director",
+    category: "director_lifecycle",
+    keywords: ["contract expiring", "when does my contract end", "contract end date", "contract status", "how long is my contract", "contract duration", "check contract"],
+    response: "You can check your contract dates and status on your Director Dashboard under Settings. Your contract start and end dates are displayed there along with your current status. If your contract is approaching expiration, we recommend contacting administration well in advance to discuss next steps. ZIBRA can help remind you of upcoming milestones, but contract decisions are managed by administration.",
+    priority: 75
+  },
+  {
+    id: "d-extend-contract",
+    role: "director",
+    category: "director_lifecycle",
+    keywords: ["extend contract", "contract extension", "renew contract", "contract renewal", "extend my contract", "new contract", "keep my contract"],
+    response: "Contract extensions and renewals must be requested through administration. There is no automatic renewal process for director contracts. To request an extension:\n1. Review your current contract status on your Director Dashboard.\n2. Contact administration or submit a support ticket expressing your interest in renewal.\n3. Administration will review your performance history, cell health, and compliance record before making a decision.\n\nWe recommend initiating this process well before your contract expiration date. ZIBA Support can help you submit the request.",
+    priority: 75
+  },
+
+  // ============================
+  // DIRECTOR: Guardrails — What Directors Cannot See
+  // ============================
+
+  {
+    id: "d-guardrail-revenue",
+    role: "director",
+    category: "director_commission",
+    keywords: ["platform revenue", "total revenue", "fare breakdown", "revenue breakdown", "how much does platform make", "platform earnings", "company revenue", "revenue split", "fare split"],
+    response: "Platform revenue details, fare breakdowns, and internal financial splits are not available to directors. This information is managed exclusively by administration. As a director, you have access to your cell's activity metrics, your own commission status, and driver performance data. If you have questions about your own earnings, ZIBRA is happy to help clarify what's visible on your Director Dashboard.",
+    priority: 80
+  },
+  {
+    id: "d-guardrail-compare-directors",
+    role: "director",
+    category: "director_coaching",
+    keywords: ["other directors", "compare directors", "director comparison", "how do other directors", "other cells", "director ranking", "am I better", "who is best director"],
+    response: "Director comparisons and rankings are not available for privacy and fairness reasons. Each director's performance is evaluated individually based on their own cell metrics, compliance record, and contract terms. ZIBRA encourages you to focus on your own cell's health and growth rather than comparisons. Your Director Dashboard provides all the metrics you need to track your own progress.",
+    priority: 80
+  },
+  {
+    id: "d-guardrail-driver-personal",
+    role: "director",
+    category: "director_coaching",
+    keywords: ["driver personal data", "driver home address", "driver phone number", "driver private info", "personal information", "driver address", "see driver details", "driver identity"],
+    response: "Driver personal information such as home addresses, private phone numbers, and other sensitive data is restricted and not accessible to directors. You can view driver activity metrics, performance scores, and operational status within your cell. This restriction protects driver privacy and complies with data protection policies. If you need to contact a driver for operational purposes, use the platform's built-in communication tools.",
+    priority: 85
+  },
+
   {
     id: "x-general-help",
     role: ["rider", "driver", "admin", "super_admin", "director", "general"],

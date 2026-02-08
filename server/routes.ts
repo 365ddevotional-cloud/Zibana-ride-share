@@ -46,7 +46,7 @@ import { scanForLegalRisks } from "@shared/zibra-legal-guard";
 import type { ToneStyle } from "@shared/country-profiles";
 
 function generateSupportResponse(input: string, role: string, _isPrivileged: boolean): string {
-  const zibraRole: ZibraRole = (role === "admin" || role === "super_admin" || role === "rider" || role === "driver") ? role : "general";
+  const zibraRole: ZibraRole = (role === "admin" || role === "super_admin" || role === "rider" || role === "driver" || role === "director") ? role as ZibraRole : "general";
   return getTemplateResponse(input, zibraRole);
 }
 
