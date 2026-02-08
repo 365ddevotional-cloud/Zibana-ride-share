@@ -5,7 +5,7 @@ import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integra
 import { storage } from "./storage";
 import { db } from "./db";
 import { eq, and, count, sql, gte, lt, isNotNull, inArray, desc, or } from "drizzle-orm";
-import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, driverInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages, walletFundingTransactions, walletFundingSettings, driverWallets, directorFundingTransactions, directorFundingSettings, directorFundingAcceptance, directorFundingSuspensions, directorProfiles, directorDriverAssignments, directorActionLogs, driverCoachingLogs, directorCells, directorCommissionSettings, directorPayoutSummaries, referralCodes, directorFraudSignals, directorDisputes, directorDisputeMessages, directorWindDowns } from "@shared/schema";
+import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, driverInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages, walletFundingTransactions, walletFundingSettings, driverWallets, directorFundingTransactions, directorFundingSettings, directorFundingAcceptance, directorFundingSuspensions, directorProfiles, directorDriverAssignments, directorActionLogs, driverCoachingLogs, directorCells, directorCommissionSettings, directorPayoutSummaries, referralCodes, directorFraudSignals, directorDisputes, directorDisputeMessages, directorWindDowns, welcomeAnalytics } from "@shared/schema";
 import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, evaluateAllDrivers, evaluateBehaviorAndWarnings, calculateDriverMatchingScore, getDriverIncentiveProgress, assignFirstRidePromo, assignReturnRiderPromo, applyPromoToTrip, voidPromosOnCancellation } from "./incentives";
 import { notificationService } from "./notification-service";
 import { getCurrencyFromCountry, getCountryConfig, FINANCIAL_ENGINE_LOCKED } from "@shared/currency";
@@ -24512,6 +24512,100 @@ export async function registerRoutes(
       });
     } catch (error) {
       res.status(500).json({ error: "Failed to run governance check" });
+    }
+  });
+
+  // ========== WELCOME ANALYTICS (PUBLIC, NO AUTH) ==========
+
+  app.post("/api/welcome/event", async (req, res) => {
+    try {
+      const { sessionId, eventType, eventTarget, intent } = req.body;
+      if (!sessionId || !eventType) {
+        return res.status(400).json({ error: "sessionId and eventType required" });
+      }
+      const allowedEvents = ["card_click", "page_view", "cta_click", "signup_start", "zibra_open"];
+      if (!allowedEvents.includes(eventType)) {
+        return res.status(400).json({ error: "Invalid event type" });
+      }
+      await db.insert(welcomeAnalytics).values({
+        sessionId: String(sessionId).slice(0, 64),
+        eventType: String(eventType).slice(0, 30),
+        eventTarget: eventTarget ? String(eventTarget).slice(0, 100) : null,
+        intent: intent ? String(intent).slice(0, 50) : null,
+      });
+      res.json({ ok: true });
+    } catch (error) {
+      console.error("[WELCOME ANALYTICS] Error recording event:", error);
+      res.json({ ok: true });
+    }
+  });
+
+  app.get("/api/admin/welcome-insights", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const range = req.query.range === "7d" ? 7 : req.query.range === "90d" ? 90 : 30;
+      const since = new Date();
+      since.setDate(since.getDate() - range);
+
+      const allEvents = await db.select().from(welcomeAnalytics)
+        .where(sql`${welcomeAnalytics.createdAt} >= ${since}`)
+        .orderBy(sql`${welcomeAnalytics.createdAt} DESC`);
+
+      const cardClicks: Record<string, number> = {};
+      const ctaClicks = allEvents.filter(e => e.eventType === "cta_click").length;
+      const signupStarts = allEvents.filter(e => e.eventType === "signup_start").length;
+      const pageViews = allEvents.filter(e => e.eventType === "page_view").length;
+      const zibraOpens = allEvents.filter(e => e.eventType === "zibra_open").length;
+      const intents: Record<string, number> = {};
+
+      for (const event of allEvents) {
+        if (event.eventType === "card_click" && event.eventTarget) {
+          cardClicks[event.eventTarget] = (cardClicks[event.eventTarget] || 0) + 1;
+        }
+        if (event.intent) {
+          intents[event.intent] = (intents[event.intent] || 0) + 1;
+        }
+      }
+
+      const uniqueSessions = new Set(allEvents.map(e => e.sessionId)).size;
+      const sessionsWithSignup = new Set(
+        allEvents.filter(e => e.eventType === "signup_start").map(e => e.sessionId)
+      ).size;
+      const conversionRate = uniqueSessions > 0 ? Math.round((sessionsWithSignup / uniqueSessions) * 100) : 0;
+
+      const topCards = Object.entries(cardClicks)
+        .sort(([,a], [,b]) => b - a)
+        .map(([card, clicks]) => ({ card, clicks }));
+
+      const topIntents = Object.entries(intents)
+        .sort(([,a], [,b]) => b - a)
+        .map(([intent, count]) => ({ intent, count }));
+
+      const dailyEvents: Record<string, number> = {};
+      for (const event of allEvents) {
+        const day = new Date(event.createdAt).toISOString().split("T")[0];
+        dailyEvents[day] = (dailyEvents[day] || 0) + 1;
+      }
+
+      res.json({
+        totalEvents: allEvents.length,
+        uniqueVisitors: uniqueSessions,
+        pageViews,
+        cardClicks: Object.values(cardClicks).reduce((a, b) => a + b, 0),
+        ctaClicks,
+        signupStarts,
+        zibraOpens,
+        conversionRate,
+        topCards,
+        topIntents,
+        dailyTrend: Object.entries(dailyEvents)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .slice(-14)
+          .map(([date, count]) => ({ date, count })),
+        range: `${range}d`,
+      });
+    } catch (error) {
+      console.error("[WELCOME INSIGHTS] Error:", error);
+      res.status(500).json({ error: "Failed to fetch welcome insights" });
     }
   });
 

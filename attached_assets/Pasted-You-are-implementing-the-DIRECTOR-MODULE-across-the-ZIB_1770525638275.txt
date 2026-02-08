@@ -1,0 +1,176 @@
+You are implementing the DIRECTOR MODULE across the ZIBA platform.
+
+This includes:
+- Contract Directors
+- Employee Directors
+
+This module must be isolated, auditable, role-safe, commission-aware, and ZIBRA-assisted.
+
+DO NOT break existing admin, driver, or rider flows.
+DO NOT expose platform commission math publicly.
+DO NOT allow Directors to override Admin or Super Admin authority.
+
+=====================================================
+PHASE 1 — DIRECTOR TYPES & RULES (FOUNDATION)
+=====================================================
+
+1) DIRECTOR TYPES
+A) Contract Director
+- Activated only after recruiting minimum 10 drivers
+- Uses referral code to onboard drivers
+- Drivers recruited are auto-assigned to director cell
+- Commission applies ONLY to:
+  - what ZIBA earns from drivers
+  - capped commissionable drivers
+  - daily active drivers (77% rule)
+- Has lifespan set by Admin / Super Admin
+- May manage up to 3 driver cells
+- Max drivers per cell: 1300
+- Max commissionable active drivers per day: 1000
+- Commission percentage (default 12%) is configurable by Super Admin
+
+B) Employee Director
+- Drivers assigned automatically by ZIBA
+- No referral code required
+- Performance-based continuation
+- Subject to suspension/termination by Admin / Super Admin
+
+=====================================================
+PHASE 2 — COMMISSION & CAPS LOGIC (SERVER SIDE)
+=====================================================
+
+2) COMMISSION LOGIC (STRICT)
+For Contract Directors:
+- Only earn commission on what ZIBA earns
+- Daily commissionable drivers = 77% of active drivers that day
+- Apply hard caps:
+  - max active drivers/day = 1300
+  - max commissionable drivers/day = 1000
+- Excess drivers generate NO commission
+- Commission % adjustable by Super Admin
+- All calculations server-side only
+- Director never sees raw platform commission numbers
+
+=====================================================
+PHASE 3 — DIRECTOR DASHBOARD (PRIVATE)
+=====================================================
+
+3) DASHBOARD VISIBILITY
+- Visible ONLY to:
+  - Director
+  - Admin
+  - Super Admin
+- Each action logged with:
+  - who performed it
+  - timestamp
+  - role
+  - IP/session
+
+4) DASHBOARD SECTIONS
+Director Dashboard must include:
+
+A) Overview
+- Active drivers count
+- Commission-eligible drivers today
+- Earnings summary (abstracted)
+- Trust/Performance score
+
+B) Driver Management
+- View drivers under director
+- Activate drivers signed via referral
+- Discipline drivers:
+  - warnings
+  - temporary suspension
+- Cannot deactivate permanently (Admin/Super Admin only)
+
+C) Staff Management (Director Team)
+- Director can hire staff
+- Assign staff roles:
+  - operations
+  - recruitment
+  - compliance
+- Each staff sees ONLY their permitted sections
+- Director can discipline staff (with Admin permission)
+
+D) Reports & Performance
+- Driver activity trends
+- Compliance flags
+- ZIBRA performance suggestions
+
+=====================================================
+PHASE 4 — ZIBRA FOR DIRECTORS (PRIVATE MODE)
+=====================================================
+
+5) ZIBRA ROLE
+ZIBRA must assist Directors by:
+- Explaining commission rules (high-level)
+- Highlighting performance gaps
+- Suggesting driver engagement actions
+- Warning when caps or lifespan limits are near
+- Never exposing raw platform financials
+
+If asked “why is my commission low?”
+ZIBRA response style:
+- neutral
+- data-informed
+- no blame
+- no guarantees
+
+=====================================================
+PHASE 5 — DIRECTOR APPOINTMENTS (SUPER ADMIN)
+=====================================================
+
+6) DIRECTOR APPOINTMENT PANEL
+Add Super Admin-only section:
+- Appoint Contract Director
+- Appoint Employee Director
+- Set:
+  - lifespan
+  - max cells
+  - commission %
+  - permissions
+- Suspend / terminate directors
+- View director history & audit trail
+
+=====================================================
+PHASE 6 — SAFETY, LEGAL & AUDIT
+=====================================================
+
+7) LEGAL POSITIONING
+- Directors are NOT employees unless explicitly marked
+- ZIBA facilitates commission tracking only
+- No guaranteed income
+- Performance-based continuation
+- Terms accepted at Director onboarding
+
+8) AUDIT REQUIREMENTS
+- Every action logged
+- No silent edits
+- Admin & Super Admin see full history
+- Directors see only their own activity
+
+=====================================================
+PHASE 7 — QA CHECKLIST
+=====================================================
+
+Confirm:
+✔ Director cannot exceed caps
+✔ Director cannot see platform internals
+✔ Admin/Super Admin override intact
+✔ Staff permissions isolated
+✔ ZIBRA guidance accurate
+✔ No existing flows broken
+
+=====================================================
+DELIVERABLES
+=====================================================
+
+Provide:
+1) Director Dashboard routes
+2) Permission matrix
+3) Commission calculation rules
+4) ZIBRA response patterns for Directors
+5) Admin appointment screens
+
+Proceed step-by-step.
+Confirm after each phase.

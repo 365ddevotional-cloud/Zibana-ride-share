@@ -5413,3 +5413,16 @@ export const directorWindDowns = pgTable("director_wind_downs", {
   completedAt: timestamp("completed_at"),
   status: varchar("status", { length: 20 }).notNull().default("in_progress"),
 });
+
+export const welcomeAnalytics = pgTable("welcome_analytics", {
+  id: serial("id").primaryKey(),
+  sessionId: varchar("session_id", { length: 64 }).notNull(),
+  eventType: varchar("event_type", { length: 30 }).notNull(),
+  eventTarget: varchar("event_target", { length: 100 }),
+  intent: varchar("intent", { length: 50 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertWelcomeAnalyticsSchema = createInsertSchema(welcomeAnalytics).omit({ id: true, createdAt: true });
+export type InsertWelcomeAnalytics = z.infer<typeof insertWelcomeAnalyticsSchema>;
+export type WelcomeAnalytics = typeof welcomeAnalytics.$inferSelect;

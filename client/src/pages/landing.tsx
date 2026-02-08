@@ -8,9 +8,11 @@ import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Shield, Clock, MapPin, Users, CheckCircle, Navigation, Wallet, Star, Play } from "lucide-react";
 import { getAppName } from "@/config/appMode";
-import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
+import { useDiscovery } from "@/hooks/use-discovery";
+import { ZibraWelcomeBubble } from "@/components/zibra-welcome-bubble";
+import { ZibaSupport } from "@/components/ziba-support";
 
 export default function LandingPage() {
   const appName = getAppName();
@@ -19,6 +21,18 @@ export default function LandingPage() {
   const [simCode, setSimCode] = useState("");
   const [simLoading, setSimLoading] = useState(false);
   const [simError, setSimError] = useState("");
+  const [supportOpen, setSupportOpen] = useState(false);
+
+  const {
+    showZibra,
+    trackCardClick,
+    trackCtaClick,
+    trackSignupStart,
+    trackZibraOpen,
+    dismissZibra,
+    getAdaptiveCta,
+    getSignupUrl,
+  } = useDiscovery();
 
   const { data: simSystemStatus } = useQuery<{ enabled: boolean }>({
     queryKey: ["/api/simulation/system-status"],
@@ -50,6 +64,18 @@ export default function LandingPage() {
     } finally {
       setSimLoading(false);
     }
+  };
+
+  const handleGetStarted = () => {
+    trackSignupStart();
+    trackCtaClick();
+    window.location.href = getSignupUrl();
+  };
+
+  const handleOpenZibra = () => {
+    trackZibraOpen();
+    dismissZibra();
+    setSupportOpen(true);
   };
 
   return (
@@ -97,8 +123,8 @@ export default function LandingPage() {
               </p>
               
               <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
-                <Button size="lg" asChild className="text-base" data-testid="button-get-started">
-                  <a href="/api/login?role=rider">Get Started</a>
+                <Button size="lg" className="text-base" onClick={handleGetStarted} data-testid="button-get-started">
+                  {getAdaptiveCta()}
                 </Button>
                 <Button size="lg" variant="outline" asChild className="text-base" data-testid="button-learn-more">
                   <Link href="/about">Learn More</Link>
@@ -131,8 +157,8 @@ export default function LandingPage() {
             </div>
             
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              <Link href="/safety/verified-drivers" data-testid="card-verified-drivers">
-                <Card className="hover-elevate border-0 bg-card cursor-pointer h-full">
+              <Link href="/safety/verified-drivers" onClick={() => trackCardClick("verified-drivers")} data-testid="card-verified-drivers">
+                <Card className="hover-elevate border-0 bg-card cursor-pointer h-full transition-all duration-300">
                   <CardContent className="pt-6">
                     <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
                       <Shield className="h-6 w-6 text-primary" />
@@ -145,8 +171,8 @@ export default function LandingPage() {
                 </Card>
               </Link>
               
-              <Link href="/how-it-works#pickup" data-testid="card-quick-pickup">
-                <Card className="hover-elevate border-0 bg-card cursor-pointer h-full">
+              <Link href="/how-it-works#pickup" onClick={() => trackCardClick("quick-pickup")} data-testid="card-quick-pickup">
+                <Card className="hover-elevate border-0 bg-card cursor-pointer h-full transition-all duration-300">
                   <CardContent className="pt-6">
                     <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
                       <Clock className="h-6 w-6 text-primary" />
@@ -159,8 +185,8 @@ export default function LandingPage() {
                 </Card>
               </Link>
               
-              <Link href="/how-it-works#booking" data-testid="card-easy-booking">
-                <Card className="hover-elevate border-0 bg-card cursor-pointer h-full">
+              <Link href="/how-it-works#booking" onClick={() => trackCardClick("easy-booking")} data-testid="card-easy-booking">
+                <Card className="hover-elevate border-0 bg-card cursor-pointer h-full transition-all duration-300">
                   <CardContent className="pt-6">
                     <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
                       <MapPin className="h-6 w-6 text-primary" />
@@ -188,8 +214,8 @@ export default function LandingPage() {
             </div>
             
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 max-w-5xl mx-auto">
-              <Link href="/features/live-tracking" data-testid="card-live-tracking">
-                <Card className="text-center hover-elevate cursor-pointer h-full">
+              <Link href="/features/live-tracking" onClick={() => trackCardClick("live-tracking")} data-testid="card-live-tracking">
+                <Card className="text-center hover-elevate cursor-pointer h-full transition-all duration-300">
                   <CardContent className="pt-6">
                     <div className="mb-4 mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
                       <Navigation className="h-6 w-6 text-blue-600 dark:text-blue-400" />
@@ -202,8 +228,8 @@ export default function LandingPage() {
                 </Card>
               </Link>
               
-              <Link href="/features/payments" data-testid="card-flexible-payments">
-                <Card className="text-center hover-elevate cursor-pointer h-full">
+              <Link href="/features/payments" onClick={() => trackCardClick("flexible-payments")} data-testid="card-flexible-payments">
+                <Card className="text-center hover-elevate cursor-pointer h-full transition-all duration-300">
                   <CardContent className="pt-6">
                     <div className="mb-4 mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
                       <Wallet className="h-6 w-6 text-green-600 dark:text-green-400" />
@@ -216,8 +242,8 @@ export default function LandingPage() {
                 </Card>
               </Link>
               
-              <Link href="/features/ratings" data-testid="card-rate-trip">
-                <Card className="text-center hover-elevate cursor-pointer h-full">
+              <Link href="/features/ratings" onClick={() => trackCardClick("rate-trip")} data-testid="card-rate-trip">
+                <Card className="text-center hover-elevate cursor-pointer h-full transition-all duration-300">
                   <CardContent className="pt-6">
                     <div className="mb-4 mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30">
                       <Star className="h-6 w-6 text-amber-600 dark:text-amber-400" />
@@ -230,8 +256,8 @@ export default function LandingPage() {
                 </Card>
               </Link>
               
-              <Link href="/safety" data-testid="card-safety-first">
-                <Card className="text-center hover-elevate cursor-pointer h-full">
+              <Link href="/safety" onClick={() => trackCardClick("safety-first")} data-testid="card-safety-first">
+                <Card className="text-center hover-elevate cursor-pointer h-full transition-all duration-300">
                   <CardContent className="pt-6">
                     <div className="mb-4 mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-red-100 dark:bg-red-900/30">
                       <Shield className="h-6 w-6 text-red-600 dark:text-red-400" />
@@ -258,11 +284,11 @@ export default function LandingPage() {
             <Button 
               size="lg" 
               variant="secondary" 
-              asChild 
               className="text-base"
+              onClick={handleGetStarted}
               data-testid="button-join-now"
             >
-              <a href="/api/login?role=rider">Get Started</a>
+              {getAdaptiveCta()}
             </Button>
           </div>
         </section>
@@ -302,6 +328,21 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+
+      <ZibraWelcomeBubble
+        visible={showZibra && !supportOpen}
+        onOpen={handleOpenZibra}
+        onDismiss={dismissZibra}
+      />
+
+      {supportOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-end p-4 sm:p-6">
+          <div className="fixed inset-0 bg-black/20 backdrop-blur-sm" onClick={() => setSupportOpen(false)} />
+          <div className="relative w-full max-w-md max-h-[80vh] overflow-auto rounded-lg border bg-background shadow-lg">
+            <ZibaSupport onClose={() => setSupportOpen(false)} forceRole="general" />
+          </div>
+        </div>
+      )}
 
       <Dialog open={simDialogOpen} onOpenChange={setSimDialogOpen}>
         <DialogContent>
