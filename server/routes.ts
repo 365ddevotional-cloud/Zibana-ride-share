@@ -20590,5 +20590,46 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/training/modules/:role", isAuthenticated, async (req: any, res) => {
+    try {
+      const { role } = req.params;
+      const { trainingModules } = await import("../shared/training-content");
+      const modules = trainingModules.filter((m: any) => m.role === role);
+      res.json(modules);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch training modules" });
+    }
+  });
+
+  app.get("/api/training/acknowledgements", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+      const acks = await storage.getTrainingAcknowledgements(userId);
+      res.json(acks);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch acknowledgements" });
+    }
+  });
+
+  app.post("/api/training/acknowledge", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+      const { moduleId, role } = req.body;
+      if (!moduleId || !role) {
+        return res.status(400).json({ error: "moduleId and role are required" });
+      }
+      const existing = await storage.getTrainingAcknowledgements(userId);
+      if (existing.some((a: any) => a.moduleId === moduleId)) {
+        return res.status(409).json({ error: "Already acknowledged" });
+      }
+      const ack = await storage.acknowledgeTraining({ userId, moduleId, role });
+      res.json(ack);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to acknowledge training" });
+    }
+  });
+
   return httpServer;
 }

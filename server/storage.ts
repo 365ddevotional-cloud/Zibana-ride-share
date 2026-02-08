@@ -8,6 +8,9 @@ import {
   users,
   payoutTransactions,
   notifications,
+  trainingAcknowledgements,
+  type TrainingAcknowledgement,
+  type InsertTrainingAcknowledgement,
   ratings,
   disputes,
   refunds,
@@ -1537,6 +1540,9 @@ export interface IStorage {
   escalateSupportConversation(conversationId: string, ticketId: string): Promise<SupportConversation | undefined>;
   getConversationMessages(conversationId: string, limit?: number): Promise<SupportChatMessage[]>;
   isConversationEscalated(conversationId: string): Promise<boolean>;
+
+  getTrainingAcknowledgements(userId: string): Promise<TrainingAcknowledgement[]>;
+  acknowledgeTraining(data: InsertTrainingAcknowledgement): Promise<TrainingAcknowledgement>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -11288,6 +11294,16 @@ export class DatabaseStorage implements IStorage {
   async isConversationEscalated(conversationId: string): Promise<boolean> {
     const conv = await this.getSupportConversation(conversationId);
     return conv?.escalated === true;
+  }
+
+  async getTrainingAcknowledgements(userId: string): Promise<TrainingAcknowledgement[]> {
+    return db.select().from(trainingAcknowledgements)
+      .where(eq(trainingAcknowledgements.userId, userId));
+  }
+
+  async acknowledgeTraining(data: InsertTrainingAcknowledgement): Promise<TrainingAcknowledgement> {
+    const [ack] = await db.insert(trainingAcknowledgements).values(data).returning();
+    return ack;
   }
 }
 

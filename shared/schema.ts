@@ -4999,3 +4999,15 @@ export const insertSafeReturnHubSchema = createInsertSchema(safeReturnHubs).omit
 });
 export type InsertSafeReturnHub = z.infer<typeof insertSafeReturnHubSchema>;
 export type SafeReturnHub = typeof safeReturnHubs.$inferSelect;
+
+export const trainingAcknowledgements = pgTable("training_acknowledgements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  moduleId: varchar("module_id", { length: 100 }).notNull(),
+  role: varchar("role", { length: 50 }).notNull(),
+  acknowledgedAt: timestamp("acknowledged_at").defaultNow().notNull(),
+});
+
+export const insertTrainingAcknowledgementSchema = createInsertSchema(trainingAcknowledgements).omit({ id: true, acknowledgedAt: true });
+export type InsertTrainingAcknowledgement = z.infer<typeof insertTrainingAcknowledgementSchema>;
+export type TrainingAcknowledgement = typeof trainingAcknowledgements.$inferSelect;
