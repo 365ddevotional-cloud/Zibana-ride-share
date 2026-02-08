@@ -23194,6 +23194,50 @@ export async function registerRoutes(
         });
       }
 
+      const recentPayouts = await db.select().from(directorPayoutSummaries)
+        .where(eq(directorPayoutSummaries.directorUserId, targetDirectorId as string))
+        .orderBy(desc(directorPayoutSummaries.createdAt))
+        .limit(10);
+
+      const heldPayouts = recentPayouts.filter(p => p.payoutState === "held");
+      if (heldPayouts.length > 0) {
+        signals.push({
+          type: "payout_held",
+          severity: heldPayouts.length >= 3 ? "critical" : "warning",
+          message: `${heldPayouts.length} payout(s) currently on hold. Contact support if you have questions.`,
+          triggeredAt: now.toISOString(),
+        });
+      }
+
+      const reversedPayouts = recentPayouts.filter(p => p.payoutState === "reversed");
+      if (reversedPayouts.length > 0) {
+        signals.push({
+          type: "payout_reversed",
+          severity: "critical",
+          message: `${reversedPayouts.length} payout(s) have been reversed. Review your earnings tab for details.`,
+          triggeredAt: now.toISOString(),
+        });
+      }
+
+      const pendingDisputes = recentPayouts.filter(p => p.disputeSubmitted && !p.disputeResolvedAt);
+      if (pendingDisputes.length > 0) {
+        signals.push({
+          type: "payout_dispute_pending",
+          severity: "info",
+          message: `${pendingDisputes.length} payout dispute(s) are under review.`,
+          triggeredAt: now.toISOString(),
+        });
+      }
+
+      if (director.commissionFrozen) {
+        signals.push({
+          type: "commission_frozen",
+          severity: "critical",
+          message: "Your commission is currently frozen. No payouts will be processed until lifted by an administrator.",
+          triggeredAt: now.toISOString(),
+        });
+      }
+
       res.json({ signals });
     } catch (error) {
       console.error("Oversight signals error:", error);
