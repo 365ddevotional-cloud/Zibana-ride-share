@@ -93,7 +93,7 @@ export default function SpecialRideDetail() {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setLocation("/rider/special-rides")}
+                onClick={() => setLocation("/rider/services/special")}
                 data-testid="button-back-special-notfound"
               >
                 <ArrowLeft className="h-5 w-5" />
@@ -105,7 +105,7 @@ export default function SpecialRideDetail() {
                 <p className="text-muted-foreground">
                   This ride type doesn't exist or isn't available yet. Please go back and choose from the available options.
                 </p>
-                <Button onClick={() => setLocation("/rider/special-rides")} data-testid="button-goto-special-rides">
+                <Button onClick={() => setLocation("/rider/services/special")} data-testid="button-goto-special-rides">
                   View Special Rides
                 </Button>
               </CardContent>
@@ -142,7 +142,7 @@ export default function SpecialRideDetail() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setLocation("/rider/special-rides")}
+              onClick={() => setLocation("/rider/services/special")}
               data-testid="button-back-special-detail"
             >
               <ArrowLeft className="h-5 w-5" />

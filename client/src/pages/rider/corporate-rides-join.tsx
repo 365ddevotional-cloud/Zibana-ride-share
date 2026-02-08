@@ -129,7 +129,7 @@ export default function CorporateRidesJoin() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setLocation("/rider/corporate-rides")}
+              onClick={() => setLocation("/rider/services/corporate")}
               data-testid="button-back-corporate-join"
             >
               <ArrowLeft className="h-5 w-5" />

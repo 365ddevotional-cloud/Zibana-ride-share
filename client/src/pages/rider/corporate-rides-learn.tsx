@@ -41,7 +41,7 @@ export default function CorporateRidesLearn() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setLocation("/rider/corporate-rides")}
+              onClick={() => setLocation("/rider/services/corporate")}
               data-testid="button-back-corporate-learn"
             >
               <ArrowLeft className="h-5 w-5" />
@@ -96,7 +96,7 @@ export default function CorporateRidesLearn() {
               </p>
               <Button
                 className="w-full"
-                onClick={() => setLocation("/rider/corporate-rides/join")}
+                onClick={() => setLocation("/rider/services/corporate/join")}
                 data-testid="button-goto-join"
               >
                 Join a Corporate Account

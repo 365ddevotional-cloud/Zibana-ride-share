@@ -123,7 +123,7 @@ export default function CorporateRides() {
             <div className="space-y-4">
               <Card
                 className="hover-elevate cursor-pointer"
-                onClick={() => setLocation("/rider/corporate-rides/join")}
+                onClick={() => setLocation("/rider/services/corporate/join")}
                 data-testid="card-join-corporate-account"
               >
                 <CardContent className="p-4">
@@ -146,7 +146,7 @@ export default function CorporateRides() {
 
               <Card
                 className="hover-elevate cursor-pointer"
-                onClick={() => setLocation("/rider/corporate-rides/learn")}
+                onClick={() => setLocation("/rider/services/corporate/learn")}
                 data-testid="card-learn-corporate"
               >
                 <CardContent className="p-4">

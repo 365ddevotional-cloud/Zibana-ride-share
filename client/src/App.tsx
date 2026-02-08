@@ -58,8 +58,6 @@ const RiderSchedulePage = lazy(() => import("@/pages/rider/schedule"));
 const RiderInboxPage = lazy(() => import("@/pages/rider/inbox"));
 const RiderActivityPage = lazy(() => import("@/pages/rider/activity"));
 const RiderServicesPage = lazy(() => import("@/pages/rider/services"));
-const RiderCorporatePage = lazy(() => import("@/pages/rider/corporate"));
-const RiderSpecialPage = lazy(() => import("@/pages/rider/special"));
 const RiderCorporateRidesPage = lazy(() => import("@/pages/rider/corporate-rides"));
 const RiderCorporateRidesJoinPage = lazy(() => import("@/pages/rider/corporate-rides-join"));
 const RiderCorporateRidesLearnPage = lazy(() => import("@/pages/rider/corporate-rides-learn"));
@@ -583,40 +581,28 @@ function RiderRouter() {
         </ProtectedRoute>
       </Route>
 
-      <Route path="/rider/corporate">
-        <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["rider"]}>
-          <LazyComponent><RiderCorporatePage /></LazyComponent>
-        </ProtectedRoute>
-      </Route>
-
-      <Route path="/rider/special">
-        <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["rider"]}>
-          <LazyComponent><RiderSpecialPage /></LazyComponent>
-        </ProtectedRoute>
-      </Route>
-
-      <Route path="/rider/corporate-rides/join">
+      <Route path="/rider/services/corporate/join">
         <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["rider"]}>
           <LazyComponent><RiderCorporateRidesJoinPage /></LazyComponent>
         </ProtectedRoute>
       </Route>
-      <Route path="/rider/corporate-rides/learn">
+      <Route path="/rider/services/corporate/learn">
         <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["rider"]}>
           <LazyComponent><RiderCorporateRidesLearnPage /></LazyComponent>
         </ProtectedRoute>
       </Route>
-      <Route path="/rider/corporate-rides">
+      <Route path="/rider/services/corporate">
         <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["rider"]}>
           <LazyComponent><RiderCorporateRidesPage /></LazyComponent>
         </ProtectedRoute>
       </Route>
 
-      <Route path="/rider/special-rides/:type">
+      <Route path="/rider/services/special/:type">
         <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["rider"]}>
           <LazyComponent><RiderSpecialRideDetailPage /></LazyComponent>
         </ProtectedRoute>
       </Route>
-      <Route path="/rider/special-rides">
+      <Route path="/rider/services/special">
         <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["rider"]}>
           <LazyComponent><RiderSpecialRidesPage /></LazyComponent>
         </ProtectedRoute>

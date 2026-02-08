@@ -99,7 +99,7 @@ export default function SpecialRides() {
                 <Card
                   key={rideType.id}
                   className="hover-elevate cursor-pointer"
-                  onClick={() => setLocation(`/rider/special-rides/${rideType.id}`)}
+                  onClick={() => setLocation(`/rider/services/special/${rideType.id}`)}
                   data-testid={`card-special-${rideType.id}`}
                 >
                   <CardContent className="p-4">

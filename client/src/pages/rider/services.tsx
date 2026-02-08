@@ -45,7 +45,7 @@ export default function Services() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-sm hover-elevate cursor-pointer" onClick={() => setLocation("/rider/corporate-rides")} data-testid="card-corporate-service">
+          <Card className="shadow-sm hover-elevate cursor-pointer" onClick={() => setLocation("/rider/services/corporate")} data-testid="card-corporate-service">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -69,7 +69,7 @@ export default function Services() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-sm hover-elevate cursor-pointer" onClick={() => setLocation("/rider/special-rides")} data-testid="card-special-service">
+          <Card className="shadow-sm hover-elevate cursor-pointer" onClick={() => setLocation("/rider/services/special")} data-testid="card-special-service">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">

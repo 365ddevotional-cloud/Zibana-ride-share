@@ -1,0 +1,185 @@
+You are implementing the Director system inside the ZIBA platform.
+
+Director Types:
+1) Contract Director
+2) Employee Director
+
+GOAL:
+- Create a dedicated Director Dashboard
+- Enforce lifecycle rules, caps, and permissions
+- Enable driver cell management
+- Integrate ZIBRA oversight
+- Maintain Admin / Super Admin supremacy
+- Do NOT expose platform commission figures to drivers or riders
+
+================================================
+PHASE 1 — DIRECTOR APPOINTMENT & LIFECYCLE
+================================================
+
+1) DIRECTOR APPOINTMENT (SUPER ADMIN)
+
+Route:
+- /admin/directors/appointments
+
+Super Admin can:
+- Appoint Director (Contract or Employee)
+- Set:
+  - director_type
+  - start_date
+  - end_date (lifespan)
+  - max_cells (default: 3)
+  - commission_rate (default 12%, adjustable)
+  - status (active / suspended / terminated)
+
+Admin may:
+- View director records
+- Recommend actions
+
+Only Super Admin can:
+- Appoint
+- Terminate
+- Extend lifespan
+- Change commission rate
+
+================================================
+PHASE 2 — DRIVER CELLS & HARD CAPS
+================================================
+
+2) DRIVER CELL RULES (ENFORCED SERVER-SIDE)
+
+Per Director:
+- Max active drivers per cell: 1300
+- Max commissionable drivers per cell per day: 1000
+- Commissionable pool per day = 77% of drivers who worked that day (capped at 1000)
+
+Rules:
+- Director earns commission ONLY from what ZIBA earns
+- Drivers beyond commissionable cap → no commission impact
+- Caps configurable only by Super Admin
+
+================================================
+PHASE 3 — DIRECTOR DASHBOARD (PRIVATE)
+================================================
+
+3) DIRECTOR DASHBOARD CORE
+
+Route:
+- /director/dashboard
+
+Visible ONLY to:
+- Director
+- Admin
+- Super Admin
+
+Sections:
+- Overview (cells, active drivers, today’s active drivers)
+- Driver Cells
+- Driver Status (active / suspended)
+- Performance Metrics (non-financial)
+- Staff Management
+- Notifications
+- ZIBRA Insights
+
+================================================
+PHASE 4 — DRIVER MANAGEMENT (DIRECTOR)
+================================================
+
+4) DRIVER MANAGEMENT POWERS
+
+Directors can:
+- Activate drivers who signed up with their referral code
+- Suspend drivers (temporary)
+- Flag drivers for Admin review
+- Monitor driver compliance
+
+Directors CANNOT:
+- Permanently deactivate drivers
+- Change driver payouts
+- Modify platform rules
+
+================================================
+PHASE 5 — DIRECTOR STAFF & PERMISSIONS
+================================================
+
+5) DIRECTOR STAFF SYSTEM
+
+Directors can:
+- Create staff accounts
+- Assign staff to specific dashboard sections:
+  - Driver monitoring
+  - Reports
+  - Compliance
+- Discipline staff (within limits)
+
+Rules:
+- Staff see ONLY their permitted sections
+- Staff actions logged with identity
+- Admin / Super Admin can see all staff activity
+
+================================================
+PHASE 6 — COMMISSION VISIBILITY (STRICT)
+================================================
+
+6) COMMISSION DISPLAY RULES
+
+Director Dashboard shows:
+- Eligible drivers count
+- Commissionable drivers count
+- Commission percentage (not raw amounts unless approved)
+
+Never show:
+- Platform revenue totals
+- Per-driver earnings
+- Internal cost structures
+
+================================================
+PHASE 7 — ZIBRA OVERSIGHT (DIRECTORS)
+================================================
+
+7) ZIBRA PERFORMANCE COACHING
+
+ZIBRA must:
+- Review director performance patterns
+- Prompt directors:
+  - “Your driver activation rate is low”
+  - “High suspension frequency detected”
+- Suggest best practices
+- Flag risky behavior to Admin
+
+ZIBRA must NOT:
+- Threaten
+- Promise earnings
+- Override Admin authority
+
+================================================
+PHASE 8 — AUDIT & SECURITY
+================================================
+
+8) FULL AUDIT TRAIL
+
+Log:
+- Director actions
+- Staff actions
+- Driver activations/suspensions
+- ZIBRA prompts
+
+Every action includes:
+- Who
+- When
+- What
+- From which dashboard
+
+================================================
+PHASE 9 — TESTING
+================================================
+
+9) CONFIRM:
+✔ Director Dashboard loads
+✔ Appointment flow works
+✔ Lifespan enforced
+✔ Driver caps enforced
+✔ Staff permissions isolated
+✔ ZIBRA prompts visible
+✔ Admin/Super Admin override intact
+
+Proceed step-by-step and confirm completion.
