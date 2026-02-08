@@ -46,6 +46,7 @@ import { DriverRideCard } from "@/components/ride/driver-ride-card";
 import { DriverRideActions } from "@/components/ride/driver-ride-actions";
 import { RideOfferCountdown } from "@/components/ride/ride-offer-countdown";
 import { VerificationPhotoSubmit } from "@/components/verification/verification-photo-submit";
+import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
 import { SafetyCheckModal } from "@/components/ride/safety-check-modal";
 import { DriverReservedTrips } from "@/components/ride/driver-reserved-trips";
 import { DriverScheduledTripsSection } from "@/components/driver/scheduled-trips-section";
@@ -1077,6 +1078,7 @@ export default function DriverDashboard() {
         role="driver"
         accusedUserId={incidentAccusedUserId}
       />
+      <ZibraFloatingButton />
     </div>
   );
 }

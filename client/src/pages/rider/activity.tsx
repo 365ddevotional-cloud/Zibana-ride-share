@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { Car, XCircle, AlertTriangle, Wallet, Clock, MapPin, ChevronRight, Filter } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
+import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
 
 interface Trip {
   id: string;
@@ -230,6 +231,7 @@ export default function RiderActivity() {
             </div>
           )}
         </div>
+        <ZibraFloatingButton />
       </RiderLayout>
     </RiderRouteGuard>
   );

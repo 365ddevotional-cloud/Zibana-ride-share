@@ -27,6 +27,7 @@ import {
   FileText, Mail as MailIcon, Clock, X,
   Bell, Megaphone, Database, Shield, Lock, Phone, Users,
 } from "lucide-react";
+import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
 
 interface RiderProfile {
   rating: number | null;
@@ -456,6 +457,7 @@ export default function RiderAccount() {
             </CardContent>
           </Card>
         </div>
+        <ZibraFloatingButton />
       </RiderLayout>
     </RiderRouteGuard>
   );

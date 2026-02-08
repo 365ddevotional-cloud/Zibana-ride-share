@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { ZibaSupport } from "@/components/ziba-support";
+import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
 import {
   Rocket,
   UserCheck,
@@ -782,6 +783,7 @@ export default function DriverHelpPage() {
       >
         <Headphones className="h-5 w-5" />
       </Button>
+      <ZibraFloatingButton />
     </DriverLayout>
   );
 }

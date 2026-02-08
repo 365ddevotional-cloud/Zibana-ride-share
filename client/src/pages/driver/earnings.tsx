@@ -8,6 +8,7 @@ import { Wallet, TrendingUp, Calendar, ArrowUpRight, Star, CheckCircle, Lightbul
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import { useTranslation } from "@/i18n";
+import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
 import type { DriverProfile, Trip } from "@shared/schema";
 
 interface CancellationMetrics {
@@ -320,6 +321,7 @@ export default function DriverEarnings() {
           </TabsContent>
         </Tabs>
       </div>
+      <ZibraFloatingButton />
     </DriverLayout>
   );
 }

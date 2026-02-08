@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { EmptyState } from "@/components/empty-state";
+import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
 import {
   ArrowLeft, Shield, Package, AlertTriangle, FileText, Users,
   ChevronRight, Clock, Phone, MapPin, ShieldCheck, ExternalLink, MessageCircle, CheckCircle,
@@ -905,6 +906,7 @@ export default function SafetyHubPage() {
             </DialogContent>
           </Dialog>
         </div>
+        <ZibraFloatingButton />
       </RiderLayout>
     </RiderRouteGuard>
   );

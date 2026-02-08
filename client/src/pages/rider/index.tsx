@@ -51,6 +51,7 @@ import { NotificationBell } from "@/components/notification-bell";
 import { SupportSection } from "@/components/support-section";
 import { RiderRideStatus } from "@/components/ride/rider-ride-status";
 import { SafetyCheckModal } from "@/components/ride/safety-check-modal";
+import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
 import { ReservationForm } from "@/components/ride/reservation-form";
 import { UpcomingReservations } from "@/components/ride/upcoming-reservations";
 import { RiderPaymentMethods } from "@/components/rider-payment-methods";
@@ -1282,6 +1283,7 @@ export default function RiderDashboard() {
         role="rider"
         accusedUserId={incidentAccusedUserId}
       />
+      <ZibraFloatingButton />
     </div>
   );
 }

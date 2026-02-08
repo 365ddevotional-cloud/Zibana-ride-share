@@ -10,6 +10,7 @@ import { useLocation } from "wouter";
 import { useTranslation } from "@/i18n";
 import { DriverBankAccountSection } from "@/components/driver-bank-account-section";
 import { FundAnotherWalletDialog } from "@/components/fund-another-wallet";
+import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
 import type { Wallet as WalletType, WalletTransaction } from "@shared/schema";
 
 interface WalletWithTransactions extends WalletType {
@@ -246,6 +247,7 @@ export default function DriverWalletPage() {
         </div>
       </div>
       <FundAnotherWalletDialog open={showFundWallet} onClose={() => setShowFundWallet(false)} />
+      <ZibraFloatingButton />
     </DriverLayout>
   );
 }

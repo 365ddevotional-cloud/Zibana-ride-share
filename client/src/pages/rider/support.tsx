@@ -16,6 +16,7 @@ import {
   ChevronRight, ChevronDown, ChevronUp, FileText, AlertTriangle, AlertOctagon, Banknote
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
 
 interface SupportTicket {
   id: string;
@@ -277,6 +278,7 @@ export default function RiderSupport() {
             ZIBA Rider v1.0 | Need immediate help? Tap Safety Center above.
           </p>
         </div>
+        <ZibraFloatingButton />
       </RiderLayout>
     </RiderRouteGuard>
   );

@@ -7,6 +7,7 @@ import { ArrowLeft, Check, RotateCcw } from "lucide-react";
 import { useLocation } from "wouter";
 import { useTranslation, LANGUAGES } from "@/i18n";
 import { useToast } from "@/hooks/use-toast";
+import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
 
 const languageGroups = [
   { key: "global", label: "Global Languages", labelKey: "language.globalLanguages" },
@@ -148,6 +149,7 @@ export default function RiderLanguage() {
             </button>
           </div>
         </div>
+        <ZibraFloatingButton />
       </RiderLayout>
     </RiderRouteGuard>
   );

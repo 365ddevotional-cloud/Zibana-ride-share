@@ -16,6 +16,7 @@ import { ContextualHelpSuggestion } from "@/components/contextual-help";
 import { PaymentOnboardingModal } from "@/components/payment-onboarding-modal";
 import { RiderSimulationControls } from "@/components/simulation-ride-controls";
 import { MarketingTipBanner } from "@/components/rider/marketing-tip";
+import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
 
 interface WalletInfo {
   mainBalance: string;
@@ -291,6 +292,7 @@ export default function RiderHome() {
             </Card>
           </div>
         </div>
+        <ZibraFloatingButton />
       </RiderLayout>
     </RiderRouteGuard>
   );

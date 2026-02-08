@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
 
 interface RideType {
   id: string;
@@ -288,6 +289,7 @@ export default function SpecialRides() {
             </Button>
           </div>
         </div>
+        <ZibraFloatingButton />
       </RiderLayout>
     </RiderRouteGuard>
   );

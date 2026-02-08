@@ -14,6 +14,7 @@ import {
   HandCoins, ChevronRight, HelpCircle, Users, Send, MessageCircle
 } from "lucide-react";
 import { useLocation } from "wouter";
+import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
 
 interface WalletData {
   mainBalance: string;
@@ -419,6 +420,7 @@ export default function RiderPayments() {
             </Button>
           </div>
         </div>
+        <ZibraFloatingButton />
       </RiderLayout>
     </RiderRouteGuard>
   );

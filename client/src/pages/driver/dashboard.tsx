@@ -20,6 +20,7 @@ import { DriverSimulationControls } from "@/components/simulation-ride-controls"
 import { cn } from "@/lib/utils";
 import { useLocation } from "wouter";
 import { useTranslation } from "@/i18n";
+import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
 import type { DriverProfile, Trip } from "@shared/schema";
 
 export default function DriverDashboard() {
@@ -744,6 +745,7 @@ export default function DriverDashboard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <ZibraFloatingButton />
     </DriverLayout>
   );
 }

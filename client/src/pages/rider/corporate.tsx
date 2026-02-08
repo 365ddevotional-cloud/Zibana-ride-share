@@ -14,6 +14,7 @@ import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
 
 interface CorporateAccount {
   id: number;
@@ -352,6 +353,7 @@ export default function CorporateRides() {
             </Button>
           </div>
         </div>
+        <ZibraFloatingButton />
       </RiderLayout>
     </RiderRouteGuard>
   );
