@@ -17,6 +17,8 @@ import { PaymentOnboardingModal } from "@/components/payment-onboarding-modal";
 import { RiderSimulationControls } from "@/components/simulation-ride-controls";
 import { MarketingTipBanner } from "@/components/rider/marketing-tip";
 import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
+import { RideClassSelector } from "@/components/rider/RideClassSelector";
+import type { RideClassId } from "@shared/ride-classes";
 
 interface WalletInfo {
   mainBalance: string;
@@ -31,6 +33,8 @@ export default function RiderHome() {
   const [, setLocation] = useLocation();
   const [destination, setDestination] = useState("");
   const [pickup, setPickup] = useState("");
+  const [selectedRideClass, setSelectedRideClass] = useState<RideClassId>("go");
+  const [fareMultiplier, setFareMultiplier] = useState(1.0);
   const { toast } = useToast();
   const { showDisclosure, acceptDisclosure } = useLocationDisclosure();
 
@@ -84,7 +88,12 @@ export default function RiderHome() {
       });
     }
     
-    setLocation(`/rider/trips?action=request&destination=${encodeURIComponent(destination)}&pickup=${encodeURIComponent(pickup)}&paymentMethod=${paymentMethod}`);
+    setLocation(`/rider/trips?action=request&destination=${encodeURIComponent(destination)}&pickup=${encodeURIComponent(pickup)}&paymentMethod=${paymentMethod}&rideClass=${selectedRideClass}`);
+  };
+
+  const handleRideClassChange = (classId: RideClassId, multiplier: number) => {
+    setSelectedRideClass(classId);
+    setFareMultiplier(multiplier);
   };
 
   return (
@@ -128,6 +137,12 @@ export default function RiderHome() {
                   data-testid="input-destination"
                 />
               </div>
+
+              <RideClassSelector
+                selectedClass={selectedRideClass}
+                onClassChange={handleRideClassChange}
+                currencySymbol={getCurrencySymbol(currency)}
+              />
 
               <Button
                 variant="outline"
