@@ -16,7 +16,8 @@ export type ZibraCategory =
   | "director_performance" | "director_recruiting"
   | "director_lifecycle" | "director_appeals" | "director_deescalation"
   | "director_coaching" | "director_termination" | "director_succession"
-  | "driver_coaching";
+  | "driver_coaching"
+  | "rider_coaching";
 
 export interface ZibraTemplate {
   id: string;
@@ -454,6 +455,67 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     category: "general_help",
     keywords: ["help center", "where is help", "find help", "support page", "help section"],
     response: "The Help Center is accessible from your Account tab or the Support section. It contains frequently asked questions, guides, and the option to submit a support ticket. Based on your situation, you can browse topics or search for specific help. I can guide you through this if you want."
+  },
+
+  // ============================
+  // RIDER COACHING: Trust, Loyalty & Wallet Growth
+  // ============================
+
+  {
+    id: "r-trust-score-explained",
+    role: "rider",
+    category: "rider_coaching",
+    keywords: ["trust score", "my score", "how is score calculated", "what is trust", "rider score"],
+    response: "Your trust score reflects your overall reliability on the platform. It considers your ride completion history, payment patterns, and general conduct. Higher scores can lead to better ride matching and additional benefits. You can maintain a strong score by completing rides, paying on time, and being respectful."
+  },
+  {
+    id: "r-trust-tier",
+    role: "rider",
+    category: "rider_coaching",
+    keywords: ["trust tier", "platinum", "gold", "standard", "limited", "my tier", "tier benefits"],
+    response: "Trust tiers reflect your overall platform experience. Tiers range from Platinum (highest) to Limited. Higher tiers may offer benefits like longer cancellation grace periods and improved ride matching. Maintain good habits \u2014 complete rides, pay promptly, and treat drivers well \u2014 to keep or improve your tier."
+  },
+  {
+    id: "r-wallet-usage-tips",
+    role: "rider",
+    category: "rider_coaching",
+    keywords: ["wallet tips", "use wallet", "wallet benefits", "should I use wallet", "wallet vs cash"],
+    response: "Using your ZIBA wallet for rides can offer a smoother experience with faster payments and no need for exact change. Wallet-funded rides are processed instantly and may contribute positively to your platform experience. You can top up your wallet anytime through the app."
+  },
+  {
+    id: "r-cancellation-guidance",
+    role: "rider",
+    category: "rider_coaching",
+    keywords: ["cancellation", "cancel ride", "cancel fee", "why was I charged", "cancellation penalty"],
+    response: "You can cancel a ride within the grace window without fees. The grace window length depends on your trust tier. Frequent cancellations may affect your trust score. If a cancellation fee was applied, it was because the cancellation occurred after the grace period or the driver had already arrived at the pickup point."
+  },
+  {
+    id: "r-improve-trust",
+    role: "rider",
+    category: "rider_coaching",
+    keywords: ["improve score", "raise score", "increase trust", "how to improve", "better score"],
+    response: "To improve your trust score: complete rides you request, arrive at pickup points on time, pay promptly using your wallet or confirmed payment method, treat drivers with respect, and keep your profile information up to date. Consistent positive behavior is the best path to a higher score."
+  },
+  {
+    id: "r-loyalty-incentives",
+    role: "rider",
+    category: "rider_coaching",
+    keywords: ["loyalty", "rewards", "incentive", "perks", "benefits", "ride credits"],
+    response: "ZIBA may occasionally offer loyalty incentives such as ride credits or reduced fees based on your platform activity. These are not guaranteed and are managed by the platform. Continue using ZIBA regularly and maintaining good standing to be eligible for available incentives."
+  },
+  {
+    id: "r-wallet-funding-others",
+    role: "rider",
+    category: "rider_coaching",
+    keywords: ["someone fund my wallet", "parent fund", "employer fund", "friend fund", "receive funds"],
+    response: "Other people can send funds to your ZIBA wallet \u2014 such as family members, employers, or friends. You will need to accept incoming funds before they are added to your wallet. There are no repayment obligations for received funds. Caps may apply to prevent misuse."
+  },
+  {
+    id: "r-score-decreased",
+    role: "rider",
+    category: "rider_coaching",
+    keywords: ["score went down", "score dropped", "why did score decrease", "lower score", "lost points"],
+    response: "Your trust score may adjust based on recent activity. Common reasons include ride cancellations, payment issues, or incident reports. This is not a penalty \u2014 it reflects platform interaction patterns. You can improve your score over time through consistent, positive behavior."
   },
 
   // ============================

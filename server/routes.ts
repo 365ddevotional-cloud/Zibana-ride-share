@@ -5,7 +5,7 @@ import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integra
 import { storage } from "./storage";
 import { db } from "./db";
 import { eq, and, count, sql, gte, lt, lte, isNotNull, inArray, desc, or } from "drizzle-orm";
-import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, driverInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages, walletFundingTransactions, walletFundingSettings, driverWallets, directorFundingTransactions, directorFundingSettings, directorFundingAcceptance, directorFundingSuspensions, directorProfiles, directorDriverAssignments, directorActionLogs, driverCoachingLogs, directorCells, directorCommissionSettings, directorPayoutSummaries, referralCodes, directorFraudSignals, directorDisputes, directorDisputeMessages, directorWindDowns, welcomeAnalytics, directorPerformanceScores, directorPerformanceWeights, directorIncentives, directorRestrictions, directorPerformanceLogs, directorSuccessions, directorTerminationTimeline, directorStaff } from "@shared/schema";
+import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, driverInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages, walletFundingTransactions, walletFundingSettings, driverWallets, directorFundingTransactions, directorFundingSettings, directorFundingAcceptance, directorFundingSuspensions, directorProfiles, directorDriverAssignments, directorActionLogs, driverCoachingLogs, directorCells, directorCommissionSettings, directorPayoutSummaries, referralCodes, directorFraudSignals, directorDisputes, directorDisputeMessages, directorWindDowns, welcomeAnalytics, directorPerformanceScores, directorPerformanceWeights, directorIncentives, directorRestrictions, directorPerformanceLogs, directorSuccessions, directorTerminationTimeline, directorStaff, riderTrustScores, riderTrustWeights, riderLoyaltyIncentives, riderTrustLogs } from "@shared/schema";
 import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, evaluateAllDrivers, evaluateBehaviorAndWarnings, calculateDriverMatchingScore, getDriverIncentiveProgress, assignFirstRidePromo, assignReturnRiderPromo, applyPromoToTrip, voidPromosOnCancellation } from "./incentives";
 import { notificationService } from "./notification-service";
 import { getCurrencyFromCountry, getCountryConfig, FINANCIAL_ENGINE_LOCKED } from "@shared/currency";
@@ -24975,6 +24975,493 @@ export async function registerRoutes(
       });
     } catch (error) {
       res.status(500).json({ error: "Failed to run governance check" });
+    }
+  });
+
+  // ============================================================
+  // RIDER TRUST, LOYALTY & WALLET GROWTH
+  // ============================================================
+
+  // Helper: Get or create rider trust score record
+  async function getOrCreateRiderTrustScore(userId: string) {
+    const existing = await db.select().from(riderTrustScores).where(eq(riderTrustScores.userId, userId));
+    if (existing.length > 0) return existing[0];
+    const [created] = await db.insert(riderTrustScores).values({ userId }).returning();
+    return created;
+  }
+
+  // Helper: Get or create trust weights config
+  async function getOrCreateTrustWeights() {
+    const existing = await db.select().from(riderTrustWeights);
+    if (existing.length > 0) return existing[0];
+    const [created] = await db.insert(riderTrustWeights).values({}).returning();
+    return created;
+  }
+
+  // Helper: Clamp a value between 0 and 100
+  function clampScore(value: number): number {
+    return Math.max(0, Math.min(100, Math.round(value)));
+  }
+
+  // Helper: Determine tier from score and thresholds
+  function determineTier(score: number, weights: any): string {
+    if (score >= weights.platinumThreshold) return "platinum";
+    if (score >= weights.goldThreshold) return "gold";
+    if (score >= weights.standardThreshold) return "standard";
+    return "limited";
+  }
+
+  // Helper: Get grace period for a specific tier
+  function getGracePeriodForTier(tier: string, weights: any): number {
+    switch (tier) {
+      case "platinum": return weights.gracePeriodPlatinum;
+      case "gold": return weights.gracePeriodGold;
+      case "standard": return weights.gracePeriodStandard;
+      default: return weights.gracePeriodLimited;
+    }
+  }
+
+  // 1. GET /api/rider/trust-score - Get trust score for current rider
+  app.get("/api/rider/trust-score", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const trustScore = await getOrCreateRiderTrustScore(userId);
+      const weights = await getOrCreateTrustWeights();
+      const gracePeriodMinutes = getGracePeriodForTier(trustScore.tier, weights);
+
+      return res.json({
+        userId: trustScore.userId,
+        score: trustScore.score,
+        tier: trustScore.tier,
+        reliabilityScore: trustScore.reliabilityScore,
+        paymentBehaviorScore: trustScore.paymentBehaviorScore,
+        conductSafetyScore: trustScore.conductSafetyScore,
+        accountStabilityScore: trustScore.accountStabilityScore,
+        adminFlagsScore: trustScore.adminFlagsScore,
+        completedRides: trustScore.completedRides,
+        totalRides: trustScore.totalRides,
+        gracePeriodMinutes,
+        lastCalculatedAt: trustScore.lastCalculatedAt,
+      });
+    } catch (error) {
+      console.error("[RIDER TRUST] Error getting trust score:", error);
+      return res.status(500).json({ message: "Failed to get trust score" });
+    }
+  });
+
+  // 2. POST /api/rider/trust-score/calculate - Recalculate trust score
+  app.post("/api/rider/trust-score/calculate", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.body.userId || req.user.claims.sub;
+      const trustScore = await getOrCreateRiderTrustScore(userId);
+      const weights = await getOrCreateTrustWeights();
+
+      // Calculate reliability score
+      let reliabilityScore = 75;
+      if (trustScore.totalRides > 0) {
+        reliabilityScore = (trustScore.completedRides / trustScore.totalRides) * 100;
+        reliabilityScore -= trustScore.cancellations * 2;
+      }
+      reliabilityScore = clampScore(reliabilityScore);
+
+      // Calculate payment behavior score
+      let paymentBehaviorScore = 75;
+      const totalPaymentRides = trustScore.walletFundedRides + trustScore.cashRides;
+      if (totalPaymentRides > 0) {
+        paymentBehaviorScore = (trustScore.walletFundedRides / totalPaymentRides) * 80 + 20;
+        paymentBehaviorScore -= trustScore.disputeCount * 5;
+      }
+      paymentBehaviorScore = clampScore(paymentBehaviorScore);
+
+      // Calculate conduct & safety score
+      let conductSafetyScore = 100;
+      conductSafetyScore -= trustScore.incidentReports * 10;
+      const abuseFlags = await db.select().from(riderTrustLogs)
+        .where(and(eq(riderTrustLogs.userId, userId), eq(riderTrustLogs.action, "admin_flag")));
+      conductSafetyScore -= abuseFlags.length * 5;
+      conductSafetyScore = clampScore(conductSafetyScore);
+
+      // Calculate account stability score
+      let accountStabilityScore = 60;
+      const [user] = await db.select().from(users).where(eq(users.id, userId));
+      if (user) {
+        if (user.email) accountStabilityScore += 20;
+        if (user.profileImageUrl) accountStabilityScore += 20;
+      }
+      accountStabilityScore = clampScore(accountStabilityScore);
+
+      // Calculate admin flags score
+      let adminFlagsScore = 100;
+      const adminFlags = await db.select().from(riderTrustLogs)
+        .where(and(eq(riderTrustLogs.userId, userId), eq(riderTrustLogs.action, "admin_flag")));
+      adminFlagsScore -= adminFlags.length * 15;
+      adminFlagsScore = clampScore(adminFlagsScore);
+
+      // Calculate weighted total
+      const weightedTotal = (
+        reliabilityScore * weights.reliabilityWeight +
+        paymentBehaviorScore * weights.paymentBehaviorWeight +
+        conductSafetyScore * weights.conductSafetyWeight +
+        accountStabilityScore * weights.accountStabilityWeight +
+        adminFlagsScore * weights.adminFlagsWeight
+      ) / 100;
+      const finalScore = clampScore(weightedTotal);
+
+      // Determine tier
+      const newTier = determineTier(finalScore, weights);
+      const previousTier = trustScore.tier;
+
+      // Update the trust score record
+      const [updated] = await db.update(riderTrustScores)
+        .set({
+          score: finalScore,
+          tier: newTier as any,
+          reliabilityScore,
+          paymentBehaviorScore,
+          conductSafetyScore,
+          accountStabilityScore,
+          adminFlagsScore,
+          lastCalculatedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(riderTrustScores.userId, userId))
+        .returning();
+
+      // Log tier change if applicable
+      if (newTier !== previousTier) {
+        await db.insert(riderTrustLogs).values({
+          userId,
+          action: "tier_change",
+          previousScore: trustScore.score,
+          newScore: finalScore,
+          previousTier,
+          newTier,
+          details: `Tier changed from ${previousTier} to ${newTier}`,
+          performedBy: "system",
+        });
+      }
+
+      return res.json({
+        userId: updated.userId,
+        score: updated.score,
+        tier: updated.tier,
+        reliabilityScore: updated.reliabilityScore,
+        paymentBehaviorScore: updated.paymentBehaviorScore,
+        conductSafetyScore: updated.conductSafetyScore,
+        accountStabilityScore: updated.accountStabilityScore,
+        adminFlagsScore: updated.adminFlagsScore,
+        lastCalculatedAt: updated.lastCalculatedAt,
+        tierChanged: newTier !== previousTier,
+        previousTier: newTier !== previousTier ? previousTier : undefined,
+      });
+    } catch (error) {
+      console.error("[RIDER TRUST] Error calculating trust score:", error);
+      return res.status(500).json({ message: "Failed to calculate trust score" });
+    }
+  });
+
+  // 3. GET /api/admin/rider-trust/all - Get all rider trust scores (Admin)
+  app.get("/api/admin/rider-trust/all", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const tier = req.query.tier as string | undefined;
+      const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
+      const offset = parseInt(req.query.offset as string) || 0;
+
+      let query = db.select({
+        userId: riderTrustScores.userId,
+        fullName: users.username,
+        score: riderTrustScores.score,
+        tier: riderTrustScores.tier,
+        reliabilityScore: riderTrustScores.reliabilityScore,
+        paymentBehaviorScore: riderTrustScores.paymentBehaviorScore,
+        conductSafetyScore: riderTrustScores.conductSafetyScore,
+        accountStabilityScore: riderTrustScores.accountStabilityScore,
+        adminFlagsScore: riderTrustScores.adminFlagsScore,
+        completedRides: riderTrustScores.completedRides,
+        totalRides: riderTrustScores.totalRides,
+        lastCalculatedAt: riderTrustScores.lastCalculatedAt,
+      })
+      .from(riderTrustScores)
+      .leftJoin(users, eq(riderTrustScores.userId, users.id));
+
+      if (tier) {
+        query = query.where(eq(riderTrustScores.tier, tier as any)) as any;
+      }
+
+      const results = await (query as any).limit(limit).offset(offset).orderBy(desc(riderTrustScores.score));
+      return res.json(results);
+    } catch (error) {
+      console.error("[RIDER TRUST] Error getting all trust scores:", error);
+      return res.status(500).json({ message: "Failed to get rider trust scores" });
+    }
+  });
+
+  // 4. GET /api/admin/rider-trust/weights - Get trust weights config (Admin)
+  app.get("/api/admin/rider-trust/weights", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const weights = await getOrCreateTrustWeights();
+      return res.json(weights);
+    } catch (error) {
+      console.error("[RIDER TRUST] Error getting trust weights:", error);
+      return res.status(500).json({ message: "Failed to get trust weights" });
+    }
+  });
+
+  // 5. PUT /api/admin/rider-trust/weights - Update trust weights (Super Admin only)
+  app.put("/api/admin/rider-trust/weights", isAuthenticated, requireSuperAdmin, async (req: any, res) => {
+    try {
+      const {
+        reliabilityWeight, paymentBehaviorWeight, conductSafetyWeight,
+        accountStabilityWeight, adminFlagsWeight,
+        platinumThreshold, goldThreshold, standardThreshold,
+        gracePeriodPlatinum, gracePeriodGold, gracePeriodStandard, gracePeriodLimited,
+      } = req.body;
+
+      const weightsSum = (reliabilityWeight || 0) + (paymentBehaviorWeight || 0) +
+        (conductSafetyWeight || 0) + (accountStabilityWeight || 0) + (adminFlagsWeight || 0);
+      if (weightsSum !== 100) {
+        return res.status(400).json({ message: `Weights must sum to 100, got ${weightsSum}` });
+      }
+
+      const existing = await getOrCreateTrustWeights();
+      const [updated] = await db.update(riderTrustWeights)
+        .set({
+          reliabilityWeight: reliabilityWeight ?? existing.reliabilityWeight,
+          paymentBehaviorWeight: paymentBehaviorWeight ?? existing.paymentBehaviorWeight,
+          conductSafetyWeight: conductSafetyWeight ?? existing.conductSafetyWeight,
+          accountStabilityWeight: accountStabilityWeight ?? existing.accountStabilityWeight,
+          adminFlagsWeight: adminFlagsWeight ?? existing.adminFlagsWeight,
+          platinumThreshold: platinumThreshold ?? existing.platinumThreshold,
+          goldThreshold: goldThreshold ?? existing.goldThreshold,
+          standardThreshold: standardThreshold ?? existing.standardThreshold,
+          gracePeriodPlatinum: gracePeriodPlatinum ?? existing.gracePeriodPlatinum,
+          gracePeriodGold: gracePeriodGold ?? existing.gracePeriodGold,
+          gracePeriodStandard: gracePeriodStandard ?? existing.gracePeriodStandard,
+          gracePeriodLimited: gracePeriodLimited ?? existing.gracePeriodLimited,
+          updatedBy: req.user.claims.sub,
+          updatedAt: new Date(),
+        })
+        .where(eq(riderTrustWeights.id, existing.id))
+        .returning();
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("[RIDER TRUST] Error updating trust weights:", error);
+      return res.status(500).json({ message: "Failed to update trust weights" });
+    }
+  });
+
+  // 6. POST /api/admin/rider-trust/:userId/flag - Manually flag a rider (Admin)
+  app.post("/api/admin/rider-trust/:userId/flag", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const { reason } = req.body;
+
+      if (!reason) {
+        return res.status(400).json({ message: "Reason is required" });
+      }
+
+      const trustScore = await getOrCreateRiderTrustScore(userId);
+      const newAdminFlagsScore = clampScore(trustScore.adminFlagsScore - 15);
+
+      // Update admin flags score
+      await db.update(riderTrustScores)
+        .set({ adminFlagsScore: newAdminFlagsScore, updatedAt: new Date() })
+        .where(eq(riderTrustScores.userId, userId));
+
+      // Log the flag action
+      await db.insert(riderTrustLogs).values({
+        userId,
+        action: "admin_flag",
+        previousScore: trustScore.score,
+        newScore: null,
+        details: reason,
+        performedBy: req.user.claims.sub,
+      });
+
+      // Recalculate overall score
+      const weights = await getOrCreateTrustWeights();
+      const updatedTrust = await getOrCreateRiderTrustScore(userId);
+      const weightedTotal = (
+        updatedTrust.reliabilityScore * weights.reliabilityWeight +
+        updatedTrust.paymentBehaviorScore * weights.paymentBehaviorWeight +
+        updatedTrust.conductSafetyScore * weights.conductSafetyWeight +
+        updatedTrust.accountStabilityScore * weights.accountStabilityWeight +
+        newAdminFlagsScore * weights.adminFlagsWeight
+      ) / 100;
+      const finalScore = clampScore(weightedTotal);
+      const newTier = determineTier(finalScore, weights);
+
+      const [updated] = await db.update(riderTrustScores)
+        .set({
+          score: finalScore,
+          tier: newTier as any,
+          lastCalculatedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(riderTrustScores.userId, userId))
+        .returning();
+
+      // Log tier change if applicable
+      if (newTier !== trustScore.tier) {
+        await db.insert(riderTrustLogs).values({
+          userId,
+          action: "tier_change",
+          previousScore: trustScore.score,
+          newScore: finalScore,
+          previousTier: trustScore.tier,
+          newTier,
+          details: `Tier changed due to admin flag: ${reason}`,
+          performedBy: req.user.claims.sub,
+        });
+      }
+
+      return res.json({
+        userId: updated.userId,
+        score: updated.score,
+        tier: updated.tier,
+        adminFlagsScore: updated.adminFlagsScore,
+        flagReason: reason,
+      });
+    } catch (error) {
+      console.error("[RIDER TRUST] Error flagging rider:", error);
+      return res.status(500).json({ message: "Failed to flag rider" });
+    }
+  });
+
+  // 7. POST /api/admin/rider-trust/:userId/incentive - Grant loyalty incentive (Admin)
+  app.post("/api/admin/rider-trust/:userId/incentive", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const { incentiveType, description, amount, expiresAt } = req.body;
+
+      if (!incentiveType || !description) {
+        return res.status(400).json({ message: "incentiveType and description are required" });
+      }
+
+      const [incentive] = await db.insert(riderLoyaltyIncentives).values({
+        userId,
+        incentiveType,
+        description,
+        amount: amount ? String(amount) : null,
+        expiresAt: expiresAt ? new Date(expiresAt) : null,
+        grantedBy: req.user.claims.sub,
+        grantReason: description,
+      }).returning();
+
+      // Log the incentive
+      await db.insert(riderTrustLogs).values({
+        userId,
+        action: "incentive_granted",
+        details: `${incentiveType}: ${description}${amount ? ` (${amount})` : ""}`,
+        performedBy: req.user.claims.sub,
+      });
+
+      // Create notification for rider
+      try {
+        await notificationService.createNotification({
+          userId,
+          title: "Loyalty Reward",
+          message: `You've received a loyalty incentive: ${description}`,
+          type: "info",
+          role: "rider",
+        });
+      } catch (e) {
+        console.warn("[RIDER TRUST] Failed to send incentive notification:", e);
+      }
+
+      return res.json(incentive);
+    } catch (error) {
+      console.error("[RIDER TRUST] Error granting incentive:", error);
+      return res.status(500).json({ message: "Failed to grant incentive" });
+    }
+  });
+
+  // 8. GET /api/rider/loyalty-incentives - Get active loyalty incentives for rider
+  app.get("/api/rider/loyalty-incentives", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const now = new Date();
+
+      const incentives = await db.select().from(riderLoyaltyIncentives)
+        .where(and(
+          eq(riderLoyaltyIncentives.userId, userId),
+          eq(riderLoyaltyIncentives.isActive, true),
+          or(
+            sql`${riderLoyaltyIncentives.expiresAt} IS NULL`,
+            gte(riderLoyaltyIncentives.expiresAt, now)
+          )
+        ))
+        .orderBy(desc(riderLoyaltyIncentives.createdAt));
+
+      return res.json(incentives);
+    } catch (error) {
+      console.error("[RIDER TRUST] Error getting loyalty incentives:", error);
+      return res.status(500).json({ message: "Failed to get loyalty incentives" });
+    }
+  });
+
+  // 9. GET /api/admin/rider-trust/logs - Get rider trust logs (Admin)
+  app.get("/api/admin/rider-trust/logs", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const userId = req.query.userId as string | undefined;
+      const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
+
+      let conditions: any[] = [];
+      if (userId) {
+        conditions.push(eq(riderTrustLogs.userId, userId));
+      }
+
+      const logs = conditions.length > 0
+        ? await db.select().from(riderTrustLogs).where(and(...conditions)).orderBy(desc(riderTrustLogs.createdAt)).limit(limit)
+        : await db.select().from(riderTrustLogs).orderBy(desc(riderTrustLogs.createdAt)).limit(limit);
+
+      return res.json(logs);
+    } catch (error) {
+      console.error("[RIDER TRUST] Error getting trust logs:", error);
+      return res.status(500).json({ message: "Failed to get trust logs" });
+    }
+  });
+
+  // 10. GET /api/rider/trust-tier-benefits - Get tier benefits info for rider
+  app.get("/api/rider/trust-tier-benefits", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const trustScore = await getOrCreateRiderTrustScore(userId);
+      const weights = await getOrCreateTrustWeights();
+
+      return res.json({
+        currentTier: trustScore.tier,
+        tiers: {
+          platinum: {
+            gracePeriodMinutes: weights.gracePeriodPlatinum,
+            rideMatchPriority: "highest",
+            supportPriority: "highest",
+            walletPerks: true,
+          },
+          gold: {
+            gracePeriodMinutes: weights.gracePeriodGold,
+            rideMatchPriority: "high",
+            supportPriority: "high",
+            walletPerks: true,
+          },
+          standard: {
+            gracePeriodMinutes: weights.gracePeriodStandard,
+            rideMatchPriority: "normal",
+            supportPriority: "normal",
+            walletPerks: false,
+          },
+          limited: {
+            gracePeriodMinutes: weights.gracePeriodLimited,
+            rideMatchPriority: "low",
+            supportPriority: "low",
+            walletPerks: false,
+          },
+        },
+      });
+    } catch (error) {
+      console.error("[RIDER TRUST] Error getting tier benefits:", error);
+      return res.status(500).json({ message: "Failed to get tier benefits" });
     }
   });
 
