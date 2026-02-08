@@ -4592,6 +4592,8 @@ export async function registerRoutes(
 
       await storage.updateDirectorProfile(directorUserId, {
         status: "inactive",
+        lifecycleStatus: "suspended",
+        commissionFrozen: true,
         suspendedAt: new Date(),
         suspendedBy: adminUserId,
         lastModifiedBy: adminUserId,
@@ -4623,12 +4625,22 @@ export async function registerRoutes(
         targetType: "director",
         targetId: directorUserId,
         beforeState: JSON.stringify(beforeState),
-        afterState: JSON.stringify({ status: "inactive", lifecycleStatus: "suspended" }),
+        afterState: JSON.stringify({ status: "inactive", lifecycleStatus: "suspended", commissionFrozen: true }),
         metadata: JSON.stringify({ reason }),
         ipAddress: req.ip || req.connection?.remoteAddress || null,
       });
 
-      return res.json({ message: "Director suspended" });
+      const driversUnderDirector = await storage.getDriversUnderDirector(directorUserId);
+      for (const assignment of driversUnderDirector) {
+        await storage.createNotification({
+          userId: assignment.driverUserId,
+          type: "info",
+          title: "Director Assignment Updated",
+          message: "Your Director assignment has been updated. Your driver status and earnings are unaffected.",
+        });
+      }
+
+      return res.json({ message: "Director suspended", driversNotified: driversUnderDirector.length });
     } catch (error) {
       console.error("Error suspending director:", error);
       return res.status(500).json({ message: "Failed to suspend director" });
@@ -4729,7 +4741,35 @@ export async function registerRoutes(
         message: "Your director appointment has been terminated. Contact support for more information.",
       });
 
-      res.json({ success: true });
+      const driversUnderDirector = await storage.getDriversUnderDirector(directorUserId);
+      let driversUnassigned = 0;
+      for (const assignment of driversUnderDirector) {
+        try {
+          await storage.createNotification({
+            userId: assignment.driverUserId,
+            type: "info",
+            title: "Director Assignment Updated",
+            message: "Your Director assignment has been updated. Your driver status and earnings are unaffected.",
+          });
+
+          await storage.removeDriverFromDirector(assignment.driverUserId);
+
+          await db.insert(directorActionLogs).values({
+            actorId: adminUserId,
+            actorRole: "super_admin",
+            action: "unassign_driver_on_termination",
+            targetType: "driver",
+            targetId: assignment.driverUserId,
+            metadata: JSON.stringify({ directorUserId, reason: "Director terminated" }),
+          });
+
+          driversUnassigned++;
+        } catch (driverErr) {
+          console.error(`Error unassigning driver ${assignment.driverUserId}:`, driverErr);
+        }
+      }
+
+      res.json({ success: true, driversUnassigned });
     } catch (error) {
       console.error("Error terminating director:", error);
       res.status(500).json({ error: "Failed to terminate director" });
@@ -20665,6 +20705,155 @@ export async function registerRoutes(
     }
   }, COMMISSION_INTERVAL);
   console.log("[COMMISSION SCHEDULER] Started — polling every 60min for daily commission snapshots");
+
+  // =============================================
+  // ZIBRA DIRECTOR OVERSIGHT SCHEDULER
+  // =============================================
+  const ZIBRA_OVERSIGHT_INTERVAL = 6 * 60 * 60 * 1000;
+  let lastZibraOversightRunDate = "";
+
+  setInterval(async () => {
+    try {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      if (lastZibraOversightRunDate === todayStr) return;
+
+      const allDirectors = await db.select().from(directorProfiles);
+      const today = new Date();
+
+      for (const director of allDirectors) {
+        try {
+          if (director.lifecycleStatus === "terminated") continue;
+
+          if (director.lifespanEndDate) {
+            const endDate = new Date(director.lifespanEndDate);
+            const daysRemaining = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+            if (daysRemaining <= 30 && daysRemaining > 0 && director.lifecycleStatus === "active") {
+              await storage.createNotification({
+                userId: director.userId,
+                type: "warning",
+                title: "Contract Expiry Approaching",
+                message: `Your director appointment expires in ${daysRemaining} days. Please contact administration if you have questions about renewal.`,
+              });
+
+              const admins = await db.select().from(users);
+              for (const admin of admins) {
+                const roles = await storage.getUserRoles(admin.id);
+                if (roles.includes("super_admin")) {
+                  await storage.createNotification({
+                    userId: admin.id,
+                    type: "info",
+                    title: "Director Expiry Warning",
+                    message: `Director ${director.fullName || director.userId} expires in ${daysRemaining} days. Consider succession planning.`,
+                  });
+                }
+              }
+
+              await db.insert(directorActionLogs).values({
+                actorId: "system",
+                actorRole: "system",
+                action: "zibra_lifespan_warning",
+                targetType: "director",
+                targetId: director.userId,
+                afterState: JSON.stringify({ daysRemaining, lifespanEndDate: director.lifespanEndDate }),
+              });
+            }
+
+            if (daysRemaining <= 0 && director.lifecycleStatus === "active") {
+              await storage.updateDirectorLifecycleStatus(director.userId, "expired", { suspendedBy: "system" });
+
+              await storage.createNotification({
+                userId: director.userId,
+                type: "warning",
+                title: "Director Appointment Expired",
+                message: "Your director appointment has expired. Your dashboard is now in read-only mode. Contact administration for next steps.",
+              });
+
+              await db.insert(directorActionLogs).values({
+                actorId: "system",
+                actorRole: "system",
+                action: "auto_expire_director",
+                targetType: "director",
+                targetId: director.userId,
+                afterState: JSON.stringify({ previousStatus: director.lifecycleStatus, newStatus: "expired" }),
+              });
+            }
+          }
+
+          const commissionLogs = await storage.getDirectorCommissionLogs(director.userId, 7);
+          if (commissionLogs.length >= 5) {
+            const lowActivityDays = commissionLogs.filter(l => {
+              const ratio = l.totalDrivers > 0 ? l.activeDriversToday / l.totalDrivers : 0;
+              return ratio < 0.3;
+            }).length;
+
+            if (lowActivityDays >= 4) {
+              const admins = await db.select().from(users);
+              for (const admin of admins) {
+                const roles = await storage.getUserRoles(admin.id);
+                if (roles.includes("admin") || roles.includes("super_admin")) {
+                  await storage.createNotification({
+                    userId: admin.id,
+                    type: "warning",
+                    title: "Director Low Activity Alert",
+                    message: `Director ${director.fullName || director.userId} has had low driver activity for ${lowActivityDays} of the last ${commissionLogs.length} days. Consider review.`,
+                  });
+                }
+              }
+
+              await db.insert(directorActionLogs).values({
+                actorId: "system",
+                actorRole: "system",
+                action: "zibra_low_activity_alert",
+                targetType: "director",
+                targetId: director.userId,
+                afterState: JSON.stringify({ lowActivityDays, totalDaysChecked: commissionLogs.length }),
+              });
+            }
+          }
+
+          const recentActions = await db.select().from(directorActionLogs)
+            .where(and(
+              eq(directorActionLogs.actorId, director.userId),
+              eq(directorActionLogs.action, "director_suspend_driver"),
+              gte(directorActionLogs.timestamp, new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000))
+            ));
+
+          if (recentActions.length >= 5) {
+            const admins = await db.select().from(users);
+            for (const admin of admins) {
+              const roles = await storage.getUserRoles(admin.id);
+              if (roles.includes("super_admin")) {
+                await storage.createNotification({
+                  userId: admin.id,
+                  type: "warning",
+                  title: "Director Repeated Violations",
+                  message: `Director ${director.fullName || director.userId} has suspended ${recentActions.length} drivers this week. Investigate for potential abuse.`,
+                });
+              }
+            }
+
+            await db.insert(directorActionLogs).values({
+              actorId: "system",
+              actorRole: "system",
+              action: "zibra_repeated_violations",
+              targetType: "director",
+              targetId: director.userId,
+              afterState: JSON.stringify({ suspensionCount: recentActions.length }),
+            });
+          }
+        } catch (dirError) {
+          console.error(`[ZIBRA OVERSIGHT] Error for director ${director.userId}:`, dirError);
+        }
+      }
+
+      lastZibraOversightRunDate = todayStr;
+      console.log(`[ZIBRA OVERSIGHT] Daily oversight completed for ${allDirectors.length} directors`);
+    } catch (error) {
+      console.error("[ZIBRA OVERSIGHT] Error:", error);
+    }
+  }, ZIBRA_OVERSIGHT_INTERVAL);
+  console.log("[ZIBRA OVERSIGHT] Started — polling every 6hrs for director oversight");
 
   // =============================================
   // BANK TRANSFER WALLET FUNDING
