@@ -53,6 +53,7 @@ import { ZibaSupport } from "@/components/ziba-support";
 import { TrainingCenter } from "@/components/training-center";
 import { HealthAlertsPanel } from "@/components/admin/health-alerts-panel";
 import { WalletFundingPanel } from "@/components/admin/wallet-funding-panel";
+import { DirectorFundingPanel } from "@/components/admin/director-funding-panel";
 import { StoreCompliancePanel } from "@/components/admin/store-compliance-panel";
 import { OperationalReadinessPanel } from "@/components/admin/operational-readiness-panel";
 import { useAuth } from "@/hooks/use-auth";
@@ -2529,6 +2530,10 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <Send className="h-4 w-4 mr-2" />
               Wallet Funding
             </TabsTrigger>
+            <TabsTrigger value="director-funding" className="admin-nav-trigger rounded-md" data-testid="tab-director-funding">
+              <DollarSign className="h-4 w-4 mr-2" />
+              Director Funding
+            </TabsTrigger>
             {isDirector && (
               <TabsTrigger value="my-drivers" className="admin-nav-trigger rounded-md" data-testid="tab-my-drivers">
                 <Users className="h-4 w-4 mr-2" />
@@ -4591,6 +4596,10 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
 
           <TabsContent value="wallet-funding">
             <WalletFundingPanel />
+          </TabsContent>
+
+          <TabsContent value="director-funding">
+            <DirectorFundingPanel />
           </TabsContent>
 
           {isDirector && (
