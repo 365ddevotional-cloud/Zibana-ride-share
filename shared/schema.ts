@@ -497,6 +497,10 @@ export const directorProfiles = pgTable("director_profiles", {
   lifespanStartDate: timestamp("lifespan_start_date"),
   lifespanEndDate: timestamp("lifespan_end_date"),
   lifespanSetBy: varchar("lifespan_set_by"),
+  maxCells: integer("max_cells").notNull().default(3),
+  createdBy: varchar("created_by"),
+  lastModifiedBy: varchar("last_modified_by"),
+  lastModifiedAt: timestamp("last_modified_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -1189,6 +1193,7 @@ export const auditLogs = pgTable("audit_logs", {
   performedByUserId: varchar("performed_by_user_id").notNull(),
   performedByRole: varchar("performed_by_role", { length: 50 }).notNull(),
   metadata: text("metadata"),
+  ipAddress: varchar("ip_address", { length: 45 }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -5092,6 +5097,7 @@ export const directorActionLogs = pgTable("director_action_logs", {
   beforeState: text("before_state"),
   afterState: text("after_state"),
   metadata: text("metadata"),
+  ipAddress: varchar("ip_address", { length: 45 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

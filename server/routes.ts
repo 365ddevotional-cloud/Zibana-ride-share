@@ -4,8 +4,8 @@ import { createHash } from "crypto";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { storage } from "./storage";
 import { db } from "./db";
-import { eq, and, count, sql, gte, lt, isNotNull, inArray, desc } from "drizzle-orm";
-import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, driverInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages, walletFundingTransactions, walletFundingSettings, driverWallets, directorFundingTransactions, directorFundingSettings, directorFundingAcceptance, directorFundingSuspensions, directorProfiles, directorDriverAssignments, directorActionLogs, driverCoachingLogs } from "@shared/schema";
+import { eq, and, count, sql, gte, lt, isNotNull, inArray, desc, or } from "drizzle-orm";
+import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, driverInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages, walletFundingTransactions, walletFundingSettings, driverWallets, directorFundingTransactions, directorFundingSettings, directorFundingAcceptance, directorFundingSuspensions, directorProfiles, directorDriverAssignments, directorActionLogs, driverCoachingLogs, directorCells, directorCommissionSettings } from "@shared/schema";
 import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, evaluateAllDrivers, evaluateBehaviorAndWarnings, calculateDriverMatchingScore, getDriverIncentiveProgress, assignFirstRidePromo, assignReturnRiderPromo, applyPromoToTrip, voidPromosOnCancellation } from "./incentives";
 import { notificationService } from "./notification-service";
 import { getCurrencyFromCountry, getCountryConfig, FINANCIAL_ENGINE_LOCKED } from "@shared/currency";
@@ -4038,10 +4038,15 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Reason required" });
       }
 
+      const profile = await storage.getDirectorProfile(directorUserId);
+      const beforeState = { status: profile?.status, lifecycleStatus: profile?.lifecycleStatus };
+
       await storage.updateDirectorProfile(directorUserId, {
         status: "inactive",
         suspendedAt: new Date(),
         suspendedBy: adminUserId,
+        lastModifiedBy: adminUserId,
+        lastModifiedAt: new Date(),
       });
 
       await storage.logDirectorSettingsChange({
@@ -4059,6 +4064,19 @@ export async function registerRoutes(
         performedByUserId: adminUserId,
         performedByRole: "admin",
         metadata: JSON.stringify({ reason }),
+        ipAddress: req.ip || req.connection?.remoteAddress || null,
+      });
+
+      await db.insert(directorActionLogs).values({
+        actorId: adminUserId,
+        actorRole: "admin",
+        action: "suspend_director",
+        targetType: "director",
+        targetId: directorUserId,
+        beforeState: JSON.stringify(beforeState),
+        afterState: JSON.stringify({ status: "inactive", lifecycleStatus: "suspended" }),
+        metadata: JSON.stringify({ reason }),
+        ipAddress: req.ip || req.connection?.remoteAddress || null,
       });
 
       return res.json({ message: "Director suspended" });
@@ -4073,10 +4091,15 @@ export async function registerRoutes(
       const adminUserId = req.user.claims.sub;
       const { directorUserId } = req.params;
 
+      const profile = await storage.getDirectorProfile(directorUserId);
+      const beforeState = { status: profile?.status, lifecycleStatus: profile?.lifecycleStatus, suspendedAt: profile?.suspendedAt, suspendedBy: profile?.suspendedBy };
+
       await storage.updateDirectorProfile(directorUserId, {
         status: "active",
         suspendedAt: null,
         suspendedBy: null,
+        lastModifiedBy: adminUserId,
+        lastModifiedAt: new Date(),
       });
 
       await storage.createAuditLog({
@@ -4086,12 +4109,81 @@ export async function registerRoutes(
         performedByUserId: adminUserId,
         performedByRole: "admin",
         metadata: JSON.stringify({}),
+        ipAddress: req.ip || req.connection?.remoteAddress || null,
+      });
+
+      await db.insert(directorActionLogs).values({
+        actorId: adminUserId,
+        actorRole: "admin",
+        action: "reactivate_director",
+        targetType: "director",
+        targetId: directorUserId,
+        beforeState: JSON.stringify(beforeState),
+        afterState: JSON.stringify({ status: "active", suspendedAt: null, suspendedBy: null }),
+        metadata: JSON.stringify({}),
+        ipAddress: req.ip || req.connection?.remoteAddress || null,
       });
 
       return res.json({ message: "Director reactivated" });
     } catch (error) {
       console.error("Error reactivating director:", error);
       return res.status(500).json({ message: "Failed to reactivate director" });
+    }
+  });
+
+  app.post("/api/admin/directors/:directorUserId/terminate", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const adminUserId = req.user?.claims?.sub;
+      const { directorUserId } = req.params;
+      const { reason } = req.body;
+
+      if (!reason) return res.status(400).json({ error: "Termination reason is required" });
+
+      const [director] = await db.select().from(directorProfiles)
+        .where(eq(directorProfiles.userId, directorUserId));
+      if (!director) return res.status(404).json({ error: "Director not found" });
+
+      if (director.lifecycleStatus === "terminated") {
+        return res.status(400).json({ error: "Director is already terminated" });
+      }
+
+      const beforeState = { lifecycleStatus: director.lifecycleStatus, status: director.status };
+
+      await db.update(directorProfiles).set({
+        lifecycleStatus: "terminated",
+        status: "inactive",
+        terminatedAt: new Date(),
+        terminatedBy: adminUserId,
+        terminationReason: reason,
+        commissionFrozen: true,
+        lastModifiedBy: adminUserId,
+        lastModifiedAt: new Date(),
+      }).where(eq(directorProfiles.userId, directorUserId));
+
+      await db.insert(directorActionLogs).values({
+        actorId: adminUserId,
+        actorRole: "super_admin",
+        action: "terminate_director",
+        targetType: "director",
+        targetId: directorUserId,
+        beforeState: JSON.stringify(beforeState),
+        afterState: JSON.stringify({ lifecycleStatus: "terminated", status: "inactive" }),
+        metadata: JSON.stringify({ reason }),
+        ipAddress: req.ip || req.connection?.remoteAddress || null,
+      });
+
+      await storage.createNotification({
+        userId: directorUserId,
+        role: "director",
+        type: "warning",
+        title: "Director Appointment Terminated",
+        message: "Your director appointment has been terminated. Contact support for more information.",
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error terminating director:", error);
+      res.status(500).json({ error: "Failed to terminate director" });
     }
   });
 
@@ -4352,6 +4444,46 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error reviewing director appeal:", error);
       return res.status(500).json({ message: "Failed to review appeal" });
+    }
+  });
+
+  app.get("/api/admin/directors/:directorUserId/lifecycle", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { directorUserId } = req.params;
+
+      const [director] = await db.select().from(directorProfiles)
+        .where(eq(directorProfiles.userId, directorUserId));
+      if (!director) return res.status(404).json({ error: "Director not found" });
+
+      const [user] = await db.select().from(users).where(eq(users.id, directorUserId));
+
+      const assignments = await db.select().from(directorDriverAssignments)
+        .where(eq(directorDriverAssignments.directorUserId, directorUserId));
+
+      const cells = await db.select().from(directorCells)
+        .where(eq(directorCells.directorUserId, directorUserId));
+
+      const logs = await db.select().from(directorActionLogs)
+        .where(or(
+          eq(directorActionLogs.targetId, directorUserId),
+          eq(directorActionLogs.actorId, directorUserId)
+        ))
+        .orderBy(desc(directorActionLogs.createdAt))
+        .limit(50);
+
+      res.json({
+        director: {
+          ...director,
+          email: user?.email,
+          displayName: user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : director.fullName,
+        },
+        driverCount: assignments.length,
+        cells,
+        recentLogs: logs,
+      });
+    } catch (error) {
+      console.error("Error loading director lifecycle:", error);
+      res.status(500).json({ error: "Failed to load director lifecycle" });
     }
   });
 
@@ -20701,7 +20833,15 @@ export async function registerRoutes(
         return res.status(400).json({ message: "endDate must be after startDate" });
       }
 
+      const profile = await storage.getDirectorProfile(directorUserId);
+      const beforeLifespan = { lifespanStartDate: profile?.lifespanStartDate, lifespanEndDate: profile?.lifespanEndDate };
+
       await storage.setDirectorLifespan(directorUserId, new Date(startDate), new Date(endDate), adminUserId);
+
+      await storage.updateDirectorProfile(directorUserId, {
+        lastModifiedBy: adminUserId,
+        lastModifiedAt: new Date(),
+      });
 
       await storage.createDirectorActionLog({
         actorId: adminUserId,
@@ -20709,9 +20849,10 @@ export async function registerRoutes(
         action: "set_director_lifespan",
         targetType: "director",
         targetId: directorUserId,
-        beforeState: null,
+        beforeState: JSON.stringify(beforeLifespan),
         afterState: JSON.stringify({ startDate, endDate }),
         metadata: null,
+        ipAddress: req.ip || req.connection?.remoteAddress || null,
       });
 
       return res.json({ message: "Director lifespan set" });
@@ -22504,6 +22645,232 @@ export async function registerRoutes(
       res.json({ message: "Report submitted. The director's funding has been paused and admin has been notified." });
     } catch (error) {
       res.status(500).json({ error: "Failed to submit coercion report" });
+    }
+  });
+
+  app.get("/api/director/analytics", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+
+      const [director] = await db.select().from(directorProfiles)
+        .where(eq(directorProfiles.userId, userId));
+      if (!director) return res.status(404).json({ error: "Director profile not found" });
+
+      const assignments = await db.select().from(directorDriverAssignments)
+        .where(eq(directorDriverAssignments.directorUserId, userId));
+      const driverIds = assignments.map(a => a.driverUserId);
+
+      const totalDrivers = driverIds.length;
+
+      let activeDriversToday = 0;
+      let commissionableToday = 0;
+      let driversByStatus: Record<string, number> = {};
+
+      if (driverIds.length > 0) {
+        const driverProfs = await db.select().from(driverProfiles)
+          .where(inArray(driverProfiles.userId, driverIds));
+
+        activeDriversToday = driverProfs.filter(d => d.isOnline).length;
+
+        const [commSettings] = await db.select().from(directorCommissionSettings).limit(1);
+        const activeRatio = parseFloat(commSettings?.activeRatio || "0.77");
+        const maxCommissionable = commSettings?.maxCommissionableDrivers || 1000;
+        commissionableToday = Math.min(
+          Math.floor(activeDriversToday * activeRatio),
+          maxCommissionable
+        );
+
+        for (const d of driverProfs) {
+          driversByStatus[d.status] = (driversByStatus[d.status] || 0) + 1;
+        }
+      }
+
+      const weeklyGrowth: Array<{ week: string; count: number }> = [];
+      for (let i = 3; i >= 0; i--) {
+        const weekStart = new Date();
+        weekStart.setDate(weekStart.getDate() - (i + 1) * 7);
+        const weekEnd = new Date();
+        weekEnd.setDate(weekEnd.getDate() - i * 7);
+        const weekLabel = weekStart.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+
+        const assignedByWeek = assignments.filter(a => {
+          const created = new Date(a.createdAt as any);
+          return created <= weekEnd;
+        });
+        weeklyGrowth.push({ week: weekLabel, count: assignedByWeek.length });
+      }
+
+      let fundingCount = 0;
+      let fundingThisMonth = 0;
+      if (driverIds.length > 0) {
+        const allFunding = await db.select().from(directorFundingTransactions)
+          .where(eq(directorFundingTransactions.directorUserId, userId));
+        fundingCount = allFunding.length;
+
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        startOfMonth.setHours(0, 0, 0, 0);
+        fundingThisMonth = allFunding.filter(f => new Date(f.createdAt as any) >= startOfMonth).length;
+      }
+
+      let avgTrustScore = 0;
+      let lowTrustCount = 0;
+      if (driverIds.length > 0) {
+        const trustProfiles = await db.select().from(userTrustProfiles)
+          .where(inArray(userTrustProfiles.userId, driverIds));
+        if (trustProfiles.length > 0) {
+          const totalTrust = trustProfiles.reduce((sum, tp) => sum + (tp.trustScore || 100), 0);
+          avgTrustScore = Math.round(totalTrust / trustProfiles.length);
+          lowTrustCount = trustProfiles.filter(tp => (tp.trustScore || 100) < 60).length;
+        } else {
+          avgTrustScore = 100;
+        }
+      }
+
+      const activityRatio = totalDrivers > 0 ? activeDriversToday / totalDrivers : 0;
+      let cellHealthBadge: "healthy" | "at_risk" | "under_review" = "healthy";
+      if (activityRatio < 0.5) cellHealthBadge = "under_review";
+      else if (activityRatio < 0.77) cellHealthBadge = "at_risk";
+
+      res.json({
+        totalDrivers,
+        activeDriversToday,
+        commissionableToday,
+        driversByStatus,
+        weeklyGrowth,
+        fundingCount,
+        fundingThisMonth,
+        avgTrustScore,
+        lowTrustCount,
+        cellHealthBadge,
+        activityRatio: Math.round(activityRatio * 100),
+        lifecycleStatus: director.lifecycleStatus,
+        directorType: director.directorType,
+        lifespanEndDate: director.lifespanEndDate,
+      });
+    } catch (error) {
+      console.error("Director analytics error:", error);
+      res.status(500).json({ error: "Failed to load analytics" });
+    }
+  });
+
+  app.get("/api/director/oversight-signals", isAuthenticated, requireRole(["director", "admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const targetDirectorId = req.query.directorId || userId;
+
+      const [director] = await db.select().from(directorProfiles)
+        .where(eq(directorProfiles.userId, targetDirectorId as string));
+      if (!director) return res.status(404).json({ error: "Director not found" });
+
+      const signals: Array<{ type: string; severity: "info" | "warning" | "critical"; message: string; triggeredAt: string }> = [];
+      const now = new Date();
+
+      if (director.lifespanEndDate) {
+        const endDate = new Date(director.lifespanEndDate);
+        const daysLeft = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+        if (daysLeft <= 0) {
+          signals.push({
+            type: "contract_expired",
+            severity: "critical",
+            message: "Your director contract has expired.",
+            triggeredAt: now.toISOString(),
+          });
+        } else if (daysLeft <= 7) {
+          signals.push({
+            type: "contract_expiry_imminent",
+            severity: "critical",
+            message: `Your director contract expires in ${daysLeft} day${daysLeft === 1 ? "" : "s"}.`,
+            triggeredAt: now.toISOString(),
+          });
+        } else if (daysLeft <= 14) {
+          signals.push({
+            type: "contract_expiry_warning",
+            severity: "warning",
+            message: `Your director contract expires in ${daysLeft} days.`,
+            triggeredAt: now.toISOString(),
+          });
+        }
+      }
+
+      const assignments = await db.select().from(directorDriverAssignments)
+        .where(eq(directorDriverAssignments.directorUserId, targetDirectorId as string));
+      const maxCell = director.maxCellSize || 1300;
+      const cellUsage = assignments.length / maxCell;
+
+      if (cellUsage >= 0.95) {
+        signals.push({
+          type: "cell_limit_critical",
+          severity: "critical",
+          message: `Your driver cell is at ${Math.round(cellUsage * 100)}% capacity (${assignments.length}/${maxCell}).`,
+          triggeredAt: now.toISOString(),
+        });
+      } else if (cellUsage >= 0.85) {
+        signals.push({
+          type: "cell_limit_warning",
+          severity: "warning",
+          message: `Your driver cell is approaching capacity (${assignments.length}/${maxCell} drivers).`,
+          triggeredAt: now.toISOString(),
+        });
+      }
+
+      if (assignments.length >= 10) {
+        const assignmentDriverIds = assignments.map(a => a.driverUserId);
+        const drivers = await db.select().from(driverProfiles)
+          .where(inArray(driverProfiles.userId, assignmentDriverIds));
+        const activeCount = drivers.filter(d => d.isOnline).length;
+        const activityRatio = activeCount / assignments.length;
+
+        if (activityRatio < 0.3) {
+          signals.push({
+            type: "low_activity",
+            severity: "warning",
+            message: `Driver activity under your cell dropped. Only ${activeCount} of ${assignments.length} drivers are active.`,
+            triggeredAt: now.toISOString(),
+          });
+        }
+      }
+
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+      const recentFunding = await db.select().from(directorFundingTransactions)
+        .where(and(
+          eq(directorFundingTransactions.directorUserId, targetDirectorId as string),
+          gte(directorFundingTransactions.createdAt, sevenDaysAgo)
+        ));
+
+      if (recentFunding.length > 10) {
+        signals.push({
+          type: "excessive_funding",
+          severity: "warning",
+          message: `You have made ${recentFunding.length} funding transactions in the past 7 days. Some actions may require Admin confirmation.`,
+          triggeredAt: now.toISOString(),
+        });
+      }
+
+      const recentSuspensions = await db.select().from(directorActionLogs)
+        .where(and(
+          eq(directorActionLogs.actorId, targetDirectorId as string),
+          eq(directorActionLogs.action, "suspend_driver"),
+          gte(directorActionLogs.createdAt, sevenDaysAgo)
+        ));
+
+      if (recentSuspensions.length >= 3) {
+        signals.push({
+          type: "repeated_discipline",
+          severity: "warning",
+          message: `Multiple driver suspensions detected (${recentSuspensions.length} in 7 days). This may trigger an Admin review.`,
+          triggeredAt: now.toISOString(),
+        });
+      }
+
+      res.json({ signals });
+    } catch (error) {
+      console.error("Oversight signals error:", error);
+      res.status(500).json({ error: "Failed to load oversight signals" });
     }
   });
 

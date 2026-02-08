@@ -1,0 +1,216 @@
+You are continuing development of the ZIBA Ride-Share platform.
+
+MISSION:
+Add a complete Director Appointment & Governance system controlled by Super Admin,
+integrated into the existing Admin Dashboard and Management Center,
+without breaking any existing logic.
+
+ABSOLUTE RULES:
+- Directors are NOT admins by default
+- Directors cannot see Admin Dashboard
+- Directors cannot deactivate drivers
+- Directors can only activate drivers that signed up using their referral code
+- All Director appointments, changes, and removals MUST be auditable
+- Super Admin has full visibility and override authority
+
+Audit existing Role Appointments first.
+Add ONLY missing components.
+
+====================================================================
+PART H — DIRECTOR APPOINTMENTS (SUPER ADMIN ONLY)
+====================================================================
+
+DIRECTOR TYPES:
+1) Contract Director
+2) Employee Director
+
+Only Super Admin can:
+- Appoint Directors
+- Assign Director type
+- Define Director lifespan
+- Assign max cells
+- Suspend or terminate Directors
+
+--------------------------------------------------------------------
+DATA MODEL — DIRECTOR APPOINTMENT
+--------------------------------------------------------------------
+
+DirectorAppointment {
+  id
+  user_id
+  director_type (contract | employee)
+  referral_code (unique, nullable for employee directors)
+  status (pending | active | suspended | expired | terminated)
+  start_date
+  end_date
+  max_cells (default 3)
+  max_drivers_per_cell (default 1300)
+  max_commissionable_drivers_per_day (default 1000)
+  commission_rate_percent (default 12, adjustable by Super Admin)
+  created_by
+  approved_by
+  created_at
+  updated_at
+}
+
+RULES:
+- Contract Director:
+  - Activated ONLY after ≥10 drivers recruited
+  - Commission applies only to 77% of active drivers per day
+  - Commission applies ONLY to platform earnings (not visible to Director)
+- Employee Director:
+  - Drivers may be auto-assigned
+  - No referral code required
+  - Lifecycle fully controlled by Admin/Super Admin
+
+--------------------------------------------------------------------
+ADMIN DASHBOARD — DIRECTOR APPOINTMENTS SECTION
+--------------------------------------------------------------------
+
+Add a new section under Management Center:
+
+📍 **Directors → Appointments**
+
+Visible to:
+- Super Admin ONLY
+
+Table Columns:
+- Director Name
+- Email
+- Director Type
+- Status
+- Active Drivers
+- Cells Used / Max Cells
+- Start Date
+- End Date
+- Actions
+
+Actions (Super Admin only):
+- Appoint Director
+- Activate
+- Suspend
+- Terminate
+- Extend Lifespan
+- Adjust Commission Rate
+- Adjust Cell Limits
+
+All actions require:
+- Confirmation modal
+- Reason input
+- Audit log entry
+
+--------------------------------------------------------------------
+SUPER ADMIN — APPOINT DIRECTOR FLOW
+--------------------------------------------------------------------
+
+Flow:
+1) Select existing user OR invite new user
+2) Choose Director Type:
+   - Contract Director
+   - Employee Director
+3) Set:
+   - Start date
+   - End date
+   - Max cells (≤3)
+   - Commission rate %
+4) Generate referral code (contract only)
+5) Save → status = pending
+6) Director becomes active only when conditions met
+
+--------------------------------------------------------------------
+DIRECTOR DASHBOARD ACCESS
+--------------------------------------------------------------------
+
+When user role = Director:
+- Grant access to `/director/dashboard`
+- Restrict visibility to:
+  - Their own cells
+  - Their own drivers
+  - Their own staff
+  - Their own analytics
+
+Director CANNOT:
+- View Admin Dashboard
+- View other Directors
+- View platform revenue
+- Change system rules
+
+Admin & Super Admin:
+- Can view ALL Director dashboards (read-only or override)
+
+--------------------------------------------------------------------
+DIRECTOR STAFF MANAGEMENT
+--------------------------------------------------------------------
+
+Directors may:
+- Create internal staff roles
+- Assign permissions per section:
+  - Driver management
+  - Funding
+  - Reports
+  - Compliance
+- Suspend staff (not terminate platform accounts)
+
+All staff actions:
+- Logged
+- Visible to Admin & Super Admin
+- Reviewed by ZIBRA periodically
+
+--------------------------------------------------------------------
+ZIBRA OVERSIGHT — DIRECTORS
+--------------------------------------------------------------------
+
+ZIBRA must monitor Director behavior continuously.
+
+ZIBRA WATCH SIGNALS:
+- Rapid driver churn
+- Excessive funding
+- Repeated staff discipline
+- Contract nearing expiration
+- Cell capacity nearing limit
+
+ZIBRA ACTIONS:
+- Notify Director
+- Notify Admin silently
+- Recommend Super Admin review
+
+ZIBRA MUST NOT:
+- Enforce penalties
+- Promise continuation
+- Reveal commission math
+
+--------------------------------------------------------------------
+AUDIT & ACCOUNTABILITY
+--------------------------------------------------------------------
+
+All Director actions must write to:
+
+AuditLog {
+  actor_id
+  actor_role
+  action_type
+  target_id
+  metadata
+  timestamp
+  ip_address
+}
+
+Super Admin can view:
+- Full Director history
+- All staff actions
+- All overrides
+
+====================================================================
+FINAL VALIDATION CHECKLIST
+====================================================================
+
+✔ Director appointment controlled by Super Admin
+✔ Director lifecycle enforced
+✔ Referral logic preserved
+✔ Commission rules untouched
+✔ Director dashboards isolated
+✔ Admin visibility retained
+✔ Full audit trail enabled
+
+Proceed carefully.
+Confirm each subsection before marking complete.
