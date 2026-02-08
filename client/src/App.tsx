@@ -64,6 +64,7 @@ const SafetyHubPage = lazy(() => import("@/pages/rider/safety-hub"));
 const TripSharePage = lazy(() => import("@/pages/trip-share"));
 const SimulationEntryPage = lazy(() => import("@/pages/simulation-entry"));
 const SavedPlaceFormPage = lazy(() => import("@/pages/rider/saved-place-form"));
+const DirectorDashboardPage = lazy(() => import("@/pages/director-dashboard"));
 
 const ADMIN_ROLES = ["super_admin", "admin", "finance_admin", "support_agent", "trip_coordinator", "director"];
 
@@ -325,6 +326,9 @@ function AdminRouter() {
       </Route>
       <Route path="/admin/settings">
         <LazyComponent><SettingsPage /></LazyComponent>
+      </Route>
+      <Route path="/admin/director-dashboard">
+        <LazyComponent><DirectorDashboardPage /></LazyComponent>
       </Route>
       <Route>
         <Redirect to="/admin" />
