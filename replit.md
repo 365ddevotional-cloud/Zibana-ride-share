@@ -71,6 +71,7 @@ Preferred communication style: Simple, everyday language.
 - **Director Termination & Wind-Down**: Tracks full wind-down process (funding disabled, staff revoked, drivers reassigned/unassigned, payouts held, audit sealed) with Super Admin-only termination and reinstatement capability.
 - **Driver Protection During Termination**: Drivers remain active, receive neutral notifications, and have earnings preserved during director termination.
 - **Data Retention & Legal Safety**: Permanent record retention and immutable audit logs.
+- **Director Performance Scoring & Auto-Incentives**: DPS (0-100) with 5 weighted components (driver activity 30%, driver quality 25%, driver retention 20%, compliance & safety 15%, admin feedback 10%). Auto-assigns tiers (Gold/Silver/Bronze/At-Risk) with configurable thresholds. Auto-incentives for Gold tier, auto-restrictions for At-Risk. Super Admin weight configuration panel with full audit logging. Performance tab in Director Dashboard with score gauge, tier badge, component breakdown, history, and active incentives/restrictions. ZIBRA coaching templates for performance guidance.
 
 ## External Dependencies
 
