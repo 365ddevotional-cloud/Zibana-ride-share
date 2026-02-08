@@ -40,6 +40,7 @@ import { SimulationCenter } from "@/components/admin/simulation-center";
 import { CorporateRidesPanel } from "@/components/admin/corporate-rides-panel";
 import { SpecialRidesPanel } from "@/components/admin/special-rides-panel";
 import { RideClassesPanel } from "@/components/admin/ride-classes-panel";
+import { AdminDriverPreferencesPanel } from "@/components/admin/driver-preferences-panel";
 import { BankTransfersPanel } from "@/components/admin/bank-transfers-panel";
 import { AdminCancellationFeeSettings } from "@/components/admin/cancellation-fee-settings";
 import { LostItemsPanel } from "@/components/admin/lost-items-panel";
@@ -119,7 +120,8 @@ import {
   Headphones,
   Mail,
   Send,
-  Car
+  Car,
+  Filter
 } from "lucide-react";
 import type { DriverProfile, Trip, User } from "@shared/schema";
 import { NotificationBell } from "@/components/notification-bell";
@@ -3990,6 +3992,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <TabsTrigger value="ride-classes" className="admin-nav-trigger rounded-md" data-testid="tab-ride-classes">
                 <Car className="h-4 w-4 mr-2" />
                 Ride Classes
+              </TabsTrigger>
+            )}
+            {(isSuperAdmin || userRole === "admin") && (
+              <TabsTrigger value="driver-prefs" className="gap-1" data-testid="tab-admin-driver-prefs">
+                <Filter className="h-4 w-4" />
+                Driver Prefs
               </TabsTrigger>
             )}
             {(isSuperAdmin || userRole === "admin") && (
@@ -9955,6 +9963,11 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
           {(isSuperAdmin || userRole === "admin") && (
             <TabsContent value="ride-classes">
               <RideClassesPanel />
+            </TabsContent>
+          )}
+          {(isSuperAdmin || userRole === "admin") && (
+            <TabsContent value="driver-prefs">
+              <AdminDriverPreferencesPanel />
             </TabsContent>
           )}
           {(isSuperAdmin || userRole === "admin") && (
