@@ -1,0 +1,142 @@
+You are activating and wiring up the “Corporate Rides” and “Special Rides”
+sections on the ZIBA Rider Services screen.
+
+CURRENT ISSUE:
+- Both cards are visible but disabled (“Coming Soon”)
+- They are not clickable
+- No destination pages exist
+
+GOAL:
+- Activate both sections
+- Make them clickable
+- Route to clean, consistent, ZIBA-branded pages
+- Ensure future expansion readiness
+- Do NOT break normal ride or schedule flows
+
+========================================
+PHASE 1 — ACTIVATE SERVICES CARDS
+========================================
+
+1) ENABLE CLICK INTERACTION
+- Remove “Coming Soon” disabled behavior
+- Make entire card clickable with press feedback
+- Keep visual badge if desired (“Beta” or “New” instead of “Coming Soon”)
+
+Routes:
+- Corporate Rides → /rider/corporate
+- Special Rides → /rider/special
+
+========================================
+PHASE 2 — CORPORATE RIDES PAGE
+========================================
+
+2) CREATE /rider/corporate PAGE
+
+A) HEADER
+- Title: “Corporate Rides”
+- Back button → Services
+- Theme-aware (Light / Dark / Auto)
+
+B) INTRO CARD
+Text example:
+“Corporate Rides let you travel using a company-sponsored account with
+centralized billing and ride tracking.”
+
+C) ACTIONS
+- “Request access to a Corporate Account”
+- “Join existing company account”
+- “Learn how Corporate Rides work”
+
+D) STATUS HANDLING
+If rider is NOT part of a corporate account:
+- Show info + request button
+
+If rider IS part of corporate account:
+- Show:
+  - Company name
+  - Ride limits (if any)
+  - Billing method (no internal financials)
+  - Button: “Book a Corporate Ride”
+
+E) ZIBRA SUPPORT ENTRY
+- “Need help with Corporate Rides?”
+- Opens ZIBA Support with corporate context
+
+========================================
+PHASE 3 — SPECIAL RIDES PAGE
+========================================
+
+3) CREATE /rider/special PAGE
+
+A) HEADER
+- Title: “Special Rides”
+- Back button → Services
+
+B) RIDE TYPES (CARDS)
+Each card clickable:
+- Premium Rides (future)
+- Group Rides
+- Event Transportation
+- Long-distance / Charter (future)
+
+C) EACH CARD BEHAVIOR
+If feature is available:
+- Route to booking or request page
+
+If not fully launched:
+- Show detail page with:
+  - Description
+  - “Request interest”
+  - “Notify me when available”
+
+D) NO DEAD ENDS
+- Never block navigation
+- Never show blank pages
+
+========================================
+PHASE 4 — PERMISSIONS & SAFETY
+========================================
+
+4) RULES
+- Riders can VIEW all options
+- Booking depends on eligibility
+- No admin logic exposed
+- No pricing promises shown
+- No guarantees of availability
+
+========================================
+PHASE 5 — UI CONSISTENCY
+========================================
+
+5) DESIGN RULES
+- Same card size & typography as Schedule Ride
+- Clear icons
+- Large readable headings
+- Smooth transitions
+- Consistent padding and spacing
+
+========================================
+PHASE 6 — TESTING CHECKLIST
+========================================
+
+6) CONFIRM:
+✔ Corporate Rides card clickable
+✔ Special Rides card clickable
+✔ Pages load without error
+✔ Back navigation works
+✔ ZIBRA Support opens correctly
+✔ No impact on Home / Schedule Ride
+✔ No console errors
+
+========================================
+FINAL CONFIRMATION
+========================================
+
+Confirm:
+- Both services are active
+- Pages are functional
+- UX is smooth
+- Future expansion supported
+- No broken flows
+
+Proceed safely and confirm completion.

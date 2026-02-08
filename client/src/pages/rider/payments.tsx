@@ -9,7 +9,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { 
-  Wallet, CheckCircle, ArrowLeft, AlertCircle, Beaker, Banknote
+  Wallet, CheckCircle, ArrowLeft, AlertCircle, Beaker, Banknote, HandCoins, CreditCard, HelpCircle
 } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -21,7 +21,7 @@ interface WalletData {
   defaultPaymentMethod: string;
 }
 
-type PaymentMethod = "MAIN_WALLET" | "TEST_WALLET" | "CASH";
+type PaymentMethod = "MAIN_WALLET" | "TEST_WALLET" | "CASH" | "SPONSORED_WALLET";
 
 export default function RiderPayments() {
   const [, setLocation] = useLocation();
@@ -35,6 +35,15 @@ export default function RiderPayments() {
   const { data: onboardingStatus } = useQuery<{ seen: boolean; cashAccessRestricted: boolean }>({
     queryKey: ["/api/rider/payment-onboarding"],
   });
+
+  const { data: sponsoredBalances = [] } = useQuery<any[]>({
+    queryKey: ["/api/funding/sponsored-balance"],
+  });
+
+  const totalSponsoredBalance = sponsoredBalances.reduce(
+    (sum: number, sb: any) => sum + parseFloat(sb.balance || "0"), 0
+  );
+  const hasSponsoredFunds = totalSponsoredBalance > 0;
 
   const cashRestricted = onboardingStatus?.cashAccessRestricted || false;
 
@@ -77,8 +86,10 @@ export default function RiderPayments() {
   });
 
   const handleSelectMethod = (method: PaymentMethod) => {
+    const backendMethod = method === "SPONSORED_WALLET" ? "MAIN_WALLET" : method;
     setSelectedMethod(method);
-    updateDefaultMethod.mutate(method);
+    updateDefaultMethod.mutate(backendMethod as PaymentMethod);
+    setTimeout(() => setLocation("/rider/home"), 600);
   };
 
   const formatCurrency = (amount: string | null | undefined, currency: string) => {
@@ -103,13 +114,13 @@ export default function RiderPayments() {
             <Button 
               variant="ghost" 
               size="icon" 
-              onClick={() => setLocation("/rider/wallet")}
+              onClick={() => setLocation("/rider/home")}
               data-testid="button-back"
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <h1 className="text-2xl font-bold" data-testid="text-payments-title">
-              Choose how you want to pay
+              Choose Payment Method
             </h1>
           </div>
 
@@ -229,6 +240,74 @@ export default function RiderPayments() {
                   </CardContent>
                 </Card>
 
+                {hasSponsoredFunds && (
+                  <Card 
+                    className={`cursor-pointer transition-all ${
+                      selectedMethod === "SPONSORED_WALLET" 
+                        ? "ring-2 ring-violet-500 border-violet-500" 
+                        : "hover-elevate"
+                    }`}
+                    onClick={() => handleSelectMethod("SPONSORED_WALLET")}
+                    data-testid="payment-method-sponsored"
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="h-12 w-12 rounded-full bg-violet-100 dark:bg-violet-900 flex items-center justify-center">
+                            <HandCoins className="h-6 w-6 text-violet-600 dark:text-violet-400" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-semibold">Sponsored Wallet</p>
+                              <Badge variant="outline" className="text-xs">
+                                {currency}
+                              </Badge>
+                            </div>
+                            <p className="text-lg font-bold mt-1" data-testid="text-sponsored-balance">
+                              {formatCurrency(totalSponsoredBalance.toFixed(2), currency)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Funded by {sponsoredBalances.length === 1 
+                                ? (sponsoredBalances[0].funderName || "a supporter")
+                                : `${sponsoredBalances.length} supporters`}
+                            </p>
+                          </div>
+                        </div>
+                        {selectedMethod === "SPONSORED_WALLET" && (
+                          <div className="flex items-center gap-2">
+                            <Badge className="bg-violet-500 text-white">
+                              Default
+                            </Badge>
+                            <CheckCircle className="h-6 w-6 text-violet-500" />
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                <Card 
+                  className="opacity-50 cursor-not-allowed"
+                  data-testid="payment-method-card-coming-soon"
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+                          <CreditCard className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-muted-foreground">Card / Bank</p>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Pay with debit card or bank transfer
+                          </p>
+                        </div>
+                      </div>
+                      <Badge variant="secondary" className="text-xs">Coming soon</Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+
                 {isTester && (
                   <Card 
                     className={`cursor-pointer transition-all ${
@@ -284,9 +363,11 @@ export default function RiderPayments() {
               <CardTitle className="text-lg">Current Selection</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center justify-between p-3 rounded-lg bg-muted">
+              <div className="flex items-center justify-between gap-2 p-3 rounded-lg bg-muted">
                 <div className="flex items-center gap-3">
-                  {selectedMethod === "MAIN_WALLET" ? (
+                  {selectedMethod === "SPONSORED_WALLET" ? (
+                    <HandCoins className="h-5 w-5 text-violet-600" />
+                  ) : selectedMethod === "MAIN_WALLET" ? (
                     <Wallet className="h-5 w-5 text-primary" />
                   ) : selectedMethod === "CASH" ? (
                     <Banknote className="h-5 w-5 text-emerald-600" />
@@ -295,19 +376,21 @@ export default function RiderPayments() {
                   )}
                   <div>
                     <p className="font-medium">
-                      {selectedMethod === "MAIN_WALLET" ? "Main Wallet" : selectedMethod === "CASH" ? "Cash" : "Test Wallet"}
+                      {selectedMethod === "SPONSORED_WALLET" ? "Sponsored Wallet" : selectedMethod === "MAIN_WALLET" ? "Main Wallet" : selectedMethod === "CASH" ? "Cash" : "Test Wallet"}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      {selectedMethod === "CASH" ? "Pay the driver directly in cash" : "Pay securely in the app"}
+                      {selectedMethod === "CASH" ? "Pay the driver directly in cash" : selectedMethod === "SPONSORED_WALLET" ? "Funds from your supporters" : "Pay securely in the app"}
                     </p>
                   </div>
                 </div>
                 {selectedMethod !== "CASH" && (
                   <p className="font-bold">
                     {formatCurrency(
-                      selectedMethod === "MAIN_WALLET" 
-                        ? walletData?.mainBalance 
-                        : walletData?.testBalance, 
+                      selectedMethod === "SPONSORED_WALLET"
+                        ? totalSponsoredBalance.toFixed(2)
+                        : selectedMethod === "MAIN_WALLET" 
+                          ? walletData?.mainBalance 
+                          : walletData?.testBalance, 
                       currency
                     )}
                   </p>
@@ -337,9 +420,24 @@ export default function RiderPayments() {
             </CardContent>
           </Card>
 
-          <p className="text-xs text-muted-foreground text-center px-4">
-            You can change your payment method before the trip starts.
-          </p>
+          <div className="flex items-center justify-center gap-2">
+            <p className="text-xs text-muted-foreground text-center">
+              You can change your payment method before the trip starts.
+            </p>
+          </div>
+
+          <div className="flex justify-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs text-muted-foreground"
+              onClick={() => setLocation("/rider/support")}
+              data-testid="button-payment-help"
+            >
+              <HelpCircle className="h-4 w-4 mr-1" />
+              Need help with payments?
+            </Button>
+          </div>
         </div>
       </RiderLayout>
     </RiderRouteGuard>

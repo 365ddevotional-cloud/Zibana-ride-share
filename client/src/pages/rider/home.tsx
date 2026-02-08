@@ -126,8 +126,9 @@ export default function RiderHome() {
                 />
               </div>
 
-              <button 
-                className="w-full p-3 rounded-lg border flex items-center justify-between hover-elevate"
+              <Button
+                variant="outline"
+                className="w-full p-3 h-auto rounded-lg flex items-center justify-between gap-2"
                 onClick={() => setLocation("/rider/payments")}
                 data-testid="button-payment-method"
               >
@@ -140,14 +141,19 @@ export default function RiderHome() {
                     <Wallet className="h-5 w-5 text-primary" />
                   )}
                   <div className="text-left">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-sm">
-                        {paymentMethod === "TEST_WALLET" ? "Test Wallet" : paymentMethod === "CASH" ? "Cash" : "Main Wallet"}
+                        {paymentMethod === "TEST_WALLET" ? "Test Wallet" : paymentMethod === "CASH" ? "Cash" : "Wallet"}
                       </span>
                       {paymentMethod === "TEST_WALLET" && (
                         <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
                           Test
                         </Badge>
+                      )}
+                      {paymentMethod !== "CASH" && (
+                        <span className="text-xs font-semibold">
+                          {formatCurrency(currentBalance, currency)}
+                        </span>
                       )}
                     </div>
                     {paymentMethod === "CASH" ? (
@@ -156,13 +162,13 @@ export default function RiderHome() {
                       </span>
                     ) : (
                       <span className="text-xs text-muted-foreground">
-                        Pay securely in the app
+                        Tap to change payment method
                       </span>
                     )}
                   </div>
                 </div>
-                <ChevronRight className="h-5 w-5 text-muted-foreground" />
-              </button>
+                <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+              </Button>
 
               {hasLowBalance && paymentMethod !== "CASH" && (
                 <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300">
