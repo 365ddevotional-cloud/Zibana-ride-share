@@ -3,10 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Headphones, Send, ArrowRight, X } from "lucide-react";
+import { Headphones, Send, ArrowRight, X, Lightbulb } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
 import { useTranslation } from "@/i18n";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { getTemplateResponse, type ZibraRole, ZIBRA_LANGUAGE_CONFIG } from "@shared/zibra-templates";
 
 type UserRole = ZibraRole;
@@ -182,6 +184,20 @@ export function ZibaSupport({ onClose, forceRole }: ZibaSupportProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const topics = getTopics(detectedRole);
 
+  const { data: proactiveSignals = [] } = useQuery<any[]>({
+    queryKey: ["/api/zibra/proactive-signals"],
+    enabled: !!user,
+  });
+
+  const dismissSignalMutation = useMutation({
+    mutationFn: async (signalId: string) => {
+      await apiRequest("POST", "/api/zibra/proactive-signals/dismiss", { signalId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/zibra/proactive-signals"] });
+    },
+  });
+
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -300,6 +316,29 @@ export function ZibaSupport({ onClose, forceRole }: ZibaSupportProps) {
             </div>
           ))}
         </div>
+
+        {proactiveSignals.length > 0 && messages.length <= (contextHint ? 2 : 1) && (
+          <div className="space-y-2 mb-3" data-testid="container-proactive-signals">
+            {proactiveSignals.slice(0, 2).map((signal: any) => (
+              <div key={signal.id} className="flex items-start gap-2 p-2 rounded-md bg-primary/5 border border-primary/10" data-testid={`signal-${signal.id}`}>
+                <Lightbulb className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium">{signal.title}</p>
+                  <p className="text-xs text-muted-foreground">{signal.message}</p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5 flex-shrink-0"
+                  onClick={() => dismissSignalMutation.mutate(signal.id)}
+                  data-testid={`button-dismiss-signal-${signal.id}`}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
 
         {messages.length <= (contextHint ? 2 : 1) && (
           <div className="flex flex-wrap gap-1.5 mb-3" data-testid="container-quick-topics">

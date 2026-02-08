@@ -42,6 +42,7 @@ import { insertUserIdentityProfileSchema } from "@shared/schema";
 import { getIdentityConfig, isValidIdTypeForCountry } from "@shared/identity-config";
 import { getTemplateResponse, matchTemplate, type ZibraRole } from "@shared/zibra-templates";
 import { applyTone } from "@shared/zibra-tone";
+import { scanForLegalRisks } from "@shared/zibra-legal-guard";
 import type { ToneStyle } from "@shared/country-profiles";
 
 function generateSupportResponse(input: string, role: string, _isPrivileged: boolean): string {
@@ -17490,6 +17491,42 @@ export async function registerRoutes(
       // Check phrase blacklist
       const blacklistConfig = await storage.getZibraConfig("zibra_blacklist_phrases");
       const blacklistPhrases = blacklistConfig ? blacklistConfig.value.split(",").map((p: string) => p.trim().toLowerCase()) : [];
+
+      // LEGAL RISK SCAN: Check for legal/safety risk keywords before generating response
+      const legalScan = scanForLegalRisks(message);
+      if (legalScan.level === "escalate" || legalScan.level === "monitor") {
+        if (legalScan.shouldLog) {
+          try {
+            await storage.logSupportInteraction({
+              userId: parseInt(userId),
+              userMessage: message,
+              supportResponse: legalScan.response,
+              userRole: detectedRole,
+              currentScreen: currentScreen || "unknown",
+              escalated: legalScan.shouldNotifyAdmin,
+              conversationId: conversationId || `conv-${Date.now()}`,
+            });
+          } catch {}
+        }
+        if (legalScan.level === "escalate") {
+          let convId = conversationId;
+          if (!convId) {
+            const conv = await storage.createSupportConversation({
+              userId,
+              userRole: detectedRole,
+              currentScreen: currentScreen || null,
+            });
+            convId = conv.id;
+          }
+          await storage.addSupportMessage(convId, "user", message);
+          await storage.addSupportMessage(convId, "support", legalScan.response);
+          return res.json({
+            response: legalScan.response,
+            conversationId: convId,
+            escalated: legalScan.shouldNotifyAdmin,
+          });
+        }
+      }
 
       let response = generateSupportResponse(message, detectedRole, isPrivileged);
 

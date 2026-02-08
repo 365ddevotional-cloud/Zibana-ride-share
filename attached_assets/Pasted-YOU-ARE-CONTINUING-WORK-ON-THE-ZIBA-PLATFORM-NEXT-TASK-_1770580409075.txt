@@ -1,0 +1,217 @@
+YOU ARE CONTINUING WORK ON THE ZIBA PLATFORM.
+
+NEXT TASK: ACTIVATE DIRECTOR SYSTEMS END-TO-END (DASHBOARD, COMMISSIONS, CONTROLS, ZIBRA SUPPORT).
+
+THIS PHASE FINALIZES THE DIRECTOR SIDE.
+DO NOT TOUCH RIDER OR DRIVER FLOWS UNLESS REQUIRED FOR DATA VISIBILITY.
+DO NOT EXPOSE PLATFORM COMMISSION NUMBERS TO DIRECTORS.
+
+====================================================
+PHASE 21 — DIRECTOR ROLE DEFINITIONS (LOCK THIS)
+====================================================
+
+1) DIRECTOR TYPES
+Support TWO director types:
+
+A) CONTRACT DIRECTOR
+- Recruits drivers via referral code
+- Minimum drivers to activate: 10
+- Can manage up to 3 driver cells
+- Max drivers per cell: 1300
+- Max commissionable active drivers per day:
+  - 77% of active drivers that worked that day
+  - Hard cap: 1000 drivers per cell/day
+- Commission rate:
+  - Default 12% of what the PLATFORM earns
+  - Adjustable by Super Admin
+- Contract lifespan:
+  - Start date + End date
+  - Set by Admin / Super Admin
+  - Expired contract = commission paused (not deleted)
+
+B) EMPLOYEE DIRECTOR
+- Drivers assigned by Admin/Super Admin
+- Salary handled outside ZIBA logic
+- No commission logic exposed in UI
+- Same dashboard visibility as Contract Director (minus earnings)
+
+====================================================
+PHASE 22 — DIRECTOR DASHBOARD (NEW)
+====================================================
+
+2) CREATE DIRECTOR DASHBOARD
+Accessible only to:
+- Director
+- Admin
+- Super Admin
+
+Sections:
+- Overview
+- Driver Cells
+- Drivers
+- Performance
+- Earnings (Contract Director only)
+- Staff Management
+- Reports
+- Settings
+- ZIBRA Support (Private Mode)
+
+Every action must log:
+- who performed it
+- timestamp
+- role
+- before/after values
+
+====================================================
+PHASE 23 — DRIVER CELL LOGIC
+====================================================
+
+3) DRIVER CELLS
+- Each director may create up to 3 cells
+- Each cell:
+  - max drivers: 1300
+  - commissionable cap enforced automatically
+- Drivers join a cell ONLY via referral code
+- Director may:
+  - activate drivers that used their referral code
+  - suspend drivers (temporary)
+- Director CANNOT:
+  - permanently deactivate drivers
+  - override admin suspensions
+
+Admin/Super Admin:
+- can override any action
+
+====================================================
+PHASE 24 — COMMISSION CALCULATION (HIDDEN)
+====================================================
+
+4) COMMISSION ENGINE (SERVER ONLY)
+Rules:
+- Calculate daily
+- Count only drivers who worked that day
+- Apply 77% rule
+- Apply 1000 hard cap
+- Apply commission % set by Super Admin
+- Commission = % of PLATFORM EARNINGS ONLY
+
+Never show:
+- platform total revenue
+- fare splits
+- driver payout formulas
+
+Director sees ONLY:
+- total earned
+- trend
+- cell performance indicators
+
+====================================================
+PHASE 25 — DIRECTOR STAFF & PERMISSIONS
+====================================================
+
+5) STAFF MANAGEMENT
+Contract Directors may:
+- add internal staff accounts
+- assign limited roles:
+  - recruiter
+  - analyst
+  - operations
+- each staff role sees ONLY its section
+- staff cannot see earnings unless permitted
+- director can suspend staff
+- Admin/Super Admin can override all
+
+====================================================
+PHASE 26 — DIRECTOR DISCIPLINE & PERFORMANCE
+====================================================
+
+6) DRIVER DISCIPLINE
+Director may:
+- warn drivers
+- suspend drivers temporarily
+- recommend termination to Admin
+
+All actions:
+- logged
+- reversible by Admin
+
+====================================================
+PHASE 27 — ZIBRA FOR DIRECTORS (PRIVATE MODE)
+====================================================
+
+7) DIRECTOR-LEVEL ZIBRA
+ZIBRA must:
+- explain commission eligibility (NO numbers)
+- explain why earnings changed
+- highlight inactive drivers
+- suggest performance improvements
+- remind about contract expiration
+- warn about nearing caps
+- coach politely (like driver coaching)
+
+Never:
+- compare with named directors
+- reveal admin-only data
+
+====================================================
+PHASE 28 — SUPER ADMIN CONTROLS
+====================================================
+
+8) SUPER ADMIN CONTROLS
+Super Admin can:
+- appoint directors
+- terminate or suspend directors
+- extend contracts
+- adjust commission %
+- reassign drivers
+- view all director dashboards
+- audit logs across all cells
+
+====================================================
+PHASE 29 — LEGAL & TERMS (DIRECTORS)
+====================================================
+
+9) DIRECTOR TERMS (STORE-READY)
+Include:
+- no employment guarantee (contract directors)
+- commission is conditional & revocable
+- platform may adjust rules
+- fraud leads to forfeiture
+- no entitlement to platform revenue data
+- governing law placeholders
+
+Require acceptance:
+- during director onboarding
+- visible in director settings
+
+====================================================
+PHASE 30 — EDGE CASES (MUST PASS)
+====================================================
+
+10) SIMULATE:
+- director hits cap → earnings stop increasing
+- drivers drop below minimum → commission paused
+- contract expires mid-month
+- director misconduct
+- staff abuse
+- admin override
+- director termination
+
+System must:
+- not crash
+- not miscalculate
+- log everything
+- notify politely
+
+====================================================
+FINAL CHECK
+====================================================
+
+✔ Director dashboard exists
+✔ Commission logic enforced server-side
+✔ Permissions respected
+✔ ZIBRA assists directors
+✔ No sensitive data leaks
+✔ Admin & Super Admin override intact
+
+CONFIRM EACH PHASE BEFORE MOVING ON.
