@@ -48,6 +48,7 @@ import { ComplianceLogPanel } from "@/components/admin/compliance-log-panel";
 import { SupportLogsPanel } from "@/components/admin/support-logs-panel";
 import { InboxViewerPanel } from "@/components/admin/inbox-viewer-panel";
 import { ZibraInsightsPanel } from "@/components/zibra-insights-panel";
+import { WelcomeInsightsPanel } from "@/components/welcome-insights-panel";
 import { ZibraGovernancePanel } from "@/components/zibra-governance-panel";
 import { ZibaSupport } from "@/components/ziba-support";
 import { TrainingCenter } from "@/components/training-center";
@@ -3415,6 +3416,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <TabsTrigger value="zibra-insights" className="admin-nav-trigger rounded-md" data-testid="tab-zibra-insights">
                 <BarChart3 className="h-4 w-4 mr-2" />
                 ZIBRA Insights
+              </TabsTrigger>
+            )}
+            {(isSuperAdmin || userRole === "admin") && (
+              <TabsTrigger value="welcome-insights" className="admin-nav-trigger rounded-md" data-testid="tab-welcome-insights">
+                <BarChart3 className="h-4 w-4 mr-2" />
+                Welcome Insights
               </TabsTrigger>
             )}
             {isSuperAdmin && (
@@ -8826,6 +8833,11 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
           {(isSuperAdmin || userRole === "admin") && (
             <TabsContent value="zibra-insights">
               <ZibraInsightsPanel />
+            </TabsContent>
+          )}
+          {(isSuperAdmin || userRole === "admin") && (
+            <TabsContent value="welcome-insights">
+              <WelcomeInsightsPanel />
             </TabsContent>
           )}
           {isSuperAdmin && (
