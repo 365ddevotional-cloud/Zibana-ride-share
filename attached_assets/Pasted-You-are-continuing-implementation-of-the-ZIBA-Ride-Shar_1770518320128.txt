@@ -1,0 +1,177 @@
+You are continuing implementation of the ZIBA Ride-Share platform.
+
+MISSION:
+Add Director Lifecycle Management, Director Analytics (read-only), and ZIBRA oversight for Directors — without breaking existing logic or exposing sensitive data.
+
+ABSOLUTE RULES:
+- Do NOT expose platform commission or exact revenue numbers to Directors.
+- Do NOT allow Directors to deactivate drivers.
+- Do NOT auto-renew Director contracts without Admin/Super Admin approval.
+- Every lifecycle change must be auditable and attributable to a user.
+- Audit existing code first; ADD only what is missing.
+
+====================================================================
+PART D — DIRECTOR LIFECYCLE MANAGEMENT
+====================================================================
+
+DIRECTOR TYPES:
+1) Contract Director
+2) Employee Director
+
+Each Director must have a lifecycle record.
+
+-------------------------
+DIRECTOR LIFECYCLE FIELDS
+-------------------------
+DirectorLifecycle {
+  director_id
+  director_type (contract | employee)
+  start_date
+  end_date
+  status (pending | active | suspended | expired | terminated)
+  max_cells (default: 3)
+  created_by
+  last_modified_by
+  last_modified_at
+}
+
+RULES:
+- Contract Directors:
+  - Must recruit ≥10 drivers to activate
+  - Have a fixed lifespan (set by Admin/Super Admin)
+  - Can manage up to 3 driver cells
+- Employee Directors:
+  - Drivers may be assigned automatically
+  - Lifespan controlled entirely by Admin/Super Admin
+
+STATUS TRANSITIONS:
+- pending → active
+- active → suspended
+- suspended → active
+- active → expired
+- active → terminated
+
+Only Admin/Super Admin may:
+- Change lifecycle status
+- Extend lifespan
+- Terminate appointment
+
+--------------------------------------------------------------------
+ADMIN UI — DIRECTOR LIFECYCLE CONTROL
+--------------------------------------------------------------------
+Add Admin screens:
+
+/admin/directors
+/admin/directors/:id/lifecycle
+
+Admin can:
+- View all directors
+- Set start/end dates
+- Suspend / Reactivate
+- Terminate (irreversible without Super Admin)
+
+Each action must:
+- Require confirmation
+- Log actor + timestamp
+- Trigger ZIBRA audit note
+
+====================================================================
+PART E — DIRECTOR ANALYTICS (READ-ONLY, SAFE)
+====================================================================
+
+DIRECTOR ANALYTICS MUST SHOW:
+- Total drivers under director
+- Active drivers today
+- Commissionable drivers today (no amounts)
+- Driver growth trend (weekly/monthly)
+- Funding given (counts only, no revenue math)
+- Trust & compliance indicators
+
+DIRECTOR ANALYTICS MUST NOT SHOW:
+- Platform revenue
+- Exact percentages
+- Per-driver platform earnings
+- Admin-only metrics
+
+--------------------------------------------------------------------
+DIRECTOR DASHBOARD — ANALYTICS VIEW
+--------------------------------------------------------------------
+Add section: “Performance Overview”
+
+Charts:
+- Driver activity trend
+- Driver retention
+- Compliance health
+
+Badges:
+- “Healthy Cell”
+- “At Risk”
+- “Under Review”
+
+ZIBRA Insight Panel:
+- Short performance summary
+- Suggestions (non-binding)
+
+====================================================================
+PART F — ZIBRA OVERSIGHT FOR DIRECTORS
+====================================================================
+
+ZIBRA must continuously monitor Directors.
+
+ZIBRA WATCH SIGNALS:
+- Rapid driver churn
+- Excessive funding actions
+- Repeated staff discipline
+- Approaching cell limits
+- Approaching contract expiry
+
+ZIBRA ACTIONS:
+- Notify Director (soft warning)
+- Notify Admin (silent)
+- Recommend Admin review (no automation)
+
+ZIBRA MESSAGE EXAMPLES:
+- “Your director contract expires in 14 days.”
+- “Driver activity under your cell dropped this week.”
+- “Some actions may require Admin confirmation.”
+
+ZIBRA MUST NEVER:
+- Threaten
+- Promise renewal
+- Enforce penalties
+
+====================================================================
+PART G — AUDITABILITY & SECURITY
+====================================================================
+
+REQUIREMENTS:
+- Every Director action logged
+- Every Admin override logged
+- Logs immutable
+- Super Admin can see all logs
+
+LOG ENTRY FORMAT:
+AuditLog {
+  id
+  actor_id
+  actor_role
+  action_type
+  target_id
+  metadata
+  created_at
+  ip_address
+}
+
+====================================================================
+FINAL VALIDATION
+====================================================================
+
+✔ Director lifecycle enforced
+✔ Analytics visible but safe
+✔ Admin control centralized
+✔ ZIBRA oversight active
+✔ No commission exposure
+✔ No broken flows
+
+Proceed step-by-step.
+Confirm each subsection before marking complete.

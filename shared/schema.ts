@@ -5139,7 +5139,7 @@ export type DriverCoachingLog = typeof driverCoachingLogs.$inferSelect;
 // FUND ANOTHER WALLET
 // =============================================
 
-export const walletFundingStatusEnum = pgEnum("wallet_funding_status", ["completed", "failed"]);
+export const walletFundingStatusEnum = pgEnum("wallet_funding_status", ["pending", "completed", "declined", "failed"]);
 
 export const walletFundingTransactions = pgTable("wallet_funding_transactions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -5155,6 +5155,8 @@ export const walletFundingTransactions = pgTable("wallet_funding_transactions", 
   purpose: varchar("purpose", { length: 255 }),
   flagged: boolean("flagged").notNull().default(false),
   flagReason: text("flag_reason"),
+  acceptedAt: timestamp("accepted_at"),
+  declinedAt: timestamp("declined_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

@@ -715,6 +715,9 @@ export default function DirectorDashboard() {
   const [createStaffOpen, setCreateStaffOpen] = useState(false);
   const [removeStaffOpen, setRemoveStaffOpen] = useState(false);
   const [removeStaffId, setRemoveStaffId] = useState<string | null>(null);
+  const [logDateFilter, setLogDateFilter] = useState("");
+  const [logActionFilter, setLogActionFilter] = useState("all");
+  const [logUserFilter, setLogUserFilter] = useState("");
 
   const { data: dashboard, isLoading } = useQuery<DashboardData>({
     queryKey: ["/api/director/dashboard/full"],
@@ -792,6 +795,25 @@ export default function DirectorDashboard() {
 
   const { profile, lifespan, cells, metrics, staff, coaching, actionLogs, trustScoreSummary } = dashboard;
   const activeCoaching = coaching?.filter((c) => !c.isDismissed) ?? [];
+
+  const filteredLogs = (actionLogs || []).filter(log => {
+    if (logDateFilter) {
+      const logDate = new Date(log.createdAt).toISOString().split("T")[0];
+      if (logDate !== logDateFilter) return false;
+    }
+    if (logActionFilter !== "all") {
+      if (log.action !== logActionFilter) return false;
+    }
+    if (logUserFilter) {
+      const searchLower = logUserFilter.toLowerCase();
+      const matchesActor = log.actorId?.toLowerCase().includes(searchLower);
+      const matchesRole = log.actorRole?.toLowerCase().includes(searchLower);
+      if (!matchesActor && !matchesRole) return false;
+    }
+    return true;
+  });
+
+  const uniqueActions = [...new Set((actionLogs || []).map(l => l.action))];
 
   const handleFundDriver = (driver: EligibleDriver) => {
     setSelectedDriver(driver);
@@ -1358,9 +1380,46 @@ export default function DirectorDashboard() {
               <CardDescription>Immutable record of all director actions</CardDescription>
             </CardHeader>
             <CardContent>
-              {actionLogs && actionLogs.length > 0 ? (
+              <div className="flex flex-wrap gap-2 mb-4" data-testid="div-log-filters">
+                <Input
+                  type="date"
+                  value={logDateFilter}
+                  onChange={(e) => setLogDateFilter(e.target.value)}
+                  className="w-auto"
+                  data-testid="input-log-date-filter"
+                />
+                <Select value={logActionFilter} onValueChange={setLogActionFilter}>
+                  <SelectTrigger className="w-[180px]" data-testid="select-log-action-filter">
+                    <SelectValue placeholder="All Actions" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Actions</SelectItem>
+                    {uniqueActions.map(action => (
+                      <SelectItem key={action} value={action}>{action.replace(/_/g, " ")}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  placeholder="Filter by user..."
+                  value={logUserFilter}
+                  onChange={(e) => setLogUserFilter(e.target.value)}
+                  className="w-[180px]"
+                  data-testid="input-log-user-filter"
+                />
+                {(logDateFilter || logActionFilter !== "all" || logUserFilter) && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => { setLogDateFilter(""); setLogActionFilter("all"); setLogUserFilter(""); }}
+                    data-testid="button-clear-log-filters"
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
+              {filteredLogs.length > 0 ? (
                 <div className="space-y-2">
-                  {actionLogs.map((log, index) => (
+                  {filteredLogs.map((log, index) => (
                     <div key={`${log.actorId}-${log.createdAt}-${index}`} className="flex flex-wrap items-center justify-between gap-2 py-1.5 border-b border-border last:border-0" data-testid={`action-log-row-${index}`}>
                       <div className="flex items-center gap-2 min-w-0">
                         <Activity className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
@@ -1375,7 +1434,9 @@ export default function DirectorDashboard() {
               ) : (
                 <div className="py-8 text-center text-muted-foreground" data-testid="text-no-logs">
                   <History className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                  No activity logs yet.
+                  {(logDateFilter || logActionFilter !== "all" || logUserFilter)
+                    ? "No matching activity logs found."
+                    : "No activity logs yet."}
                 </div>
               )}
             </CardContent>

@@ -37,6 +37,9 @@ interface FundingTx {
   senderName?: string;
   receiverUserId?: string;
   senderUserId?: string;
+  purpose?: string;
+  acceptedAt?: string;
+  declinedAt?: string;
 }
 
 type Step = "form" | "confirm" | "success" | "history";
@@ -58,6 +61,35 @@ export function FundAnotherWalletDialog({ open, onClose }: { open: boolean; onCl
   const { data: history } = useQuery<{ sent: FundingTx[]; received: FundingTx[] }>({
     queryKey: ["/api/wallet-funding/history"],
     enabled: open && step === "history",
+  });
+
+  const { data: pendingFunding } = useQuery<Array<FundingTx & { senderName: string }>>({
+    queryKey: ["/api/wallet-funding/pending"],
+    enabled: open,
+  });
+
+  const acceptFundingMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("POST", `/api/wallet-funding/${id}/accept`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/wallet-funding/pending"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/wallet-funding/history"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/rider/wallet-info"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/wallets/me"] });
+      toast({ title: "Funding Accepted", description: "Funds have been added to your wallet." });
+    },
+  });
+
+  const declineFundingMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("POST", `/api/wallet-funding/${id}/decline`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/wallet-funding/pending"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/wallet-funding/history"] });
+      toast({ title: "Funding Declined" });
+    },
   });
 
   const lookupMutation = useMutation({
@@ -167,6 +199,47 @@ export function FundAnotherWalletDialog({ open, onClose }: { open: boolean; onCl
             </DialogHeader>
 
             <div className="space-y-4 mt-2">
+              {pendingFunding && pendingFunding.length > 0 && (
+                <Card className="border-yellow-500/30 bg-yellow-500/5">
+                  <CardContent className="p-3 space-y-2">
+                    <p className="text-sm font-medium flex items-center flex-wrap gap-2" data-testid="text-pending-funding-header">
+                      <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                      Pending Funding ({pendingFunding.length})
+                    </p>
+                    {pendingFunding.map((pf) => (
+                      <div key={pf.id} className="flex items-center justify-between gap-2 py-2 border-b border-border last:border-0" data-testid={`pending-funding-${pf.id}`}>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate" data-testid={`text-pending-sender-${pf.id}`}>{pf.senderName}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {"\u20A6"}{parseFloat(pf.amount).toLocaleString()}
+                            {pf.purpose ? ` \u00B7 ${pf.purpose}` : ""}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            size="sm"
+                            onClick={() => acceptFundingMutation.mutate(pf.id)}
+                            disabled={acceptFundingMutation.isPending}
+                            data-testid={`button-accept-funding-${pf.id}`}
+                          >
+                            Accept
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => declineFundingMutation.mutate(pf.id)}
+                            disabled={declineFundingMutation.isPending}
+                            data-testid={`button-decline-funding-${pf.id}`}
+                          >
+                            Decline
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+
               <div className="space-y-2">
                 <Label>Recipient (email, phone, or ZIBA ID)</Label>
                 <div className="flex gap-2">
@@ -332,7 +405,7 @@ export function FundAnotherWalletDialog({ open, onClose }: { open: boolean; onCl
                 </p>
               </div>
               <p className="text-sm text-muted-foreground">
-                The recipient has been notified and their wallet has been credited instantly.
+                The recipient has been notified. Funds will be credited once they accept.
               </p>
               <div className="flex gap-2 justify-center">
                 <Button variant="outline" onClick={() => { resetToForm(); }} data-testid="button-fund-again">

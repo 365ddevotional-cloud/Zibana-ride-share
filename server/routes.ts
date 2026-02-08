@@ -21456,7 +21456,7 @@ export async function registerRoutes(
         .from(walletFundingTransactions)
         .where(and(
           eq(walletFundingTransactions.senderUserId, senderUserId),
-          eq(walletFundingTransactions.status, "completed"),
+          inArray(walletFundingTransactions.status, ["completed", "pending"]),
           gte(walletFundingTransactions.createdAt, startOfDay)
         ));
       if (parseFloat(dailyTotal?.total || "0") + fundAmount > parseFloat(settings.dailyLimit as string)) {
@@ -21467,7 +21467,7 @@ export async function registerRoutes(
         .from(walletFundingTransactions)
         .where(and(
           eq(walletFundingTransactions.senderUserId, senderUserId),
-          eq(walletFundingTransactions.status, "completed"),
+          inArray(walletFundingTransactions.status, ["completed", "pending"]),
           gte(walletFundingTransactions.createdAt, startOfMonth)
         ));
       if (parseFloat(monthlyTotal?.total || "0") + fundAmount > parseFloat(settings.monthlyLimit as string)) {
@@ -21496,40 +21496,11 @@ export async function registerRoutes(
 
       const amountStr = fundAmount.toFixed(2);
 
-      if (receiverRoles.includes("rider")) {
-        const [wallet] = await db.select().from(riderWallets).where(eq(riderWallets.userId, receiverUserId));
-        if (wallet) {
-          await db.update(riderWallets)
-            .set({ balance: sql`(${riderWallets.balance}::numeric + ${amountStr}::numeric)::text`, updatedAt: new Date() })
-            .where(eq(riderWallets.userId, receiverUserId));
-        } else {
-          await db.insert(riderWallets).values({ userId: receiverUserId, balance: amountStr });
-        }
-      } else if (receiverRoles.includes("driver")) {
-        const [wallet] = await db.select().from(driverWallets).where(eq(driverWallets.userId, receiverUserId));
-        if (wallet) {
-          await db.update(driverWallets)
-            .set({ balance: sql`(${driverWallets.balance}::numeric + ${amountStr}::numeric)::text`, updatedAt: new Date() })
-            .where(eq(driverWallets.userId, receiverUserId));
-        } else {
-          await db.insert(driverWallets).values({ userId: receiverUserId, balance: amountStr });
-        }
-      } else {
-        const [wallet] = await db.select().from(riderWallets).where(eq(riderWallets.userId, receiverUserId));
-        if (wallet) {
-          await db.update(riderWallets)
-            .set({ balance: sql`(${riderWallets.balance}::numeric + ${amountStr}::numeric)::text`, updatedAt: new Date() })
-            .where(eq(riderWallets.userId, receiverUserId));
-        } else {
-          await db.insert(riderWallets).values({ userId: receiverUserId, balance: amountStr });
-        }
-      }
-
       const [txn] = await db.insert(walletFundingTransactions).values({
         senderUserId,
         receiverUserId,
         amount: amountStr,
-        status: "completed",
+        status: "pending",
         senderRole,
         receiverRole,
         purpose: purpose || null,
@@ -21559,9 +21530,9 @@ export async function registerRoutes(
       await storage.createNotification({
         userId: receiverUserId,
         role: receiverNotifRole,
-        type: "success",
-        title: "Wallet Funded",
-        message: `\u20A6${parseFloat(amountStr).toLocaleString()} has been added to your ZIBA wallet by ${senderName}.`,
+        type: "info",
+        title: "Pending Wallet Funding",
+        message: `You have a pending wallet funding request of \u20A6${parseFloat(amountStr).toLocaleString()} from ${senderName}. Open Fund Another Wallet to accept or decline.`,
       });
 
       res.json({ success: true, transaction: txn });
@@ -21601,6 +21572,140 @@ export async function registerRoutes(
       });
     } catch (error) {
       res.status(500).json({ error: "Failed to load funding history" });
+    }
+  });
+
+  app.get("/api/wallet-funding/pending", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+
+      const pending = await db.select().from(walletFundingTransactions)
+        .where(and(
+          eq(walletFundingTransactions.receiverUserId, userId),
+          eq(walletFundingTransactions.status, "pending")
+        ))
+        .orderBy(desc(walletFundingTransactions.createdAt));
+
+      const senderIds = [...new Set(pending.map(t => t.senderUserId))];
+      const senderNames: Record<string, string> = {};
+      if (senderIds.length > 0) {
+        const senders = await db.select({ id: users.id, email: users.email, firstName: users.firstName, lastName: users.lastName })
+          .from(users).where(inArray(users.id, senderIds));
+        for (const u of senders) {
+          senderNames[u.id] = u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.email || "ZIBA User";
+        }
+      }
+
+      res.json(pending.map(t => ({ ...t, senderName: senderNames[t.senderUserId] || "ZIBA User" })));
+    } catch (error) {
+      res.status(500).json({ error: "Failed to load pending funding" });
+    }
+  });
+
+  app.post("/api/wallet-funding/:id/accept", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+
+      const txnId = req.params.id;
+      const [txn] = await db.select().from(walletFundingTransactions)
+        .where(and(
+          eq(walletFundingTransactions.id, txnId),
+          eq(walletFundingTransactions.receiverUserId, userId),
+          eq(walletFundingTransactions.status, "pending")
+        ));
+
+      if (!txn) return res.status(404).json({ error: "Pending funding not found" });
+
+      const amountStr = txn.amount;
+      const [receiver] = await db.select().from(users).where(eq(users.id, userId));
+      const receiverRoles = (receiver?.roles as string[]) || [];
+
+      if (receiverRoles.includes("driver")) {
+        const [wallet] = await db.select().from(driverWallets).where(eq(driverWallets.userId, userId));
+        if (wallet) {
+          await db.update(driverWallets)
+            .set({ balance: sql`(${driverWallets.balance}::numeric + ${amountStr}::numeric)::text`, updatedAt: new Date() })
+            .where(eq(driverWallets.userId, userId));
+        } else {
+          await db.insert(driverWallets).values({ userId, balance: amountStr });
+        }
+      } else {
+        const [wallet] = await db.select().from(riderWallets).where(eq(riderWallets.userId, userId));
+        if (wallet) {
+          await db.update(riderWallets)
+            .set({ balance: sql`(${riderWallets.balance}::numeric + ${amountStr}::numeric)::text`, updatedAt: new Date() })
+            .where(eq(riderWallets.userId, userId));
+        } else {
+          await db.insert(riderWallets).values({ userId, balance: amountStr });
+        }
+      }
+
+      const [updated] = await db.update(walletFundingTransactions)
+        .set({ status: "completed", acceptedAt: new Date() })
+        .where(eq(walletFundingTransactions.id, txnId))
+        .returning();
+
+      const senderRoles = (await db.select().from(users).where(eq(users.id, txn.senderUserId)))?.[0]?.roles as string[] || [];
+      const senderNotifRole = senderRoles.includes("driver") ? "driver" as const
+        : senderRoles.includes("director") ? "director" as const : "rider" as const;
+      const receiverName = receiver?.firstName && receiver?.lastName
+        ? `${receiver.firstName} ${receiver.lastName}` : receiver?.email || "The recipient";
+
+      await storage.createNotification({
+        userId: txn.senderUserId,
+        role: senderNotifRole,
+        type: "success",
+        title: "Funding Accepted",
+        message: `${receiverName} accepted your \u20A6${parseFloat(amountStr).toLocaleString()} wallet funding.`,
+      });
+
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to accept funding" });
+    }
+  });
+
+  app.post("/api/wallet-funding/:id/decline", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+
+      const txnId = req.params.id;
+      const [txn] = await db.select().from(walletFundingTransactions)
+        .where(and(
+          eq(walletFundingTransactions.id, txnId),
+          eq(walletFundingTransactions.receiverUserId, userId),
+          eq(walletFundingTransactions.status, "pending")
+        ));
+
+      if (!txn) return res.status(404).json({ error: "Pending funding not found" });
+
+      const [updated] = await db.update(walletFundingTransactions)
+        .set({ status: "declined", declinedAt: new Date() })
+        .where(eq(walletFundingTransactions.id, txnId))
+        .returning();
+
+      const [sender] = await db.select().from(users).where(eq(users.id, txn.senderUserId));
+      const senderRoles = (sender?.roles as string[]) || [];
+      const senderNotifRole = senderRoles.includes("driver") ? "driver" as const
+        : senderRoles.includes("director") ? "director" as const : "rider" as const;
+      const [receiver] = await db.select().from(users).where(eq(users.id, userId));
+      const receiverName = receiver?.firstName && receiver?.lastName
+        ? `${receiver.firstName} ${receiver.lastName}` : receiver?.email || "The recipient";
+
+      await storage.createNotification({
+        userId: txn.senderUserId,
+        role: senderNotifRole,
+        type: "info",
+        title: "Funding Declined",
+        message: `${receiverName} declined your \u20A6${parseFloat(txn.amount).toLocaleString()} wallet funding.`,
+      });
+
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to decline funding" });
     }
   });
 
