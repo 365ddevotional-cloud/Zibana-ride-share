@@ -450,6 +450,7 @@ export const driverProfiles = pgTable("driver_profiles", {
   // Nigeria fraud prevention - hashed document numbers for uniqueness checks
   ninHash: varchar("nin_hash", { length: 128 }), // SHA-256 hash of NIN for duplicate detection
   driversLicenseHash: varchar("drivers_license_hash", { length: 128 }), // SHA-256 hash of license number
+  acceptedRideClasses: text("accepted_ride_classes").array(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

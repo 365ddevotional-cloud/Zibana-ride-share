@@ -1427,6 +1427,85 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/driver/ride-class-preferences", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const profile = await storage.getDriverProfile(userId);
+      if (!profile) {
+        return res.status(404).json({ message: "Driver profile not found" });
+      }
+
+      const { getDriverEligibleClasses } = await import("@shared/ride-classes");
+      const driverRating = profile.averageRating ? parseFloat(String(profile.averageRating)) : 0;
+      const vehicleYear = (profile as any).vehicleYear ? parseInt(String((profile as any).vehicleYear)) : null;
+      const eligibleClasses = getDriverEligibleClasses({
+        driverRating,
+        vehicleYear,
+        hasPetApproval: !!(profile as any).petApproved,
+        hasBackgroundCheck: !!(profile as any).backgroundCheckVerified,
+        hasEliteApproval: !!(profile as any).eliteApproved,
+      });
+
+      const acceptedClasses = profile.acceptedRideClasses ?? eligibleClasses.map(ec => ec.id);
+
+      return res.json({
+        acceptedClasses,
+        eligibleClasses,
+      });
+    } catch (error) {
+      console.error("Error getting ride class preferences:", error);
+      return res.status(500).json({ message: "Failed to get ride class preferences" });
+    }
+  });
+
+  app.post("/api/driver/ride-class-preferences", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { acceptedClasses } = req.body;
+
+      if (!Array.isArray(acceptedClasses)) {
+        return res.status(400).json({ message: "acceptedClasses must be an array" });
+      }
+
+      const profile = await storage.getDriverProfile(userId);
+      if (!profile) {
+        return res.status(404).json({ message: "Driver profile not found" });
+      }
+
+      const { getDriverEligibleClasses } = await import("@shared/ride-classes");
+      const driverRating = profile.averageRating ? parseFloat(String(profile.averageRating)) : 0;
+      const vehicleYear = (profile as any).vehicleYear ? parseInt(String((profile as any).vehicleYear)) : null;
+      const eligibleClasses = getDriverEligibleClasses({
+        driverRating,
+        vehicleYear,
+        hasPetApproval: !!(profile as any).petApproved,
+        hasBackgroundCheck: !!(profile as any).backgroundCheckVerified,
+        hasEliteApproval: !!(profile as any).eliteApproved,
+      });
+      const eligibleIds = eligibleClasses.map(ec => ec.id);
+
+      const invalidClasses = acceptedClasses.filter((c: string) => !eligibleIds.includes(c));
+      if (invalidClasses.length > 0) {
+        return res.status(400).json({
+          message: `You are not eligible for these ride classes: ${invalidClasses.join(", ")}`,
+          invalidClasses,
+        });
+      }
+
+      await db.update(driverProfiles)
+        .set({ acceptedRideClasses: acceptedClasses, updatedAt: new Date() })
+        .where(eq(driverProfiles.userId, userId));
+
+      return res.json({
+        acceptedClasses,
+        eligibleClasses,
+      });
+    } catch (error) {
+      console.error("Error updating ride class preferences:", error);
+      return res.status(500).json({ message: "Failed to update ride class preferences" });
+    }
+  });
+
   app.get("/api/driver/cancellation-metrics", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -2849,19 +2928,41 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/ride-classes/availability", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const { RIDE_CLASS_LIST } = await import("@shared/ride-classes");
+      
+      const availability = RIDE_CLASS_LIST.map(rc => {
+        const isAvailable = rc.isActive;
+        const driverCount = isAvailable ? Math.floor(Math.random() * 8) + 1 : 0;
+        return {
+          rideClassId: rc.id,
+          available: isAvailable && driverCount > 0,
+          driverCount,
+          estimatedWaitMinutes: isAvailable ? Math.floor(Math.random() * 8) + 2 : 0,
+        };
+      });
+
+      return res.json(availability);
+    } catch (error) {
+      console.error("Error getting ride class availability:", error);
+      return res.status(500).json({ message: "Failed to get availability" });
+    }
+  });
+
   app.post("/api/rider/fare-estimate", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
     try {
       const { rideClassId } = req.body;
-      const { getRideClassMultiplier, isValidRideClass } = await import("@shared/ride-classes");
-      const { calculateFareEstimateRange } = await import("./fare-calculation");
+      const { getRideClassMultiplier, isValidRideClass, calculateClassFareRange, getRideClassPricing } = await import("@shared/ride-classes");
 
       const classId = rideClassId && isValidRideClass(rideClassId) ? rideClassId : "go";
       const multiplier = getRideClassMultiplier(classId);
+      const pricing = getRideClassPricing(classId as any);
 
       const estimatedDistanceKm = Math.random() * 15 + 3;
       const estimatedDurationMin = estimatedDistanceKm * 3 + Math.random() * 10;
 
-      const range = calculateFareEstimateRange(estimatedDistanceKm, estimatedDurationMin, multiplier);
+      const range = calculateClassFareRange(classId as any, estimatedDistanceKm, estimatedDurationMin);
 
       const userId = req.user.claims.sub;
       const { getCountryConfig } = await import("@shared/countries");
@@ -2874,6 +2975,14 @@ export async function registerRoutes(
         fareMultiplier: multiplier,
         estimatedFare: range.estimate,
         fareRange: { min: range.min, max: range.max },
+        fareBreakdown: range.breakdown,
+        pricing: {
+          baseFare: pricing.baseFare,
+          perKmRate: pricing.perKmRate,
+          perMinuteRate: pricing.perMinuteRate,
+          minimumFare: pricing.minimumFare,
+          surcharge: pricing.surcharge,
+        },
         currencyCode: countryConfig.currencyCode,
         estimatedDistanceKm: parseFloat(estimatedDistanceKm.toFixed(1)),
         estimatedDurationMin: Math.round(estimatedDurationMin),

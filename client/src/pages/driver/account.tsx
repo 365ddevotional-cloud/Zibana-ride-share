@@ -20,12 +20,13 @@ import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { useTranslation } from "@/i18n";
 import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
+import { Switch } from "@/components/ui/switch";
 import {
   User, Star, ChevronRight, LogOut, Trash2,
   Camera, Car, Settings, HelpCircle,
   FileText, Mail, Clock, TrendingUp, Layers,
 } from "lucide-react";
-import { RideClassIcon, getRideClassLabel } from "@/components/ride-class-icon";
+import { RideClassIcon } from "@/components/ride-class-icon";
 import type { RideClassDefinition } from "@shared/ride-classes";
 
 interface DriverProfile {
@@ -61,9 +62,24 @@ export default function DriverAccount() {
     enabled: !!user,
   });
 
-  const { data: rideClasses = [] } = useQuery<RideClassDefinition[]>({
-    queryKey: ["/api/ride-classes"],
+  const { data: rideClassPrefs, isLoading: prefsLoading } = useQuery<{
+    acceptedClasses: string[];
+    eligibleClasses: RideClassDefinition[];
+  }>({
+    queryKey: ["/api/driver/ride-class-preferences"],
     enabled: !!user,
+  });
+
+  const toggleClassMutation = useMutation({
+    mutationFn: async (newAccepted: string[]) => {
+      await apiRequest("POST", "/api/driver/ride-class-preferences", { acceptedClasses: newAccepted });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/driver/ride-class-preferences"] });
+    },
+    onError: () => {
+      toast({ title: "Failed to update preferences", variant: "destructive" });
+    },
   });
 
   const uploadPhotoMutation = useMutation({
@@ -314,43 +330,70 @@ export default function DriverAccount() {
           </Card>
         </div>
 
-        {rideClasses.length > 0 && (
-          <div className="space-y-1">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1 mb-2">
-              Ride Classes
-            </p>
-            <Card>
-              <CardContent className="p-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <Layers className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">Your Eligible Classes</span>
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1 mb-2">
+            Ride Class Preferences
+          </p>
+          <Card>
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Layers className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Choose Which Classes to Accept</span>
+              </div>
+              {prefsLoading ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {rideClasses.map((rc) => {
-                    const driverRating = profile?.averageRating ? Number(profile.averageRating) : 0;
-                    const isEligible = driverRating >= rc.minDriverRating && !rc.requiresPetApproval && !rc.requiresBackgroundCheck && !rc.requiresEliteApproval;
-                    return (
-                      <div
-                        key={rc.id}
-                        className={`flex items-center gap-2 p-2 rounded-md ${isEligible ? "" : "opacity-40"}`}
-                        data-testid={`driver-class-${rc.id}`}
-                      >
-                        <RideClassIcon rideClass={rc.id} size="sm" color={rc.color} bgLight={rc.bgLight} />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-medium truncate">{rc.displayName}</p>
-                          <p className="text-xs text-muted-foreground">{rc.fareMultiplier}x</p>
+              ) : rideClassPrefs && rideClassPrefs.eligibleClasses.length > 0 ? (
+                <>
+                  <div className="space-y-2">
+                    {rideClassPrefs.eligibleClasses.map((rc) => {
+                      const isAccepted = rideClassPrefs.acceptedClasses.includes(rc.id);
+                      const isGoClass = rc.id === "go";
+                      return (
+                        <div
+                          key={rc.id}
+                          className="flex items-center gap-3 p-3 rounded-md border"
+                          data-testid={`driver-class-pref-${rc.id}`}
+                        >
+                          <RideClassIcon rideClass={rc.id} size="sm" color={rc.color} bgLight={rc.bgLight} />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium truncate">{rc.displayName}</p>
+                            <p className="text-xs text-muted-foreground truncate">{rc.description}</p>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-xs text-muted-foreground">
+                              {isAccepted ? "Enabled" : "Disabled"}
+                            </span>
+                            <Switch
+                              checked={isAccepted}
+                              disabled={isGoClass || toggleClassMutation.isPending}
+                              onCheckedChange={(checked) => {
+                                const newAccepted = checked
+                                  ? [...rideClassPrefs.acceptedClasses, rc.id]
+                                  : rideClassPrefs.acceptedClasses.filter((c) => c !== rc.id);
+                                toggleClassMutation.mutate(newAccepted);
+                              }}
+                              data-testid={`switch-class-${rc.id}`}
+                            />
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Eligibility is based on your rating, vehicle, and approvals.
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Toggle classes on or off to control which ride requests you receive. Go is always enabled.
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  You are currently eligible for ZIBA Go. Improve your rating, upgrade your vehicle, or complete additional approvals to qualify for more ride classes.
                 </p>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
         <div className="space-y-1">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1 mb-2">
