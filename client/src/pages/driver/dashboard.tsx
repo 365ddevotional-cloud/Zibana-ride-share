@@ -6,7 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Power, TrendingUp, Clock, Navigation, Check, MapPin, Settings, User, Bell, Shield, Star } from "lucide-react";
+import { Power, TrendingUp, Clock, Navigation, Check, MapPin, Settings, User, Bell, Shield, Star, AlertTriangle, Flag } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { FullPageLoading } from "@/components/loading-spinner";
@@ -22,6 +25,10 @@ export default function DriverDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const [coercionDialogOpen, setCoercionDialogOpen] = useState(false);
+  const [coercionDetails, setCoercionDetails] = useState("");
+  const [coercionConfirmed, setCoercionConfirmed] = useState(false);
+  const [acceptanceDialogOpen, setAcceptanceDialogOpen] = useState(false);
 
   const isReturningDriver = typeof window !== "undefined" && localStorage.getItem("ziba-driver-lastLoginAt") !== null;
   const welcomeShown = typeof window !== "undefined" && sessionStorage.getItem("ziba-driver-welcome-shown") === "true";
@@ -63,6 +70,40 @@ export default function DriverDashboard() {
   const { data: trustProfile } = useQuery<any>({
     queryKey: ["/api/trust/profile"],
     enabled: !!user,
+  });
+
+  const { data: driverFundingAcceptance } = useQuery<{ accepted: boolean }>({
+    queryKey: ["/api/director/funding/acceptance"],
+    enabled: !!user,
+  });
+
+  const acceptFundingTermsMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/director/funding/acceptance");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/director/funding/acceptance"] });
+      toast({ title: "Terms Accepted", description: "You have accepted the funding support terms." });
+      setAcceptanceDialogOpen(false);
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const reportCoercionMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/driver/report-coercion", { description: coercionDetails });
+    },
+    onSuccess: () => {
+      toast({ title: "Report Submitted", description: "Your report has been submitted. The director's funding has been paused pending admin review." });
+      setCoercionDialogOpen(false);
+      setCoercionDetails("");
+      setCoercionConfirmed(false);
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
   });
 
   const toggleOnlineMutation = useMutation({
@@ -500,7 +541,120 @@ export default function DriverDashboard() {
             </CardContent>
           </Card>
         )}
+        {driverFundingAcceptance && !driverFundingAcceptance.accepted && (
+          <Card className="border-dashed" data-testid="card-funding-terms-prompt">
+            <CardContent className="flex items-start gap-3 py-4">
+              <Shield className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium">Director Funding Support Terms</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  You may receive voluntary wallet support from your director. Please review and accept the terms.
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mt-2"
+                  onClick={() => setAcceptanceDialogOpen(true)}
+                  data-testid="button-review-funding-terms"
+                >
+                  Review Terms
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        <Card data-testid="card-coercion-report">
+          <CardContent className="flex items-start gap-3 py-4">
+            <Flag className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium">Report Funding Coercion</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                If you feel pressured to perform, repay, or comply as a condition for receiving wallet support, you can report it here. All reports are confidential.
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-2"
+                onClick={() => setCoercionDialogOpen(true)}
+                data-testid="button-report-coercion"
+              >
+                <AlertTriangle className="h-3.5 w-3.5 mr-1.5" />
+                Report Coercion
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
+
+      <Dialog open={coercionDialogOpen} onOpenChange={(open) => { if (!open) { setCoercionDetails(""); setCoercionConfirmed(false); } setCoercionDialogOpen(open); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Report Funding Coercion</DialogTitle>
+            <DialogDescription>
+              If a director is pressuring you to perform, repay, or comply as a condition for wallet support, describe the situation below. Your report is confidential.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Textarea
+              value={coercionDetails}
+              onChange={(e) => setCoercionDetails(e.target.value)}
+              placeholder="Describe the situation in detail..."
+              rows={4}
+              data-testid="input-coercion-details"
+            />
+            <div className="flex items-start gap-2 p-3 rounded-md border bg-muted/50">
+              <Checkbox
+                id="coercion-confirm"
+                checked={coercionConfirmed}
+                onCheckedChange={(checked) => setCoercionConfirmed(checked === true)}
+                data-testid="checkbox-coercion-confirm"
+              />
+              <label htmlFor="coercion-confirm" className="text-xs text-muted-foreground cursor-pointer leading-relaxed">
+                I confirm this report is truthful. I understand that the director's funding ability will be paused pending admin review.
+              </label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCoercionDialogOpen(false)} data-testid="button-coercion-cancel">Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={() => reportCoercionMutation.mutate()}
+              disabled={coercionDetails.trim().length < 10 || !coercionConfirmed || reportCoercionMutation.isPending}
+              data-testid="button-coercion-submit"
+            >
+              {reportCoercionMutation.isPending ? "Submitting..." : "Submit Report"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={acceptanceDialogOpen} onOpenChange={setAcceptanceDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Director Funding Support Terms</DialogTitle>
+            <DialogDescription>
+              Please review and accept the following terms regarding voluntary wallet support.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 text-xs text-muted-foreground p-3 rounded-md border">
+            <p><strong>Voluntary Support:</strong> Any wallet funding provided by a Director is voluntary support and does not constitute a loan, wage, salary, advance, or repayment obligation. ZIBA does not guarantee continued funding, activity, or earnings.</p>
+            <p><strong>No Coercion:</strong> Directors may not require, imply, or enforce performance, repayment, or compliance as a condition for wallet funding.</p>
+            <p><strong>No Obligation:</strong> You are never required to accept funding. Accepting or declining support has no impact on your account standing or earnings.</p>
+            <p><strong>Reporting:</strong> If you experience any pressure related to funding, you can report it confidentially through the platform.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAcceptanceDialogOpen(false)} data-testid="button-terms-cancel">Cancel</Button>
+            <Button
+              onClick={() => acceptFundingTermsMutation.mutate()}
+              disabled={acceptFundingTermsMutation.isPending}
+              data-testid="button-accept-funding-terms"
+            >
+              {acceptFundingTermsMutation.isPending ? "Accepting..." : "I Accept These Terms"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DriverLayout>
   );
 }
