@@ -5,7 +5,7 @@ import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integra
 import { storage } from "./storage";
 import { db } from "./db";
 import { eq, and, count, sql, gte, lt, isNotNull, inArray, desc, or } from "drizzle-orm";
-import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, driverInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages, walletFundingTransactions, walletFundingSettings, driverWallets, directorFundingTransactions, directorFundingSettings, directorFundingAcceptance, directorFundingSuspensions, directorProfiles, directorDriverAssignments, directorActionLogs, driverCoachingLogs, directorCells, directorCommissionSettings, directorPayoutSummaries, referralCodes, directorFraudSignals, directorDisputes, directorDisputeMessages, directorWindDowns, welcomeAnalytics } from "@shared/schema";
+import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, driverInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages, walletFundingTransactions, walletFundingSettings, driverWallets, directorFundingTransactions, directorFundingSettings, directorFundingAcceptance, directorFundingSuspensions, directorProfiles, directorDriverAssignments, directorActionLogs, driverCoachingLogs, directorCells, directorCommissionSettings, directorPayoutSummaries, referralCodes, directorFraudSignals, directorDisputes, directorDisputeMessages, directorWindDowns, welcomeAnalytics, directorPerformanceScores, directorPerformanceWeights, directorIncentives, directorRestrictions, directorPerformanceLogs } from "@shared/schema";
 import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, evaluateAllDrivers, evaluateBehaviorAndWarnings, calculateDriverMatchingScore, getDriverIncentiveProgress, assignFirstRidePromo, assignReturnRiderPromo, applyPromoToTrip, voidPromosOnCancellation } from "./incentives";
 import { notificationService } from "./notification-service";
 import { getCurrencyFromCountry, getCountryConfig, FINANCIAL_ENGINE_LOCKED } from "@shared/currency";
@@ -24606,6 +24606,426 @@ export async function registerRoutes(
     } catch (error) {
       console.error("[WELCOME INSIGHTS] Error:", error);
       res.status(500).json({ error: "Failed to fetch welcome insights" });
+    }
+  });
+
+  // ========================================
+  // DIRECTOR PERFORMANCE SCORING & AUTO-INCENTIVES
+  // ========================================
+
+  async function getOrCreatePerformanceWeights() {
+    let [weights] = await db.select().from(directorPerformanceWeights).limit(1);
+    if (!weights) {
+      [weights] = await db.insert(directorPerformanceWeights).values({}).returning();
+    }
+    return weights;
+  }
+
+  function determineTier(score: number, weights: any): "gold" | "silver" | "bronze" | "at_risk" {
+    if (score >= weights.goldThreshold) return "gold";
+    if (score >= weights.silverThreshold) return "silver";
+    if (score >= weights.bronzeThreshold) return "bronze";
+    return "at_risk";
+  }
+
+  async function calculateDirectorPerformanceScore(directorUserId: string) {
+    const weights = await getOrCreatePerformanceWeights();
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+
+    const assignments = await db.select().from(directorDriverAssignments)
+      .where(and(eq(directorDriverAssignments.directorUserId, directorUserId), eq(directorDriverAssignments.isActive, true)));
+    const driverUserIds = assignments.map(a => a.driverUserId);
+    const totalDrivers = driverUserIds.length;
+
+    let driverActivityRaw = 0;
+    let driverQualityRaw = 0;
+    let driverRetentionRaw = 0;
+    let complianceSafetyRaw = 0;
+    let adminFeedbackRaw = 50;
+
+    if (totalDrivers > 0) {
+      const drivers = await db.select().from(driverProfiles)
+        .where(inArray(driverProfiles.userId, driverUserIds));
+      const activeDrivers = drivers.filter(d => d.isOnline || d.status === "active");
+      const activeRatio = parseFloat((await db.select().from(directorCommissionSettings).limit(1))?.[0]?.activeRatio || "0.77");
+      const effectiveActive = Math.min(activeDrivers.length, Math.floor(totalDrivers * activeRatio));
+      driverActivityRaw = totalDrivers > 0 ? Math.round((effectiveActive / totalDrivers) * 100) : 0;
+
+      const trustProfiles = await db.select().from(userTrustProfiles)
+        .where(inArray(userTrustProfiles.userId, driverUserIds));
+      const avgTrust = trustProfiles.length > 0
+        ? trustProfiles.reduce((sum, t) => sum + parseFloat(t.trustScore || "50"), 0) / trustProfiles.length
+        : 50;
+      const suspendedCount = drivers.filter(d => d.status === "suspended").length;
+      const suspensionPenalty = Math.min(suspendedCount * 10, 40);
+      driverQualityRaw = Math.max(0, Math.min(100, Math.round(avgTrust - suspensionPenalty)));
+
+      const recentAssignments = assignments.filter(a => {
+        const assignDate = new Date(a.assignedAt);
+        return assignDate <= thirtyDaysAgo;
+      });
+      const retainedCount = recentAssignments.filter(a => a.isActive).length;
+      const eligibleForRetention = assignments.filter(a => new Date(a.assignedAt) <= sixtyDaysAgo).length;
+      if (eligibleForRetention > 0) {
+        driverRetentionRaw = Math.round((retainedCount / Math.max(eligibleForRetention, 1)) * 100);
+      } else {
+        driverRetentionRaw = totalDrivers > 0 ? 70 : 0;
+      }
+
+      const fraudSignals = await db.select({ cnt: count() }).from(directorFraudSignals)
+        .where(and(
+          eq(directorFraudSignals.directorUserId, directorUserId),
+          eq(directorFraudSignals.status, "open"),
+          gte(directorFraudSignals.detectedAt, thirtyDaysAgo)
+        ));
+      const openFraudCount = Number(fraudSignals[0]?.cnt || 0);
+      const fraudPenalty = Math.min(openFraudCount * 15, 60);
+      complianceSafetyRaw = Math.max(0, 100 - fraudPenalty);
+    }
+
+    const score = Math.round(
+      (driverActivityRaw * weights.driverActivityWeight / 100) +
+      (driverQualityRaw * weights.driverQualityWeight / 100) +
+      (driverRetentionRaw * weights.driverRetentionWeight / 100) +
+      (complianceSafetyRaw * weights.complianceSafetyWeight / 100) +
+      (adminFeedbackRaw * weights.adminFeedbackWeight / 100)
+    );
+    const tier = determineTier(score, weights);
+
+    const existing = await db.select().from(directorPerformanceScores)
+      .where(eq(directorPerformanceScores.directorUserId, directorUserId))
+      .orderBy(desc(directorPerformanceScores.calculatedAt))
+      .limit(1);
+
+    const previousScore = existing[0]?.score;
+    const previousTier = existing[0]?.tier;
+
+    const [record] = await db.insert(directorPerformanceScores).values({
+      directorUserId,
+      score,
+      tier,
+      driverActivityScore: driverActivityRaw,
+      driverQualityScore: driverQualityRaw,
+      driverRetentionScore: driverRetentionRaw,
+      complianceSafetyScore: complianceSafetyRaw,
+      adminFeedbackScore: adminFeedbackRaw,
+      periodStart: thirtyDaysAgo,
+      periodEnd: now,
+    }).returning();
+
+    if (previousTier && previousTier !== tier) {
+      await db.insert(directorPerformanceLogs).values({
+        directorUserId,
+        action: "tier_change",
+        previousScore,
+        newScore: score,
+        previousTier,
+        newTier: tier,
+        details: `Tier changed from ${previousTier} to ${tier}`,
+      });
+    }
+
+    if (tier === "at_risk") {
+      const existingRestrictions = await db.select().from(directorRestrictions)
+        .where(and(eq(directorRestrictions.directorUserId, directorUserId), eq(directorRestrictions.isActive, true)));
+      if (existingRestrictions.length === 0) {
+        await db.insert(directorRestrictions).values([
+          { directorUserId, restrictionType: "freeze_new_drivers", description: "New driver activation frozen due to AT-RISK performance tier", triggeredByScore: score, triggeredByTier: "at_risk" },
+          { directorUserId, restrictionType: "admin_review_required", description: "Admin review required due to AT-RISK performance tier", triggeredByScore: score, triggeredByTier: "at_risk" },
+        ]);
+        await db.insert(directorPerformanceLogs).values({
+          directorUserId, action: "auto_restriction", newScore: score, newTier: tier,
+          details: "Auto-restrictions applied: freeze_new_drivers, admin_review_required",
+        });
+      }
+    } else if (tier === "gold" && previousTier !== "gold") {
+      const existingIncentives = await db.select().from(directorIncentives)
+        .where(and(eq(directorIncentives.directorUserId, directorUserId), eq(directorIncentives.isActive, true)));
+      if (existingIncentives.length === 0) {
+        await db.insert(directorIncentives).values({
+          directorUserId, incentiveType: "visibility_boost", description: "Visibility boost for achieving GOLD performance tier",
+          triggeredByScore: score, triggeredByTier: "gold", expiresAt: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
+        });
+        await db.insert(directorPerformanceLogs).values({
+          directorUserId, action: "auto_incentive", newScore: score, newTier: tier,
+          details: "Auto-incentive applied: visibility_boost",
+        });
+      }
+    }
+
+    if (tier !== "at_risk") {
+      const activeRestrictions = await db.select().from(directorRestrictions)
+        .where(and(
+          eq(directorRestrictions.directorUserId, directorUserId),
+          eq(directorRestrictions.isActive, true),
+          eq(directorRestrictions.triggeredByTier, "at_risk")
+        ));
+      for (const r of activeRestrictions) {
+        await db.update(directorRestrictions).set({ isActive: false, liftedAt: now, liftedBy: "system", liftReason: `Score improved to ${score} (${tier})` })
+          .where(eq(directorRestrictions.id, r.id));
+      }
+    }
+
+    return record;
+  }
+
+  app.get("/api/director/performance", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const [latest] = await db.select().from(directorPerformanceScores)
+        .where(eq(directorPerformanceScores.directorUserId, userId))
+        .orderBy(desc(directorPerformanceScores.calculatedAt))
+        .limit(1);
+
+      const history = await db.select().from(directorPerformanceScores)
+        .where(eq(directorPerformanceScores.directorUserId, userId))
+        .orderBy(desc(directorPerformanceScores.calculatedAt))
+        .limit(30);
+
+      const incentives = await db.select().from(directorIncentives)
+        .where(and(eq(directorIncentives.directorUserId, userId), eq(directorIncentives.isActive, true)));
+
+      const restrictions = await db.select().from(directorRestrictions)
+        .where(and(eq(directorRestrictions.directorUserId, userId), eq(directorRestrictions.isActive, true)));
+
+      const weights = await getOrCreatePerformanceWeights();
+
+      res.json({
+        current: latest || null,
+        history: history.reverse(),
+        incentives,
+        restrictions,
+        thresholds: { gold: weights.goldThreshold, silver: weights.silverThreshold, bronze: weights.bronzeThreshold },
+      });
+    } catch (error) {
+      console.error("[DIRECTOR PERFORMANCE] Error:", error);
+      res.status(500).json({ error: "Failed to load performance data" });
+    }
+  });
+
+  app.post("/api/director/performance/calculate", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
+    try {
+      const result = await calculateDirectorPerformanceScore(req.user.id);
+      res.json(result);
+    } catch (error) {
+      console.error("[DIRECTOR PERFORMANCE] Calculate error:", error);
+      res.status(500).json({ error: "Failed to calculate performance score" });
+    }
+  });
+
+  app.get("/api/admin/director-performance/weights", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const weights = await getOrCreatePerformanceWeights();
+      res.json(weights);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to load weights" });
+    }
+  });
+
+  app.put("/api/admin/director-performance/weights", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const { driverActivityWeight, driverQualityWeight, driverRetentionWeight, complianceSafetyWeight, adminFeedbackWeight, goldThreshold, silverThreshold, bronzeThreshold } = req.body;
+
+      const totalWeight = (driverActivityWeight || 30) + (driverQualityWeight || 25) + (driverRetentionWeight || 20) + (complianceSafetyWeight || 15) + (adminFeedbackWeight || 10);
+      if (totalWeight !== 100) return res.status(400).json({ error: "Weights must sum to 100" });
+
+      const weights = await getOrCreatePerformanceWeights();
+      const [updated] = await db.update(directorPerformanceWeights).set({
+        driverActivityWeight: driverActivityWeight ?? weights.driverActivityWeight,
+        driverQualityWeight: driverQualityWeight ?? weights.driverQualityWeight,
+        driverRetentionWeight: driverRetentionWeight ?? weights.driverRetentionWeight,
+        complianceSafetyWeight: complianceSafetyWeight ?? weights.complianceSafetyWeight,
+        adminFeedbackWeight: adminFeedbackWeight ?? weights.adminFeedbackWeight,
+        goldThreshold: goldThreshold ?? weights.goldThreshold,
+        silverThreshold: silverThreshold ?? weights.silverThreshold,
+        bronzeThreshold: bronzeThreshold ?? weights.bronzeThreshold,
+        updatedAt: new Date(),
+        updatedBy: userId,
+      }).where(eq(directorPerformanceWeights.id, weights.id)).returning();
+
+      await db.insert(directorPerformanceLogs).values({
+        directorUserId: "system",
+        action: "weights_updated",
+        details: JSON.stringify({ before: weights, after: updated }),
+        performedBy: userId,
+      });
+
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update weights" });
+    }
+  });
+
+  app.get("/api/admin/director-performance/:directorUserId", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { directorUserId } = req.params;
+      const [latest] = await db.select().from(directorPerformanceScores)
+        .where(eq(directorPerformanceScores.directorUserId, directorUserId))
+        .orderBy(desc(directorPerformanceScores.calculatedAt))
+        .limit(1);
+
+      const history = await db.select().from(directorPerformanceScores)
+        .where(eq(directorPerformanceScores.directorUserId, directorUserId))
+        .orderBy(desc(directorPerformanceScores.calculatedAt))
+        .limit(30);
+
+      const incentives = await db.select().from(directorIncentives)
+        .where(eq(directorIncentives.directorUserId, directorUserId));
+
+      const restrictions = await db.select().from(directorRestrictions)
+        .where(eq(directorRestrictions.directorUserId, directorUserId));
+
+      const logs = await db.select().from(directorPerformanceLogs)
+        .where(eq(directorPerformanceLogs.directorUserId, directorUserId))
+        .orderBy(desc(directorPerformanceLogs.createdAt))
+        .limit(50);
+
+      res.json({ current: latest || null, history: history.reverse(), incentives, restrictions, logs });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to load director performance" });
+    }
+  });
+
+  app.post("/api/admin/director-performance/:directorUserId/calculate", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const result = await calculateDirectorPerformanceScore(req.params.directorUserId);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to calculate performance" });
+    }
+  });
+
+  app.post("/api/admin/director-performance/:directorUserId/feedback", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { directorUserId } = req.params;
+      const { feedbackScore, reason } = req.body;
+      if (feedbackScore < 0 || feedbackScore > 100) return res.status(400).json({ error: "Feedback score must be 0-100" });
+
+      await db.insert(directorPerformanceLogs).values({
+        directorUserId,
+        action: "admin_feedback",
+        newScore: feedbackScore,
+        details: reason || "Admin feedback score updated",
+        performedBy: req.user.id,
+      });
+
+      res.json({ success: true, message: "Feedback recorded" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to submit feedback" });
+    }
+  });
+
+  app.post("/api/admin/director-performance/:directorUserId/incentive", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { directorUserId } = req.params;
+      const { incentiveType, description, expiresInDays } = req.body;
+      const expiresAt = expiresInDays ? new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000) : null;
+
+      const [incentive] = await db.insert(directorIncentives).values({
+        directorUserId,
+        incentiveType,
+        description: description || `Manual ${incentiveType} incentive`,
+        expiresAt,
+        triggeredByTier: null,
+      }).returning();
+
+      await db.insert(directorPerformanceLogs).values({
+        directorUserId, action: "manual_incentive",
+        details: `Incentive granted: ${incentiveType} - ${description || ""}`,
+        performedBy: req.user.id,
+      });
+
+      res.json(incentive);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create incentive" });
+    }
+  });
+
+  app.post("/api/admin/director-performance/:directorUserId/revoke-incentive/:incentiveId", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { incentiveId } = req.params;
+      const { reason } = req.body;
+
+      await db.update(directorIncentives).set({
+        isActive: false, revokedAt: new Date(), revokedBy: req.user.id, revokeReason: reason || "Revoked by admin",
+      }).where(eq(directorIncentives.id, incentiveId));
+
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to revoke incentive" });
+    }
+  });
+
+  app.post("/api/admin/director-performance/:directorUserId/restriction", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { directorUserId } = req.params;
+      const { restrictionType, description } = req.body;
+
+      const [restriction] = await db.insert(directorRestrictions).values({
+        directorUserId,
+        restrictionType,
+        description: description || `Manual ${restrictionType} restriction`,
+      }).returning();
+
+      await db.insert(directorPerformanceLogs).values({
+        directorUserId, action: "manual_restriction",
+        details: `Restriction applied: ${restrictionType} - ${description || ""}`,
+        performedBy: req.user.id,
+      });
+
+      res.json(restriction);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create restriction" });
+    }
+  });
+
+  app.post("/api/admin/director-performance/:directorUserId/lift-restriction/:restrictionId", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { restrictionId } = req.params;
+      const { reason } = req.body;
+
+      await db.update(directorRestrictions).set({
+        isActive: false, liftedAt: new Date(), liftedBy: req.user.id, liftReason: reason || "Lifted by admin",
+      }).where(eq(directorRestrictions.id, restrictionId));
+
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to lift restriction" });
+    }
+  });
+
+  app.get("/api/admin/director-performance/all", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const allDirectors = await db.select().from(directorProfiles);
+      const results = [];
+      for (const director of allDirectors) {
+        const [latest] = await db.select().from(directorPerformanceScores)
+          .where(eq(directorPerformanceScores.directorUserId, director.userId))
+          .orderBy(desc(directorPerformanceScores.calculatedAt))
+          .limit(1);
+        const activeIncentives = await db.select({ cnt: count() }).from(directorIncentives)
+          .where(and(eq(directorIncentives.directorUserId, director.userId), eq(directorIncentives.isActive, true)));
+        const activeRestrictions = await db.select({ cnt: count() }).from(directorRestrictions)
+          .where(and(eq(directorRestrictions.directorUserId, director.userId), eq(directorRestrictions.isActive, true)));
+
+        results.push({
+          directorUserId: director.userId,
+          fullName: director.fullName,
+          directorType: director.directorType,
+          status: director.status,
+          score: latest?.score ?? null,
+          tier: latest?.tier ?? null,
+          lastCalculated: latest?.calculatedAt ?? null,
+          activeIncentives: Number(activeIncentives[0]?.cnt || 0),
+          activeRestrictions: Number(activeRestrictions[0]?.cnt || 0),
+        });
+      }
+      res.json(results);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to load director performance overview" });
     }
   });
 
