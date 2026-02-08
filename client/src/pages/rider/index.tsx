@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -36,7 +37,11 @@ import {
   Star,
   User,
   Calendar,
-  Shield
+  Shield,
+  Award,
+  Wallet,
+  Lightbulb,
+  Gift
 } from "lucide-react";
 import type { Trip, RiderProfile, Ride } from "@shared/schema";
 import { NotificationBell } from "@/components/notification-bell";
@@ -88,6 +93,21 @@ export default function RiderDashboard() {
     queryKey: ["/api/rider/current-trip"],
     enabled: !!user,
     refetchInterval: 3000,
+  });
+
+  const { data: trustScore } = useQuery<any>({
+    queryKey: ["/api/rider/trust-score"],
+    enabled: !!user,
+  });
+
+  const { data: tierBenefits } = useQuery<any>({
+    queryKey: ["/api/rider/trust-tier-benefits"],
+    enabled: !!user,
+  });
+
+  const { data: loyaltyIncentives = [] } = useQuery<any[]>({
+    queryKey: ["/api/rider/loyalty-incentives"],
+    enabled: !!user,
   });
 
   // Phase 22 - Enhanced ride lifecycle
@@ -720,6 +740,218 @@ export default function RiderDashboard() {
             />
           </div>
         </div>
+
+        {user && (
+          <div className="mt-8 space-y-6" data-testid="section-trust-loyalty">
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <Award className="h-5 w-5" />
+              Trust & Loyalty
+            </h2>
+            <div className="grid gap-6 md:grid-cols-2">
+              <Card data-testid="card-trust-score">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Shield className="h-5 w-5" />
+                    Your Trust Score
+                  </CardTitle>
+                  <CardDescription>
+                    Your overall standing on ZIBA
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {trustScore ? (
+                    <>
+                      <div className="flex items-center justify-between gap-4 flex-wrap">
+                        <span
+                          className={`text-4xl font-bold ${
+                            trustScore.tier === "platinum" ? "text-purple-600 dark:text-purple-400" :
+                            trustScore.tier === "gold" ? "text-yellow-600 dark:text-yellow-400" :
+                            trustScore.tier === "limited" ? "text-destructive" :
+                            "text-blue-600 dark:text-blue-400"
+                          }`}
+                          data-testid="text-trust-score"
+                        >
+                          {trustScore.score ?? 0}
+                        </span>
+                        <Badge
+                          variant={
+                            trustScore.tier === "platinum" ? "default" :
+                            trustScore.tier === "gold" ? "secondary" :
+                            trustScore.tier === "limited" ? "destructive" :
+                            "outline"
+                          }
+                          data-testid="badge-trust-tier"
+                        >
+                          {trustScore.tier ? trustScore.tier.charAt(0).toUpperCase() + trustScore.tier.slice(1) : "Standard"}
+                        </Badge>
+                      </div>
+                      <div className="w-full bg-muted rounded-md h-2">
+                        <div
+                          className={`h-2 rounded-md transition-all ${
+                            trustScore.tier === "platinum" ? "bg-purple-600 dark:bg-purple-400" :
+                            trustScore.tier === "gold" ? "bg-yellow-600 dark:bg-yellow-400" :
+                            trustScore.tier === "limited" ? "bg-destructive" :
+                            "bg-blue-600 dark:bg-blue-400"
+                          }`}
+                          style={{ width: `${Math.min(100, Math.max(0, trustScore.score ?? 0))}%` }}
+                          data-testid="bar-trust-score"
+                        />
+                      </div>
+                      {trustScore.components && (
+                        <div className="grid grid-cols-2 gap-3 pt-2">
+                          <div className="text-sm" data-testid="text-component-reliability">
+                            <span className="text-muted-foreground">Reliability</span>
+                            <p className="font-medium">{trustScore.components.reliability ?? 0}/100</p>
+                          </div>
+                          <div className="text-sm" data-testid="text-component-payment">
+                            <span className="text-muted-foreground">Payment</span>
+                            <p className="font-medium">{trustScore.components.payment ?? 0}/100</p>
+                          </div>
+                          <div className="text-sm" data-testid="text-component-conduct">
+                            <span className="text-muted-foreground">Conduct</span>
+                            <p className="font-medium">{trustScore.components.conduct ?? 0}/100</p>
+                          </div>
+                          <div className="text-sm" data-testid="text-component-account">
+                            <span className="text-muted-foreground">Account</span>
+                            <p className="font-medium">{trustScore.components.account ?? 0}/100</p>
+                          </div>
+                        </div>
+                      )}
+                      {trustScore.gracePeriodMinutes != null && (
+                        <p className="text-sm text-muted-foreground pt-1" data-testid="text-grace-period">
+                          Cancellation grace: {trustScore.gracePeriodMinutes} minutes
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Complete a few rides to see your trust score
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card data-testid="card-wallet-health">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Wallet className="h-5 w-5" />
+                    Wallet Health
+                  </CardTitle>
+                  <CardDescription>
+                    Your payment patterns
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {trustScore?.walletFundedPercent != null ? (
+                    <>
+                      <div className="flex items-center justify-between gap-4 flex-wrap">
+                        <span className="text-sm">
+                          Wallet-funded rides: {trustScore.walletFundedPercent}%
+                        </span>
+                        {trustScore.walletFundedPercent > 50 ? (
+                          <Badge variant="secondary" data-testid="badge-wallet-good">Good</Badge>
+                        ) : (
+                          <span className="text-sm text-muted-foreground" data-testid="text-wallet-encourage">
+                            Top up your wallet for a smoother experience
+                          </span>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground" data-testid="text-wallet-no-data">
+                      Take some rides to see your wallet health
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground" data-testid="text-wallet-tip">
+                    Wallet-funded rides contribute to a smoother experience
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card data-testid="card-loyalty-incentives">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Gift className="h-5 w-5" />
+                    Your Benefits
+                  </CardTitle>
+                  <CardDescription>
+                    Rewards and incentives for your loyalty
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {loyaltyIncentives.length > 0 ? (
+                    loyaltyIncentives.map((incentive: any, index: number) => (
+                      <div
+                        key={incentive.id || index}
+                        className="flex items-start justify-between gap-4 py-2 border-b last:border-b-0"
+                        data-testid={`incentive-item-${incentive.id || index}`}
+                      >
+                        <div className="space-y-1">
+                          <Badge variant="outline" className="text-xs" data-testid={`badge-incentive-type-${incentive.id || index}`}>
+                            {incentive.type || "Reward"}
+                          </Badge>
+                          <p className="text-sm">{incentive.description || "Loyalty benefit"}</p>
+                        </div>
+                        {incentive.expiresAt && (
+                          <span className="text-xs text-muted-foreground whitespace-nowrap" data-testid={`text-incentive-expiry-${incentive.id || index}`}>
+                            Expires {new Date(incentive.expiresAt).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground" data-testid="text-no-incentives">
+                      Keep riding to unlock benefits
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card data-testid="card-zibra-tips">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Lightbulb className="h-5 w-5" />
+                    Tips from ZIBRA
+                  </CardTitle>
+                  <CardDescription>
+                    Helpful suggestions for your journey
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {trustScore?.tier === "limited" && (
+                    <p className="text-sm" data-testid="text-tip-limited">
+                      Complete more rides to improve your standing
+                    </p>
+                  )}
+                  {trustScore?.tier === "standard" && (
+                    <p className="text-sm" data-testid="text-tip-standard">
+                      You're building a solid track record. Keep it up!
+                    </p>
+                  )}
+                  {trustScore?.tier === "gold" && (
+                    <p className="text-sm" data-testid="text-tip-gold">
+                      You're a valued rider. Enjoy priority matching!
+                    </p>
+                  )}
+                  {trustScore?.tier === "platinum" && (
+                    <p className="text-sm" data-testid="text-tip-platinum">
+                      Top-tier rider! Thank you for being part of ZIBA
+                    </p>
+                  )}
+                  {!trustScore?.tier && (
+                    <p className="text-sm" data-testid="text-tip-default">
+                      Start riding with ZIBA and build your trust score
+                    </p>
+                  )}
+                  <Separator />
+                  <p className="text-sm text-muted-foreground" data-testid="text-tip-wallet">
+                    Use your wallet for faster, smoother payments
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
       </main>
       <TripDetailModal
         trip={selectedTrip}

@@ -74,6 +74,10 @@ Preferred communication style: Simple, everyday language.
 - **Director Dashboard Read-Only Mode**: Dashboard enters read-only mode for suspended/terminated/expired directors with status-specific banners and all action buttons disabled.
 - **Data Retention & Legal Safety**: Permanent record retention and immutable audit logs.
 - **Director Performance Scoring & Auto-Incentives**: DPS (0-100) with 5 weighted components (driver activity 30%, driver quality 25%, driver retention 20%, compliance & safety 15%, admin feedback 10%). Auto-assigns tiers (Gold/Silver/Bronze/At-Risk) with configurable thresholds. Auto-incentives for Gold tier, auto-restrictions for At-Risk. Super Admin weight configuration panel with full audit logging. Performance tab in Director Dashboard with score gauge, tier badge, component breakdown, history, and active incentives/restrictions. ZIBRA coaching templates for performance guidance.
+- **Rider Trust Score (RTS)**: Rider trust scoring system (0-100) with 5 weighted components (reliability 35%, payment behavior 25%, conduct & safety 20%, account stability 10%, admin flags 10%). Auto-assigns tiers (Platinum/Gold/Standard/Limited) with configurable thresholds. Tier affects cancellation grace periods, ride matching priority, and support response priority. Super Admin weight configuration panel.
+- **Rider Loyalty & Wallet Growth**: Admin-controlled loyalty incentives (ride credits, reduced fees), wallet health indicators, wallet usage encouragement. P2P wallet funding support (parent-child, employer-staff, friend-friend) with recipient acceptance required and caps enforced.
+- **Rider Dashboard Trust Section**: Trust score display with tier badge, component breakdown, wallet health indicator, active loyalty incentives, and contextual ZIBRA tips. Encouraging, informational, non-judgmental tone. No internal formulas exposed.
+- **Admin Rider Trust Panel**: Overview of all rider trust scores with tier filtering, weight configuration, manual rider flagging, loyalty incentive granting, and audit logs.
 
 ## External Dependencies
 

@@ -1675,6 +1675,7 @@ function DirectorDisputesPanel() {
 
 export default function AdminDashboard({ userRole = "admin" }: AdminDashboardProps) {
   const isSuperAdmin = userRole === "super_admin";
+  const isAdmin = userRole === "admin";
   const isDirector = userRole === "director";
   const isTripCoordinator = userRole === "trip_coordinator";
   const isFinance = userRole === "finance";
@@ -1853,6 +1854,21 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
     enabled: !!user && isSuperAdmin && activeTab === "director-performance",
   });
 
+  const { data: riderTrustOverview = [], refetch: refetchRiderTrust } = useQuery<any[]>({
+    queryKey: ["/api/admin/rider-trust/all"],
+    enabled: !!user && (isAdmin || isSuperAdmin) && activeTab === "rider-trust",
+  });
+
+  const { data: riderTrustWeightsData, refetch: refetchRiderWeights } = useQuery<any>({
+    queryKey: ["/api/admin/rider-trust/weights"],
+    enabled: !!user && (isAdmin || isSuperAdmin) && activeTab === "rider-trust",
+  });
+
+  const { data: riderTrustLogsData = [] } = useQuery<any[]>({
+    queryKey: ["/api/admin/rider-trust/logs"],
+    enabled: !!user && (isAdmin || isSuperAdmin) && activeTab === "rider-trust",
+  });
+
   const { data: expiringDirectors = [] } = useQuery<any[]>({
     queryKey: ["/api/admin/directors/expiring"],
     enabled: !!user && isSuperAdmin && (activeTab === "directors" || activeTab === "director-settings"),
@@ -1888,6 +1904,40 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
       });
     }
   }, [perfWeights]);
+
+  const [riderTrustWeightsForm, setRiderTrustWeightsForm] = useState({
+    reliabilityWeight: 35,
+    paymentBehaviorWeight: 25,
+    conductSafetyWeight: 20,
+    accountStabilityWeight: 10,
+    adminFlagsWeight: 10,
+    platinumThreshold: 90,
+    goldThreshold: 75,
+    standardThreshold: 50,
+    platinumGracePeriod: 10,
+    goldGracePeriod: 7,
+    standardGracePeriod: 5,
+    limitedGracePeriod: 3,
+  });
+
+  useEffect(() => {
+    if (riderTrustWeightsData) {
+      setRiderTrustWeightsForm({
+        reliabilityWeight: riderTrustWeightsData.reliabilityWeight ?? 35,
+        paymentBehaviorWeight: riderTrustWeightsData.paymentBehaviorWeight ?? 25,
+        conductSafetyWeight: riderTrustWeightsData.conductSafetyWeight ?? 20,
+        accountStabilityWeight: riderTrustWeightsData.accountStabilityWeight ?? 10,
+        adminFlagsWeight: riderTrustWeightsData.adminFlagsWeight ?? 10,
+        platinumThreshold: riderTrustWeightsData.platinumThreshold ?? 90,
+        goldThreshold: riderTrustWeightsData.goldThreshold ?? 75,
+        standardThreshold: riderTrustWeightsData.standardThreshold ?? 50,
+        platinumGracePeriod: riderTrustWeightsData.platinumGracePeriod ?? 10,
+        goldGracePeriod: riderTrustWeightsData.goldGracePeriod ?? 7,
+        standardGracePeriod: riderTrustWeightsData.standardGracePeriod ?? 5,
+        limitedGracePeriod: riderTrustWeightsData.limitedGracePeriod ?? 3,
+      });
+    }
+  }, [riderTrustWeightsData]);
 
   // Phase 11 - Wallet queries
   const [walletPayoutStatusFilter, setWalletPayoutStatusFilter] = useState<string>("all");
@@ -3942,6 +3992,12 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
               <TabsTrigger value="training-center" className="admin-nav-trigger rounded-md" data-testid="tab-training-center">
                 <BookOpen className="h-4 w-4 mr-2" />
                 Training Center
+              </TabsTrigger>
+            )}
+            {(isSuperAdmin || isAdmin) && (
+              <TabsTrigger value="rider-trust" className="admin-nav-trigger rounded-md" data-testid="tab-rider-trust">
+                <Users className="h-4 w-4 mr-2" />
+                Rider Trust
               </TabsTrigger>
             )}
           </TabsList>
@@ -9810,6 +9866,397 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
           {(isSuperAdmin || userRole === "admin" || isDirector) && (
             <TabsContent value="training-center">
               <TrainingCenter role={isDirector ? "contract_director" : "driver"} />
+            </TabsContent>
+          )}
+
+          {(isSuperAdmin || isAdmin) && (
+            <TabsContent value="rider-trust">
+              <div className="space-y-6" data-testid="rider-trust-section">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <Card data-testid="card-rt-total-riders">
+                    <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Total Riders</CardTitle>
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold" data-testid="text-rt-total-riders">{riderTrustOverview.length}</div>
+                    </CardContent>
+                  </Card>
+                  <Card data-testid="card-rt-avg-score">
+                    <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Average Score</CardTitle>
+                      <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold" data-testid="text-rt-avg-score">
+                        {riderTrustOverview.length > 0
+                          ? (riderTrustOverview.reduce((sum: number, r: any) => sum + (Number(r.score) || 0), 0) / riderTrustOverview.length).toFixed(1)
+                          : "0"}
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card data-testid="card-rt-limited-count">
+                    <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Limited Tier</CardTitle>
+                      <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold" data-testid="text-rt-limited-count">
+                        {riderTrustOverview.filter((r: any) => r.tier === "limited").length}
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card data-testid="card-rt-platinum-count">
+                    <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Platinum Tier</CardTitle>
+                      <Award className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold" data-testid="text-rt-platinum-count">
+                        {riderTrustOverview.filter((r: any) => r.tier === "platinum").length}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {isSuperAdmin && (
+                  <Card data-testid="card-rider-trust-weights">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2" data-testid="text-rt-weights-title">
+                        <Settings2 className="h-5 w-5" />
+                        Rider Trust Weights Configuration
+                      </CardTitle>
+                      <CardDescription>Configure scoring weights (must sum to 100), tier thresholds, and grace periods</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        <div className="space-y-1">
+                          <Label htmlFor="rt-weight-reliability">Reliability (35%)</Label>
+                          <Input
+                            id="rt-weight-reliability"
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={riderTrustWeightsForm.reliabilityWeight}
+                            onChange={(e) => setRiderTrustWeightsForm(f => ({ ...f, reliabilityWeight: Number(e.target.value) }))}
+                            data-testid="input-rt-weight-reliability"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="rt-weight-payment">Payment Behavior (25%)</Label>
+                          <Input
+                            id="rt-weight-payment"
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={riderTrustWeightsForm.paymentBehaviorWeight}
+                            onChange={(e) => setRiderTrustWeightsForm(f => ({ ...f, paymentBehaviorWeight: Number(e.target.value) }))}
+                            data-testid="input-rt-weight-payment"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="rt-weight-conduct">Conduct & Safety (20%)</Label>
+                          <Input
+                            id="rt-weight-conduct"
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={riderTrustWeightsForm.conductSafetyWeight}
+                            onChange={(e) => setRiderTrustWeightsForm(f => ({ ...f, conductSafetyWeight: Number(e.target.value) }))}
+                            data-testid="input-rt-weight-conduct"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="rt-weight-stability">Account Stability (10%)</Label>
+                          <Input
+                            id="rt-weight-stability"
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={riderTrustWeightsForm.accountStabilityWeight}
+                            onChange={(e) => setRiderTrustWeightsForm(f => ({ ...f, accountStabilityWeight: Number(e.target.value) }))}
+                            data-testid="input-rt-weight-stability"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="rt-weight-flags">Admin Flags (10%)</Label>
+                          <Input
+                            id="rt-weight-flags"
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={riderTrustWeightsForm.adminFlagsWeight}
+                            onChange={(e) => setRiderTrustWeightsForm(f => ({ ...f, adminFlagsWeight: Number(e.target.value) }))}
+                            data-testid="input-rt-weight-flags"
+                          />
+                        </div>
+                      </div>
+                      <div className="text-sm" data-testid="text-rt-weights-total">
+                        Total: <span className={
+                          (riderTrustWeightsForm.reliabilityWeight + riderTrustWeightsForm.paymentBehaviorWeight + riderTrustWeightsForm.conductSafetyWeight + riderTrustWeightsForm.accountStabilityWeight + riderTrustWeightsForm.adminFlagsWeight) === 100
+                            ? "font-bold text-green-600"
+                            : "font-bold text-destructive"
+                        }>
+                          {riderTrustWeightsForm.reliabilityWeight + riderTrustWeightsForm.paymentBehaviorWeight + riderTrustWeightsForm.conductSafetyWeight + riderTrustWeightsForm.accountStabilityWeight + riderTrustWeightsForm.adminFlagsWeight}
+                        </span> / 100
+                      </div>
+                      <div className="grid gap-4 sm:grid-cols-3">
+                        <div className="space-y-1">
+                          <Label htmlFor="rt-threshold-platinum">Platinum Threshold</Label>
+                          <Input
+                            id="rt-threshold-platinum"
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={riderTrustWeightsForm.platinumThreshold}
+                            onChange={(e) => setRiderTrustWeightsForm(f => ({ ...f, platinumThreshold: Number(e.target.value) }))}
+                            data-testid="input-rt-threshold-platinum"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="rt-threshold-gold">Gold Threshold</Label>
+                          <Input
+                            id="rt-threshold-gold"
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={riderTrustWeightsForm.goldThreshold}
+                            onChange={(e) => setRiderTrustWeightsForm(f => ({ ...f, goldThreshold: Number(e.target.value) }))}
+                            data-testid="input-rt-threshold-gold"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="rt-threshold-standard">Standard Threshold</Label>
+                          <Input
+                            id="rt-threshold-standard"
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={riderTrustWeightsForm.standardThreshold}
+                            onChange={(e) => setRiderTrustWeightsForm(f => ({ ...f, standardThreshold: Number(e.target.value) }))}
+                            data-testid="input-rt-threshold-standard"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        <div className="space-y-1">
+                          <Label htmlFor="rt-grace-platinum">Platinum Grace (min)</Label>
+                          <Input
+                            id="rt-grace-platinum"
+                            type="number"
+                            min="0"
+                            value={riderTrustWeightsForm.platinumGracePeriod}
+                            onChange={(e) => setRiderTrustWeightsForm(f => ({ ...f, platinumGracePeriod: Number(e.target.value) }))}
+                            data-testid="input-rt-grace-platinum"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="rt-grace-gold">Gold Grace (min)</Label>
+                          <Input
+                            id="rt-grace-gold"
+                            type="number"
+                            min="0"
+                            value={riderTrustWeightsForm.goldGracePeriod}
+                            onChange={(e) => setRiderTrustWeightsForm(f => ({ ...f, goldGracePeriod: Number(e.target.value) }))}
+                            data-testid="input-rt-grace-gold"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="rt-grace-standard">Standard Grace (min)</Label>
+                          <Input
+                            id="rt-grace-standard"
+                            type="number"
+                            min="0"
+                            value={riderTrustWeightsForm.standardGracePeriod}
+                            onChange={(e) => setRiderTrustWeightsForm(f => ({ ...f, standardGracePeriod: Number(e.target.value) }))}
+                            data-testid="input-rt-grace-standard"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="rt-grace-limited">Limited Grace (min)</Label>
+                          <Input
+                            id="rt-grace-limited"
+                            type="number"
+                            min="0"
+                            value={riderTrustWeightsForm.limitedGracePeriod}
+                            onChange={(e) => setRiderTrustWeightsForm(f => ({ ...f, limitedGracePeriod: Number(e.target.value) }))}
+                            data-testid="input-rt-grace-limited"
+                          />
+                        </div>
+                      </div>
+                      <Button
+                        onClick={async () => {
+                          const total = riderTrustWeightsForm.reliabilityWeight + riderTrustWeightsForm.paymentBehaviorWeight + riderTrustWeightsForm.conductSafetyWeight + riderTrustWeightsForm.accountStabilityWeight + riderTrustWeightsForm.adminFlagsWeight;
+                          if (total !== 100) {
+                            toast({ title: "Invalid weights", description: "Weights must sum to 100", variant: "destructive" });
+                            return;
+                          }
+                          try {
+                            await apiRequest("PUT", "/api/admin/rider-trust/weights", riderTrustWeightsForm);
+                            toast({ title: "Weights saved", description: "Rider trust weights updated successfully" });
+                            refetchRiderWeights();
+                          } catch {
+                            toast({ title: "Error", description: "Failed to save weights", variant: "destructive" });
+                          }
+                        }}
+                        data-testid="button-save-rt-weights"
+                      >
+                        Save Weights
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
+
+                <Card data-testid="card-rider-trust-overview">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2" data-testid="text-rt-overview-title">
+                      <Activity className="h-5 w-5" />
+                      Rider Trust Overview
+                    </CardTitle>
+                    <CardDescription>Trust scores and tier assignments for all riders</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {riderTrustOverview.length === 0 ? (
+                      <p className="text-sm text-muted-foreground" data-testid="text-no-rt-data">No rider trust data available</p>
+                    ) : (
+                      <Table data-testid="table-rider-trust">
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Rider Name</TableHead>
+                            <TableHead>Score</TableHead>
+                            <TableHead>Tier</TableHead>
+                            <TableHead>Completed Rides</TableHead>
+                            <TableHead>Cancellations</TableHead>
+                            <TableHead>Last Calculated</TableHead>
+                            <TableHead>Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {riderTrustOverview.map((rider: any, idx: number) => (
+                            <TableRow key={rider.userId || idx} data-testid={`row-rider-trust-${rider.userId || idx}`}>
+                              <TableCell data-testid={`text-rt-name-${rider.userId || idx}`}>
+                                {rider.fullName || rider.name || rider.email || "Unknown"}
+                              </TableCell>
+                              <TableCell data-testid={`text-rt-score-${rider.userId || idx}`}>
+                                {Number(rider.score || 0).toFixed(1)}
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant={
+                                    rider.tier === "platinum" ? "default" :
+                                    rider.tier === "gold" ? "secondary" :
+                                    rider.tier === "limited" ? "destructive" :
+                                    "outline"
+                                  }
+                                  data-testid={`badge-rt-tier-${rider.userId || idx}`}
+                                >
+                                  {rider.tier || "standard"}
+                                </Badge>
+                              </TableCell>
+                              <TableCell data-testid={`text-rt-rides-${rider.userId || idx}`}>
+                                {rider.completedRides ?? 0}
+                              </TableCell>
+                              <TableCell data-testid={`text-rt-cancellations-${rider.userId || idx}`}>
+                                {rider.cancellations ?? 0}
+                              </TableCell>
+                              <TableCell data-testid={`text-rt-last-calc-${rider.userId || idx}`}>
+                                {rider.lastCalculatedAt ? new Date(rider.lastCalculatedAt).toLocaleDateString() : "N/A"}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={async () => {
+                                      const reason = prompt("Enter reason for flagging this rider:");
+                                      if (!reason) return;
+                                      try {
+                                        await apiRequest("POST", `/api/admin/rider-trust/${rider.userId}/flag`, { reason });
+                                        toast({ title: "Rider flagged", description: "Trust flag has been applied" });
+                                        refetchRiderTrust();
+                                      } catch {
+                                        toast({ title: "Error", description: "Failed to flag rider", variant: "destructive" });
+                                      }
+                                    }}
+                                    data-testid={`button-flag-rider-${rider.userId || idx}`}
+                                  >
+                                    Flag
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={async () => {
+                                      const incentiveType = prompt("Enter incentive type (e.g., bonus, discount, priority):");
+                                      if (!incentiveType) return;
+                                      const amount = prompt("Enter incentive amount:");
+                                      if (!amount) return;
+                                      try {
+                                        await apiRequest("POST", `/api/admin/rider-trust/${rider.userId}/incentive`, { type: incentiveType, amount });
+                                        toast({ title: "Incentive granted", description: `${incentiveType} incentive applied` });
+                                        refetchRiderTrust();
+                                      } catch {
+                                        toast({ title: "Error", description: "Failed to grant incentive", variant: "destructive" });
+                                      }
+                                    }}
+                                    data-testid={`button-incentive-rider-${rider.userId || idx}`}
+                                  >
+                                    Grant Incentive
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card data-testid="card-rider-trust-logs">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2" data-testid="text-rt-logs-title">
+                      <ScrollText className="h-5 w-5" />
+                      Recent Trust Logs
+                    </CardTitle>
+                    <CardDescription>Last 20 trust-related actions and score changes</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {riderTrustLogsData.length === 0 ? (
+                      <p className="text-sm text-muted-foreground" data-testid="text-no-rt-logs">No trust logs available</p>
+                    ) : (
+                      <div className="space-y-2" data-testid="list-rt-logs">
+                        {riderTrustLogsData.slice(0, 20).map((log: any, idx: number) => (
+                          <div
+                            key={log.id || idx}
+                            className="flex flex-wrap items-center justify-between gap-2 p-2 rounded-md border text-sm"
+                            data-testid={`rt-log-${log.id || idx}`}
+                          >
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-medium" data-testid={`text-rt-log-user-${log.id || idx}`}>
+                                {log.userName || log.userId || "Unknown"}
+                              </span>
+                              <Badge variant="outline" className="text-xs" data-testid={`badge-rt-log-action-${log.id || idx}`}>
+                                {log.action || log.type || "update"}
+                              </Badge>
+                              {(log.scoreChange !== undefined && log.scoreChange !== null) && (
+                                <span
+                                  className={`text-xs font-medium ${Number(log.scoreChange) >= 0 ? "text-green-600" : "text-destructive"}`}
+                                  data-testid={`text-rt-log-change-${log.id || idx}`}
+                                >
+                                  {Number(log.scoreChange) >= 0 ? "+" : ""}{Number(log.scoreChange).toFixed(1)}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-xs text-muted-foreground" data-testid={`text-rt-log-time-${log.id || idx}`}>
+                              {log.createdAt ? new Date(log.createdAt).toLocaleString() : ""}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
             </TabsContent>
           )}
         </Tabs>
