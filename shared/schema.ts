@@ -447,6 +447,14 @@ export const driverProfiles = pgTable("driver_profiles", {
   isDriversLicenseVerified: boolean("is_drivers_license_verified").notNull().default(false),
   isAddressVerified: boolean("is_address_verified").notNull().default(false),
   isIdentityVerified: boolean("is_identity_verified").notNull().default(false),
+  identityDocSubmitted: boolean("identity_doc_submitted").notNull().default(false),
+  driversLicenseDocSubmitted: boolean("drivers_license_doc_submitted").notNull().default(false),
+  ninDocSubmitted: boolean("nin_doc_submitted").notNull().default(false),
+  addressDocSubmitted: boolean("address_doc_submitted").notNull().default(false),
+  identityDocData: text("identity_doc_data"),
+  driversLicenseDocData: text("drivers_license_doc_data"),
+  ninDocData: text("nin_doc_data"),
+  addressDocData: text("address_doc_data"),
   // Nigeria fraud prevention - hashed document numbers for uniqueness checks
   ninHash: varchar("nin_hash", { length: 128 }), // SHA-256 hash of NIN for duplicate detection
   driversLicenseHash: varchar("drivers_license_hash", { length: 128 }), // SHA-256 hash of license number

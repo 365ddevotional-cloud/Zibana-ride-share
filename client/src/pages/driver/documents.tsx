@@ -1,28 +1,32 @@
-import { useRef } from "react";
+import { useState } from "react";
 import { DriverLayout } from "@/components/driver/DriverLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Info, ShieldCheck, CreditCard, MapPin, Fingerprint, Upload, RefreshCw, AlertTriangle } from "lucide-react";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { ArrowLeft, Info, ShieldCheck, CreditCard, MapPin, Fingerprint, Upload, RefreshCw, AlertTriangle, Loader2 } from "lucide-react";
 import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
 
-function getDocBadge(verified: boolean | undefined, status?: string, expired?: boolean) {
+function getDocBadge(verified: boolean | undefined, status?: string, expired?: boolean, submitted?: boolean) {
   if (expired) {
     return <Badge className="bg-red-600 text-white no-default-hover-elevate" data-testid="badge-expired">Expired</Badge>;
   }
   if (status === "rejected") {
     return <Badge className="bg-red-600 text-white no-default-hover-elevate" data-testid="badge-rejected">Rejected</Badge>;
   }
-  if (status === "pending") {
-    return <Badge className="bg-yellow-500 text-white no-default-hover-elevate" data-testid="badge-pending">Pending</Badge>;
-  }
   if (verified) {
     return <Badge className="bg-green-600 text-white no-default-hover-elevate" data-testid="badge-verified">Verified</Badge>;
+  }
+  if (submitted) {
+    return <Badge className="bg-yellow-500 text-white no-default-hover-elevate" data-testid="badge-pending-review">Pending Review</Badge>;
+  }
+  if (status === "pending") {
+    return <Badge className="bg-yellow-500 text-white no-default-hover-elevate" data-testid="badge-pending">Pending</Badge>;
   }
   return <Badge variant="secondary" className="no-default-hover-elevate" data-testid="badge-unverified">Not Submitted</Badge>;
 }
@@ -33,17 +37,44 @@ interface DriverProfile {
   isDriversLicenseVerified: boolean;
   isAddressVerified: boolean;
   isIdentityVerified: boolean;
+  identityDocSubmitted: boolean;
+  driversLicenseDocSubmitted: boolean;
+  ninDocSubmitted: boolean;
+  addressDocSubmitted: boolean;
 }
 
 export default function DriverDocuments() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
 
   const { data: profile, isLoading } = useQuery<DriverProfile>({
     queryKey: ["/api/driver/profile"],
     enabled: !!user,
+  });
+
+  const uploadMutation = useMutation({
+    mutationFn: async ({ documentType, fileData }: { documentType: string; fileData: string }) => {
+      const res = await apiRequest("POST", "/api/driver/document/upload", { documentType, fileData });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Document submitted for review",
+        description: "You'll be notified once your document is verified.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/driver/profile"] });
+      setUploadingDoc(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Upload failed",
+        description: error.message || "Failed to upload document. Please try again.",
+        variant: "destructive",
+      });
+      setUploadingDoc(null);
+    },
   });
 
   const documents = [
@@ -52,6 +83,7 @@ export default function DriverDocuments() {
       title: "Identity Verification",
       icon: Fingerprint,
       verified: profile?.isIdentityVerified,
+      submitted: profile?.identityDocSubmitted,
       status: profile?.verificationStatus,
       description: "Government-issued photo ID (passport, national ID, or voter's card).",
       expired: false,
@@ -61,6 +93,7 @@ export default function DriverDocuments() {
       title: "Driver's License",
       icon: CreditCard,
       verified: profile?.isDriversLicenseVerified,
+      submitted: profile?.driversLicenseDocSubmitted,
       description: "Valid driver's license required to operate on the platform.",
       expired: false,
     },
@@ -69,6 +102,7 @@ export default function DriverDocuments() {
       title: "NIN Verification",
       icon: ShieldCheck,
       verified: profile?.isNINVerified,
+      submitted: profile?.ninDocSubmitted,
       description: "National Identification Number slip or card.",
       expired: false,
     },
@@ -77,16 +111,46 @@ export default function DriverDocuments() {
       title: "Address Verification",
       icon: MapPin,
       verified: profile?.isAddressVerified,
+      submitted: profile?.addressDocSubmitted,
       description: "Proof of residential address (utility bill or bank statement, within 3 months).",
       expired: false,
     },
   ];
 
   const handleUpload = (docId: string) => {
-    toast({
-      title: "Upload submitted",
-      description: "Your document has been submitted for review. You'll be notified once verified.",
-    });
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/jpeg,image/png,image/webp";
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "File too large",
+          description: "Please select an image under 5MB.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setUploadingDoc(docId);
+      const reader = new FileReader();
+      reader.onload = () => {
+        const fileData = reader.result as string;
+        uploadMutation.mutate({ documentType: docId, fileData });
+      };
+      reader.onerror = () => {
+        toast({
+          title: "Read error",
+          description: "Failed to read the selected file.",
+          variant: "destructive",
+        });
+        setUploadingDoc(null);
+      };
+      reader.readAsDataURL(file);
+    };
+    input.click();
   };
 
   return (
@@ -122,6 +186,7 @@ export default function DriverDocuments() {
               const Icon = doc.icon;
               const isVerified = doc.verified;
               const isExpired = doc.expired;
+              const isUploading = uploadingDoc === doc.id;
               return (
                 <Card key={doc.id} data-testid={`card-document-${doc.id}`}>
                   <CardContent className="pt-4 space-y-3">
@@ -135,7 +200,7 @@ export default function DriverDocuments() {
                           <p className="text-xs text-muted-foreground" data-testid={`text-doc-desc-${doc.id}`}>{doc.description}</p>
                         </div>
                       </div>
-                      {getDocBadge(doc.verified, doc.status, doc.expired)}
+                      {getDocBadge(doc.verified, doc.status, doc.expired, doc.submitted)}
                     </div>
 
                     {isExpired && (
@@ -153,20 +218,30 @@ export default function DriverDocuments() {
                           variant="outline"
                           size="sm"
                           onClick={() => handleUpload(doc.id)}
+                          disabled={isUploading}
                           data-testid={`button-replace-${doc.id}`}
                         >
-                          <RefreshCw className="h-3.5 w-3.5 mr-1" />
-                          Replace
+                          {isUploading ? (
+                            <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                          ) : (
+                            <RefreshCw className="h-3.5 w-3.5 mr-1" />
+                          )}
+                          {isUploading ? "Uploading..." : "Replace"}
                         </Button>
                       ) : (
                         <Button
                           size="sm"
                           className="bg-emerald-600"
                           onClick={() => handleUpload(doc.id)}
+                          disabled={isUploading}
                           data-testid={`button-upload-${doc.id}`}
                         >
-                          <Upload className="h-3.5 w-3.5 mr-1" />
-                          {isExpired ? "Re-upload" : "Upload"}
+                          {isUploading ? (
+                            <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                          ) : (
+                            <Upload className="h-3.5 w-3.5 mr-1" />
+                          )}
+                          {isUploading ? "Uploading..." : isExpired ? "Re-upload" : "Upload"}
                         </Button>
                       )}
                     </div>

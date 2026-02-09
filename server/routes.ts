@@ -587,6 +587,66 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/driver/document/upload", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { documentType, fileData } = req.body;
+
+      const validTypes = ["identity", "drivers-license", "nin", "address"];
+      if (!documentType || !validTypes.includes(documentType)) {
+        return res.status(400).json({ message: `Invalid document type. Must be one of: ${validTypes.join(", ")}` });
+      }
+
+      if (!fileData || typeof fileData !== "string") {
+        return res.status(400).json({ message: "fileData is required and must be a string" });
+      }
+
+      const validPrefixes = ["data:image/jpeg", "data:image/png", "data:image/webp"];
+      const hasValidPrefix = validPrefixes.some(prefix => fileData.startsWith(prefix));
+      if (!hasValidPrefix) {
+        return res.status(400).json({ message: "Invalid image format. Only JPEG, PNG, and WebP are accepted." });
+      }
+
+      const base64Data = fileData.split(",")[1];
+      if (!base64Data) {
+        return res.status(400).json({ message: "Invalid data URL format" });
+      }
+      const sizeInBytes = Math.ceil(base64Data.length * 0.75);
+      const maxSize = 5 * 1024 * 1024;
+      if (sizeInBytes > maxSize) {
+        return res.status(400).json({ message: "File size exceeds 5MB limit" });
+      }
+
+      const updateData: Record<string, any> = {};
+      switch (documentType) {
+        case "identity":
+          updateData.identityDocData = fileData;
+          updateData.identityDocSubmitted = true;
+          break;
+        case "drivers-license":
+          updateData.driversLicenseDocData = fileData;
+          updateData.driversLicenseDocSubmitted = true;
+          break;
+        case "nin":
+          updateData.ninDocData = fileData;
+          updateData.ninDocSubmitted = true;
+          break;
+        case "address":
+          updateData.addressDocData = fileData;
+          updateData.addressDocSubmitted = true;
+          break;
+      }
+
+      await storage.updateDriverProfile(userId, updateData);
+      console.log(`[DOCUMENT UPLOAD] Driver ${userId} uploaded ${documentType}`);
+
+      return res.json({ success: true, documentType, status: "pending" });
+    } catch (error) {
+      console.error("Error uploading document:", error);
+      return res.status(500).json({ message: "Failed to upload document" });
+    }
+  });
+
   app.get("/api/driver/settlement/summary", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
