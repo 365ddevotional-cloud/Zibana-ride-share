@@ -24,7 +24,7 @@ export const adminPermissionScopeEnum = pgEnum("admin_permission_scope", [
 export const directorStatusEnum = pgEnum("director_status", ["active", "inactive"]);
 export const directorTypeEnum = pgEnum("director_type", ["contract", "employed"]);
 export const rolloutStatusEnum = pgEnum("rollout_status", ["PLANNED", "PREP", "PILOT", "LIMITED_LIVE", "FULL_LIVE", "PAUSED"]);
-export const driverStatusEnum = pgEnum("driver_status", ["pending", "approved", "suspended"]);
+export const driverStatusEnum = pgEnum("driver_status", ["pending", "approved", "suspended", "rejected"]);
 
 // Navigation and GPS setup enums for driver mandatory setup
 export const navigationProviderEnum = pgEnum("navigation_provider", ["google_maps", "apple_maps", "waze", "other"]);
@@ -474,6 +474,11 @@ export const driverProfiles = pgTable("driver_profiles", {
   trainingStartedAt: timestamp("training_started_at"),
   trainingEndedAt: timestamp("training_ended_at"),
   trainingAssignedBy: varchar("training_assigned_by"),
+  rejectionReason: text("rejection_reason"),
+  approvedAt: timestamp("approved_at"),
+  approvedBy: varchar("approved_by"),
+  rejectedAt: timestamp("rejected_at"),
+  rejectedBy: varchar("rejected_by"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

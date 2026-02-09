@@ -1468,6 +1468,7 @@ export async function registerRoutes(
       }
 
       const profile = await storage.getDriverProfile(userId);
+      console.log(`[DRIVER ACCESS] Profile accessed: userId=${userId}, status=${profile?.status}, timestamp=${new Date().toISOString()}`);
       if (!profile) {
         return res.json(null);
       }
@@ -1930,6 +1931,8 @@ export async function registerRoutes(
       if (profile.isTraining && isOnline === true) {
         console.log(`[TRAINING_MODE] Training driver going online: userId=${userId}, credits=${profile.trainingCredits}`);
       }
+
+      console.log(`[GO-ONLINE] Driver toggle: userId=${userId}, isOnline=${isOnline}, status=${profile.status}, timestamp=${new Date().toISOString()}`);
 
       // DRIVER VERIFICATION CHECK - Block going online if not verified for operations
       if (profile.withdrawalVerificationStatus === "suspended") {
@@ -4341,11 +4344,11 @@ export async function registerRoutes(
       const { driverId } = req.params;
       const { status } = req.body;
 
-      if (!["pending", "approved", "suspended"].includes(status)) {
+      if (!["pending", "approved", "suspended", "rejected"].includes(status)) {
         return res.status(400).json({ message: "Invalid status" });
       }
 
-      const driver = await storage.updateDriverStatus(driverId, status);
+      const driver = await storage.updateDriverStatus(driverId, status, { reason: req.body.reason, adminId: req.user.claims.sub });
       if (!driver) {
         return res.status(404).json({ message: "Driver not found" });
       }
@@ -4410,10 +4413,11 @@ export async function registerRoutes(
       }
       
       if (type === "driver") {
-        const driver = await storage.updateDriverStatus(id, "approved");
+        const driver = await storage.updateDriverStatus(id, "approved", { adminId: req.user.claims.sub });
         if (!driver) {
           return res.status(404).json({ message: "Driver not found" });
         }
+        console.log(`[DRIVER APPROVAL] Driver approved: userId=${id}, approvedBy=${req.user.claims.sub}, timestamp=${new Date().toISOString()}`);
         
         await storage.createNotification({
           userId: id,
@@ -4450,10 +4454,11 @@ export async function registerRoutes(
       }
       
       if (type === "driver") {
-        const driver = await storage.updateDriverStatus(id, "suspended");
+        const driver = await storage.updateDriverStatus(id, "rejected", { reason, adminId: req.user.claims.sub });
         if (!driver) {
           return res.status(404).json({ message: "Driver not found" });
         }
+        console.log(`[DRIVER REJECTION] Driver rejected: userId=${id}, rejectedBy=${req.user.claims.sub}, reason=${reason || 'none'}, timestamp=${new Date().toISOString()}`);
         
         await storage.createNotification({
           userId: id,
@@ -4496,10 +4501,11 @@ export async function registerRoutes(
   app.post("/api/admin/approvals/drivers/:id/approve", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {
       const driverId = req.params.id;
-      const driver = await storage.updateDriverStatus(driverId, "approved");
+      const driver = await storage.updateDriverStatus(driverId, "approved", { adminId: req.user.claims.sub });
       if (!driver) {
         return res.status(404).json({ message: "Driver not found" });
       }
+      console.log(`[DRIVER APPROVAL] Driver approved: userId=${driverId}, approvedBy=${req.user.claims.sub}, timestamp=${new Date().toISOString()}`);
       
       await storage.createNotification({
         userId: driverId,
@@ -4528,10 +4534,11 @@ export async function registerRoutes(
     try {
       const driverId = req.params.id;
       const { reason } = req.body;
-      const driver = await storage.updateDriverStatus(driverId, "rejected");
+      const driver = await storage.updateDriverStatus(driverId, "rejected", { reason, adminId: req.user.claims.sub });
       if (!driver) {
         return res.status(404).json({ message: "Driver not found" });
       }
+      console.log(`[DRIVER REJECTION] Driver rejected: userId=${driverId}, rejectedBy=${req.user.claims.sub}, reason=${reason || 'none'}, timestamp=${new Date().toISOString()}`);
       
       await storage.createNotification({
         userId: driverId,
@@ -4553,6 +4560,85 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error rejecting driver:", error);
       return res.status(500).json({ message: "Failed to reject driver" });
+    }
+  });
+
+  app.get("/api/admin/driver/:userId/documents", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const profile = await storage.getDriverProfile(userId);
+      if (!profile) {
+        return res.status(404).json({ message: "Driver not found" });
+      }
+
+      const documents = [
+        {
+          type: "identity",
+          label: "Government ID",
+          submitted: !!(profile as any).identityDocSubmitted,
+          verified: !!(profile as any).isIdentityVerified,
+          hasData: !!(profile as any).identityDocData,
+        },
+        {
+          type: "drivers-license",
+          label: "Driver's License",
+          submitted: !!(profile as any).driversLicenseDocSubmitted,
+          verified: !!(profile as any).isDriversLicenseVerified,
+          hasData: !!(profile as any).driversLicenseDocData,
+        },
+        {
+          type: "nin",
+          label: "NIN (National ID Number)",
+          submitted: !!(profile as any).ninDocSubmitted,
+          verified: !!(profile as any).isNINVerified,
+          hasData: !!(profile as any).ninDocData,
+        },
+        {
+          type: "address",
+          label: "Proof of Address",
+          submitted: !!(profile as any).addressDocSubmitted,
+          verified: !!(profile as any).isAddressVerified,
+          hasData: !!(profile as any).addressDocData,
+        },
+      ];
+
+      return res.json({
+        userId: profile.userId,
+        fullName: profile.fullName,
+        status: profile.status,
+        documents,
+      });
+    } catch (error) {
+      console.error("Error fetching driver documents:", error);
+      return res.status(500).json({ message: "Failed to fetch driver documents" });
+    }
+  });
+
+  app.get("/api/admin/driver/:userId/document/:docType", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { userId, docType } = req.params;
+      const profile = await storage.getDriverProfile(userId);
+      if (!profile) {
+        return res.status(404).json({ message: "Driver not found" });
+      }
+
+      let docData: string | null = null;
+      switch (docType) {
+        case "identity": docData = (profile as any).identityDocData; break;
+        case "drivers-license": docData = (profile as any).driversLicenseDocData; break;
+        case "nin": docData = (profile as any).ninDocData; break;
+        case "address": docData = (profile as any).addressDocData; break;
+        default: return res.status(400).json({ message: "Invalid document type" });
+      }
+
+      if (!docData) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      return res.json({ documentData: docData });
+    } catch (error) {
+      console.error("Error fetching driver document:", error);
+      return res.status(500).json({ message: "Failed to fetch document" });
     }
   });
 

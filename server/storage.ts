@@ -571,7 +571,7 @@ export interface IStorage {
   createDriverProfile(data: InsertDriverProfile): Promise<DriverProfile>;
   updateDriverProfile(userId: string, data: Partial<InsertDriverProfile>): Promise<DriverProfile | undefined>;
   updateDriverOnlineStatus(userId: string, isOnline: boolean): Promise<DriverProfile | undefined>;
-  updateDriverStatus(userId: string, status: string): Promise<DriverProfile | undefined>;
+  updateDriverStatus(userId: string, status: string, options?: { reason?: string; adminId?: string }): Promise<DriverProfile | undefined>;
   getAllDrivers(): Promise<DriverProfile[]>;
   getDriversByStatus(status: string): Promise<any[]>;
   getAllDriversWithDetails(): Promise<any[]>;
@@ -2077,10 +2077,28 @@ export class DatabaseStorage implements IStorage {
     return profile;
   }
 
-  async updateDriverStatus(userId: string, status: string): Promise<DriverProfile | undefined> {
+  async updateDriverStatus(userId: string, status: string, options?: { reason?: string; adminId?: string }): Promise<DriverProfile | undefined> {
+    const updateFields: Record<string, any> = {
+      status: status as any,
+      isOnline: false,
+      updatedAt: new Date(),
+    };
+
+    if (status === "approved") {
+      updateFields.approvedAt = new Date();
+      updateFields.approvedBy = options?.adminId || null;
+      updateFields.rejectionReason = null;
+      updateFields.rejectedAt = null;
+      updateFields.rejectedBy = null;
+    } else if (status === "rejected" || status === "suspended") {
+      updateFields.rejectionReason = options?.reason || null;
+      updateFields.rejectedAt = new Date();
+      updateFields.rejectedBy = options?.adminId || null;
+    }
+
     const [profile] = await db
       .update(driverProfiles)
-      .set({ status: status as any, isOnline: false, updatedAt: new Date() })
+      .set(updateFields)
       .where(eq(driverProfiles.userId, userId))
       .returning();
     return profile;
