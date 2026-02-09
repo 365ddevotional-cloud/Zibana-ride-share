@@ -336,6 +336,8 @@ export default function DriverDashboard() {
   }
 
   const isApproved = profile.status === "approved";
+  const isTraining = (profile as any).isTraining ?? false;
+  const canGoOnline = isApproved || isTraining;
   const isPending = profile.status === "pending";
   const isSuspended = profile.status === "suspended";
 
@@ -364,10 +366,13 @@ export default function DriverDashboard() {
             <CardContent className="flex items-start gap-4 pt-6">
               <AlertCircle className="h-6 w-6 text-yellow-600 dark:text-yellow-400 flex-shrink-0" />
               <div>
-                <h3 className="font-semibold text-yellow-800 dark:text-yellow-200">Pending Approval</h3>
+                <h3 className="font-semibold text-yellow-800 dark:text-yellow-200">
+                  {isTraining ? "Training Mode" : "Pending Approval"}
+                </h3>
                 <p className="text-sm text-yellow-700 dark:text-yellow-300">
-                  Your driver profile is being reviewed by our team. You'll be able to go online 
-                  and accept rides once approved.
+                  {isTraining 
+                    ? "You are in training mode. Practice going online and familiarize yourself with the app. Your account is still pending full approval."
+                    : "Your driver profile is being reviewed by our team. You'll be able to go online and accept rides once approved."}
                 </p>
               </div>
             </CardContent>
@@ -461,7 +466,7 @@ export default function DriverDashboard() {
               verificationPhoto={(profile as any).verificationPhoto}
             />
 
-            {isApproved && (setupStatus && !setupStatus.setupCompleted || showSetupWarning) && (
+            {canGoOnline && (setupStatus && !setupStatus.setupCompleted || showSetupWarning) && (
               <DriverNavigationSetup 
                 onComplete={() => {
                   setShowSetupWarning(false);
@@ -471,7 +476,7 @@ export default function DriverDashboard() {
               />
             )}
 
-            {isApproved && (
+            {canGoOnline && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -503,7 +508,7 @@ export default function DriverDashboard() {
             )}
 
             {/* Phase 11 - Wallet Section */}
-            {profile.status === "approved" && (
+            {(profile.status === "approved" || isTraining) && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -600,7 +605,7 @@ export default function DriverDashboard() {
             )}
 
             {/* Nigeria Bank Account & Withdrawal Section */}
-            {profile.status === "approved" && (
+            {(profile.status === "approved" || isTraining) && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -618,7 +623,7 @@ export default function DriverDashboard() {
             )}
 
             {/* Phase 14 - Incentive Bonuses Section */}
-            {profile.status === "approved" && (
+            {(profile.status === "approved" || isTraining) && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -702,7 +707,7 @@ export default function DriverDashboard() {
             )}
 
             {/* Phase 5 - Incentive Progress */}
-            {profile.status === "approved" && incentiveProgress.length > 0 && (
+            {(profile.status === "approved" || isTraining) && incentiveProgress.length > 0 && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -859,7 +864,7 @@ export default function DriverDashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {!isApproved ? (
+                {!canGoOnline ? (
                   <EmptyState
                     icon={AlertCircle}
                     title="Approval Required"

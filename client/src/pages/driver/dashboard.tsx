@@ -240,6 +240,8 @@ export default function DriverDashboard() {
 
   const isOnline = profile?.isOnline ?? false;
   const isApproved = profile?.status === "approved";
+  const isTraining = profile?.isTraining ?? false;
+  const canGoOnline = isApproved || isTraining;
   const trustScore = trustProfile?.trustScore ?? 75;
   const trustScoreLevel = trustProfile?.trustScoreLevel ?? "medium";
   const recentNotifications = notifications.slice(0, 3);
@@ -327,12 +329,14 @@ export default function DriverDashboard() {
 
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium">
-            {isOnline ? "You're Online" : "You're Offline"}
+            {isTraining 
+              ? (isOnline ? "Training Mode Active" : "Training Mode") 
+              : (isOnline ? "You're Online" : "You're Offline")}
           </span>
           <Switch
             checked={isOnline}
             onCheckedChange={() => toggleOnlineStatus()}
-            disabled={!isApproved || toggleOnlineMutation.isPending}
+            disabled={!canGoOnline || toggleOnlineMutation.isPending}
             data-testid="switch-online-toggle"
           />
         </div>
@@ -347,7 +351,7 @@ export default function DriverDashboard() {
                 : "bg-muted text-foreground"
             )}
             onClick={toggleOnlineStatus}
-            disabled={!isApproved || toggleOnlineMutation.isPending}
+            disabled={!canGoOnline || toggleOnlineMutation.isPending}
             data-testid="button-toggle-online"
           >
             <div className="flex flex-col items-center gap-2">
@@ -367,9 +371,11 @@ export default function DriverDashboard() {
             className={isOnline ? "bg-emerald-600" : ""}
             data-testid="badge-online-status"
           >
-            {!isApproved 
+            {!canGoOnline 
               ? "Pending Approval" 
-              : isOnline ? "Accepting Rides" : "Not Accepting Rides"}
+              : isTraining 
+                ? (isOnline ? "Training Mode" : "Training - Offline")
+                : (isOnline ? "Accepting Rides" : "Not Accepting Rides")}
           </Badge>
         </div>
 

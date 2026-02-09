@@ -133,6 +133,16 @@ export interface DriverIdentityCheckResult {
 export async function checkDriverCanGoOnline(userId: string): Promise<DriverIdentityCheckResult> {
   assertIdentityEngineLocked();
 
+  const driverProfile = await storage.getDriverProfile(userId);
+  if (driverProfile?.isTraining) {
+    console.log(`[TRAINING_MODE] Bypassing identity check for training driver: userId=${userId}`);
+    return {
+      allowed: true,
+      identityApproved: true,
+      driverLicenseVerified: true,
+    };
+  }
+
   const profile = await storage.getUserIdentityProfile(userId);
   
   if (!profile) {

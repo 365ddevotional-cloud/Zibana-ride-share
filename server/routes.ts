@@ -1830,8 +1830,12 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Profile not found" });
       }
 
-      if (profile.status !== "approved") {
+      if (profile.status !== "approved" && !profile.isTraining) {
         return res.status(403).json({ message: "Driver must be approved to go online" });
+      }
+
+      if (profile.isTraining && isOnline === true) {
+        console.log(`[TRAINING_MODE] Training driver going online: userId=${userId}, credits=${profile.trainingCredits}`);
       }
 
       // DRIVER VERIFICATION CHECK - Block going online if not verified for operations
@@ -1861,13 +1865,17 @@ export async function registerRoutes(
           missingFields.push("navigationVerified");
         }
         
-        if (missingFields.length > 0) {
+        if (missingFields.length > 0 && !profile.isTraining) {
           return res.status(403).json({ 
             message: "Driver setup incomplete",
             error: "DRIVER_SETUP_INCOMPLETE",
             missingFields,
             setupCompleted: false
           });
+        }
+        
+        if (missingFields.length > 0 && profile.isTraining) {
+          console.log(`[TRAINING_MODE] Bypassing setup check for training driver: userId=${userId}, missing=${missingFields.join(",")}`);
         }
       }
 
