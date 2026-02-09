@@ -198,6 +198,9 @@ export default function DriverDashboard() {
 
   const isOnline = profile?.isOnline ?? false;
   const isApproved = profile?.status === "approved";
+  const isRejected = profile?.status === "rejected";
+  const isPending = profile?.status === "pending";
+  const isSuspended = profile?.status === "suspended";
   const isTraining = profile?.isTraining ?? false;
   const canGoOnline = isApproved || isTraining;
   const trustScore = trustProfile?.trustScore ?? 75;
@@ -225,6 +228,67 @@ export default function DriverDashboard() {
       <CancellationWarning role="driver" />
       <div className="p-4 space-y-6">
         <DriverSimulationControls />
+
+        {isPending && (
+          <Card className="border-yellow-300 dark:border-yellow-800" data-testid="card-status-pending">
+            <CardContent className="pt-4">
+              <div className="flex items-start gap-3">
+                <Clock className="h-5 w-5 text-yellow-600 mt-0.5 shrink-0" />
+                <div>
+                  <p className="font-semibold text-yellow-700 dark:text-yellow-400">Your account is under review</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    We are reviewing your application and documents. You will be notified once your account is approved.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {isRejected && (
+          <Card className="border-red-300 dark:border-red-800" data-testid="card-status-rejected">
+            <CardContent className="pt-4">
+              <div className="flex items-start gap-3">
+                <Shield className="h-5 w-5 text-red-600 mt-0.5 shrink-0" />
+                <div>
+                  <p className="font-semibold text-red-700 dark:text-red-400">Your application was not approved</p>
+                  {(profile as any)?.rejectionReason ? (
+                    <p className="text-sm text-muted-foreground mt-1" data-testid="text-rejection-reason">
+                      Reason: {(profile as any).rejectionReason}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Please contact support for more information about your application status.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {isSuspended && (
+          <Card className="border-orange-300 dark:border-orange-800" data-testid="card-status-suspended">
+            <CardContent className="pt-4">
+              <div className="flex items-start gap-3">
+                <Shield className="h-5 w-5 text-orange-600 mt-0.5 shrink-0" />
+                <div>
+                  <p className="font-semibold text-orange-700 dark:text-orange-400">Your account is suspended</p>
+                  {(profile as any)?.rejectionReason ? (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Reason: {(profile as any).rejectionReason}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Please contact support for assistance.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <UserAvatar user={user} size="lg" />
@@ -329,11 +393,15 @@ export default function DriverDashboard() {
             className={isOnline ? "bg-emerald-600" : ""}
             data-testid="badge-online-status"
           >
-            {!canGoOnline 
-              ? "Pending Approval" 
-              : isTraining 
-                ? (isOnline ? "Training Mode" : "Training - Offline")
-                : (isOnline ? "Accepting Rides" : "Not Accepting Rides")}
+            {isRejected
+              ? "Application Rejected"
+              : isSuspended
+                ? "Account Suspended"
+                : isPending
+                  ? "Pending Approval"
+                  : isTraining 
+                    ? (isOnline ? "Training Mode" : "Training - Offline")
+                    : (isOnline ? "Accepting Rides" : "Not Accepting Rides")}
           </Badge>
         </div>
 
