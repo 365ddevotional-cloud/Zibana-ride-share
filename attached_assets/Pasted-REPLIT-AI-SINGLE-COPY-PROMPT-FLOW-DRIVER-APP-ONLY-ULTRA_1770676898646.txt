@@ -1,0 +1,132 @@
+REPLIT AI — SINGLE COPY PROMPT FLOW
+⚠️ DRIVER APP ONLY — ULTRA COST-SAVING MODE
+❌ DO NOT TOUCH RIDER APP (UI, ROUTES, AUTH, DB)
+
+ABSOLUTE RULES (MUST FOLLOW):
+- DO NOT modify Rider app in any way
+- DO NOT refactor large files
+- DO NOT add new services, SDKs, background jobs, or cron
+- DO NOT add new DB tables unless strictly unavoidable
+- Make only SMALL, SURGICAL fixes
+- Reuse existing auth, APIs, storage, and driver tables
+- Optimize for TESTERS / TRAINEES and SOFT LAUNCH
+- Keep Replit cost MINIMAL
+
+CONTEXT:
+App: ZIBA
+State:
+- Driver app mostly works
+- Admin dashboard shows documents APPROVED
+- Driver app still shows documents as PENDING
+- Tester/trainee drivers must auto-pass documents
+- Ride accept fails due to navigation/GPS checks
+- Profile photo shows on Profile page but not Home header
+- 401 / 403 errors still appear intermittently
+- ZIBA uses EXTERNAL navigation apps only (no internal map)
+
+GOAL:
+Make Driver app fully usable for TESTERS immediately:
+- Documents auto-approved
+- Ride acceptance works
+- No navigation blocking
+- Profile image consistent
+- Auth stable
+- NO Rider app changes
+
+TASKS — EXECUTE ALL BELOW IN ONE PASS:
+
+1) AUTO-APPROVE DOCUMENTS FOR TESTERS / TRAINEES
+Problem:
+Tester email (e.g. smefas37@gmail.com) appears in Training Management but documents stay Pending in Driver app.
+
+Fix:
+- Detect tester/trainee driver using existing data ONLY:
+  - driver.isTestAccount === true
+  - OR driver.role === "TRAINEE"
+  - OR presence in Training Management
+- For testers:
+  - Force all driver documents to status = APPROVED
+  - Bypass normal review workflow
+- Update Driver Documents API response to return APPROVED for testers
+- No new UI
+- No new tables
+
+Result:
+Tester drivers never wait for document approval.
+
+2) SYNC ADMIN APPROVAL → DRIVER UI
+Problem:
+Admin approves documents, Driver app still shows Pending.
+
+Fix:
+- Ensure Driver Documents API reads from SAME source used by Admin
+- Remove any hardcoded or cached document status
+- On refresh, Driver app must reflect Admin approval immediately
+- No polling, no background jobs
+
+3) FIX RIDE ACCEPT FAILURE (NAVIGATION / GPS)
+Problem:
+Ride acceptance fails due to navigationProvider / GPS checks.
+ZIBA uses external navigation apps only.
+
+Backend Fix:
+- REMOVE ride-accept checks for:
+  - navigationProvider
+  - internal map readiness
+  - frontend-only permissions
+- Ride accept should require ONLY:
+  - authenticated driver
+  - driver approved
+  - driver online
+
+Frontend Fix:
+- Do NOT block ride accept for GPS
+- If location permission missing:
+  - Show info toast only:
+    “Please enable location in your phone settings.”
+
+Result:
+Drivers can accept rides immediately using external maps.
+
+4) FIX PROFILE IMAGE NOT SHOWING ON HOME
+Problem:
+Profile image shows on Profile page but Home header shows initials only.
+
+Fix:
+- Ensure Home header uses driver.profileImageUrl
+- Use same driver object as Profile page
+- Fallback to initials ONLY if image is missing
+- No reupload logic
+
+5) FIX INTERMITTENT 401 / AUTH ERRORS
+Problem:
+401 “Not authenticated” appears when accepting rides.
+
+Fix:
+- Ensure Accept Ride API uses same auth middleware as Go Online
+- Ensure frontend sends auth token consistently
+- If token invalid/expired:
+  - Redirect to sign-in cleanly
+- DO NOT modify OAuth providers
+- DO NOT add silent re-auth logic
+
+6) COST CONTROL (MANDATORY)
+- Touch ONLY:
+  - Driver documents API
+  - Driver ride accept API
+  - Driver dashboard UI
+- Prefer simple conditionals over new logic
+- No repo-wide scans
+- No refactors
+
+SUCCESS CHECKLIST:
+- Tester drivers see documents as APPROVED
+- Tester drivers can go online
+- Tester drivers can accept rides
+- No navigation blocking
+- Profile image shows on Home
+- No Rider app changes
+- Replit cost stays LOW
+
+EXECUTE NOW.
+DO NOT TOUCH RIDER APP.

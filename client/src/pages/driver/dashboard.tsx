@@ -291,7 +291,7 @@ export default function DriverDashboard() {
 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <UserAvatar user={user} size="lg" />
+            <UserAvatar user={{...user, profileImageUrl: (profile as any)?.profilePhoto || user?.profileImageUrl} as any} size="lg" />
             <div>
               <h1 className="text-lg font-bold" data-testid="text-driver-greeting">
                 {isReturningDriver && welcomeShown ? "Welcome back, " : "Hello, "}
