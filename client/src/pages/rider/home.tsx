@@ -76,7 +76,7 @@ export default function RiderHome() {
   const currentBalance = paymentMethod === "TEST_WALLET" 
     ? walletInfo?.testBalance 
     : walletInfo?.mainBalance;
-  const hasLowBalance = parseFloat(currentBalance || "0") < 500;
+  const hasLowBalance = paymentMethod !== "CASH" && parseFloat(currentBalance || "0") < 500;
 
   const handleRequestRide = () => {
     if (!destination.trim()) return;
@@ -92,7 +92,7 @@ export default function RiderHome() {
       return;
     }
 
-    if (hasLowBalance) {
+    if (hasLowBalance && paymentMethod !== "CASH") {
       toast({
         title: "Low Balance Warning",
         description: `Your ${paymentMethod === "MAIN_WALLET" ? "Main Wallet" : "Test Wallet"} has ${formatCurrency(currentBalance, currency)}. Consider adding funds or changing payment method.`,
@@ -214,7 +214,7 @@ export default function RiderHome() {
                 audience="RIDER"
                 title="Payment help"
                 maxArticles={2}
-                show={hasLowBalance}
+                show={hasLowBalance && paymentMethod !== "CASH"}
               />
 
               <Button 

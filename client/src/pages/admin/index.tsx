@@ -120,7 +120,6 @@ import {
   Headphones,
   Mail,
   Send,
-  Car,
   Filter
 } from "lucide-react";
 import type { DriverProfile, Trip, User } from "@shared/schema";

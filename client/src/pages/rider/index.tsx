@@ -82,6 +82,9 @@ export default function RiderDashboard() {
   const [tripStatusFilter, setTripStatusFilter] = useState("");
   const [tripStartDate, setTripStartDate] = useState("");
   const [tripEndDate, setTripEndDate] = useState("");
+
+  const searchParams = new URLSearchParams(window.location.search);
+  const urlPaymentMethod = searchParams.get("paymentMethod");
   const [selectedTrip, setSelectedTrip] = useState<TripWithDetails | null>(null);
   const [tripDetailOpen, setTripDetailOpen] = useState(false);
   const [incidentReportOpen, setIncidentReportOpen] = useState(false);
@@ -190,7 +193,7 @@ export default function RiderDashboard() {
 
   const requestRideMutation = useMutation({
     mutationFn: async (data: RideRequestForm) => {
-      const response = await apiRequest("POST", "/api/rider/request-ride", data);
+      const response = await apiRequest("POST", "/api/rider/request-ride", { ...data, paymentMethod: urlPaymentMethod || "WALLET" });
       return response.json();
     },
     onSuccess: () => {

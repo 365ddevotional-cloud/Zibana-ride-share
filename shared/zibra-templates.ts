@@ -485,6 +485,13 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
   },
 
   // Cash (Rider) - Additional
+  {
+    id: "r-cash-no-balance",
+    role: "rider",
+    category: "cash_wallet",
+    keywords: ["can't request cash", "cash ride blocked", "cash no balance", "cash zero balance", "why can't I ride with cash", "cash not working", "low balance cash", "cash wallet empty"],
+    response: "Cash rides do not require any wallet balance. To request a cash ride:\n\n1. Make sure Cash is selected as your payment method before requesting.\n2. Tap Request Ride — no wallet funds are needed.\n3. Pay the driver directly at the end of your trip.\n\nIf you're seeing a balance warning, please switch your payment method to Cash and try again. The warning only applies to wallet-based payments."
+  },
 
   // Referral & Promo (Rider)
   {

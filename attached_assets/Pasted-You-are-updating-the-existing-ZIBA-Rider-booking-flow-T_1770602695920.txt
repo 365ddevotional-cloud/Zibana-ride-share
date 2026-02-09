@@ -1,0 +1,161 @@
+You are updating the existing ZIBA Rider booking flow.
+This is a FIX and UPDATE, not a rebuild.
+Do NOT remove existing features.
+Only correct incorrect logic.
+
+====================================================
+BUG SUMMARY
+====================================================
+Riders selecting CASH payment are blocked from requesting a ride
+with the error:
+"Low Balance Warning – Your Test Wallet has ₦0"
+
+This is incorrect behavior.
+Cash rides must NOT require wallet balance.
+
+====================================================
+GOAL
+====================================================
+Allow riders to successfully request rides when:
+- Payment method = CASH
+- Wallet balance = ₦0
+
+Wallet balance checks must apply ONLY to WALLET-based rides.
+
+====================================================
+SOURCE OF BUG (LIKELY)
+====================================================
+- Wallet balance validation is being executed globally
+  before checking the selected payment method.
+
+====================================================
+REQUIRED FIX (MANDATORY)
+====================================================
+
+1️⃣ PAYMENT METHOD MUST CONTROL VALIDATION
+
+Update ride request validation logic as follows:
+
+IF paymentMethod === "CASH":
+    - SKIP wallet balance check entirely
+    - Allow ride request submission
+    - Do NOT show low balance warning
+    - Do NOT block Request Ride button
+
+IF paymentMethod === "WALLET":
+    - Enforce wallet balance check
+    - If balance < estimated fare:
+        - Show low balance warning
+        - Block request
+    - Else:
+        - Allow request
+
+====================================================
+FRONTEND FIX (UI LOGIC)
+====================================================
+
+2️⃣ REQUEST RIDE BUTTON ENABLEMENT
+
+Update button enable logic:
+
+- Button should be enabled when:
+  - pickup location is set
+  - destination is set
+  - paymentMethod === CASH
+    OR
+  - paymentMethod === WALLET AND walletBalance >= estimatedFare
+
+Remove any logic that disables the button solely
+because walletBalance === 0 when paymentMethod === CASH.
+
+====================================================
+LOW BALANCE WARNING RULE
+====================================================
+
+3️⃣ SHOW LOW BALANCE WARNING ONLY WHEN:
+
+- paymentMethod === WALLET
+- walletBalance < estimatedFare
+
+Do NOT show low balance warning for CASH rides.
+
+====================================================
+BACKEND FIX (SERVER-SIDE ENFORCEMENT)
+====================================================
+
+4️⃣ UPDATE RIDE REQUEST API VALIDATION
+
+In the ride request endpoint (e.g. POST /rides/request):
+
+- Read paymentMethod from request
+- Enforce:
+
+IF paymentMethod === "CASH":
+    - Ignore wallet balance entirely
+    - Set ride.paymentType = "cash"
+    - Proceed with driver matching
+
+IF paymentMethod === "WALLET":
+    - Validate wallet balance
+    - Reject if insufficient
+
+This must be enforced server-side even if frontend fails.
+
+====================================================
+DATA MODEL CONFIRMATION
+====================================================
+
+Ensure Ride model includes:
+- paymentType: "cash" | "wallet"
+- walletChargeApplied: boolean
+
+For CASH rides:
+- walletChargeApplied = false
+
+====================================================
+ZIBRA SUPPORT BEHAVIOR UPDATE
+====================================================
+
+Update ZIBRA Support responses:
+
+If rider asks:
+"Why can’t I request a ride with cash?"
+
+Correct response:
+"Cash rides do not require wallet balance. Please make sure
+Cash is selected as your payment method before requesting the ride."
+
+ZIBRA must NEVER say wallet funding is required for cash rides.
+
+====================================================
+TEST CASES (MUST PASS)
+====================================================
+
+✅ Rider selects CASH
+   Wallet balance = ₦0
+   → Ride request succeeds
+
+✅ Rider selects WALLET
+   Wallet balance < fare
+   → Blocked with warning
+
+✅ Rider switches from WALLET → CASH
+   → Warning disappears immediately
+
+✅ Driver receives cash ride request normally
+
+====================================================
+DO NOT DO
+====================================================
+
+❌ Do NOT auto-switch payment to wallet
+❌ Do NOT force wallet funding for cash rides
+❌ Do NOT show low balance banner on cash flow
+
+====================================================
+FINAL INSTRUCTION
+====================================================
+
+Apply this as an UPDATE to existing logic.
+Confirm which files/functions were modified.
+Do NOT mark complete until all test cases pass.
