@@ -31,7 +31,7 @@ import {
   History,
   Star,
   Wallet,
-  DollarSign,
+  Banknote,
   ArrowUpRight,
   ArrowDownLeft,
   Gift,
@@ -533,11 +533,11 @@ export default function DriverDashboard() {
                       <div className="bg-primary/10 rounded-lg p-4">
                         <div className="text-sm text-muted-foreground">Available Balance</div>
                         <div className="text-2xl font-bold text-primary" data-testid="text-wallet-balance">
-                          ${(parseFloat(wallet.balance) - parseFloat(wallet.lockedBalance)).toFixed(2)}
+                          {"\u20A6"}{(parseFloat(wallet.balance) - parseFloat(wallet.lockedBalance)).toFixed(2)}
                         </div>
                         {parseFloat(wallet.lockedBalance) > 0 && (
                           <div className="text-xs text-muted-foreground mt-1">
-                            ${wallet.lockedBalance} pending payout
+                            {"\u20A6"}{wallet.lockedBalance} pending payout
                           </div>
                         )}
                       </div>
@@ -568,7 +568,7 @@ export default function DriverDashboard() {
                                 <div className={`text-sm font-medium ${
                                   tx.type === "credit" ? "text-green-600" : "text-red-600"
                                 }`}>
-                                  {tx.type === "credit" ? "+" : "-"}${tx.amount}
+                                  {tx.type === "credit" ? "+" : "-"}{"\u20A6"}{tx.amount}
                                 </div>
                               </div>
                             ))}
@@ -587,7 +587,7 @@ export default function DriverDashboard() {
                                 data-testid={`row-payout-${payout.id}`}
                               >
                                 <div>
-                                  <div className="text-sm font-medium">${payout.amount}</div>
+                                  <div className="text-sm font-medium">{"\u20A6"}{payout.amount}</div>
                                   <div className="text-xs text-muted-foreground capitalize">
                                     {payout.method} - {new Date(payout.createdAt).toLocaleDateString()}
                                   </div>
@@ -609,7 +609,7 @@ export default function DriverDashboard() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <DollarSign className="h-5 w-5 text-primary" />
+                    <Banknote className="h-5 w-5 text-primary" />
                     Bank Account & Withdrawals
                   </CardTitle>
                   <CardDescription>
@@ -651,7 +651,7 @@ export default function DriverDashboard() {
                         <div className="bg-green-500/10 rounded-lg p-3">
                           <div className="text-xs text-muted-foreground">Total Earned</div>
                           <div className="text-lg font-bold text-green-600" data-testid="text-incentive-earned">
-                            ${totalIncentiveEarned.toFixed(2)}
+                            {"\u20A6"}{totalIncentiveEarned.toFixed(2)}
                           </div>
                         </div>
                         <div className="bg-yellow-500/10 rounded-lg p-3">
@@ -691,7 +691,7 @@ export default function DriverDashboard() {
                                     earning.status === "revoked" ? "text-red-600" :
                                     "text-yellow-600"
                                   }`}>
-                                    +${earning.amount}
+                                    +{"\u20A6"}{earning.amount}
                                   </div>
                                   <StatusBadge status={earning.status} />
                                 </div>
@@ -1005,7 +1005,7 @@ export default function DriverDashboard() {
                                 <StatusBadge status={trip.status as any} />
                                 {trip.fareAmount && (
                                   <span className="text-sm font-medium text-green-600 dark:text-green-400">
-                                    ${trip.driverPayout || trip.fareAmount}
+                                    {"\u20A6"}{trip.driverPayout || trip.fareAmount}
                                   </span>
                                 )}
                               </div>

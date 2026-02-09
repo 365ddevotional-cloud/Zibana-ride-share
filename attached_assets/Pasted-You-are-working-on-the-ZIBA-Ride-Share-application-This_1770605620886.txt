@@ -1,0 +1,184 @@
+You are working on the ZIBA Ride-Share application.
+This task is a FULL SYSTEM AUDIT + PERMANENT CORRECTION.
+Do NOT add new features.
+Do NOT redesign UI.
+Do NOT change business logic.
+Audit what exists, identify mismatches, and FIX them cleanly.
+
+====================================================
+OBJECTIVE
+====================================================
+Stabilize Driver onboarding, approval, training, profile management,
+currency handling, and UI rendering so drivers can operate normally.
+
+Primary affected account:
+Driver email: AfolabiRevMoses37@gmail.com
+
+====================================================
+PART 1 — DRIVER APPROVAL & TRAINING LOGIC (CRITICAL)
+====================================================
+
+CURRENT ISSUES:
+- Driver logs in but cannot go online
+- “Pending Approval” persists incorrectly
+- Training drivers are blocked
+- Profile updates sometimes do not save
+
+FINAL RULES (ENFORCE STRICTLY):
+
+A driver MAY go ONLINE if:
+1) approval_status === "approved"
+OR
+2) is_training === true AND training_mode_active === true
+
+A driver MUST be blocked ONLY if:
+- approval_status === "pending"
+AND
+- is_training !== true
+
+TASKS:
+1. Audit Driver model fields:
+   - approval_status
+   - is_training
+   - training_mode_active
+   - profile_completed
+   - can_go_online
+
+2. Audit Training Management:
+   - Confirm adding a driver trainee sets:
+     is_training = true
+     training_mode_active = true
+   - Training must override approval gating
+
+3. Fix “Pending Approval” badge logic:
+   - Do NOT show if training override is active
+   - Remove once approval_status = approved
+
+4. Fix Driver profile update flow:
+   - Names, phone, and details MUST save
+   - Fix any API, validation, or state issues
+   - No silent failures allowed
+
+====================================================
+PART 2 — DRIVER PROFILE PHOTO UPLOAD (CRITICAL BUG)
+====================================================
+
+CURRENT ISSUE:
+- Driver chooses “Upload from file” or “Take photo”
+- Image selection succeeds
+- Saving profile picture FAILS with error
+- Profile photo does not persist
+
+EXPECTED BEHAVIOR:
+- Driver can upload profile picture from camera or file
+- Image saves successfully
+- Profile photo persists after refresh/login
+- No error message on valid upload
+
+TASKS:
+1. Audit profile photo upload flow:
+   - Frontend file picker
+   - API endpoint
+   - Storage (local/cloud)
+   - DB user profile reference
+
+2. Fix common causes:
+   - Missing multipart/form-data handling
+   - File size or type validation mismatch
+   - Storage write failure
+   - DB update not committing
+   - Incorrect response handling
+
+3. Enforce:
+   - Accept JPG, PNG
+   - Reasonable size limit
+   - Proper error messages ONLY if upload truly fails
+
+4. Confirm by testing:
+   - Upload from file → save → refresh → image remains
+   - Upload from camera → save → refresh → image remains
+
+====================================================
+PART 3 — REMOVE DIRECTOR CONTENT FROM DRIVER APP
+====================================================
+
+REMOVE COMPLETELY from Driver UI:
+- “Director Funding Support Terms”
+- “Report Funding Coercion”
+- Any director-related messaging or cards
+
+RULE:
+Drivers must NEVER see:
+- Director funding language
+- Director coercion reports
+- Director performance or governance items
+
+TASKS:
+1. Remove these components from Driver pages
+2. Ensure no conditional rendering leaks them
+3. Director features must exist ONLY in:
+   - Director Dashboard
+   - Admin / Super Admin views
+
+====================================================
+PART 4 — CURRENCY NORMALIZATION (CRITICAL)
+====================================================
+
+CURRENT ISSUE:
+- Dollar symbols ($) appear
+- Nigerian accounts must use ₦ (NGN)
+
+TASKS:
+1. Audit all currency usage:
+   - Wallet
+   - Earnings
+   - Training credits
+   - Test balances
+
+2. Enforce:
+   - Nigeria → ₦ (NGN)
+   - No USD anywhere for Nigerian drivers
+
+3. Ensure currency is derived from:
+   - User country / region
+   - Not hard-coded defaults
+
+====================================================
+PART 5 — ROLE-BASED UI ENFORCEMENT
+====================================================
+
+RULES:
+- Driver UI shows ONLY driver components
+- Director UI never mounts for drivers
+- Admin & Super Admin remain unaffected
+
+Role checks MUST be enforced server-side.
+
+====================================================
+PART 6 — FINAL VERIFICATION (MANDATORY)
+====================================================
+
+Before marking complete, confirm ALL:
+
+✅ Driver can upload & save profile photo  
+✅ Driver profile updates persist  
+✅ Training drivers can go online  
+✅ Approved drivers can go online  
+✅ Pending drivers are correctly blocked  
+✅ “Pending Approval” badge behaves correctly  
+✅ Director content removed from Driver app  
+✅ Currency displays correctly as ₦  
+✅ No regression in Admin / Director dashboards  
+
+====================================================
+DELIVERABLE
+====================================================
+
+After completion, report clearly:
+1) Root causes found
+2) Exact fixes applied
+3) Step-by-step testing instructions
+4) Confirmation this is a permanent fix
+
+This must be stable and launch-ready.
+Do NOT leave partial fixes.
