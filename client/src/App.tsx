@@ -591,7 +591,7 @@ function RiderRouter() {
       </Route>
       
       <Route path="/role-select">
-        {user ? <RoleSelectionPage /> : <Redirect to="/welcome" />}
+        {authLoading ? <FullPageLoading text="Signing you in..." /> : user ? <RoleSelectionPage /> : <Redirect to="/welcome" />}
       </Route>
       
       <Route path="/rider/welcome-back">
