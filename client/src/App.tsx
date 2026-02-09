@@ -121,6 +121,7 @@ function RoleSelectRoute({ authLoading, user }: { authLoading: boolean; user: an
   useEffect(() => {
     if (!invalidated.current) {
       invalidated.current = true;
+      sessionStorage.removeItem("ziba-active-role");
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       queryClient.invalidateQueries({ queryKey: ["/api/user/role"] });
     }
@@ -245,9 +246,9 @@ function DriverAccessDenied() {
 
 function DriverRouter() {
   const { user, isLoading: authLoading } = useAuth();
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   
-  const { data: userRole, isLoading: roleLoading } = useQuery<{ role: string } | null>({
+  const { data: userRole, isLoading: roleLoading } = useQuery<{ role: string; roles?: string[] } | null>({
     queryKey: ["/api/user/role"],
     enabled: !!user,
     retry: false,
@@ -267,7 +268,6 @@ function DriverRouter() {
     );
   }
 
-  // Always allow driver registration page for authenticated users
   if (isRegisterPage) {
     return (
       <LazyComponent>
@@ -280,10 +280,11 @@ function DriverRouter() {
     return <FullPageLoading text="Verifying driver access..." />;
   }
 
-  const role = userRole?.role;
+  const roles = userRole?.roles || [];
+  const activeRole = userRole?.role;
+  const hasDriverRole = roles.includes("driver");
 
-  // No role yet - show registration page for new users
-  if (!role) {
+  if (!roles.length) {
     return (
       <LazyComponent>
         <DriverRegisterPage />
@@ -291,9 +292,12 @@ function DriverRouter() {
     );
   }
 
-  // Has a role but not driver - show access denied
-  if (role !== "driver") {
+  if (!hasDriverRole) {
     return <DriverAccessDenied />;
+  }
+
+  if (activeRole !== "driver") {
+    sessionStorage.setItem("ziba-active-role", "driver");
   }
 
   const welcomeShown = typeof window !== "undefined" && sessionStorage.getItem("ziba-driver-welcome-shown") === "true";

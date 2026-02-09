@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -118,7 +118,9 @@ export default function RoleSelectionPage() {
     mutationFn: async () => {
       setSwitching("rider");
       const response = await apiRequest("POST", "/api/user/role", { role: "rider" });
-      return response.json();
+      const result = await response.json();
+      await apiRequest("POST", "/api/user/active-role", { role: "rider" });
+      return result;
     },
     onSuccess: () => {
       sessionStorage.setItem("ziba-active-role", "rider");
@@ -135,35 +137,11 @@ export default function RoleSelectionPage() {
     },
   });
 
-  const autoRegistered = useRef(false);
-
-  useEffect(() => {
-    if (rolesLoading || autoRegistered.current) return;
-
-    if (APP_MODE === "RIDER") {
-      if (
-        !userRoleData?.roles?.length &&
-        !registerRiderMutation.isPending &&
-        !registerRiderMutation.isSuccess
-      ) {
-        autoRegistered.current = true;
-        registerRiderMutation.mutate();
-      } else if (
-        userRoleData?.roles?.length === 1 &&
-        userRoleData.roles.includes("rider")
-      ) {
-        autoRegistered.current = true;
-        sessionStorage.setItem("ziba-active-role", "rider");
-        setLocation("/rider/home");
-      }
-    }
-  }, [rolesLoading, userRoleData, registerRiderMutation.isPending, registerRiderMutation.isSuccess]);
-
   if (rolesLoading) {
     return <FullPageLoading text="Loading your roles..." />;
   }
 
-  if (APP_MODE === "RIDER" && (registerRiderMutation.isPending || (!userRoleData?.roles?.length && !registerRiderMutation.isError))) {
+  if (registerRiderMutation.isPending) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">

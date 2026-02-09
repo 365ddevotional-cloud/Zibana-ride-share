@@ -1,0 +1,142 @@
+IMPORTANT: DO NOT MODIFY, REFACTOR, OR TOUCH THE RIDER APP.
+The Rider app is 98% correct and must remain unchanged.
+ALL work below applies ONLY to DRIVER AUTH, DRIVER ROUTING, and AUTH FLOW FIXES.
+
+OBJECTIVE:
+Fix ZIBA’s authentication, role separation, and driver app issues ONCE AND FOR ALL.
+This is an architectural correction, not a UI experiment.
+
+--------------------------------------------------
+CORE PROBLEM TO FIX
+--------------------------------------------------
+
+1) Replit OAuth is currently acting as BOTH:
+   - authentication provider
+   - role selector (WRONG)
+
+2) Rider, Driver, and Admin are sharing the same auth session and redirect logic.
+
+3) After login:
+   - users are forced into Rider
+   - email switches unexpectedly (e.g. bdcckids@gmail.com)
+   - driver login loops back to Welcome
+   - sign-in buttons become unresponsive
+   - “Pending approval” blocks drivers who are already in Training Management
+
+THIS MUST STOP.
+
+--------------------------------------------------
+REQUIRED ARCHITECTURAL FIX (MANDATORY)
+--------------------------------------------------
+
+STEP 1 — AUTHENTICATION (NEUTRAL)
+• Replit OAuth should ONLY verify identity (email + userId).
+• OAuth MUST NOT:
+  - auto-route to Rider
+  - auto-assign a role
+  - reuse a previous role session
+
+OAuth answers ONLY:
+“Who is the user?”
+
+--------------------------------------------------
+STEP 2 — ROLE SELECTION (REQUIRED SCREEN)
+--------------------------------------------------
+
+Immediately AFTER successful authentication, show a mandatory screen:
+
+“Continue as:”
+- Rider (if rider profile exists)
+- Driver (if driver profile exists)
+- Admin (if role is allowed)
+
+Rules:
+• Do NOT auto-select a role.
+• Do NOT default to Rider.
+• Do NOT skip this screen.
+
+This step must appear EVERY TIME unless a role is already explicitly locked in session.
+
+--------------------------------------------------
+STEP 3 — ROLE-BOUND SESSION CONTEXT
+--------------------------------------------------
+
+When user selects a role:
+• Set server-side session variable: activeRole = RIDER | DRIVER | ADMIN
+• Persist it until logout or explicit role switch
+• Routing MUST depend on activeRole, not email or OAuth state
+
+--------------------------------------------------
+STEP 4 — HARD ROUTE ISOLATION (CRITICAL)
+--------------------------------------------------
+
+• Rider routes → Rider app ONLY
+• Driver routes → Driver app ONLY
+• Admin routes → Admin dashboard ONLY
+
+No silent redirects.
+No fallback to Rider.
+No shared “home” page.
+
+--------------------------------------------------
+DRIVER APP FIXES (FOCUS AREA)
+--------------------------------------------------
+
+A) DRIVER “PENDING APPROVAL” BUG
+• If a driver exists in Training Management OR is marked approved in DB,
+  they MUST be allowed to go online.
+• Remove false pending locks.
+• Training mode ≠ blocked from going online.
+
+B) REMOVE THESE FROM DRIVER APP UI COMPLETELY:
+• “Director Funding Support Terms”
+• “Report Funding Coercion”
+These are ADMIN/DIRECTOR features and MUST NOT appear in driver UI.
+
+C) CURRENCY CONSISTENCY
+• Nigeria = ₦ ONLY
+• Remove $, USD, or mixed currency displays from driver app.
+
+D) DRIVER PROFILE PHOTO BUG
+• Fix image upload so:
+  - user can select from files or camera
+  - image saves correctly
+  - no silent error or failed save
+• Validate backend storage + frontend state update.
+
+--------------------------------------------------
+AUTH FLOW CLEANUP
+--------------------------------------------------
+
+• REMOVE repeated Replit OAuth permission screen after first consent.
+• STOP forcing users into bdcckids@gmail.com or any cached OAuth identity.
+• Respect the email used at sign-in.
+• Clear conflicting sessions properly on logout.
+
+--------------------------------------------------
+NON-NEGOTIABLE CONSTRAINTS
+--------------------------------------------------
+
+• DO NOT TOUCH RIDER APP CODE OR UI.
+• DO NOT “IMPROVE” Rider routing.
+• DO NOT MERGE Rider & Driver logic.
+• DO NOT ADD FEATURES.
+
+ONLY FIX:
+• Auth separation
+• Role selection
+• Driver routing
+• Driver UI correctness
+
+--------------------------------------------------
+DELIVERABLE
+--------------------------------------------------
+
+After completion, confirm explicitly:
+1) Driver can log in and go online successfully.
+2) Role selection appears after auth.
+3) No forced Rider redirects.
+4) No OAuth loop.
+5) Rider app remains unchanged.
+
+This is a blocking launch issue. Fix carefully and completely.

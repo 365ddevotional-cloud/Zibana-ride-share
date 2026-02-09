@@ -129,6 +129,8 @@ export async function setupAuth(app: Express) {
         const claims = (user as any)?.claims;
         console.log(`[AUTH CALLBACK] Login success: userId=${claims?.sub}, email=${claims?.email}`);
         
+        delete (req.session as any).activeRole;
+        
         req.session.save((saveErr) => {
           if (saveErr) {
             console.error("[AUTH CALLBACK] Session save error:", saveErr);
