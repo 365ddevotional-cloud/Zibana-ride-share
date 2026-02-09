@@ -16,7 +16,7 @@ The frontend uses TanStack React Query for server state management and React hoo
 
 ### Feature Specifications
 ZIBA includes comprehensive features such as:
-- **Authentication & Authorization**: Replit Auth integration and Role-Based Access Control (RBAC).
+- **Authentication & Authorization**: Replit Auth integration (OpenID Connect) with minimized consent prompts (`prompt: "login"` instead of `prompt: "login consent"`). OAuth callback always redirects to `/role-select` for role chooser. No role-forcing in login URLs. Sessions persist 1 week via PostgreSQL. Role-Based Access Control (RBAC).
 - **Multi-Role User System**: Allows a single user to hold multiple roles. Post-auth role selection gate shows role picker for multi-role users. API endpoints: GET `/api/user/role` returns `{role, roles[], roleCount}` respecting session activeRole; POST `/api/user/active-role` for role switching. Client stores active role in sessionStorage (`ziba-active-role`). Key files: client/src/pages/role-selection.tsx, server/routes.ts (lines ~165-290).
 - **User & Trip Management**: Covers identity verification, fare calculation, driver payouts, and audit logging.
 - **Financial Operations**: A simulated payment system with virtual wallets, dynamic country-specific pricing, and a cancellation fee system.
