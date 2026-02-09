@@ -61,3 +61,21 @@ The data storage layer uses PostgreSQL as the database, with Drizzle ORM and Zod
 - `@tanstack/react-query`: Frontend data fetching and state management.
 - `shadcn/ui`: UI component library.
 - `zod`: Runtime schema validation.
+
+## Pre-Launch Status (Feb 2026)
+
+### Rider App: LOCKED (READ-ONLY)
+- All rider routes, components, APIs, DB schemas, and UI are frozen.
+- No modifications, refactors, or improvements allowed.
+
+### Driver App: SOFT-LAUNCH MODE
+- Registration, profile completion, document upload enabled.
+- Ride matching and earnings logic remain gated behind admin approval.
+- Driver status defaults to "Pending Approval" until admin approves.
+
+### Post-Launch Cleanup Backlog (DO NOT EXECUTE)
+1. Remove deprecated auth experiments (old OAuth flows, legacy role assignment code)
+2. Normalize role tables (consolidate role queries, clean up redundant role checks)
+3. Improve upload progress UX (add progress bars, drag-and-drop support for documents)
+4. Harden approval audit logs (add detailed timestamps and admin action tracking)
+5. Optimize driver onboarding copy (refine welcome messages, setup instructions, help text)
