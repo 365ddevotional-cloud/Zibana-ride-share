@@ -601,10 +601,10 @@ export async function registerRoutes(
         return res.status(400).json({ message: "fileData is required and must be a string" });
       }
 
-      const validPrefixes = ["data:image/jpeg", "data:image/png", "data:image/webp"];
+      const validPrefixes = ["data:image/jpeg", "data:image/png", "data:image/webp", "data:image/heic", "data:image/heif", "data:application/pdf"];
       const hasValidPrefix = validPrefixes.some(prefix => fileData.startsWith(prefix));
       if (!hasValidPrefix) {
-        return res.status(400).json({ message: "Invalid image format. Only JPEG, PNG, and WebP are accepted." });
+        return res.status(400).json({ message: "Invalid file format. Accepted: JPEG, PNG, WebP, HEIC, HEIF, PDF." });
       }
 
       const base64Data = fileData.split(",")[1];
@@ -612,9 +612,9 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Invalid data URL format" });
       }
       const sizeInBytes = Math.ceil(base64Data.length * 0.75);
-      const maxSize = 5 * 1024 * 1024;
+      const maxSize = 10 * 1024 * 1024;
       if (sizeInBytes > maxSize) {
-        return res.status(400).json({ message: "File size exceeds 5MB limit" });
+        return res.status(400).json({ message: "File size exceeds 10MB limit" });
       }
 
       const updateData: Record<string, any> = {};

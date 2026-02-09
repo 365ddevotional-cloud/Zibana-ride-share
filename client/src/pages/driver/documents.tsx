@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { DriverLayout } from "@/components/driver/DriverLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,9 +8,19 @@ import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
 import { ArrowLeft, Info, ShieldCheck, CreditCard, MapPin, Fingerprint, Upload, RefreshCw, AlertTriangle, Loader2 } from "lucide-react";
 import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
+
+const ALLOWED_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+  "application/pdf",
+];
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 function getDocBadge(verified: boolean | undefined, status?: string, expired?: boolean, submitted?: boolean) {
   if (expired) {
@@ -48,6 +58,8 @@ export default function DriverDocuments() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const pendingDocRef = useRef<string | null>(null);
 
   const { data: profile, isLoading } = useQuery<DriverProfile>({
     queryKey: ["/api/driver/profile"],
@@ -56,7 +68,16 @@ export default function DriverDocuments() {
 
   const uploadMutation = useMutation({
     mutationFn: async ({ documentType, fileData }: { documentType: string; fileData: string }) => {
-      const res = await apiRequest("POST", "/api/driver/document/upload", { documentType, fileData });
+      const res = await fetch("/api/driver/document/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ documentType, fileData }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.message || `Upload failed (${res.status})`);
+      }
       return res.json();
     },
     onSuccess: () => {
@@ -117,45 +138,81 @@ export default function DriverDocuments() {
     },
   ];
 
-  const handleUpload = (docId: string) => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/jpeg,image/png,image/webp";
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
+  const handleUpload = useCallback((docId: string) => {
+    if (uploadingDoc) return;
+    pendingDocRef.current = docId;
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+      fileInputRef.current.click();
+    }
+  }, [uploadingDoc]);
 
-      if (file.size > 5 * 1024 * 1024) {
-        toast({
-          title: "File too large",
-          description: "Please select an image under 5MB.",
-          variant: "destructive",
-        });
-        return;
-      }
+  const handleFileSelected = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const docId = pendingDocRef.current;
 
-      setUploadingDoc(docId);
-      const reader = new FileReader();
-      reader.onload = () => {
-        const fileData = reader.result as string;
-        uploadMutation.mutate({ documentType: docId, fileData });
-      };
-      reader.onerror = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+
+    if (!file || !docId) return;
+
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      toast({
+        title: "Invalid file type",
+        description: "Please select a JPG, PNG, WebP, HEIC, or PDF file.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      toast({
+        title: "File too large",
+        description: "Please select a file under 10MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploadingDoc(docId);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const fileData = reader.result as string;
+      if (!fileData || !fileData.startsWith("data:")) {
         toast({
           title: "Read error",
-          description: "Failed to read the selected file.",
+          description: "Failed to process the selected file.",
           variant: "destructive",
         });
         setUploadingDoc(null);
-      };
-      reader.readAsDataURL(file);
+        return;
+      }
+      uploadMutation.mutate({ documentType: docId, fileData });
     };
-    input.click();
-  };
+    reader.onerror = () => {
+      toast({
+        title: "Read error",
+        description: "Failed to read the selected file.",
+        variant: "destructive",
+      });
+      setUploadingDoc(null);
+    };
+    reader.readAsDataURL(file);
+  }, [toast, uploadMutation]);
 
   return (
     <DriverLayout>
       <div className="p-4 space-y-5 max-w-lg mx-auto">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf"
+          className="hidden"
+          onChange={handleFileSelected}
+          data-testid="input-file-picker"
+        />
+
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
