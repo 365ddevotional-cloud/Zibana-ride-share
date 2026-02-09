@@ -406,6 +406,17 @@ export default function DriverPreferences() {
           </CardContent>
         </Card>
 
+        <Card className="border-muted">
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              <Info className="h-3 w-3 inline mr-1 relative -top-px" />
+              Preferences guide ride matching but do not guarantee specific trips or earnings. 
+              Platform rules and safety requirements always take priority. 
+              Overly restrictive settings may reduce the number of ride requests you receive.
+            </p>
+          </CardContent>
+        </Card>
+
         {hasChanges && (
           <div className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t z-50">
             <div className="max-w-lg mx-auto flex gap-2">

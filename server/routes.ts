@@ -1646,6 +1646,7 @@ export async function registerRoutes(
         } as any).where(eq(driverProfiles.userId, userId));
 
         restricted = true;
+        console.log(`[ZIBRA OVERSIGHT] Driver ${userId} hit decline restriction threshold (${currentDeclines} declines). Temporary restriction applied until ${restrictedUntil.toISOString()}`);
         warning = `You have been temporarily restricted from changing preferences for ${RESTRICTION_HOURS} hours due to excessive ride declines.`;
       } else if (currentDeclines >= WARNING_THRESHOLD) {
         await db.update(driverProfiles).set({
@@ -1654,6 +1655,7 @@ export async function registerRoutes(
         } as any).where(eq(driverProfiles.userId, userId));
 
         warning = `You have declined ${currentDeclines} rides. Continued excessive declines may result in temporary restrictions.`;
+        console.log(`[ZIBRA OVERSIGHT] Driver ${userId} approaching decline limit (${currentDeclines}/${RESTRICTION_THRESHOLD} declines). Warning #${currentWarnings + 1} issued.`);
       } else {
         await db.update(driverProfiles).set({
           declineCount: currentDeclines,
@@ -2155,6 +2157,27 @@ export async function registerRoutes(
           message: "This is a cash ride and you have disabled cash acceptance.",
           code: "CASH_NOT_ACCEPTED",
         });
+      }
+
+      // Check distance preference (soft enforcement - log but don't block if admin overrides exist)
+      const estimatedDistance = (tripToCheck as any).estimatedDistance || 0;
+      const distPrefs = driverProfile.tripDistancePreference || ["short", "medium", "long"];
+      let tripDistanceCategory = "medium";
+      if (estimatedDistance > 0 && estimatedDistance < 5) tripDistanceCategory = "short";
+      else if (estimatedDistance >= 15) tripDistanceCategory = "long";
+      
+      if (!distPrefs.includes(tripDistanceCategory) && distPrefs.length < 3) {
+        // Distance is a soft preference - log for analytics but allow if no other drivers available
+        console.log(`[DRIVER PREFS] Distance mismatch: driver ${userId} prefers [${distPrefs.join(",")}], trip is ${tripDistanceCategory} (${estimatedDistance}km)`);
+      }
+
+      // Preference restriction check - prevent restricted drivers from accepting selectively
+      if (driverProfile.preferenceRestricted && driverProfile.preferenceRestrictedUntil) {
+        const restrictedUntil = new Date(driverProfile.preferenceRestrictedUntil);
+        if (restrictedUntil > new Date()) {
+          // Driver is restricted - still allow acceptance but log
+          console.log(`[DRIVER PREFS] Restricted driver ${userId} accepting ride - preference restrictions active until ${restrictedUntil.toISOString()}`);
+        }
       }
 
       // Track decline count for preference abuse prevention

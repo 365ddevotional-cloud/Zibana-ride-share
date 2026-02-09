@@ -17,7 +17,7 @@ export type ZibraCategory =
   | "director_lifecycle" | "director_appeals" | "director_deescalation"
   | "director_coaching" | "director_termination" | "director_succession"
   | "driver_coaching"
-  | "rider_coaching" | "operations";
+  | "rider_coaching" | "operations" | "rides";
 
 export interface ZibraTemplate {
   id: string;
@@ -2287,7 +2287,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "driver",
     category: "rides",
     keywords: ["short trip", "long trip", "trip distance", "distance preference", "far trips", "nearby trips", "close rides", "long rides"],
-    response: "You can set your trip distance preferences from Account > Driver Preferences > Trip Distance. Toggle short (under 5 km), medium (5-15 km), or long (over 15 km) trips on or off. You must keep at least one category enabled. Distance preferences increase your matching priority for those trip types but won't completely block other distances."
+    response: "You can set your trip distance preferences from Account > Driver Preferences > Trip Distance. Toggle short (under 5 km), medium (5-15 km), or long (over 15 km) trips on or off. You must keep at least one category enabled. Distance preferences may help guide ride offers for those trip types but do not guarantee specific trips."
   },
   {
     id: "d-pref-cash",
@@ -2301,14 +2301,14 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "driver",
     category: "rides",
     keywords: ["preferred area", "area preference", "work zone", "favorite area", "zone preference", "where I drive", "my area"],
-    response: "You can set up to 5 preferred areas from Account > Driver Preferences > Preferred Areas. Adding preferred areas increases your matching priority when rides are available in those areas, but it does NOT block rides from other locations. This is a soft filter to help you get more rides in areas you prefer."
+    response: "You can set up to 5 preferred areas from Account > Driver Preferences > Preferred Areas. Adding preferred areas may help guide ride offers in those areas, but it does NOT block rides from other locations. Preferences serve as guidance only and do not guarantee specific trips."
   },
   {
     id: "d-pref-not-getting-trips",
     role: "driver",
     category: "rides",
     keywords: ["no trips", "not getting rides", "no ride requests", "empty", "no matches", "why no rides", "fewer trips", "less rides"],
-    response: "If you're not receiving many ride requests, here are some suggestions:\n\n1. **Expand your preferences** — Accept more ride classes and all trip distances.\n2. **Enable cash payments** — This opens up more ride opportunities.\n3. **Move to busy areas** — Check your preferred areas or try high-demand zones.\n4. **Stay online** — Keep your app active and your location up to date.\n5. **Check your rating** — A higher rating improves matching priority.\n\nRemember, preferences guide matching but restricting too many options reduces your ride volume."
+    response: "If you're not receiving many ride requests, here are some suggestions:\n\n1. **Review your preferences** — Accepting more ride classes and all trip distances may help improve your chances of receiving requests.\n2. **Enable cash payments** — This may help you receive more ride offers.\n3. **Move to busy areas** — Check your preferred areas or try high-demand zones.\n4. **Stay online** — Keep your app active and your location up to date.\n5. **Check your rating** — Maintain a good rating to improve your matching potential.\n\nRemember, preferences guide matching but do not guarantee trips. Overly restrictive settings may reduce your ride volume."
   },
   {
     id: "d-pref-locked",
