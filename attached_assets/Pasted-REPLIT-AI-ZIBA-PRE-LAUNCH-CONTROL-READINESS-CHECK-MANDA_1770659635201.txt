@@ -1,0 +1,100 @@
+REPLIT AI — ZIBA PRE-LAUNCH CONTROL & READINESS CHECK (MANDATORY)
+
+Context:
+- Product: ZIBA Ride Share
+- Status: Rider app is ~98% correct and MUST NOT be modified.
+- Focus: Prepare Driver app for controlled soft-launch.
+- Goal: Stabilize system, lock what works, and define what is allowed next.
+
+You must perform the following 10-POINT LAUNCH READINESS CHECK and confirm each item explicitly.
+
+════════════════════════════════════
+1) LOCK RIDER APP (CRITICAL)
+════════════════════════════════════
+- Freeze all Rider routes, components, APIs, DB schemas, and UI.
+- Rider must be treated as READ-ONLY.
+- No refactors, no cleanup, no “improvements”, no auth changes.
+- Any attempt to modify Rider code must be blocked and reported.
+
+════════════════════════════════════
+2) CONFIRM CLEAN ROLE SEPARATION
+════════════════════════════════════
+- Rider and Driver flows must remain logically separated.
+- Shared auth allowed, but:
+  - No Rider redirects inside Driver flows
+  - No Driver redirects inside Rider flows
+- Role selection must always be backend-controlled.
+
+════════════════════════════════════
+3) ENABLE DRIVER SOFT-LAUNCH MODE
+════════════════════════════════════
+- Driver app is enabled ONLY for:
+  - Registration
+  - Profile completion
+  - Document upload
+- Ride matching and earnings logic remain disabled unless explicitly approved later.
+- Driver status defaults to: “Pending Approval”.
+
+════════════════════════════════════
+4) VERIFY AUTH FLOW OWNERSHIP
+════════════════════════════════════
+- OAuth decisions must be controlled by ZIBA backend (not browser, not provider).
+- Silent OAuth reuse must NOT auto-assign role.
+- Backend must always resolve:
+  - User identity
+  - Allowed roles
+  - Active role per session
+
+════════════════════════════════════
+5) CONFIRM MULTI-ROLE SUPPORT RULE
+════════════════════════════════════
+- One email = multiple roles allowed (Rider + Driver).
+- One email = NO duplicate role records.
+- If role exists → load role.
+- If role missing → allow creation without blocking.
+- Never show “you already have a rider account” as an error.
+
+════════════════════════════════════
+6) VALIDATE DRIVER GATING LOGIC
+════════════════════════════════════
+- Driver cannot go online unless:
+  - Profile completed
+  - Documents submitted
+  - Approved flag set by admin
+- UI must clearly show why driver is blocked (Pending Approval).
+
+════════════════════════════════════
+7) DOCUMENTS FLOW PRE-CHECK
+════════════════════════════════════
+- Upload buttons must not fake success.
+- Status must reflect backend truth only.
+- No “submitted” messages unless a real file exists in storage.
+
+════════════════════════════════════
+8) ADMIN SURFACE SANITY CHECK
+════════════════════════════════════
+- Only 1 admin email remains: 365ddevotional@gmail.com
+- Frontend must NOT assume cached users.
+- All role/user data must be loaded from backend fresh on login.
+
+════════════════════════════════════
+9) POST-LAUNCH CLEANUP BACKLOG (DO NOT EXECUTE NOW)
+════════════════════════════════════
+Create a backlog list ONLY (no changes yet):
+- Remove deprecated auth experiments
+- Normalize role tables
+- Improve upload progress UX
+- Harden approval audit logs
+- Optimize driver onboarding copy
+
+════════════════════════════════════
+10) FINAL CONFIRMATION REQUIRED
+════════════════════════════════════
+Before proceeding further, respond with:
+- “Rider app locked: YES”
+- “Driver soft-launch enabled: YES”
+- “Auth controlled by backend: YES”
+- “Multi-role logic confirmed: YES”
+- “Ready for next execution prompt”
+
+DO NOT proceed to any other work until this checklist is completed and confirmed.
