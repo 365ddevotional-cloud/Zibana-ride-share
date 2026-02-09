@@ -1,0 +1,122 @@
+We are fixing AUTHENTICATION & ROLE FLOW issues in the existing ZIBA Ride Share app.
+This is NOT a rebuild.
+
+⚠️ ABSOLUTE RULE:
+DO NOT MODIFY, REFACTOR, OR TOUCH ANY RIDER APP UI OR BUSINESS LOGIC.
+The Rider app is LOCKED and considered production-stable.
+
+========================
+SECTION A — REMOVE REPLIT OAUTH CONSENT SCREEN (CRITICAL)
+========================
+
+PROBLEM:
+- End users are repeatedly shown a Replit OAuth consent screen:
+  “ZIBA Ride Share would like to access your Replit account”
+- This appears for Rider, Driver, and Admin sign-ins
+- It forces a specific email
+- It auto-logs users into Rider
+- It prevents role choice
+- It blocks Admin access
+- It creates the impression of a broken or unsafe app
+
+THIS SCREEN MUST BE REMOVED FROM USER FLOW.
+
+REQUIRED FIX:
+1. Replit OAuth MUST be treated as BACKEND AUTH ONLY, not user-facing UX.
+2. End users should NEVER see:
+   - Replit branding
+   - Replit permission screens
+   - “Allow / Deny” dialogs
+
+3. Replace current flow with:
+   - Silent OAuth exchange (server-side)
+   - Session-based auth
+   - App-controlled UI only
+
+4. If Replit OAuth cannot be fully hidden:
+   - Use a FIRST-PARTY AUTH WRAPPER
+   - Perform OAuth once
+   - Cache token server-side
+   - Never re-prompt users
+
+RESULT:
+- Clicking “Sign In” on ZIBA Welcome page does NOT show Replit screens
+- Users remain inside ZIBA-branded UI at all times
+
+========================
+SECTION B — ROLE SELECTION SCREEN (MANDATORY)
+========================
+
+After successful authentication, the app MUST show:
+
+“Continue as:”
+- Rider
+- Driver
+- Admin (ONLY if user has admin role)
+
+RULES:
+- No automatic Rider redirect
+- No forced role
+- No email-based auto-routing
+- Role selection stored as activeRole in session + DB
+
+Admin access rules:
+- /admin accessible ONLY if activeRole === ADMIN
+- Admin login MUST NEVER redirect to Rider
+
+========================
+SECTION C — DRIVER APP ONLY FIXES (NO RIDER CHANGES)
+========================
+
+1. Pending Approval Loop:
+   - If driver exists in Training Management:
+     → status MUST be APPROVED
+     → Go Online unlocked
+
+2. Remove from Driver UI COMPLETELY:
+   - “Director Funding Support Terms”
+   - “Report Funding Coercion”
+   - Any director/admin-only messaging
+
+3. Currency Fix:
+   - Force NGN (₦) for all Driver wallet views
+   - Remove ALL USD fallbacks
+
+4. Profile Photo Upload:
+   - Fix image upload pipeline
+   - Allow camera & file uploads
+   - Persist image
+   - Show immediately
+   - Proper error handling
+
+========================
+SECTION D — ADMIN AUTH STABILITY
+========================
+
+- Admin sign-in must stay Admin
+- No Rider UI loading for Admin
+- No role confusion
+- No forced email reuse
+- No auto-login into Rider
+
+========================
+SECTION E — FINAL VERIFICATION CHECKLIST
+========================
+
+Confirm ALL:
+- Replit OAuth consent screen no longer appears
+- Users never leave ZIBA UI during sign-in
+- Role chooser appears after login
+- Rider app untouched
+- Driver can go online
+- Driver profile editable
+- Director content removed from Driver UI
+- Currency is ₦ everywhere in Driver app
+- Admin access stable
+
+This is an AUTH & DRIVER STABILIZATION TASK.
+Do NOT redesign UI.
+Do NOT add features.
+Do NOT touch Rider app.
+
+Return a clear summary of what was changed and why.

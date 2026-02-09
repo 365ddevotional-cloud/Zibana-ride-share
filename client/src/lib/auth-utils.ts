@@ -19,8 +19,7 @@ export function redirectToLogin(toast?: (options: { title: string; description: 
       variant: "destructive",
     });
   }
-  const role = getCurrentRoleContext();
   setTimeout(() => {
-    window.location.href = `/api/login?role=${role}`;
+    window.location.href = `/api/login`;
   }, 500);
 }

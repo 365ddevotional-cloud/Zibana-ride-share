@@ -58,7 +58,7 @@ export default function LandingPage() {
         description: `Role: ${data.role}, Country: ${data.countryCode}. Sign in to begin.`,
       });
       sessionStorage.setItem("ziba-sim-code", simCode.trim());
-      window.location.href = `/api/login?role=${data.role === "admin" || data.role === "director" ? "admin" : data.role}`;
+      window.location.href = `/api/login`;
     } catch {
       setSimError("Failed to validate code");
     } finally {
@@ -91,7 +91,7 @@ export default function LandingPage() {
           <div className="flex items-center gap-2">
             <ThemeToggle />
             <Button asChild data-testid="button-login">
-              <a href="/api/login?role=rider">Sign In</a>
+              <a href="/api/login">Sign In</a>
             </Button>
           </div>
         </div>

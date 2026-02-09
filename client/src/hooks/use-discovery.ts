@@ -111,9 +111,9 @@ export function useDiscovery() {
   }, [intent]);
 
   const getSignupUrl = useCallback(() => {
-    const base = "/api/login?role=rider";
+    const base = "/api/login";
     if (intent) {
-      return `${base}&intent=${encodeURIComponent(intent)}`;
+      return `${base}?intent=${encodeURIComponent(intent)}`;
     }
     return base;
   }, [intent]);

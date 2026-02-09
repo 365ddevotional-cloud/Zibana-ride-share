@@ -17,7 +17,7 @@ export default function AboutPage() {
           <div className="flex items-center gap-2">
             <ThemeToggle />
             <Button asChild data-testid="button-login">
-              <a href="/api/login?role=rider">Sign In</a>
+              <a href="/api/login">Sign In</a>
             </Button>
           </div>
         </div>
@@ -122,7 +122,7 @@ export default function AboutPage() {
               Join thousands of riders and drivers who trust {appName} for safe, reliable transportation.
             </p>
             <Button size="lg" variant="secondary" asChild className="text-base" data-testid="button-get-started">
-              <a href="/api/login?role=rider">Get Started</a>
+              <a href="/api/login">Get Started</a>
             </Button>
           </div>
         </section>

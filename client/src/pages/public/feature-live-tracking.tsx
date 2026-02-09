@@ -17,7 +17,7 @@ export default function FeatureLiveTrackingPage() {
           <div className="flex items-center gap-2">
             <ThemeToggle />
             <Button asChild data-testid="button-login">
-              <a href="/api/login?role=rider">Sign In</a>
+              <a href="/api/login">Sign In</a>
             </Button>
           </div>
         </div>
@@ -123,7 +123,7 @@ export default function FeatureLiveTrackingPage() {
               Sign up and experience real-time tracking on your very first ride.
             </p>
             <Button size="lg" variant="secondary" asChild className="text-base" data-testid="button-get-started">
-              <a href="/api/login?role=rider">Get Started</a>
+              <a href="/api/login">Get Started</a>
             </Button>
           </div>
         </section>
