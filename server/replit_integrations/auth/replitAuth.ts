@@ -140,7 +140,7 @@ export async function setupAuth(app: Express) {
         }
         
         // Get the auth context from session
-        const authContext = (req.session as any).authContext || "rider";
+        const authContext = (req.session as any).authContext || (req.session as any).activeRole || "rider";
         const userId = user.claims?.sub;
         
         // Store the auth context as the intended role in session

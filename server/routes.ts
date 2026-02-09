@@ -235,10 +235,19 @@ export async function registerRoutes(
         return aPriority - bPriority;
       });
       
+      const activeRole = (req.session as any)?.activeRole;
+      if (activeRole && sortedRoles.some(r => r.role === activeRole)) {
+        return res.json({
+          role: activeRole,
+          roles: sortedRoles.map(r => r.role),
+          roleCount: sortedRoles.length
+        });
+      }
+
       return res.json({ 
-        role: sortedRoles[0].role,  // Primary role (for backward compatibility)
-        roles: sortedRoles.map(r => r.role),  // All roles
-        roleCount: sortedRoles.length  // Total role count
+        role: sortedRoles[0].role,
+        roles: sortedRoles.map(r => r.role),
+        roleCount: sortedRoles.length
       });
     } catch (error) {
       console.error("Error getting user role:", error);
@@ -298,6 +307,30 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error setting user role:", error);
       return res.status(500).json({ message: "Failed to set user role" });
+    }
+  });
+
+  app.post("/api/user/active-role", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { role } = req.body;
+      
+      if (!role) {
+        return res.status(400).json({ message: "Role is required" });
+      }
+      
+      const hasRole = await storage.hasRole(userId, role);
+      if (!hasRole) {
+        return res.status(403).json({ message: "You do not have this role" });
+      }
+      
+      (req.session as any).activeRole = role;
+      req.session.save(() => {
+        res.json({ success: true, activeRole: role });
+      });
+    } catch (error) {
+      console.error("Error switching active role:", error);
+      return res.status(500).json({ message: "Failed to switch role" });
     }
   });
 
@@ -13450,9 +13483,9 @@ export async function registerRoutes(
       }
 
       if (typeof photoData === "string" && photoData.length > 0) {
-        const validPrefixes = ["data:image/jpeg", "data:image/png", "data:image/webp"];
+        const validPrefixes = ["data:image/jpeg", "data:image/png", "data:image/webp", "data:image/heic", "data:image/heif"];
         if (!validPrefixes.some(p => photoData.startsWith(p))) {
-          return res.status(400).json({ message: "Invalid image format. Use JPG, PNG, or WebP." });
+          return res.status(400).json({ message: "Invalid image format. Use JPG, PNG, WebP, or HEIC." });
         }
         const base64Part = photoData.split(",")[1] || "";
         const sizeBytes = Math.ceil(base64Part.length * 0.75);
@@ -20306,6 +20339,7 @@ export async function registerRoutes(
         if (isTraining && !profile.isTraining) {
           updateData.trainingStartedAt = new Date();
           updateData.trainingAssignedBy = adminId;
+          updateData.status = "approved";
         }
         if (!isTraining && profile.isTraining) {
           updateData.trainingEndedAt = new Date();

@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, MapPin, Play, Check, DollarSign } from "lucide-react";
+import { Calendar, Clock, MapPin, Play, Check, Banknote } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -192,7 +192,7 @@ export function DriverScheduledTripsSection() {
 
               <div className="flex items-center justify-between pt-2 border-t">
                 <div className="flex items-center gap-2">
-                  <DollarSign className="h-4 w-4" />
+                  <Banknote className="h-4 w-4" />
                   <span className="font-medium">
                     {trip.fareAmount ? `${trip.fareAmount} ${trip.currencyCode}` : "TBD"}
                   </span>

@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
-import { Wallet, ArrowUpRight, ArrowDownLeft, CreditCard, Clock, Star, Info, DollarSign, FileText, Banknote, ChevronDown, ChevronUp, Send } from "lucide-react";
+import { Wallet, ArrowUpRight, ArrowDownLeft, CreditCard, Clock, Star, Info, FileText, Banknote, ChevronDown, ChevronUp, Send } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useTranslation } from "@/i18n";

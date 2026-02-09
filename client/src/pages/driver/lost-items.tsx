@@ -13,7 +13,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { ChevronLeft, Package, Phone, Calendar, Tag, CheckCircle, XCircle, RotateCcw, AlertTriangle, DollarSign, MapPin } from "lucide-react";
+import { ChevronLeft, Package, Phone, Calendar, Tag, CheckCircle, XCircle, RotateCcw, AlertTriangle, Banknote, MapPin } from "lucide-react";
 
 interface LostItemReport {
   id: string;
@@ -265,7 +265,7 @@ export default function DriverLostItems() {
                       className="bg-green-500/15 text-green-700 dark:text-green-400"
                       data-testid={`badge-payout-${report.id}`}
                     >
-                      <DollarSign className="h-3 w-3 mr-1" />
+                      <Banknote className="h-3 w-3 mr-1" />
                       Payout: {report.driverPayout}
                     </Badge>
                   )}
@@ -357,7 +357,7 @@ export default function DriverLostItems() {
 
                   {report.status === "at_hub" && report.driverHubBonus && (
                     <Badge className="bg-teal-500/15 text-teal-700 dark:text-teal-400" data-testid={`badge-hub-bonus-${report.id}`}>
-                      <DollarSign className="h-3 w-3 mr-1" />
+                      <Banknote className="h-3 w-3 mr-1" />
                       Hub Bonus: {report.driverHubBonus} (pending rider pickup)
                     </Badge>
                   )}

@@ -12,7 +12,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { ChevronLeft, Heart, DollarSign, Calendar, FileText } from "lucide-react";
+import { ChevronLeft, Heart, Banknote, Calendar, FileText } from "lucide-react";
 
 interface ReliefFundClaim {
   id: number;
@@ -134,13 +134,13 @@ export default function DriverReliefFundPage() {
                         Accident Report #{claim.accidentReportId}
                       </p>
                       <p className="text-xs text-muted-foreground flex items-center gap-1" data-testid={`text-claim-amount-${claim.id}`}>
-                        <DollarSign className="h-3 w-3" />
-                        Requested: ${Number(claim.requestedAmount).toFixed(2)}
+                        <Banknote className="h-3 w-3" />
+                        Requested: {"\u20A6"}{Number(claim.requestedAmount).toFixed(2)}
                       </p>
                       {claim.approvedAmount != null && (
                         <p className="text-xs text-muted-foreground flex items-center gap-1" data-testid={`text-claim-approved-${claim.id}`}>
-                          <DollarSign className="h-3 w-3" />
-                          Approved: ${Number(claim.approvedAmount).toFixed(2)}
+                          <Banknote className="h-3 w-3" />
+                          Approved: {"\u20A6"}{Number(claim.approvedAmount).toFixed(2)}
                         </p>
                       )}
                       {claim.expectedPayoutDate && (

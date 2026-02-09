@@ -12,7 +12,7 @@ import { useLocation } from "wouter";
 import { useTranslation } from "@/i18n";
 import {
   ArrowLeft, Car, Wallet, Bell, Megaphone, Mail,
-  CheckCheck, DollarSign, Shield, AlertTriangle,
+  CheckCheck, Banknote, Shield, AlertTriangle,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
@@ -32,7 +32,7 @@ interface UnreadCount {
 
 const messageIcons: Record<string, typeof Car> = {
   ride_update: Car,
-  payout_update: DollarSign,
+  payout_update: Banknote,
   system_announcement: Megaphone,
   wallet_update: Wallet,
   safety_alert: Shield,

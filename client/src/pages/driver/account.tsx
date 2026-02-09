@@ -92,8 +92,8 @@ export default function DriverAccount() {
       setAvatarDialogOpen(false);
       setAvatarPreview(null);
     },
-    onError: () => {
-      toast({ title: "Upload failed", variant: "destructive" });
+    onError: (error: Error) => {
+      toast({ title: "Upload failed", description: error.message || "Please try again with a smaller image.", variant: "destructive" });
     },
   });
 
@@ -130,9 +130,9 @@ export default function DriverAccount() {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const validTypes = ["image/jpeg", "image/png", "image/webp"];
+    const validTypes = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
     if (!validTypes.includes(file.type)) {
-      toast({ title: "Invalid file type", description: "Please select a JPG, PNG, or WebP image.", variant: "destructive" });
+      toast({ title: "Invalid file type", description: "Please select a JPG, PNG, WebP, or HEIC image.", variant: "destructive" });
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
@@ -210,7 +210,7 @@ export default function DriverAccount() {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/jpeg,image/png,image/webp"
+                  accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
                   className="hidden"
                   onChange={handleFileSelect}
                   data-testid="input-avatar-file"
