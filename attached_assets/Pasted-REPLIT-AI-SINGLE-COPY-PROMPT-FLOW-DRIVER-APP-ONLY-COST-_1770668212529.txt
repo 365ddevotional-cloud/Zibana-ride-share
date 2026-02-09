@@ -1,0 +1,120 @@
+REPLIT AI — SINGLE COPY PROMPT FLOW
+⚠️ DRIVER APP ONLY — COST-SAVING MODE — DO NOT TOUCH RIDER APP
+
+ABSOLUTE RULES (MUST FOLLOW):
+- DO NOT modify Rider app UI, routes, auth, data, or logic.
+- DO NOT refactor, redesign, or add new features.
+- Make ONLY minimal, targeted fixes inside Driver app.
+- Reuse existing backend, storage, and auth logic.
+- Goal is DRIVER SOFT-LAUNCH STABILITY, not perfection.
+
+CONTEXT:
+App: ZIBA
+Current state:
+- Rider app is ~98% correct and MUST remain untouched.
+- Driver app signs in but has blocking bugs.
+- Admin approval UI exists.
+- Costs are too high — proceed carefully, one fix at a time.
+
+TASKS — EXECUTE ALL BELOW IN ONE PASS:
+
+1) FIX DRIVER “GO ONLINE” 403 ERROR
+Problem:
+Approved drivers get 403 DRIVER_SETUP_INCOMPLETE due to backend checks for frontend-only flags (locationPermission, navigationProvider, etc.).
+
+Fix:
+- Update backend go-online endpoint to allow driver online if:
+  - driver.approved === true
+  - driver.isActive === true
+- REMOVE any server-side checks for:
+  - locationPermission
+  - navigationProvider
+  - navigation readiness
+- Frontend permissions remain frontend-only.
+
+Result:
+Approved drivers can go online immediately without 403.
+
+2) FIX DRIVER DOCUMENTS UPLOAD BUG
+Problem:
+On /driver/documents, clicking “Upload” immediately shows “Document submitted for review” even when no file is selected.
+
+Frontend Fix:
+- Locate current success toast trigger.
+- REMOVE any toast fired on button click.
+- Upload flow must be:
+  a) Click Upload → open file picker
+  b) If picker cancelled → do NOTHING (no toast)
+  c) If file selected → upload → wait for backend response
+  d) Show success toast ONLY after backend returns success
+
+Backend Fix:
+- Reject uploads with no file:
+  - Return 400 { "message": "No file uploaded" }
+- Do not change storage provider.
+- Use existing upload logic only.
+
+Result:
+No fake submissions. Status changes only after real upload.
+
+3) FIX DRIVER DASHBOARD NON-CLICKABLE CARDS
+Broken:
+- Recent Notifications
+- Your Vehicle
+- Contact Human Support
+
+Fix:
+- Ensure routes exist and are wired:
+  - Notifications → /driver/notifications
+  - Vehicle → /driver/vehicle
+  - Support → /driver/support
+- Prevent redirect to public ZIBA welcome page.
+
+If page missing:
+- Create minimal placeholder page (text only).
+- No backend logic required.
+
+4) REMOVE DIRECTOR CONTENT FROM DRIVER APP
+REMOVE from Driver UI:
+- “Director Funding Support Terms”
+- “Report Funding Coercion”
+
+These must not appear anywhere in Driver app.
+
+5) FIX ADMIN APPROVAL → DRIVER ENABLEMENT
+Problem:
+Driver shows “Account Approved” but still blocked.
+
+Fix:
+- Ensure admin approval sets:
+  - driver.approved = true
+  - driver.canGoOnline = true
+- Remove duplicate or conflicting approval checks.
+
+6) AUTH ROUTING SAFETY
+- Ensure Driver routes stay inside Driver app after login.
+- Prevent fallback redirect to Rider or public pages.
+- No OAuth changes unless already present.
+
+7) LAUNCH READINESS CHECK (NO NEW FEATURES)
+Driver must be able to:
+- Sign in
+- Go online
+- Upload documents correctly
+- Click dashboard cards
+- Stay inside Driver app
+
+DO NOT:
+- Touch Rider app
+- Add features
+- Add services
+- Add new tables unless strictly required
+
+DELIVERABLE AFTER EXECUTION:
+- List files changed
+- Confirm:
+  - Driver can go online
+  - Documents upload works correctly
+  - Dashboard cards navigate correctly
+
+EXECUTE NOW. DO NOT TOUCH RIDER APP.

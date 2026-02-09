@@ -1942,39 +1942,6 @@ export async function registerRoutes(
         });
       }
 
-      // MANDATORY SETUP CHECK - Block going online if setup incomplete
-      if (isOnline === true) {
-        const missingFields: string[] = [];
-        
-        // Check location permissions
-        if (profile.locationPermissionStatus !== "granted") {
-          missingFields.push("locationPermission");
-        }
-        
-        // Check navigation provider selection
-        if (!profile.navigationProvider) {
-          missingFields.push("navigationProvider");
-        }
-        
-        // Check navigation verification
-        if (!profile.navigationVerified) {
-          missingFields.push("navigationVerified");
-        }
-        
-        if (missingFields.length > 0 && !profile.isTraining) {
-          return res.status(403).json({ 
-            message: "Driver setup incomplete",
-            error: "DRIVER_SETUP_INCOMPLETE",
-            missingFields,
-            setupCompleted: false
-          });
-        }
-        
-        if (missingFields.length > 0 && profile.isTraining) {
-          console.log(`[TRAINING_MODE] Bypassing setup check for training driver: userId=${userId}, missing=${missingFields.join(",")}`);
-        }
-      }
-
       const updated = await storage.updateDriverOnlineStatus(userId, isOnline);
       
       // Phase 4: Track driver going online for analytics
