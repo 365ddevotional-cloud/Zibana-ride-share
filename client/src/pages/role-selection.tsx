@@ -156,6 +156,8 @@ export default function RoleSelectionPage() {
 
   const existingRoles = userRoleData?.roles || [];
   const hasRoles = existingRoles.length > 0;
+  const canAddRider = !existingRoles.includes("rider");
+  const canAddDriver = !existingRoles.includes("driver");
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -178,44 +180,53 @@ export default function RoleSelectionPage() {
             </p>
           </div>
 
-          {hasRoles ? (
-            <div className="space-y-4">
-              {existingRoles.map((role) => {
-                const config = ROLE_CONFIG[role];
-                if (!config) return null;
-                const Icon = config.icon;
-                const isLoading = switching === role;
+          <div className="space-y-4">
+            {existingRoles.map((role) => {
+              const config = ROLE_CONFIG[role];
+              if (!config) return null;
+              const Icon = config.icon;
+              const isLoading = switching === role;
 
-                return (
-                  <Card key={role} data-testid={`card-role-${role}`}>
-                    <CardHeader className="flex flex-row items-center gap-4 pb-2">
-                      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${config.color}`}>
-                        <Icon className="h-6 w-6" />
+              return (
+                <Card key={role} data-testid={`card-role-${role}`}>
+                  <CardHeader className="flex flex-row items-center gap-4 pb-2">
+                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${config.color}`}>
+                      <Icon className="h-6 w-6" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <CardTitle className="text-lg">{config.label}</CardTitle>
+                        <Badge variant="secondary" className="text-xs">{role}</Badge>
                       </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <CardTitle className="text-lg">{config.label}</CardTitle>
-                          <Badge variant="secondary" className="text-xs">{role}</Badge>
-                        </div>
-                        <CardDescription>{config.description}</CardDescription>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                      <Button
-                        className="w-full"
-                        disabled={selectActiveRoleMutation.isPending}
-                        onClick={() => selectActiveRoleMutation.mutate(role)}
-                        data-testid={`button-continue-${role}`}
-                      >
-                        {isLoading ? "Switching..." : `Continue as ${config.label}`}
-                      </Button>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="space-y-4">
+                      <CardDescription>{config.description}</CardDescription>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <Button
+                      className="w-full"
+                      disabled={selectActiveRoleMutation.isPending}
+                      onClick={() => selectActiveRoleMutation.mutate(role)}
+                      data-testid={`button-continue-${role}`}
+                    >
+                      {isLoading ? "Switching..." : `Continue as ${config.label}`}
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
+            })}
+
+            {(canAddRider || canAddDriver) && hasRoles && (
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">Or add another role</span>
+                </div>
+              </div>
+            )}
+
+            {canAddRider && (
               <Card data-testid="card-register-rider">
                 <CardHeader className="text-center pb-2">
                   <div className="mx-auto mb-2 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
@@ -243,7 +254,9 @@ export default function RoleSelectionPage() {
                   </Button>
                 </CardContent>
               </Card>
+            )}
 
+            {canAddDriver && (
               <Card data-testid="card-register-driver">
                 <CardHeader className="text-center pb-2">
                   <div className="mx-auto mb-2 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
@@ -271,8 +284,8 @@ export default function RoleSelectionPage() {
                   </Button>
                 </CardContent>
               </Card>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </main>
     </div>
