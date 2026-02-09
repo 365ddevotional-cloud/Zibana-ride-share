@@ -163,6 +163,27 @@ export default function ApprovalsPage() {
     },
   });
 
+  const forceApproveDocsMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      return apiRequest("POST", `/api/admin/drivers/${userId}/force-approve-documents`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Documents Force-Approved",
+        description: "All documents have been approved. Driver UI will reflect this immediately.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/approvals"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/driver"] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to force-approve documents.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const rejectMutation = useMutation({
     mutationFn: async ({ type, id, reason }: { type: string; id: string; reason?: string }) => {
       return apiRequest("POST", "/api/admin/approvals/reject", { type, id, reason });
@@ -595,7 +616,16 @@ export default function ApprovalsPage() {
                 </div>
               </div>
 
-              <DialogFooter className="gap-2">
+              <DialogFooter className="gap-2 flex-wrap">
+                <Button
+                  variant="outline"
+                  onClick={() => forceApproveDocsMutation.mutate(selectedDriver.userId)}
+                  disabled={forceApproveDocsMutation.isPending}
+                  data-testid="button-force-approve-docs"
+                >
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                  {forceApproveDocsMutation.isPending ? "Approving Docs..." : "Force Approve Documents"}
+                </Button>
                 {selectedDriver.status === "pending" && (
                   <>
                     <Button

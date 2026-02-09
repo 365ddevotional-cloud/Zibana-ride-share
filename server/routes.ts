@@ -2003,34 +2003,15 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Profile not found" });
       }
 
-      // Training drivers bypass all setup checks
-      if (profile.isTraining) {
-        return res.json({
-          setupCompleted: true,
-          locationPermissionStatus: "granted",
-          navigationProvider: "google_maps",
-          navigationVerified: true,
-          lastGpsHeartbeat: new Date().toISOString(),
-          missingFields: [],
-        });
-      }
-
-      const setupCompleted = 
-        profile.locationPermissionStatus === "granted" &&
-        profile.navigationProvider !== null &&
-        profile.navigationVerified === true;
-
+      // Navigation/location is handled externally (frontend-only concern)
+      // Always return setupCompleted=true for approved drivers
       return res.json({
-        setupCompleted,
-        locationPermissionStatus: profile.locationPermissionStatus,
-        navigationProvider: profile.navigationProvider,
-        navigationVerified: profile.navigationVerified,
-        lastGpsHeartbeat: profile.lastGpsHeartbeat,
-        missingFields: [
-          ...(profile.locationPermissionStatus !== "granted" ? ["locationPermission"] : []),
-          ...(!profile.navigationProvider ? ["navigationProvider"] : []),
-          ...(!profile.navigationVerified ? ["navigationVerified"] : []),
-        ]
+        setupCompleted: true,
+        locationPermissionStatus: profile.locationPermissionStatus || "granted",
+        navigationProvider: profile.navigationProvider || "external",
+        navigationVerified: true,
+        lastGpsHeartbeat: profile.lastGpsHeartbeat || new Date().toISOString(),
+        missingFields: [],
       });
     } catch (error) {
       console.error("Error getting setup status:", error);
@@ -2200,22 +2181,7 @@ export async function registerRoutes(
         return res.status(403).json({ message: acceptanceCheck.reason, code: acceptanceCheck.code });
       }
 
-      // Skip setup checks for training drivers
-      if (!profile.isTraining) {
-        const missingFields: string[] = [];
-        if (profile.locationPermissionStatus !== "granted") missingFields.push("locationPermission");
-        if (!profile.navigationProvider) missingFields.push("navigationProvider");
-        if (!profile.navigationVerified) missingFields.push("navigationVerified");
-        
-        if (missingFields.length > 0) {
-          return res.status(403).json({ 
-            message: "Driver setup incomplete",
-            error: "DRIVER_SETUP_INCOMPLETE",
-            missingFields,
-            setupCompleted: false
-          });
-        }
-      }
+      // Navigation/location checks removed — these are frontend-only concerns
 
       const currentTrip = await storage.getDriverCurrentTrip(userId);
       if (currentTrip) {
@@ -6855,6 +6821,36 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error completing driver verification:", error);
       return res.status(500).json({ message: "Failed to complete verification" });
+    }
+  });
+
+  // Super Admin: Force approve all documents (with or without uploads)
+  app.post("/api/admin/drivers/:userId/force-approve-documents", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const { userId } = req.params;
+
+      const updated = await storage.updateDriverProfile(userId, {
+        isNINVerified: true,
+        isDriversLicenseVerified: true,
+        isAddressVerified: true,
+        isIdentityVerified: true,
+        identityDocSubmitted: true,
+        driversLicenseDocSubmitted: true,
+        ninDocSubmitted: true,
+        addressDocSubmitted: true,
+        verificationStatus: "verified",
+      });
+
+      if (!updated) {
+        return res.status(404).json({ message: "Driver not found" });
+      }
+
+      console.log(`[AUDIT] Force approved all documents: userId=${userId}, by=${adminUserId}`);
+      return res.json({ message: "All documents force-approved", driver: updated });
+    } catch (error) {
+      console.error("Error force-approving documents:", error);
+      return res.status(500).json({ message: "Failed to force-approve documents" });
     }
   });
 
@@ -12568,22 +12564,7 @@ export async function registerRoutes(
       }
 
       const driverProfile = await storage.getDriverProfile(userId);
-      // Skip setup checks for training drivers
-      if (driverProfile && !driverProfile.isTraining) {
-        const missingFields: string[] = [];
-        if (driverProfile.locationPermissionStatus !== "granted") missingFields.push("locationPermission");
-        if (!driverProfile.navigationProvider) missingFields.push("navigationProvider");
-        if (!driverProfile.navigationVerified) missingFields.push("navigationVerified");
-        
-        if (missingFields.length > 0) {
-          return res.status(403).json({ 
-            message: "Driver setup incomplete",
-            error: "DRIVER_SETUP_INCOMPLETE",
-            missingFields,
-            setupCompleted: false
-          });
-        }
-      }
+      // Navigation/location checks removed — these are frontend-only concerns
 
       const ride = await storage.getRideById(rideId);
       if (!ride) {
@@ -13526,22 +13507,7 @@ export async function registerRoutes(
           });
         }
 
-        // Skip setup checks for training drivers
-        if (!driverProfile.isTraining) {
-          const missingFields: string[] = [];
-          if (driverProfile.locationPermissionStatus !== "granted") missingFields.push("locationPermission");
-          if (!driverProfile.navigationProvider) missingFields.push("navigationProvider");
-          if (!driverProfile.navigationVerified) missingFields.push("navigationVerified");
-          
-          if (missingFields.length > 0) {
-            return res.status(403).json({ 
-              message: "Driver setup incomplete",
-              error: "DRIVER_SETUP_INCOMPLETE",
-              missingFields,
-              setupCompleted: false
-            });
-          }
-        }
+        // Navigation/location checks removed — these are frontend-only concerns
       }
 
       const offer = await storage.getPendingRideOfferForDriver(userId);

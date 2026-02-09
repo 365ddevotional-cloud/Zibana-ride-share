@@ -1,0 +1,183 @@
+REPLIT AI — SINGLE COPY PROMPT FLOW
+⚠️ DRIVER APP ONLY — ULTRA COST-SAVING MODE — DO NOT TOUCH RIDER APP
+
+ABSOLUTE RULES (MUST FOLLOW):
+- DO NOT modify Rider app (UI, routes, auth, logic, data).
+- DO NOT refactor or redesign anything.
+- DO NOT add new services, SDKs, or infra.
+- Make ONLY minimal, targeted fixes.
+- Reuse existing tables, auth, storage, and APIs.
+- Keep changes small to reduce token + compute cost.
+
+CONTEXT:
+App: ZIBA
+Status:
+- Driver app works but has blocking logic bugs.
+- Admin dashboard shows approvals correctly.
+- Driver UI is not reflecting admin state.
+- Testers (trainees) must bypass verification friction.
+- External navigation is used (NO in-app maps).
+
+GOALS (FIX ALL IN ONE PASS):
+
+--------------------------------------------------
+1) FIX DRIVER SETUP 403 ERRORS (FINAL)
+--------------------------------------------------
+Problem:
+Driver can go online but backend still throws:
+DRIVER_SETUP_INCOMPLETE for:
+- locationPermission
+- navigationProvider
+- navigation readiness
+
+Fix (BACKEND ONLY):
+- In ALL driver endpoints (go-online, accept-ride):
+  ALLOW if:
+    driver.approved === true
+    driver.isActive === true
+
+- REMOVE backend checks for:
+  - locationPermission
+  - navigationProvider
+  - navigation readiness
+
+These are FRONTEND-ONLY concerns.
+
+Result:
+- No more 403 errors
+- Driver can go online and accept rides normally
+
+--------------------------------------------------
+2) FIX ACCEPT RIDE → 401 NOT AUTHENTICATED
+--------------------------------------------------
+Problem:
+Driver sees incoming rides but tapping “Accept” returns 401.
+
+Fix:
+- Ensure accept-ride endpoint:
+  - Uses SAME auth middleware as driver dashboard
+  - Reads token/session correctly
+  - Does NOT fall back to public/rider auth
+
+- If token missing/expired:
+  - Return clean 401
+  - Frontend shows “Session expired” (no redirect loop)
+
+Result:
+- Accept Ride works reliably when logged in
+
+--------------------------------------------------
+3) SYNC ADMIN DOCUMENT APPROVAL → DRIVER UI
+--------------------------------------------------
+Problem:
+Admin dashboard shows documents APPROVED
+Driver app still shows PENDING REVIEW
+
+Fix:
+- Driver Documents page MUST fetch status from backend
+- Status source of truth = DB (not frontend state)
+
+When admin sets document status = APPROVED:
+- Driver UI must immediately reflect:
+  “Approved” (no spinner, no pending)
+
+Fix implementation:
+- Ensure GET /driver/documents returns real DB status
+- Remove any hardcoded “Pending Review” fallback
+
+--------------------------------------------------
+4) TESTER / TRAINEE AUTO-APPROVAL MODE
+--------------------------------------------------
+Requirement:
+Test drivers (training/trainee accounts) should:
+- Skip document verification
+- Be auto-approved instantly
+
+Implementation (MINIMAL):
+- If driver.isTestAccount === true OR driver.role === "TRAINING":
+  - Force document status = APPROVED
+  - Ignore uploads/verification logic
+  - Allow go-online + accept rides immediately
+
+No new tables.
+No new flows.
+
+--------------------------------------------------
+5) SUPER ADMIN MANUAL OVERRIDE (NO VERIFICATION)
+--------------------------------------------------
+Requirement:
+Super Admin must be able to approve documents
+WITH or WITHOUT uploads.
+
+Fix:
+- Add admin action:
+  “Force Approve Documents”
+- This sets:
+  document.status = APPROVED
+  document.reviewedAt = now
+
+Driver app MUST reflect this instantly.
+
+--------------------------------------------------
+6) FIX DRIVER DOCUMENT UPLOAD STATUS BUG
+--------------------------------------------------
+Problem:
+Documents show “Pending Review” even without upload.
+
+Fix:
+- If NO document exists in DB → show “Not Submitted”
+- Show “Pending Review” ONLY if record exists
+
+Do NOT fake submission state.
+
+--------------------------------------------------
+7) PROFILE PHOTO NOT SHOWING ON HOME
+--------------------------------------------------
+Problem:
+Profile photo appears in Profile page
+But Home page shows initials only.
+
+Fix:
+- Use SAME avatar source everywhere
+- If driver.profilePhotoUrl exists:
+  - Render it on Home header
+- Remove duplicate avatar logic
+
+--------------------------------------------------
+8) EXTERNAL NAVIGATION HANDLING (NO MAP SDK)
+--------------------------------------------------
+Problem:
+Driver is blocked because navigation not “connected”.
+
+Fix:
+- REMOVE any backend dependency on navigation
+- On frontend:
+  - When driver taps “Navigate”:
+    - Open external map via deep link:
+      Google Maps / Apple Maps (auto-detect)
+  - Do NOT block ride acceptance if map not opened
+
+Navigation is OPTIONAL, not required.
+
+--------------------------------------------------
+9) FINAL SAFETY CHECKS
+--------------------------------------------------
+Driver must be able to:
+- Go online
+- Accept rides
+- See correct document status
+- Bypass verification if tester
+- Reflect admin approvals instantly
+- Stay inside Driver app (no redirects)
+
+--------------------------------------------------
+DELIVERABLE (REQUIRED):
+After changes, report ONLY:
+- Files touched
+- Endpoints affected
+- Confirmation all issues above are fixed
+
+DO NOT TOUCH RIDER APP.
+DO NOT ADD FEATURES.
+KEEP COST LOW.
+EXECUTE CAREFULLY.

@@ -135,6 +135,14 @@ export default function DriverDashboard() {
       });
     },
     onError: (error: Error) => {
+      if (error.message?.includes("401") || error.message?.toLowerCase().includes("not authenticated")) {
+        toast({
+          title: "Session expired",
+          description: "Please log in again to continue.",
+          variant: "destructive",
+        });
+        return;
+      }
       toast({
         title: "Error",
         description: error.message || "Failed to accept ride",
