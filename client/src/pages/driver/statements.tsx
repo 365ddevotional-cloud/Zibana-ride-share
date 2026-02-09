@@ -107,7 +107,7 @@ function MonthlyStatementCard({
 }) {
   const [feeOpen, setFeeOpen] = useState(false);
   const currency = statement.currency || "NGN";
-  const currencySymbol = currency === "NGN" ? "\u20A6" : "$";
+  const currencySymbol = "\u20A6";
 
   const formatAmount = (amount: number) => {
     return `${currencySymbol}${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

@@ -247,6 +247,7 @@ function DriverAccessDenied() {
 function DriverRouter() {
   const { user, isLoading: authLoading } = useAuth();
   const [location, setLocation] = useLocation();
+  const activatingRole = useRef(false);
   
   const { data: userRole, isLoading: roleLoading } = useQuery<{ role: string; roles?: string[] } | null>({
     queryKey: ["/api/user/role"],
@@ -255,6 +256,28 @@ function DriverRouter() {
   });
 
   const isRegisterPage = location === "/driver/register";
+
+  useEffect(() => {
+    if (userRole && !roleLoading && user && !isRegisterPage) {
+      const roles = userRole.roles || [];
+      const hasDriverRole = roles.includes("driver");
+      if (hasDriverRole && userRole.role !== "driver" && !activatingRole.current) {
+        activatingRole.current = true;
+        sessionStorage.setItem("ziba-active-role", "driver");
+        fetch("/api/user/active-role", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ role: "driver" }),
+        }).then(() => {
+          queryClient.invalidateQueries({ queryKey: ["/api/user/role"] });
+          activatingRole.current = false;
+        }).catch(() => {
+          activatingRole.current = false;
+        });
+      }
+    }
+  }, [userRole, roleLoading, user, isRegisterPage]);
 
   if (authLoading) {
     return <FullPageLoading text="Loading..." />;
@@ -281,7 +304,6 @@ function DriverRouter() {
   }
 
   const roles = userRole?.roles || [];
-  const activeRole = userRole?.role;
   const hasDriverRole = roles.includes("driver");
 
   if (!roles.length) {
@@ -294,10 +316,6 @@ function DriverRouter() {
 
   if (!hasDriverRole) {
     return <DriverAccessDenied />;
-  }
-
-  if (activeRole !== "driver") {
-    sessionStorage.setItem("ziba-active-role", "driver");
   }
 
   const welcomeShown = typeof window !== "undefined" && sessionStorage.getItem("ziba-driver-welcome-shown") === "true";
@@ -477,7 +495,7 @@ function AdminRouter() {
 function AuthenticatedRoutes() {
   const { user, isLoading: authLoading } = useAuth();
   
-  const { data: userRole, isLoading: roleLoading } = useQuery<{ role: string; roleCount?: number } | null>({
+  const { data: userRole, isLoading: roleLoading } = useQuery<{ role: string; roles?: string[]; roleCount?: number } | null>({
     queryKey: ["/api/user/role"],
     enabled: !!user,
     retry: false,
@@ -501,33 +519,31 @@ function AuthenticatedRoutes() {
 
   const selectedRole = typeof window !== "undefined" ? sessionStorage.getItem("ziba-active-role") : null;
 
-  if ((userRole as any)?.roleCount > 1 && !selectedRole) {
+  if (!selectedRole) {
     return <RoleSelectionPage />;
   }
 
-  const role = selectedRole || userRole.role;
-
-  if (role === "driver") {
+  if (selectedRole === "driver") {
     return <Redirect to="/driver/dashboard" />;
   }
   
-  if (role === "director") {
+  if (selectedRole === "director") {
     return <Redirect to="/director/dashboard" />;
   }
 
-  if (ADMIN_ROLES.includes(role)) {
+  if (ADMIN_ROLES.includes(selectedRole)) {
     return <Redirect to="/admin" />;
   }
   
-  if (APP_MODE === "RIDER" && !isRoleAllowedInAppMode(role)) {
-    return <AccessDeniedPage />;
+  if (selectedRole === "rider") {
+    const riderWelcomeShown = typeof window !== "undefined" && sessionStorage.getItem("ziba-rider-welcome-shown") === "true";
+    if (!riderWelcomeShown) {
+      return <Redirect to="/rider/welcome-back" />;
+    }
+    return <Redirect to="/rider/home" />;
   }
 
-  const riderWelcomeShown = typeof window !== "undefined" && sessionStorage.getItem("ziba-rider-welcome-shown") === "true";
-  if (!riderWelcomeShown) {
-    return <Redirect to="/rider/welcome-back" />;
-  }
-  return <Redirect to="/rider/home" />;
+  return <RoleSelectionPage />;
 }
 
 function ProtectedRoute({ 
@@ -551,14 +567,10 @@ function ProtectedRoute({
     return <FullPageLoading text="Verifying access..." />;
   }
   
-  if (APP_MODE === "RIDER" && userRole?.role && !isRoleAllowedInAppMode(userRole.role)) {
-    return <AccessDeniedPage />;
-  }
-  
   const hasAccess = userRole?.role && allowedRoles.includes(userRole.role);
   
   if (!hasAccess) {
-    return <Redirect to="/unauthorized" />;
+    return <Redirect to="/role-select" />;
   }
   
   return <>{children}</>;
@@ -897,7 +909,6 @@ function MainRouter() {
     retry: false,
   });
   
-  // Handle role-based redirect from root path BEFORE guards
   if (location === "/") {
     if (authLoading) {
       return <FullPageLoading text="Loading..." />;
@@ -908,26 +919,22 @@ function MainRouter() {
         return <FullPageLoading text="Loading your dashboard..." />;
       }
       
-      if (userRole?.role) {
-        const selectedRole = typeof window !== "undefined" ? sessionStorage.getItem("ziba-active-role") : null;
+      const selectedRole = typeof window !== "undefined" ? sessionStorage.getItem("ziba-active-role") : null;
 
-        if ((userRole as any)?.roleCount > 1 && !selectedRole) {
-          return <RoleSelectionPage />;
-        }
+      if (!selectedRole || !userRole?.role) {
+        return <Redirect to="/role-select" />;
+      }
 
-        const role = selectedRole || userRole.role;
-        
-        if (role === "driver") {
-          return <Redirect to="/driver/dashboard" />;
-        }
-        
-        if (role === "director") {
-          return <Redirect to="/director/dashboard" />;
-        }
+      if (selectedRole === "driver") {
+        return <Redirect to="/driver/dashboard" />;
+      }
+      
+      if (selectedRole === "director") {
+        return <Redirect to="/director/dashboard" />;
+      }
 
-        if (ADMIN_ROLES.includes(role)) {
-          return <Redirect to="/admin" />;
-        }
+      if (ADMIN_ROLES.includes(selectedRole)) {
+        return <Redirect to="/admin" />;
       }
     }
   }
