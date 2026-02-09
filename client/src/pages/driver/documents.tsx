@@ -228,6 +228,16 @@ export default function DriverDocuments() {
                           )}
                           {isUploading ? "Uploading..." : "Replace"}
                         </Button>
+                      ) : doc.submitted && !isExpired ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled
+                          data-testid={`button-submitted-${doc.id}`}
+                        >
+                          <Loader2 className="h-3.5 w-3.5 mr-1" />
+                          Awaiting Review
+                        </Button>
                       ) : (
                         <Button
                           size="sm"

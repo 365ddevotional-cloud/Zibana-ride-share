@@ -1,0 +1,125 @@
+REPLIT AI — ZIBA DRIVER APP EXECUTION PROMPT (FINAL FIX)
+
+ABSOLUTE RULES (NON-NEGOTIABLE):
+1) DO NOT modify, refactor, or touch ANY Rider app code, routes, UI, auth logic, or database tables.
+2) Rider app is LOCKED and READ-ONLY.
+3) All work must be strictly scoped to the Driver app and shared backend services ONLY where explicitly instructed.
+
+════════════════════════════════════
+PRIMARY OBJECTIVE
+════════════════════════════════════
+Fix all remaining Driver app issues so Driver onboarding, authentication, document upload, and approval flow work correctly and predictably for soft-launch.
+
+════════════════════════════════════
+A) AUTH & ROLE RESOLUTION (CRITICAL)
+════════════════════════════════════
+1) Backend must be the single source of truth for role resolution.
+2) OAuth must NEVER auto-assign Rider role.
+3) After OAuth success:
+   - Backend checks existing roles for the email.
+   - If both Rider + Driver exist → show role selector.
+   - If Rider exists but Driver does NOT → allow Driver creation.
+   - If Driver exists → load Driver dashboard.
+4) REMOVE all logic that throws:
+   “You already have a rider account. Please use the appropriate ZIBA app.”
+5) A single email MUST be allowed to own multiple roles, but NEVER duplicate the same role.
+
+════════════════════════════════════
+B) SESSION & OAUTH CONTROL
+════════════════════════════════════
+1) Disable silent OAuth role reuse.
+2) Each login must:
+   - Revalidate user from backend
+   - Resolve allowed roles
+   - Require explicit role selection if >1 role exists
+3) Prevent browser, provider, or cached sessions from forcing Rider context.
+4) Ensure Driver sessions persist correctly after login (no redirect loop to Welcome page).
+
+════════════════════════════════════
+C) DRIVER STATUS & APPROVAL LOGIC
+════════════════════════════════════
+1) Driver default state:
+   - status = "pending_approval"
+   - can_view_dashboard = true
+   - can_go_online = false
+2) Pending Approval must:
+   - Block Go Online button
+   - Display clear reason text
+3) Profile fields must remain editable while pending approval.
+
+════════════════════════════════════
+D) REMOVE INVALID UI FROM DRIVER HUB
+════════════════════════════════════
+REMOVE entirely from Driver UI:
+- “Director Funding Support Terms”
+- “Report Funding Coercion”
+These must NOT exist anywhere in the Driver app.
+
+════════════════════════════════════
+E) DOCUMENT UPLOAD — REAL FIX (CRITICAL)
+════════════════════════════════════
+Current bug:
+- Clicking “Upload” immediately shows:
+  “Your document has been submitted for review”
+- No file is actually uploaded.
+
+FIX REQUIRED:
+1) Upload flow must be:
+   a) User selects file
+   b) File is uploaded to storage (S3 / Cloudinary / local — existing infra)
+   c) Backend confirms successful upload
+   d) ONLY then set document.status = "submitted"
+2) If no file is selected → do NOTHING.
+3) Remove any fake success toasts triggered on button click.
+4) Status labels must reflect backend truth only:
+   - not_submitted
+   - submitted
+   - approved
+   - rejected
+5) Prevent duplicate submissions while status = submitted.
+
+════════════════════════════════════
+F) DRIVER PROFILE PHOTO UPLOAD FIX
+════════════════════════════════════
+1) Allow photo selection from camera OR file system.
+2) Ensure image is:
+   - Uploaded
+   - Stored
+   - URL saved to driver.profile_photo
+3) Do NOT silently fail.
+4) If upload fails → show real error message.
+5) Persist photo on refresh.
+
+════════════════════════════════════
+G) CURRENCY NORMALIZATION
+════════════════════════════════════
+1) Detect country from Driver profile.
+2) Nigeria → ₦ (NGN)
+3) US → $ (USD)
+4) Remove mixed currency rendering (e.g. $600 + NGN context).
+
+════════════════════════════════════
+H) BACKEND / FRONTEND SYNC GUARANTEE
+════════════════════════════════════
+1) Frontend must NOT rely on cached users or emails.
+2) Every login must fetch fresh user + roles from backend.
+3) Deleted backend users must NEVER appear active on frontend.
+4) Admin email allowed: 365ddevotional@gmail.com ONLY.
+
+════════════════════════════════════
+I) FINAL VALIDATION CHECKS (MANDATORY)
+════════════════════════════════════
+After fixes, confirm:
+- Driver can log in cleanly
+- Driver stays logged in
+- Driver can edit profile while pending
+- Documents only submit after real upload
+- Rider app remains unchanged
+- Multi-role login works without errors
+
+Respond ONLY with:
+“Driver execution completed. Rider untouched. Ready for verification.”
+
+DO NOT add new features.
+DO NOT refactor Rider.
+DO NOT introduce experimental logic.
