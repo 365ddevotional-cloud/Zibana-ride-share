@@ -1,0 +1,165 @@
+We are continuing work on the existing ZIBA Ride Share application (Rider, Driver, Admin).
+This is NOT a new build.
+
+⚠️ CRITICAL INSTRUCTION:
+DO NOT MODIFY, REFACTOR, OR TOUCH THE RIDER APP.
+The Rider app is considered 98% complete and STABLE.
+Any change to Rider UI, Rider logic, or Rider flows is STRICTLY PROHIBITED.
+
+All work in this task must be LIMITED to:
+- Driver App
+- Admin logic related to Driver approval & roles
+- Auth & role routing (without altering Rider behavior)
+
+========================
+SECTION A — AUTH & ROLE SELECTION (NO RIDER CHANGES)
+========================
+
+PROBLEM:
+- OAuth login forces users into Rider role
+- Admin login redirects to Rider
+- Driver login lands in Rider
+- Users cannot choose Rider / Driver / Admin
+- Email auto-selected with no role choice
+
+REQUIRED FIX (WITHOUT TOUCHING RIDER FLOWS):
+1. Implement a POST-AUTH ROLE GATE:
+   - After OAuth login:
+     • If user has multiple roles OR no active role:
+       → Show a role selection screen:
+         - Continue as Rider
+         - Continue as Driver
+         - Continue as Admin (if allowed)
+   - Store selected role as activeRole in session + DB
+
+2. OAuth must:
+   - Authenticate identity ONLY
+   - NOT auto-assign Rider
+   - NOT override existing roles
+
+3. Admin rules:
+   - /admin accessible ONLY if activeRole === ADMIN
+   - Non-admin attempting /admin → block + error
+   - Admin login must NEVER redirect into Rider UI
+
+4. Rider behavior MUST remain unchanged.
+   - No Rider redirects
+   - No Rider logic refactors
+   - No Rider UI changes
+
+========================
+SECTION B — DRIVER APPROVAL & TRAINING STATE
+========================
+
+PROBLEM:
+- Driver stuck on "Pending Approval"
+- Driver added to Training Management but cannot go online
+- Driver profile locked
+- Status flags conflict
+
+REQUIRED FIX:
+1. Define clear driver states:
+   - REGISTERED
+   - TRAINING
+   - APPROVED
+   - ACTIVE
+   - SUSPENDED
+
+2. Training Management logic:
+   - Adding a driver to Training Management MUST:
+     • Set status = APPROVED
+     • Unlock Go Online
+     • Unlock profile editing
+
+3. Remove any logic that:
+   - Blocks drivers in TRAINING from going online
+   - Requires extra approval after training assignment
+
+4. Admin state must match Driver UI state.
+
+========================
+SECTION C — DRIVER WALLET & CURRENCY (NIGERIA)
+========================
+
+PROBLEMS:
+- Dollar ($) appears in Driver UI
+- Wallet warnings shown incorrectly
+- NGN inconsistencies
+
+REQUIRED FIX:
+1. Set country = Nigeria
+2. Set currency = NGN (₦) globally for Driver
+3. Remove ALL USD fallbacks
+
+4. Wallet warnings:
+   - Show ONLY when wallet is actually required
+   - Do NOT block driver online status for wallet balance
+
+========================
+SECTION D — REMOVE WRONG SECTIONS FROM DRIVER APP
+========================
+
+REMOVE COMPLETELY from Driver UI:
+- “Director Funding Support Terms”
+- “Report Funding Coercion”
+- Any director-facing language
+- Any admin-only funding notices
+
+These must be:
+- Admin-only
+- Director-only
+- NEVER visible to drivers
+
+========================
+SECTION E — DRIVER PROFILE PHOTO UPLOAD (BROKEN)
+========================
+
+PROBLEM:
+- Driver selects image (camera or file)
+- Upload fails
+- Image not saved
+
+REQUIRED FIX:
+1. Fix upload pipeline:
+   - Accept JPG, PNG, HEIC
+   - Enforce size limits
+   - Persist image to backend storage
+   - Save image URL to driver profile
+
+2. After upload:
+   - Update avatar immediately
+   - Persist across sessions
+
+3. Proper error handling:
+   - Clear error messages
+   - No silent failures
+
+========================
+SECTION F — DRIVER UI CLEANUP
+========================
+
+1. Remove misleading warnings
+2. Ensure Driver UI reflects backend truth
+3. No ghost states or conflicting messages
+
+========================
+SECTION G — FINAL VERIFICATION (MANDATORY)
+========================
+
+Confirm ALL of the following:
+- Rider app unchanged
+- Driver can go online after training
+- No “Pending Approval” loop
+- ₦ shown everywhere in Driver app
+- Director content removed from Driver UI
+- Profile photo upload works
+- Admin login stays Admin
+- Driver login stays Driver
+- Role selection works correctly
+
+This is a DRIVER-ONLY STABILIZATION PASS.
+Do NOT add features.
+Do NOT redesign UI.
+Do NOT touch Rider.
+
+Return a clear summary of fixes applied.
