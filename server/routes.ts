@@ -20286,6 +20286,56 @@ export async function registerRoutes(
     }
   });
 
+  // Admin: Toggle driver training mode
+  app.post("/api/admin/driver/:userId/training", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const { isTraining, trainingCredits } = req.body;
+      const adminId = req.user.claims.sub;
+      
+      const profile = await storage.getDriverProfile(userId);
+      if (!profile) {
+        return res.status(404).json({ message: "Driver profile not found" });
+      }
+
+      // Build update data
+      const updateData: any = {};
+      
+      if (typeof isTraining === "boolean") {
+        updateData.isTraining = isTraining;
+        if (isTraining && !profile.isTraining) {
+          updateData.trainingStartedAt = new Date();
+          updateData.trainingAssignedBy = adminId;
+        }
+        if (!isTraining && profile.isTraining) {
+          updateData.trainingEndedAt = new Date();
+          updateData.isOnline = false;
+        }
+      }
+      
+      if (typeof trainingCredits === "number" && trainingCredits >= 0) {
+        updateData.trainingCredits = trainingCredits;
+      }
+
+      const updated = await storage.updateDriverProfile(userId, updateData);
+      
+      console.log(`[TRAINING_MODE] Admin ${adminId} updated training for driver ${userId}: isTraining=${isTraining}, credits=${trainingCredits}`);
+      
+      await storage.createAuditLog({
+        userId: adminId,
+        action: "TRAINING_MODE_UPDATE",
+        resourceType: "driver_profile",
+        resourceId: userId,
+        details: JSON.stringify({ isTraining, trainingCredits, previousTraining: profile.isTraining }),
+      });
+      
+      return res.json({ success: true, profile: updated });
+    } catch (error) {
+      console.error("Error updating driver training:", error);
+      return res.status(500).json({ message: "Failed to update driver training mode" });
+    }
+  });
+
   // Phase 10: Admin Driver Analytics
   app.get("/api/admin/analytics/drivers", isAuthenticated, requireRole(["super_admin", "admin", "director"]), async (req: any, res) => {
     try {
