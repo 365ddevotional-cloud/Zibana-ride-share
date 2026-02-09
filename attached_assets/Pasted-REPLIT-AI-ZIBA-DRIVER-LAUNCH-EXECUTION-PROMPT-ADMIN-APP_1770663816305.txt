@@ -1,0 +1,98 @@
+REPLIT AI — ZIBA DRIVER LAUNCH EXECUTION PROMPT
+(ADMIN APPROVAL UI + GO-ONLINE ENABLEMENT)
+
+ABSOLUTE RULES:
+1) DO NOT modify Rider app (UI, routes, auth, logic, DB).
+2) Rider app is LOCKED and must remain untouched.
+3) Scope is Driver app + Admin app ONLY.
+
+════════════════════════════════════
+OBJECTIVE
+════════════════════════════════════
+Complete Driver approval flow so Drivers:
+- Upload documents
+- Get reviewed by Admin
+- Get approved
+- Can go online ONLY after approval
+
+Prepare system for soft production launch.
+
+════════════════════════════════════
+A) ADMIN APPROVAL UI (REQUIRED)
+════════════════════════════════════
+Create / fix Admin UI to review Driver accounts.
+
+Admin must be able to:
+1) View list of Drivers
+   - Pending Approval
+   - Approved
+   - Rejected
+2) Open a Driver profile
+3) View submitted documents per driver
+4) Approve or Reject:
+   - Entire driver account
+   - Individual documents (future-ready)
+5) On approval:
+   - Set driver.status = "approved"
+   - Set driver.canGoOnline = true
+6) On rejection:
+   - driver.status = "rejected"
+   - driver.canGoOnline = false
+   - Save rejectionReason (string)
+
+Admin approval must persist in DB.
+
+════════════════════════════════════
+B) DRIVER GO-ONLINE ENABLEMENT (CRITICAL)
+════════════════════════════════════
+Fix Driver “Go Online” logic:
+
+1) Driver states:
+   - pending_approval → CANNOT go online
+   - approved → CAN go online
+   - rejected → CANNOT go online
+2) Go Online button:
+   - Disabled if not approved
+   - Enabled only when approved
+3) Clear UI messages:
+   - Pending → “Your account is under review”
+   - Rejected → show rejection reason
+4) Backend must enforce this:
+   - Even if frontend is bypassed, backend must block non-approved drivers.
+
+════════════════════════════════════
+C) DRIVER STATUS CONSISTENCY
+════════════════════════════════════
+1) On login, always fetch driver.status from backend.
+2) No cached or hardcoded state.
+3) Driver dashboard must reflect true backend state.
+
+════════════════════════════════════
+D) PRODUCTION LAUNCH CHECKLIST (IMPLEMENT FLAGS)
+════════════════════════════════════
+Add launch flags/configs:
+
+- Rider app: LOCKED (no changes)
+- Driver app: SOFT-LAUNCH enabled
+- Admin approval: REQUIRED
+- Go-online requires approval
+- Logging enabled for:
+  - Driver login
+  - Driver approval
+  - Go-online attempts
+
+════════════════════════════════════
+E) FINAL VALIDATION (MANDATORY)
+════════════════════════════════════
+Confirm ALL of the following:
+
+✅ Driver can register
+✅ Driver uploads documents
+✅ Driver remains pending
+✅ Admin can approve driver
+✅ Approved driver can go online
+✅ Rejected driver cannot go online
+✅ Rider app remains unchanged
+
+Respond ONLY with:
+“Admin approval UI complete. Driver go-online enabled. System ready for document upload fixes.”
