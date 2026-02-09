@@ -1,0 +1,149 @@
+REPLIT AI — DRIVER DOCUMENTS UPLOAD (FINAL EXECUTION PROMPT)
+
+ABSOLUTE RULES:
+1) DO NOT modify Rider app (UI, routes, auth, logic, DB).
+2) Rider app is LOCKED and must remain untouched.
+3) Scope is Driver app + Driver backend ONLY.
+4) Assume Admin approval UI and Driver go-online gating are already implemented.
+
+════════════════════════════════════
+PROBLEM TO FIX (CURRENT BUG)
+════════════════════════════════════
+On /driver/documents:
+- Clicking “Upload” immediately shows:
+  “Your document has been submitted for review”
+- This happens EVEN when:
+  - No file was selected
+  - No upload occurred
+  - No backend request was made
+
+This is WRONG and must be fixed.
+
+════════════════════════════════════
+GOAL
+════════════════════════════════════
+Make Driver document upload work end-to-end correctly:
+
+1) Upload button opens file picker (or camera on mobile)
+2) NO success message unless a real file upload succeeds
+3) Documents are stored, persisted, and reflected correctly
+4) Status transitions are accurate and reload-safe
+
+════════════════════════════════════
+A) FRONTEND — DRIVER DOCUMENTS PAGE
+════════════════════════════════════
+Locate route/component:
+- /driver/documents
+
+For each document card:
+- Identity Verification
+- Driver’s License
+- NIN Verification
+- Address Verification
+
+Fix Upload button behavior:
+
+1) Clicking “Upload” MUST:
+   - Open file picker (<input type="file">)
+   - Accept: image/*, application/pdf
+2) If user cancels picker:
+   - Do NOTHING
+   - NO toast
+3) Validate client-side:
+   - Max size: 10MB
+   - Allowed: jpg, jpeg, png, webp, pdf
+4) On valid selection:
+   - Show loading state (“Uploading…”)
+   - Disable button
+   - POST multipart/form-data to backend
+5) On SUCCESS:
+   - Show toast: “Document submitted for review.”
+   - Update card status to “Submitted”
+6) On FAILURE:
+   - Show real error toast
+   - Do NOT change status
+
+IMPORTANT:
+- REMOVE any code that shows success toast on click
+- Success toast must ONLY fire after backend returns 200
+
+════════════════════════════════════
+B) BACKEND — DRIVER DOCUMENT API
+════════════════════════════════════
+Create / verify authenticated Driver-only endpoints:
+
+1) GET /api/driver/documents
+   - Returns document records per docType for current driver
+
+2) POST /api/driver/documents/upload
+   multipart/form-data:
+   - docType: "ID" | "LICENSE" | "NIN" | "ADDRESS"
+   - file: binary
+
+Backend rules:
+- Auth required
+- Must be Driver account
+- Reject if no file provided (400)
+- Validate type + size
+- Store file (fast-launch approach):
+  - /uploads/driver-documents/{driverId}/{docType}/{timestamp}.{ext}
+- Save metadata in DB
+- Set status = "SUBMITTED"
+- Return updated document record
+
+════════════════════════════════════
+C) DATABASE — DRIVER DOCUMENT MODEL
+════════════════════════════════════
+Ensure DriverDocument table exists:
+
+Fields:
+- id (pk)
+- driverId (fk)
+- docType (enum)
+- status (enum: NOT_SUBMITTED, SUBMITTED, UNDER_REVIEW, APPROVED, REJECTED)
+- fileUrl
+- fileName
+- mimeType
+- fileSize
+- submittedAt
+- reviewedAt (nullable)
+- rejectionReason (nullable)
+- createdAt / updatedAt
+
+Constraints:
+- UNIQUE (driverId, docType)
+
+════════════════════════════════════
+D) STATUS INTEGRITY
+════════════════════════════════════
+- On page load, fetch statuses from backend
+- UI must reflect DB state
+- Refreshing page must preserve status
+- No fake or optimistic states
+
+════════════════════════════════════
+E) VERIFICATION CHECKLIST (MUST PASS)
+════════════════════════════════════
+1) Open /driver/documents
+2) Click Upload → file picker opens
+3) Cancel picker → NO toast
+4) Select valid file → upload → success toast
+5) Status becomes “Submitted”
+6) Refresh page → still “Submitted”
+7) Invalid file → error toast
+8) No network → error toast
+9) Logged out → API returns 401
+
+════════════════════════════════════
+F) DELIVERABLES
+════════════════════════════════════
+After completion, report:
+- Files changed (paths)
+- Final API routes
+- 3-step test instructions
+
+Now implement in the repo:
+1) Remove fake success logic
+2) Implement real file picker + multipart upload
+3) Persist documents correctly
+4) Ensure build passes
