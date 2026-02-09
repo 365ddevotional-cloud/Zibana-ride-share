@@ -1,0 +1,149 @@
+REPLIT AI — SINGLE COPY PROMPT FLOW
+⚠️ DRIVER APP ONLY — ULTRA LOW-COST MODE — DO NOT TOUCH RIDER APP
+
+ABSOLUTE RULES (MUST FOLLOW):
+- DO NOT modify Rider app (UI, routes, auth, DB, logic).
+- DO NOT refactor, redesign, or add features.
+- DO NOT add new services, cron jobs, workers, or queues.
+- Make ONLY minimal, targeted fixes.
+- Reuse existing backend, auth, and DB logic.
+- PRIORITY: lowest token usage and lowest compute cost.
+
+CONTEXT:
+App: ZIBA
+
+Current state:
+- Driver app works.
+- Admin dashboard shows driver documents as APPROVED.
+- Driver app still shows documents as PENDING.
+- Tester / Trainee drivers must bypass document approval.
+- Drivers see incoming rides but Accept fails with:
+  401 { "message": "Not authenticated" }
+- Some backend checks still block approved drivers.
+
+GOAL:
+Allow tester drivers to proceed smoothly with:
+- Auto-approved documents
+- Ride acceptance working
+- No backend/frontend state mismatch
+
+────────────────────────────
+TASKS — EXECUTE ALL BELOW
+────────────────────────────
+
+1) TESTER / TRAINEE DOCUMENT AUTO-APPROVAL (CRITICAL)
+
+Problem:
+Email like `smefas37@gmail.com` is marked as DRIVER TRAINEE / TESTER.
+Admin dashboard shows documents approved.
+Driver app still shows “Pending Review”.
+
+Fix (BACKEND ONLY):
+- Locate GET /api/driver/documents (or equivalent).
+- If driver.isTester === true OR driver.isTrainee === true:
+  - Force all document records to:
+    status = "APPROVED"
+    reviewedAt = submittedAt OR current time
+- Bypass document review logic completely for testers.
+
+Rules:
+- Do NOT create new tables.
+- Do NOT add new endpoints.
+- Do NOT change admin UI.
+
+Result:
+Tester drivers never see Pending Review.
+
+────────────────────────────
+
+2) FIX ADMIN → DRIVER DOCUMENT STATUS DESYNC
+
+Problem:
+Admin dashboard = APPROVED
+Driver app = PENDING
+
+Fix:
+- Driver app must rely ONLY on backend response.
+- Remove any frontend default or cached status like "Pending Review".
+
+Implementation:
+- On /driver/documents load:
+  - Always fetch fresh backend data.
+  - Do not override backend status in UI.
+
+Result:
+Driver app always reflects admin truth.
+
+────────────────────────────
+
+3) FIX DRIVER “ACCEPT RIDE” → 401 NOT AUTHENTICATED
+
+Problem:
+Driver sees incoming rides.
+Clicking Accept returns:
+401 { "message": "Not authenticated" }
+
+Fix (MINIMAL):
+- Locate POST /api/driver/rides/accept (or equivalent).
+- Ensure it uses DRIVER auth middleware.
+- Ensure it does NOT use rider auth checks.
+- Ensure frontend sends existing auth token.
+
+Do NOT:
+- Change OAuth.
+- Add sessions.
+- Add new headers.
+
+Result:
+Driver can accept rides successfully.
+
+────────────────────────────
+
+4) REMOVE LEFTOVER DRIVER SETUP BLOCKERS
+
+Problem:
+Backend still throws DRIVER_SETUP_INCOMPLETE errors for:
+- locationPermission
+- navigationProvider
+
+Fix:
+- Remove these checks from ALL driver backend actions:
+  - Go Online
+  - Accept Ride
+  - Driver activity endpoints
+
+Allowed backend checks ONLY:
+- driver.approved === true
+- driver.isActive === true
+
+Result:
+Approved drivers are not blocked.
+
+────────────────────────────
+
+5) COST CONTROL (MANDATORY)
+
+- Do NOT scan entire repo.
+- Do NOT refactor unrelated files.
+- Do NOT add logs everywhere.
+- Touch ONLY files related to:
+  - Driver documents fetch
+  - Driver ride acceptance
+  - Driver approval checks
+
+────────────────────────────
+VERIFICATION (STOP WHEN DONE)
+────────────────────────────
+
+Confirm:
+- Tester drivers see documents as APPROVED instantly.
+- Driver app matches admin dashboard.
+- Accept Ride works (no 401).
+- Rider app untouched.
+- Build passes.
+- STOP — no extra work.
+
+FINAL INSTRUCTION:
+Execute ONLY what is listed above.
+Keep token usage minimal.
+Finish fast and stop.

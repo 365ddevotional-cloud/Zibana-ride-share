@@ -2169,7 +2169,7 @@ export async function registerRoutes(
       const { tripId } = req.params;
 
       const profile = await storage.getDriverProfile(userId);
-      if (!profile || profile.status !== "approved") {
+      if (!profile || (profile.status !== "approved" && !profile.isTraining)) {
         return res.status(403).json({ message: "Driver not approved" });
       }
 
@@ -2188,19 +2188,21 @@ export async function registerRoutes(
         return res.status(403).json({ message: acceptanceCheck.reason, code: acceptanceCheck.code });
       }
 
-      // MANDATORY SETUP CHECK - Block ride acceptance if setup incomplete
-      const missingFields: string[] = [];
-      if (profile.locationPermissionStatus !== "granted") missingFields.push("locationPermission");
-      if (!profile.navigationProvider) missingFields.push("navigationProvider");
-      if (!profile.navigationVerified) missingFields.push("navigationVerified");
-      
-      if (missingFields.length > 0) {
-        return res.status(403).json({ 
-          message: "Driver setup incomplete",
-          error: "DRIVER_SETUP_INCOMPLETE",
-          missingFields,
-          setupCompleted: false
-        });
+      // Skip setup checks for training drivers
+      if (!profile.isTraining) {
+        const missingFields: string[] = [];
+        if (profile.locationPermissionStatus !== "granted") missingFields.push("locationPermission");
+        if (!profile.navigationProvider) missingFields.push("navigationProvider");
+        if (!profile.navigationVerified) missingFields.push("navigationVerified");
+        
+        if (missingFields.length > 0) {
+          return res.status(403).json({ 
+            message: "Driver setup incomplete",
+            error: "DRIVER_SETUP_INCOMPLETE",
+            missingFields,
+            setupCompleted: false
+          });
+        }
       }
 
       const currentTrip = await storage.getDriverCurrentTrip(userId);
@@ -12553,9 +12555,9 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Only drivers can accept rides" });
       }
 
-      // MANDATORY SETUP CHECK - Block ride acceptance if setup incomplete
       const driverProfile = await storage.getDriverProfile(userId);
-      if (driverProfile) {
+      // Skip setup checks for training drivers
+      if (driverProfile && !driverProfile.isTraining) {
         const missingFields: string[] = [];
         if (driverProfile.locationPermissionStatus !== "granted") missingFields.push("locationPermission");
         if (!driverProfile.navigationProvider) missingFields.push("navigationProvider");
