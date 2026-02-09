@@ -135,8 +135,15 @@ export default function RoleSelectionPage() {
     },
   });
 
-  if (APP_MODE === "RIDER" && !userRoleData?.roles?.length) {
+  if (rolesLoading) {
+    return <FullPageLoading text="Loading your roles..." />;
+  }
+
+  if (APP_MODE === "RIDER" && !userRoleData?.roles?.length && !registerRiderMutation.isPending && !registerRiderMutation.isSuccess) {
     registerRiderMutation.mutate();
+  }
+
+  if (APP_MODE === "RIDER" && (registerRiderMutation.isPending || !userRoleData?.roles?.length)) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -145,10 +152,6 @@ export default function RoleSelectionPage() {
         </div>
       </div>
     );
-  }
-
-  if (rolesLoading) {
-    return <FullPageLoading text="Loading your roles..." />;
   }
 
   const existingRoles = userRoleData?.roles || [];
