@@ -37,6 +37,17 @@ export interface GpsValidationResult {
 // Check if driver has completed navigation setup
 export async function checkNavigationSetup(userId: string): Promise<NavigationSetupCheckResult> {
   assertNavigationEngineLocked();
+
+  const driverProfile = await storage.getDriverProfile(userId);
+  if (driverProfile?.isTraining) {
+    console.log(`[TRAINING_MODE] Bypassing navigation check for training driver: userId=${userId}`);
+    return {
+      canGoOnline: true,
+      setupComplete: true,
+      missingSteps: [],
+      message: "Training mode - navigation setup bypassed.",
+    };
+  }
   
   const setup = await storage.getDriverNavigationSetup(userId);
   

@@ -2003,6 +2003,18 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Profile not found" });
       }
 
+      // Training drivers bypass all setup checks
+      if (profile.isTraining) {
+        return res.json({
+          setupCompleted: true,
+          locationPermissionStatus: "granted",
+          navigationProvider: "google_maps",
+          navigationVerified: true,
+          lastGpsHeartbeat: new Date().toISOString(),
+          missingFields: [],
+        });
+      }
+
       const setupCompleted = 
         profile.locationPermissionStatus === "granted" &&
         profile.navigationProvider !== null &&
@@ -13514,18 +13526,21 @@ export async function registerRoutes(
           });
         }
 
-        const missingFields: string[] = [];
-        if (driverProfile.locationPermissionStatus !== "granted") missingFields.push("locationPermission");
-        if (!driverProfile.navigationProvider) missingFields.push("navigationProvider");
-        if (!driverProfile.navigationVerified) missingFields.push("navigationVerified");
-        
-        if (missingFields.length > 0) {
-          return res.status(403).json({ 
-            message: "Driver setup incomplete",
-            error: "DRIVER_SETUP_INCOMPLETE",
-            missingFields,
-            setupCompleted: false
-          });
+        // Skip setup checks for training drivers
+        if (!driverProfile.isTraining) {
+          const missingFields: string[] = [];
+          if (driverProfile.locationPermissionStatus !== "granted") missingFields.push("locationPermission");
+          if (!driverProfile.navigationProvider) missingFields.push("navigationProvider");
+          if (!driverProfile.navigationVerified) missingFields.push("navigationVerified");
+          
+          if (missingFields.length > 0) {
+            return res.status(403).json({ 
+              message: "Driver setup incomplete",
+              error: "DRIVER_SETUP_INCOMPLETE",
+              missingFields,
+              setupCompleted: false
+            });
+          }
         }
       }
 
