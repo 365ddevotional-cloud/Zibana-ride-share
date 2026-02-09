@@ -122,10 +122,17 @@ export async function setupAuth(app: Express) {
       
       req.login(user, async (loginErr) => {
         if (loginErr) {
+          console.error("[AUTH CALLBACK] Login error:", loginErr);
           return res.redirect("/api/login");
         }
         
-        req.session.save(() => {
+        const claims = (user as any)?.claims;
+        console.log(`[AUTH CALLBACK] Login success: userId=${claims?.sub}, email=${claims?.email}`);
+        
+        req.session.save((saveErr) => {
+          if (saveErr) {
+            console.error("[AUTH CALLBACK] Session save error:", saveErr);
+          }
           res.redirect("/role-select");
         });
       });

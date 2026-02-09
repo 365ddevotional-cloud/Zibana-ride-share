@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect, useRef } from "react";
 import { Switch, Route, Redirect, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -113,6 +113,28 @@ function LazyComponent({ children }: { children: React.ReactNode }) {
       {children}
     </Suspense>
   );
+}
+
+function RoleSelectRoute({ authLoading, user }: { authLoading: boolean; user: any }) {
+  const invalidated = useRef(false);
+
+  useEffect(() => {
+    if (!invalidated.current) {
+      invalidated.current = true;
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/role"] });
+    }
+  }, []);
+
+  if (authLoading) {
+    return <FullPageLoading text="Signing you in..." />;
+  }
+
+  if (user) {
+    return <RoleSelectionPage />;
+  }
+
+  return <Redirect to="/welcome" />;
 }
 
 function AccessDeniedPage() {
@@ -603,7 +625,7 @@ function RiderRouter() {
       </Route>
       
       <Route path="/role-select">
-        {authLoading ? <FullPageLoading text="Signing you in..." /> : user ? <RoleSelectionPage /> : <Redirect to="/welcome" />}
+        <RoleSelectRoute authLoading={authLoading} user={user} />
       </Route>
       
       <Route path="/rider/welcome-back">

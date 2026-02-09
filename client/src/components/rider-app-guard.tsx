@@ -17,15 +17,18 @@ export function RiderAppGuard({ children }: RiderAppGuardProps) {
   const { isSimulating } = useSimulation();
 
   const isAdminRoute = location.startsWith("/admin");
+  const isRoleSelectRoute = location === "/role-select";
+  const isPublicRoute = location === "/welcome" || location === "/" || location === "/about" || location === "/how-it-works" || location === "/safety" || location.startsWith("/legal") || location.startsWith("/terms") || location.startsWith("/privacy") || location.startsWith("/features");
+  const shouldSkipGuard = isAdminRoute || isRoleSelectRoute || isPublicRoute;
 
   const { data: userRole, error: roleError, isError } = useQuery<{ role: string; simulating?: boolean } | null>({
     queryKey: ["/api/user/role"],
-    enabled: !!user && !isAdminRoute,
+    enabled: !!user && !shouldSkipGuard,
     retry: false,
   });
 
   useEffect(() => {
-    if (isAdminRoute) return;
+    if (shouldSkipGuard) return;
     if (isSimulating) return;
     if (userRole?.simulating) return;
     
@@ -42,10 +45,10 @@ export function RiderAppGuard({ children }: RiderAppGuardProps) {
         setLocation("/welcome");
       }
     }
-  }, [isError, roleError, logout, setLocation, toast, isAdminRoute, isSimulating, userRole]);
+  }, [isError, roleError, logout, setLocation, toast, shouldSkipGuard, isSimulating, userRole]);
 
   useEffect(() => {
-    if (isAdminRoute) return;
+    if (shouldSkipGuard) return;
     if (isSimulating) return;
     if (userRole?.simulating) return;
     
@@ -60,7 +63,7 @@ export function RiderAppGuard({ children }: RiderAppGuardProps) {
       logout?.();
       setLocation("/welcome");
     }
-  }, [user, userRole, logout, setLocation, toast, isAdminRoute, isSimulating]);
+  }, [user, userRole, logout, setLocation, toast, shouldSkipGuard, isSimulating]);
 
   return <>{children}</>;
 }
