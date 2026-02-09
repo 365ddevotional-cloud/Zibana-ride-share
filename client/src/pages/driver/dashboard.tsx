@@ -572,7 +572,7 @@ export default function DriverDashboard() {
         )}
 
         {recentNotifications.length > 0 && (
-          <Card data-testid="card-notifications">
+          <Card className="cursor-pointer hover-elevate" onClick={() => setLocation("/driver/inbox")} data-testid="card-notifications">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <Bell className="h-4 w-4" />
@@ -594,7 +594,7 @@ export default function DriverDashboard() {
         )}
 
         {profile && (
-          <Card data-testid="card-driver-info">
+          <Card className="cursor-pointer hover-elevate" onClick={() => setLocation("/driver/vehicle")} data-testid="card-driver-info">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <User className="h-4 w-4" />
@@ -651,9 +651,7 @@ export default function DriverDashboard() {
                 size="sm"
                 variant="outline"
                 className="w-full"
-                onClick={() => {
-                  window.location.href = "/rider/support";
-                }}
+                onClick={() => setLocation("/driver/help")}
                 data-testid="button-contact-human-support"
               >
                 <MessageCircle className="h-3.5 w-3.5 mr-1.5" />
