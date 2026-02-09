@@ -1,0 +1,97 @@
+CONTEXT:
+App: ZIBA
+Priority: Driver soft-launch testing
+IMPORTANT:
+- DO NOT touch Rider app (UI, routes, logic, auth).
+- DO NOT refactor or redesign anything.
+- Make the SMALLEST POSSIBLE backend + admin fixes.
+- Goal: Allow DRIVER TRAINEES / TESTERS to bypass document approval.
+
+CURRENT PROBLEM:
+- Driver trainee (example: smefas37@gmail.com) is added via Training Management.
+- Trainees should NOT wait for document approval.
+- Documents still show “Pending Review”.
+- There is no admin UI to approve tester documents.
+- This blocks testing unnecessarily.
+
+DESIRED BEHAVIOR:
+Any DRIVER marked as a TRAINING / TESTER account should:
+- Automatically have ALL documents treated as APPROVED
+- Be able to go online immediately
+- Never be blocked by document verification
+
+SCOPE:
+Driver app + backend ONLY.
+No Rider changes.
+
+---
+
+TASKS (DO ALL, MINIMAL CODE):
+
+1️⃣ DEFINE TESTER / TRAINEE FLAG (BACKEND)
+- Identify existing indicator for training drivers:
+  - Either:
+    - driver.isTraining === true
+    - OR driver.trainingType === "DRIVER"
+    - OR presence in Training Management table
+- DO NOT create new tables if one already exists.
+
+2️⃣ AUTO-APPROVE DOCUMENTS FOR TRAINEES
+Backend logic change ONLY:
+- When fetching driver documents:
+  IF driver is TRAINING / TESTER:
+    - Return document status as "APPROVED" for:
+      - Identity Verification
+      - Driver’s License
+      - NIN Verification
+      - Address Verification
+    - Even if no file exists.
+
+IMPORTANT:
+- This override applies ONLY to training/test drivers.
+- Normal drivers still follow real document approval flow.
+
+3️⃣ PREVENT “PENDING REVIEW” UI FOR TESTERS
+Frontend (Driver Documents page only):
+- If backend response says:
+  - isTraining === true
+- Then:
+  - Hide “Pending Review”
+  - Show “Approved (Test Mode)” badge
+  - Disable upload button (optional but preferred)
+
+NO new UI components. Simple conditional rendering.
+
+4️⃣ ENSURE GO-ONLINE IS NOT BLOCKED
+Backend:
+- If driver is TRAINING / TESTER:
+  - Ignore document verification checks entirely.
+  - Allow go-online if:
+    - driver.approved === true
+    - driver.isActive === true
+
+5️⃣ OPTIONAL (CHEAP BUT HELPFUL):
+Admin Dashboard:
+- In Training Management list:
+  - Add a small label: “Documents auto-approved (Test Mode)”
+  - Text only. No new actions or buttons.
+
+---
+
+RULES:
+- DO NOT add new approval workflows.
+- DO NOT add new storage.
+- DO NOT touch Rider app.
+- DO NOT add background jobs.
+- Keep all changes minimal and reversible.
+
+---
+
+DELIVERABLE:
+After changes, confirm:
+- Trainer/test driver sees all documents as APPROVED
+- No “Pending Review” for trainees
+- Trainee can go online immediately
+- Normal drivers are unchanged
+
+EXECUTE CAREFULLY. MINIMAL CODE. LOW COST.

@@ -11518,9 +11518,14 @@ function TesterManagementSection() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={tester.testerType === "RIDER" ? "default" : "secondary"}>
-                      {tester.testerType || "Unknown"}
-                    </Badge>
+                    <div className="space-y-1">
+                      <Badge variant={tester.testerType === "RIDER" ? "default" : "secondary"}>
+                        {tester.testerType || "Unknown"}
+                      </Badge>
+                      {tester.testerType === "DRIVER" && (
+                        <p className="text-xs text-blue-600 dark:text-blue-400" data-testid={`text-auto-approved-${tester.userId}`}>Documents auto-approved (Test Mode)</p>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="font-medium text-green-600 dark:text-green-400">
                     ₦{((tester.testerWalletBalance || 0) / 100).toLocaleString("en-NG", { minimumFractionDigits: 2 })}

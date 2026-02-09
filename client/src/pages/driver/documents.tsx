@@ -22,7 +22,10 @@ const ALLOWED_TYPES = [
 ];
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
-function getDocBadge(verified: boolean | undefined, status?: string, expired?: boolean, submitted?: boolean) {
+function getDocBadge(verified: boolean | undefined, status?: string, expired?: boolean, submitted?: boolean, isTraining?: boolean) {
+  if (isTraining) {
+    return <Badge className="bg-blue-600 text-white no-default-hover-elevate" data-testid="badge-test-approved">Approved (Test Mode)</Badge>;
+  }
   if (expired) {
     return <Badge className="bg-red-600 text-white no-default-hover-elevate" data-testid="badge-expired">Expired</Badge>;
   }
@@ -51,6 +54,7 @@ interface DriverProfile {
   driversLicenseDocSubmitted: boolean;
   ninDocSubmitted: boolean;
   addressDocSubmitted: boolean;
+  isTraining?: boolean;
 }
 
 export default function DriverDocuments() {
@@ -257,10 +261,10 @@ export default function DriverDocuments() {
                           <p className="text-xs text-muted-foreground" data-testid={`text-doc-desc-${doc.id}`}>{doc.description}</p>
                         </div>
                       </div>
-                      {getDocBadge(doc.verified, doc.status, doc.expired, doc.submitted)}
+                      {getDocBadge(doc.verified, doc.status, doc.expired, doc.submitted, profile?.isTraining)}
                     </div>
 
-                    {isExpired && (
+                    {isExpired && !profile?.isTraining && (
                       <div className="flex items-start gap-2 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-md p-2.5">
                         <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
                         <p className="text-xs text-red-800 dark:text-red-200">
@@ -269,6 +273,7 @@ export default function DriverDocuments() {
                       </div>
                     )}
 
+                    {!profile?.isTraining && (
                     <div className="flex gap-2">
                       {isVerified && !isExpired ? (
                         <Button
@@ -312,6 +317,7 @@ export default function DriverDocuments() {
                         </Button>
                       )}
                     </div>
+                    )}
                   </CardContent>
                 </Card>
               );

@@ -1468,10 +1468,26 @@ export async function registerRoutes(
       }
 
       const profile = await storage.getDriverProfile(userId);
-      console.log(`[DRIVER ACCESS] Profile accessed: userId=${userId}, status=${profile?.status}, timestamp=${new Date().toISOString()}`);
+      console.log(`[DRIVER ACCESS] Profile accessed: userId=${userId}, status=${profile?.status}, isTraining=${profile?.isTraining}, timestamp=${new Date().toISOString()}`);
       if (!profile) {
         return res.json(null);
       }
+
+      if (profile.isTraining) {
+        return res.json({
+          ...profile,
+          isIdentityVerified: true,
+          isDriversLicenseVerified: true,
+          isNINVerified: true,
+          isAddressVerified: true,
+          identityDocSubmitted: true,
+          driversLicenseDocSubmitted: true,
+          ninDocSubmitted: true,
+          addressDocSubmitted: true,
+          verificationStatus: 'verified',
+        });
+      }
+
       return res.json(profile);
     } catch (error) {
       console.error("Error getting driver profile:", error);
