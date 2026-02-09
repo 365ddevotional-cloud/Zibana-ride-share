@@ -3426,14 +3426,17 @@ export async function registerRoutes(
         riderWallet = await storage.createRiderWallet({ userId, currency: countryConfig.currencyCode });
       }
 
-      // SERVER-SIDE WALLET RESOLUTION - Determine payment source based on rider profile + tester status
+      // SERVER-SIDE WALLET RESOLUTION - Payment method from request body takes priority over saved profile
       const isTester = await storage.isUserTester(userId);
       const riderProfile = await storage.getRiderProfile(userId);
-      const riderPaymentMethod = riderProfile?.paymentMethod || "WALLET";
+      const requestPaymentMethod = req.body.paymentMethod || req.body.paymentSource;
+      const riderPaymentMethod = requestPaymentMethod || riderProfile?.paymentMethod || "WALLET";
       
-      // Resolve payment source: Cash uses CASH, Testers use TEST_WALLET, non-testers use MAIN_WALLET
-      const resolvedPaymentSource = riderPaymentMethod === "CASH" ? "CASH" 
+      // Resolve payment source: Cash uses CASH, Testers always use TEST_WALLET, non-testers use MAIN_WALLET
+      const resolvedPaymentSource = (riderPaymentMethod === "CASH") ? "CASH" 
         : isTester ? "TEST_WALLET" : "MAIN_WALLET";
+      
+      console.log(`[RIDE REQUEST] userId=${userId}, requestPaymentMethod=${requestPaymentMethod || "none"}, profilePaymentMethod=${riderProfile?.paymentMethod || "none"}, resolved=${resolvedPaymentSource}, isTester=${isTester}`);
       
       // Get the correct balance based on resolved payment source (cash trips skip balance check)
       let availableBalance: number;

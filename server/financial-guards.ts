@@ -9,7 +9,7 @@ export interface RideRequestGuardInput {
   availableBalance: number;
   walletFrozen: boolean;
   userSuspended: boolean;
-  resolvedPaymentSource: "TEST_WALLET" | "MAIN_WALLET" | "CARD" | "BANK";
+  resolvedPaymentSource: "TEST_WALLET" | "MAIN_WALLET" | "CARD" | "BANK" | "CASH";
 }
 
 export interface GuardRejection {
@@ -59,13 +59,14 @@ export function validateRideRequest(input: RideRequestGuardInput): GuardResult {
     };
   }
 
-  if (input.isTester && input.resolvedPaymentSource !== "TEST_WALLET") {
-    logGuardRejection("TESTER_INVALID_SOURCE", input);
-    return {
-      allowed: false,
-      code: "INVALID_PAYMENT_SOURCE",
-      message: "Test users must use TEST_WALLET",
-    };
+  if (input.resolvedPaymentSource === "CASH") {
+    console.log(`[FINANCIAL_GUARD] CASH payment — skipping wallet balance check for userId=${input.userId}`);
+    return { allowed: true };
+  }
+
+  if (input.isTester) {
+    console.log(`[FINANCIAL_GUARD] TESTER bypass — skipping balance check for userId=${input.userId}, paymentSource=${input.resolvedPaymentSource}`);
+    return { allowed: true };
   }
 
   if (!input.isTester && input.resolvedPaymentSource === "TEST_WALLET") {
@@ -82,7 +83,7 @@ export function validateRideRequest(input: RideRequestGuardInput): GuardResult {
     return {
       allowed: false,
       code: "INSUFFICIENT_BALANCE",
-      message: `Minimum balance required: ${countryConfig.currencySymbol}${countryConfig.minBalanceForRide}`,
+      message: `Insufficient wallet balance. Minimum required: ${countryConfig.currencySymbol}${countryConfig.minBalanceForRide}`,
       details: {
         required: countryConfig.minBalanceForRide,
         available: input.availableBalance,
