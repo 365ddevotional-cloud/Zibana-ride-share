@@ -542,20 +542,20 @@ export async function registerRoutes(
     }
   });
 
-  // Driver registration endpoint - creates driver role
+  // Driver registration endpoint - creates driver role (MULTI-ROLE: allows users with other roles to also register as driver)
   app.post("/api/driver/register", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
 
-      const existingRole = await storage.getUserRole(userId);
-      if (existingRole) {
-        if (existingRole.role === "driver") {
-          return res.json({ role: existingRole.role, message: "Already registered as driver" });
-        }
-        return res.status(400).json({ message: `You already have a ${existingRole.role} account. Please use the appropriate ZIBA app.` });
+      const hasDriverRole = await storage.hasRole(userId, "driver");
+      if (hasDriverRole) {
+        return res.json({ role: "driver", message: "Already registered as driver" });
       }
 
-      const userRole = await storage.createUserRole({ userId, role: "driver" });
+      const result = await storage.addRoleToUser(userId, "driver");
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
+      }
       
       // Create driver profile with minimal required fields
       await storage.createDriverProfile({ 
@@ -580,7 +580,7 @@ export async function registerRoutes(
       } catch (e) { console.warn("[INBOX] Failed to send driver welcome message:", e); }
 
       console.log(`[DRIVER REGISTRATION] New driver registered: userId=${userId}, timestamp=${new Date().toISOString()}`);
-      return res.json({ role: userRole.role, message: "Successfully registered as driver" });
+      return res.json({ role: "driver", message: "Successfully registered as driver" });
     } catch (error) {
       console.error("Error registering driver:", error);
       return res.status(500).json({ message: "Failed to register as driver" });
@@ -13494,12 +13494,19 @@ export async function registerRoutes(
         }
       }
 
-      const role = await storage.getUserRole(userId);
+      const activeRole = (req.session as any)?.activeRole;
+      const allRoles = await storage.getAllUserRoles(userId);
+      const roleNames = allRoles.map((r: any) => r.role);
+      const effectiveRole = activeRole && roleNames.includes(activeRole) ? activeRole : roleNames[0];
       const photo = photoData === "" ? null : photoData;
       
-      if (role?.role === "driver") {
+      if (effectiveRole === "driver" && roleNames.includes("driver")) {
         await storage.updateDriverProfilePhoto(userId, photo || "");
-      } else if (role?.role === "rider") {
+      } else if (effectiveRole === "rider" && roleNames.includes("rider")) {
+        await storage.updateRiderProfilePhoto(userId, photo || "");
+      } else if (roleNames.includes("driver")) {
+        await storage.updateDriverProfilePhoto(userId, photo || "");
+      } else if (roleNames.includes("rider")) {
         await storage.updateRiderProfilePhoto(userId, photo || "");
       } else {
         return res.status(400).json({ message: "Profile photos are for riders and drivers only" });

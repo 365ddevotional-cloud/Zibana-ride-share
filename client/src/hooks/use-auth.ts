@@ -27,9 +27,7 @@ function getLogoutRedirect(): string {
 }
 
 async function logout(): Promise<void> {
-  sessionStorage.removeItem("ziba-active-role");
-  sessionStorage.removeItem("ziba-driver-welcome-shown");
-  sessionStorage.removeItem("ziba-rider-welcome-shown");
+  sessionStorage.clear();
   const redirectPath = getLogoutRedirect();
   window.location.href = `/api/logout?redirect=${encodeURIComponent(redirectPath)}`;
 }

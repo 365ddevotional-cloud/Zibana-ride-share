@@ -1,0 +1,165 @@
+SYSTEM CONTEXT:
+This is the ZIBA Ride Share app (Rider + Driver + Admin).
+DO NOT modify, refactor, redesign, or touch the Rider app UI, flows, logic, or permissions.
+The Rider app is considered 98% correct and MUST remain unchanged.
+All work in this instruction applies ONLY to:
+- Authentication flow
+- Driver app
+- OAuth handling
+- Backend auth/session logic
+- Role separation enforcement
+
+===============================
+CRITICAL OBJECTIVE (NON-NEGOTIABLE)
+===============================
+
+Fix ZIBA’s authentication, role separation, and OAuth handling so that:
+1. Silent OAuth reuse is COMPLETELY controlled by the ZIBA backend.
+2. Frontend NEVER auto-trusts OAuth sessions.
+3. Backend database is the ONLY source of truth.
+4. Users can own MULTIPLE roles (Rider + Driver) without duplication conflicts.
+5. Driver app works independently and correctly.
+6. No ghost users, forced emails, or automatic role routing ever happens again.
+
+===============================
+PART A — OAUTH & AUTH SESSION RESET (MANDATORY)
+===============================
+
+1. DISABLE all silent OAuth reuse.
+   - OAuth must NEVER auto-select a previously used email.
+   - OAuth must ALWAYS require explicit backend confirmation after login.
+   - OAuth success ≠ authenticated user until backend validation completes.
+
+2. Backend must enforce:
+   - prompt=login (or equivalent) on OAuth
+   - No implicit session reuse
+   - No auto-login based on browser, cookie, or previous OAuth state
+
+3. On EVERY sign-in attempt:
+   - Clear backend session state
+   - Ignore cached OAuth identity
+   - Re-validate against database
+
+4. Browser/session cleanup:
+   - Backend must instruct frontend to clear:
+     - localStorage
+     - sessionStorage
+     - auth cookies
+   - This must occur BEFORE role routing
+
+===============================
+PART B — DATABASE IS SOURCE OF TRUTH
+===============================
+
+1. Backend must treat the database as authoritative.
+2. If an email DOES NOT exist in DB:
+   - Treat as a BRAND NEW USER
+   - No assumptions
+   - No inherited roles
+3. If an email exists:
+   - Load ONLY roles explicitly stored in DB
+
+IMPORTANT:
+All previous emails were deleted from the database.
+Only the following email exists:
+- 365ddevotional@gmail.com
+
+Therefore:
+- ANY other email signing in MUST be treated as a fresh user.
+- Frontend memory of old emails MUST be ignored.
+
+===============================
+PART C — ROLE SELECTION FLOW (MANDATORY)
+===============================
+
+1. After OAuth success + backend validation:
+   - ALWAYS show a role selection screen:
+     - “Continue as Rider”
+     - “Continue as Driver”
+   - NO auto-routing allowed.
+
+2. A single email CAN own multiple roles:
+   - One Rider profile
+   - One Driver profile
+   - Shared email, separate records
+   - NO duplicate role creation allowed
+
+3. REMOVE this error permanently:
+   “You already have a rider account. Please use the appropriate ZIBA app.”
+
+Replace with:
+- If Rider exists but Driver does not → allow Driver creation
+- If Driver exists but Rider does not → allow Rider creation
+- If both exist → allow role switching
+
+===============================
+PART D — CLEAN SEPARATION OF APPS
+===============================
+
+1. Rider and Driver apps MUST be logically separated:
+   - Separate routes
+   - Separate role guards
+   - Separate dashboards
+   - Separate permissions
+
+2. Logging in as Driver must NEVER redirect to:
+   - Rider home
+   - Rider OAuth session
+   - Rider state
+
+3. Logging in as Rider must NEVER interfere with Driver auth.
+
+===============================
+PART E — DRIVER APP FIXES (ONLY DRIVER SIDE)
+===============================
+
+1. Fix “Pending Approval” issue:
+   - If a driver is marked as TRAINING or APPROVED in admin backend,
+     they MUST be able to go online.
+   - Pending status must match backend flags exactly.
+
+2. Currency consistency:
+   - Nigeria = NGN ONLY
+   - Remove all USD symbols for Nigerian users.
+
+3. REMOVE the following from Driver dashboard COMPLETELY:
+   - “Director Funding Support Terms”
+   - “Report Funding Coercion”
+   These are NOT driver-facing features.
+
+4. Fix Driver profile image upload:
+   - Allow camera or file upload
+   - Ensure upload saves successfully
+   - Handle storage + DB write correctly
+   - Remove error on save
+
+===============================
+PART F — ADMIN / AUTH ROUTING FIX
+===============================
+
+1. Admin login must be isolated:
+   - Admin login should NEVER redirect to Rider or Driver UI.
+   - Admin OAuth flow must be separate.
+
+2. OAuth permission screen should NOT loop endlessly.
+3. After OAuth approval:
+   - Backend must decide destination based on role + route intent.
+   - NOT browser history
+   - NOT last-used account
+
+===============================
+FINAL GUARANTEES REQUIRED
+===============================
+
+- No silent OAuth reuse
+- No forced emails
+- No ghost users
+- No auto role assignment
+- No Rider app changes
+- Driver app fully functional
+- Clean separation between Rider, Driver, and Admin
+- Backend always overrides frontend memory
+
+EXECUTE THIS AS A SINGLE COORDINATED FIX.
+DO NOT PARTIALLY APPLY.
+DO NOT SKIP ANY SECTION.
