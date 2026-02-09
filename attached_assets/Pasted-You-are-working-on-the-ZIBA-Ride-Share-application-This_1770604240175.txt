@@ -1,0 +1,139 @@
+You are working on the ZIBA Ride-Share application.
+This issue has been partially addressed before, but behavior is still incorrect.
+
+DO NOT re-implement blindly.
+DO NOT assume previous fixes are active.
+YOU MUST AUDIT, CONFIRM, THEN FIX.
+
+====================================================
+STEP 1 — CONFIRM WHAT IS ALREADY IMPLEMENTED
+====================================================
+
+Audit the codebase and explicitly report (in logs or comments):
+
+1) Where driver online eligibility is enforced:
+   - backend (API / service)
+   - frontend (Driver Hub UI)
+   - guards / middleware
+
+2) Whether the following logic already exists anywhere:
+   - isTraining allows going online
+   - approval_status blocks online
+   - UI shows “Pending Approval”
+   - training drivers handled differently
+
+3) Identify ALL places where “Pending Approval” is checked:
+   - Go Online button disable
+   - Driver status badge
+   - API response
+   - Driver session payload
+
+DO NOT PROCEED until conflicts are identified.
+
+====================================================
+STEP 2 — IDENTIFY THE REAL BLOCKER (MANDATORY)
+====================================================
+
+You MUST answer:
+- Which exact condition is still blocking this driver?
+
+Example blockers (check ALL):
+- approval_status === "pending" hard-block
+- isTraining ignored by UI
+- mismatched user record (duplicate driver row)
+- stale cached session
+- training table not joined to driver table
+- frontend checking wrong flag
+- backend allowing, frontend blocking
+- training credits assigned but isTraining = false
+
+Log the exact condition causing:
+“Go Online disabled + Pending Approval shown”
+
+====================================================
+STEP 3 — APPLY THE FINAL CANONICAL RULE
+====================================================
+
+After audit, enforce this SINGLE SOURCE OF TRUTH:
+
+A driver CAN go online if:
+- role = DRIVER
+AND (
+    isTraining = true
+    OR approval_status = "approved"
+)
+
+A driver CANNOT go online if:
+- approval_status = "rejected"
+OR
+- account_status = "suspended"
+
+Training mode MUST override approval_status.
+
+This rule must be enforced:
+- backend (authoritative)
+- frontend (mirrors backend)
+- no duplicate logic
+
+====================================================
+STEP 4 — FIX UI STATE DESYNC
+====================================================
+
+If isTraining = true:
+- Remove “Pending Approval” label
+- Show “Training Mode”
+- Enable Go Online button
+- Show banner:
+  “Training Mode Active – Trips may be simulated”
+
+UI MUST read backend response, not guess state.
+
+====================================================
+STEP 5 — FIX EXISTING DRIVER IMMEDIATELY
+====================================================
+
+For driver:
+Email: afolabirevmoses37@gmail.com
+
+Confirm:
+- isTraining = true
+- trainingCredits > 0
+
+If confirmed:
+- allow Go Online NOW
+- do NOT require approval
+- do NOT auto-approve
+
+====================================================
+STEP 6 — PREVENT THIS FROM EVER HAPPENING AGAIN
+====================================================
+
+Add a guard:
+
+If admin adds a driver via Training Management:
+- isTraining = true
+- online eligibility granted
+- approval_status ignored until training ends
+
+Add logs:
+- driverId
+- eligibility decision
+- source (training vs approval)
+- timestamp
+
+====================================================
+STEP 7 — VERIFICATION (REQUIRED)
+====================================================
+
+After fix, confirm ALL:
+
+✅ Training driver can go online
+✅ Non-training + pending approval cannot
+✅ Approved driver can go online
+✅ UI label matches backend
+✅ No duplicate driver records
+✅ No cache/session mismatch
+
+ONLY THEN mark complete.
+
+THIS MUST FIX IT ONCE AND FOR ALL.
