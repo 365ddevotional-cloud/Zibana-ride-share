@@ -223,12 +223,15 @@ function DriverAccessDenied() {
 
 function DriverRouter() {
   const { user, isLoading: authLoading } = useAuth();
+  const [location] = useLocation();
   
   const { data: userRole, isLoading: roleLoading } = useQuery<{ role: string } | null>({
     queryKey: ["/api/user/role"],
     enabled: !!user,
     retry: false,
   });
+
+  const isRegisterPage = location === "/driver/register";
 
   if (authLoading) {
     return <FullPageLoading text="Loading..." />;
@@ -238,6 +241,15 @@ function DriverRouter() {
     return (
       <LazyComponent>
         <DriverWelcomePage />
+      </LazyComponent>
+    );
+  }
+
+  // Always allow driver registration page for authenticated users
+  if (isRegisterPage) {
+    return (
+      <LazyComponent>
+        <DriverRegisterPage />
       </LazyComponent>
     );
   }
