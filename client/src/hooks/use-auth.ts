@@ -26,8 +26,17 @@ function getLogoutRedirect(): string {
   return "/";
 }
 
+const ZIBA_LOCAL_KEYS = [
+  "ziba-active-role",
+  "ziba-rider-welcome-shown",
+  "ziba-driver-welcome-shown",
+];
+
 async function logout(): Promise<void> {
   sessionStorage.clear();
+  for (const key of ZIBA_LOCAL_KEYS) {
+    localStorage.removeItem(key);
+  }
   const redirectPath = getLogoutRedirect();
   window.location.href = `/api/logout?redirect=${encodeURIComponent(redirectPath)}`;
 }
@@ -38,8 +47,9 @@ export function useAuth() {
     queryKey: ["/api/auth/user"],
     queryFn: fetchUser,
     retry: false,
-    staleTime: 0,
-    refetchOnMount: "always",
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: true,
   });
 
   const logoutMutation = useMutation({
