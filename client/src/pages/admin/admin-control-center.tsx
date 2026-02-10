@@ -1,5 +1,11 @@
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbPage,
+} from "@/components/ui/breadcrumb";
 import { sidebarSections } from "./admin-sidebar";
 import {
   Car,
@@ -26,6 +32,14 @@ const quickAccessItems = [
 export default function AdminControlCenter() {
   return (
     <div className="space-y-8">
+      <Breadcrumb data-testid="breadcrumb-nav">
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbPage data-testid="breadcrumb-current">Admin</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
       <div className="border-b pb-4" data-testid="overview-context-header">
         <h1 className="text-2xl font-bold" data-testid="text-control-center-title">Admin Control Center</h1>
         <p className="text-sm text-muted-foreground mt-1">Central hub for managing all ZIBA operations, teams, and platform health.</p>

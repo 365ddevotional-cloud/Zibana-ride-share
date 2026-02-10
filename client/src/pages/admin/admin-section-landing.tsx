@@ -1,5 +1,13 @@
 import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbSeparator,
+  BreadcrumbPage,
+} from "@/components/ui/breadcrumb";
 import { sidebarSections } from "./admin-sidebar";
 import { AlertTriangle } from "lucide-react";
 
@@ -47,6 +55,20 @@ export default function AdminSectionLanding({ section }: AdminSectionLandingProp
 
   return (
     <div className="space-y-6">
+      <Breadcrumb data-testid="breadcrumb-nav">
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href="/admin/overview" data-testid="breadcrumb-admin">Admin</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage data-testid="breadcrumb-current">{matchedGroup.label}</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
       <div className="border-b pb-4" data-testid="section-context-header">
         <h1 className="text-2xl font-bold" data-testid="text-section-title">{matchedGroup.label}</h1>
         {description && (
