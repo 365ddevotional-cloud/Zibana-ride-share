@@ -10,14 +10,14 @@ export default function RiderWelcomeBack() {
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
-    const shown = sessionStorage.getItem("ziba-rider-welcome-shown");
+    const shown = localStorage.getItem("ziba-rider-welcome-shown");
     if (shown === "true") {
       setLocation("/rider/home");
     }
   }, [setLocation]);
 
   const handleContinue = () => {
-    sessionStorage.setItem("ziba-rider-welcome-shown", "true");
+    localStorage.setItem("ziba-rider-welcome-shown", "true");
     setVisible(false);
     setLocation("/rider/home");
   };

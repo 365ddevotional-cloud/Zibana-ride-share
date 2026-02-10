@@ -26,7 +26,7 @@ export default function DriverDashboard() {
   const { t } = useTranslation();
   const [, setLocation] = useLocation();
   const isReturningDriver = typeof window !== "undefined" && localStorage.getItem("ziba-driver-lastLoginAt") !== null;
-  const welcomeShown = typeof window !== "undefined" && sessionStorage.getItem("ziba-driver-welcome-shown") === "true";
+  const welcomeShown = typeof window !== "undefined" && localStorage.getItem("ziba-driver-welcome-shown") === "true";
 
   useEffect(() => {
     if (user) {

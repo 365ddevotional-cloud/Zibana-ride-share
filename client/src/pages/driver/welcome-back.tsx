@@ -8,14 +8,14 @@ export default function DriverWelcomeBack() {
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
-    const shown = sessionStorage.getItem("ziba-driver-welcome-shown");
+    const shown = localStorage.getItem("ziba-driver-welcome-shown");
     if (shown === "true") {
       setLocation("/driver/dashboard");
     }
   }, [setLocation]);
 
   const handleContinue = () => {
-    sessionStorage.setItem("ziba-driver-welcome-shown", "true");
+    localStorage.setItem("ziba-driver-welcome-shown", "true");
     setVisible(false);
     setLocation("/driver/dashboard");
   };
