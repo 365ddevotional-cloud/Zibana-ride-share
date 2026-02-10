@@ -39,7 +39,6 @@ const WalletPage = lazy(() => import("@/pages/wallet"));
 const SettingsPage = lazy(() => import("@/pages/settings"));
 const AppearancePage = lazy(() => import("@/pages/settings/appearance"));
 
-const AdminDashboard = lazy(() => import("@/pages/admin/index"));
 const ApprovalsPage = lazy(() => import("@/pages/admin/approvals"));
 const AdminLanguagePage = lazy(() => import("@/pages/admin/language"));
 const AdminLayout = lazy(() => import("@/pages/admin/admin-layout"));
