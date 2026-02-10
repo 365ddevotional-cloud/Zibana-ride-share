@@ -409,6 +409,45 @@ function DriverRouter() {
   );
 }
 
+function SuperAdminGuard({ children }: { children: React.ReactNode }) {
+  const { user, isLoading: authLoading } = useAuth();
+  const [location] = useLocation();
+
+  const { data: userRole, isLoading: roleLoading } = useQuery<{ role: string; roles?: string[] } | null>({
+    queryKey: ["/api/user/role"],
+    enabled: !!user,
+    retry: false,
+  });
+
+  if (authLoading) {
+    return <FullPageLoading text="Loading..." />;
+  }
+
+  if (!user) {
+    return <AdminLoginRequired />;
+  }
+
+  if (roleLoading) {
+    return <FullPageLoading text="Verifying access..." />;
+  }
+
+  const role = userRole?.role;
+  const roles = userRole?.roles || [];
+  const isSuperAdmin = role === "super_admin" || roles.includes("super_admin");
+  const isAdminRoute = location.startsWith("/admin");
+
+  if (isAdminRoute && !isSuperAdmin) {
+    return <AdminAccessDenied />;
+  }
+
+  const hasAnyAccess = role && ADMIN_ROLES.includes(role);
+  if (!hasAnyAccess) {
+    return <AdminAccessDenied />;
+  }
+
+  return <>{children}</>;
+}
+
 function AdminRouter() {
   const { user, isLoading: authLoading } = useAuth();
   
@@ -967,7 +1006,11 @@ function MainRouter() {
   }
 
   if (location.startsWith("/admin") || location.startsWith("/director")) {
-    return <AdminRouter />;
+    return (
+      <SuperAdminGuard>
+        <AdminRouter />
+      </SuperAdminGuard>
+    );
   }
   
   if (location.startsWith("/driver")) {
