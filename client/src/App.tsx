@@ -43,6 +43,7 @@ const AdminDashboard = lazy(() => import("@/pages/admin/index"));
 const ApprovalsPage = lazy(() => import("@/pages/admin/approvals"));
 const AdminLanguagePage = lazy(() => import("@/pages/admin/language"));
 const AdminLayout = lazy(() => import("@/pages/admin/admin-layout"));
+const AdminControlCenter = lazy(() => import("@/pages/admin/admin-control-center"));
 
 const DriverDashboard = lazy(() => import("@/pages/driver/dashboard"));
 const DriverTripsPage = lazy(() => import("@/pages/driver/trips"));
@@ -490,7 +491,11 @@ function AdminRouter() {
         {(params: { section: string }) => (
           <LazyComponent>
             <AdminLayout userRole={role || "admin"} activeTab={params.section}>
-              <AdminDashboard userRole={role as "super_admin" | "admin" | "director" | "finance" | "trip_coordinator"} />
+              {params.section === "overview" ? (
+                <AdminControlCenter />
+              ) : (
+                <AdminDashboard userRole={role as "super_admin" | "admin" | "director" | "finance" | "trip_coordinator"} />
+              )}
             </AdminLayout>
           </LazyComponent>
         )}
