@@ -1,0 +1,76 @@
+REPLIT AI — SINGLE COPY PROMPT FLOW
+⚠️ DRIVER APP ONLY — ULTRA LOW COST — DO NOT TOUCH RIDER APP
+
+ABSOLUTE RULES:
+- DO NOT modify Rider UI/routes/auth/data/logic at all.
+- DO NOT refactor, redesign, rename folders, or add new frameworks.
+- Make the smallest possible changes to implement “Trainee auto-approval” for DRIVER documents only.
+- Reuse existing DB models and existing “training / trainee / test credits” logic already in the repo.
+- If a helper already exists (isTrainee / trainingMode / trainingType / testCredits / isTestDriver), use it. Do NOT invent a second system.
+- Keep changes minimal and targeted to Driver documents upload + Driver documents status endpoints + admin training assignment if needed.
+
+GOAL:
+For any DRIVER account marked as a “TRAINEE / TRAINING DRIVER / TEST DRIVER”:
+- Any document upload should immediately become APPROVED (no Pending Review).
+- Driver app should show “Approved” status right away after upload.
+- If the trainee has not uploaded anything yet, status should remain “Not Submitted”.
+- This is ONLY for trainees (not for normal drivers).
+
+IMPLEMENTATION (DO THIS EXACTLY):
+
+1) FIND HOW TRAINEE/TEST STATUS IS STORED
+Search for existing concepts:
+- training, trainee, trainingType, testCredits, isTestDriver, isTrainingMode, traineeDriver, etc.
+Confirm which DB fields mark a driver as “trainee” (example: Driver.trainingType === "DRIVER" OR Driver.isTest === true).
+Use ONLY what already exists.
+
+2) BACKEND: AUTO-APPROVE DOCS FOR TRAINEES
+Locate the driver documents upload endpoint used by /driver/documents (the POST upload route).
+After a successful file upload + DB upsert:
+- If current driver is trainee:
+    - set status = "APPROVED"
+    - set reviewedAt = now
+    - set rejectionReason = null
+    - optionally set reviewerId to admin user if the schema requires it; otherwise leave null
+- Else (normal driver):
+    - keep current behavior (likely SUBMITTED / UNDER_REVIEW)
+
+IMPORTANT:
+- DO NOT change file storage logic.
+- DO NOT allow “fake approval” without a file; approval happens only after a real upload succeeds.
+
+3) BACKEND: DRIVER DOCS “GET STATUS” MUST RETURN APPROVED FOR TRAINEES
+Locate GET /api/driver/documents (or whatever endpoint provides status).
+If driver is trainee:
+- Return actual saved status from DB (which will now be APPROVED after upload).
+- If there are default placeholder statuses being generated as “PENDING” in code, STOP doing that for trainees.
+- “Not Submitted” should be returned when record doesn’t exist.
+
+4) FRONTEND (DRIVER): REFRESH STATUS AFTER UPLOAD
+On /driver/documents:
+- After upload success, re-fetch document statuses OR update local state with the returned record.
+- Ensure UI badge shows “Approved” immediately for trainees.
+
+DO NOT change Rider components.
+
+5) OPTIONAL (ONLY IF NEEDED): ADMIN “TRAINING MANAGEMENT” MUST MARK TRAINEE FLAG CONSISTENTLY
+In Admin → Training Management, when super admin adds “Driver Trainee”, ensure the correct trainee marker is being set (the one you found in step 1).
+Do NOT add new columns unless absolutely required.
+If it already sets something, reuse it.
+
+6) MINIMAL VERIFICATION CHECKLIST
+Run these 6 quick tests:
+A) Create/mark a driver as trainee in Admin Training Management
+B) Login as that driver → /driver/documents shows Not Submitted
+C) Upload Identity doc → after success, status becomes APPROVED immediately (no pending)
+D) Refresh page → status stays APPROVED
+E) Login as normal (non-trainee) driver → upload doc → status remains SUBMITTED/PENDING per existing flow
+F) Confirm Rider app unchanged (no modified rider files)
+
+DELIVERABLE (REQUIRED):
+- List the exact files modified (paths)
+- Confirm: “Trainee driver docs auto-approve works”
+- Confirm: “No Rider files changed”
+- Keep output short.
+
+EXECUTE NOW — SMALLEST CHANGES ONLY — KEEP COST LOW.

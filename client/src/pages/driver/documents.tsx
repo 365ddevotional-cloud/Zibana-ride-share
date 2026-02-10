@@ -84,10 +84,11 @@ export default function DriverDocuments() {
       }
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
+      const isApproved = data?.status === "approved";
       toast({
-        title: "Document submitted for review",
-        description: "You'll be notified once your document is verified.",
+        title: isApproved ? "Document approved" : "Document submitted for review",
+        description: isApproved ? "Your document has been automatically approved." : "You'll be notified once your document is verified.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/driver/profile"] });
       setUploadingDoc(null);

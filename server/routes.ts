@@ -637,10 +637,23 @@ export async function registerRoutes(
           break;
       }
 
-      await storage.updateDriverProfile(userId, updateData);
-      console.log(`[DOCUMENT UPLOAD] Driver ${userId} uploaded ${documentType}`);
+      const driverProfile = await storage.getDriverProfile(userId);
+      const isTrainee = driverProfile?.isTraining === true;
 
-      return res.json({ success: true, documentType, status: "pending" });
+      if (isTrainee) {
+        switch (documentType) {
+          case "identity": updateData.isIdentityVerified = true; break;
+          case "drivers-license": updateData.isDriversLicenseVerified = true; break;
+          case "nin": updateData.isNINVerified = true; break;
+          case "address": updateData.isAddressVerified = true; break;
+        }
+      }
+
+      await storage.updateDriverProfile(userId, updateData);
+      const resultStatus = isTrainee ? "approved" : "pending";
+      console.log(`[DOCUMENT UPLOAD] Driver ${userId} uploaded ${documentType}, trainee=${isTrainee}, status=${resultStatus}`);
+
+      return res.json({ success: true, documentType, status: resultStatus });
     } catch (error) {
       console.error("Error uploading document:", error);
       return res.status(500).json({ message: "Failed to upload document" });
