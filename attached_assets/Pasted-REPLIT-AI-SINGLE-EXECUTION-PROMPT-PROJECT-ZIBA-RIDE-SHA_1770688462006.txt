@@ -1,0 +1,268 @@
+REPLIT AI — SINGLE EXECUTION PROMPT
+PROJECT: ZIBA RIDE SHARE
+MODE: SUPER ADMIN RESTRUCTURE + SAFETY FIXES
+COST CONTROL: STRICT (NO NEW SERVICES, NO REFACTORING, NO EXTRA COMPUTE)
+
+ABSOLUTE RULES (NON-NEGOTIABLE):
+- DO NOT touch Rider app logic, UI, routes, auth, or flows.
+- DO NOT refactor backend architecture.
+- DO NOT introduce new services, queues, cron jobs, or workers.
+- DO NOT add paid APIs or background jobs.
+- Reuse existing database, tables, auth, and middleware only.
+- Make SMALL, TARGETED changes only.
+
+PRIMARY GOAL:
+Restructure Super Admin into modular pages with clean routes, fix training/document logic, and clean orphaned data — WITHOUT increasing infrastructure cost.
+
+────────────────────────────────
+SECTION A — SUPER ADMIN ROUTE RESTRUCTURE
+────────────────────────────────
+
+Create the following ADMIN route structure.
+These are ROUTING + UI ORGANIZATION changes only.
+
+Top-Level Sidebar Sections:
+1. Control Center
+2. Users & Training
+3. Trips & Operations
+4. Finance & Wallets
+5. Safety & Compliance
+6. Governance & System
+7. Insights & Logs
+
+Base Admin Route:
+- /admin  → Control Center dashboard
+
+DO NOT move Rider or Driver routes.
+Admin only.
+
+────────────────────────────────
+SECTION B — CONTROL CENTER
+────────────────────────────────
+
+Route:
+- /admin
+
+Purpose:
+- Read-only overview + safe admin actions.
+
+Widgets (reuse existing queries):
+- Total Drivers
+- Active Drivers
+- Active Trips
+- Pending Reviews
+- Wallet Alerts
+- System Status
+
+Quick Actions (buttons):
+- Approve all trainee documents
+- Clear orphaned trips
+- Reset test credits
+- Pause / Resume platform (feature flag only)
+
+No deep tables here.
+
+────────────────────────────────
+SECTION C — USERS & TRAINING
+────────────────────────────────
+
+Parent Route:
+- /admin/users
+
+Sub-Routes:
+- /admin/users/drivers
+- /admin/users/riders
+- /admin/users/trainees
+- /admin/users/documents
+- /admin/users/admins
+
+### Drivers
+- View drivers
+- Force approve
+- Suspend / restore
+- Assign training flag
+- View documents
+
+### Riders
+- View riders
+- Block / restore
+- DELETE test users safely
+- IMPORTANT: allow deleting rider records that no longer exist but still reference trips
+
+### Trainees (CRITICAL)
+Route:
+- /admin/users/trainees
+
+Features:
+- Add driver trainee
+- Add rider trainee
+- Assign ₦ test credits
+- Toggle AUTO-APPROVE DOCUMENTS = TRUE
+- Convert trainee → live user
+
+When trainee flag = true:
+- ALL uploaded documents are auto-approved
+- Driver setup must be considered COMPLETE
+- No manual verification required
+
+### Documents (Centralized)
+Route:
+- /admin/users/documents
+
+Features:
+- View all submitted documents
+- Bulk approve
+- Force approve (with or without verification)
+- Auto-approve trainee documents by default
+
+────────────────────────────────
+SECTION D — TRIPS & OPERATIONS
+────────────────────────────────
+
+Parent Route:
+- /admin/operations
+
+Sub-Routes:
+- /admin/operations/live-trips
+- /admin/operations/trip-history
+- /admin/operations/orphaned-trips
+- /admin/operations/vehicles
+- /admin/operations/ride-classes
+
+### Orphaned Trips (IMPORTANT FIX)
+Route:
+- /admin/operations/orphaned-trips
+
+Definition:
+- Trips whose rider email/user no longer exists in DB
+
+Actions:
+- List orphaned trips
+- Button: DELETE ALL ORPHANED TRIPS
+- Optional toggle: auto-clean orphaned trips on admin action only
+
+DO NOT use background jobs or cron.
+Manual admin-triggered cleanup only.
+
+────────────────────────────────
+SECTION E — FINANCE & WALLETS
+────────────────────────────────
+
+Parent Route:
+- /admin/finance
+
+Sub-Routes:
+- /admin/finance/wallets
+- /admin/finance/funding
+- /admin/finance/payouts
+- /admin/finance/refunds
+- /admin/finance/chargebacks
+- /admin/finance/test-credits
+
+Reuse existing wallet logic.
+NO changes to money flow.
+
+────────────────────────────────
+SECTION F — SAFETY & COMPLIANCE
+────────────────────────────────
+
+Parent Route:
+- /admin/safety
+
+Sub-Routes:
+- /admin/safety/fraud
+- /admin/safety/incidents
+- /admin/safety/trust-scores
+- /admin/safety/blocked-users
+- /admin/safety/compliance-logs
+
+Read-only unless already editable.
+
+────────────────────────────────
+SECTION G — GOVERNANCE & SYSTEM (SUPER ADMIN ONLY)
+────────────────────────────────
+
+Parent Route:
+- /admin/system
+
+Sub-Routes:
+- /admin/system/roles
+- /admin/system/feature-flags
+- /admin/system/launch-control
+- /admin/system/countries
+- /admin/system/maintenance
+
+Use existing role checks.
+NO new permission engine.
+
+Feature Flags include:
+- trainingAutoApproveDocuments
+- allowExternalNavigationOnly
+- pausePlatform
+
+────────────────────────────────
+SECTION H — DRIVER SETUP & NAVIGATION FIXES
+────────────────────────────────
+
+Fix DRIVER_SETUP_INCOMPLETE issues:
+
+Backend rules:
+- If driver.approved === true → driver setup is COMPLETE
+- REMOVE backend checks for:
+  - locationPermission
+  - navigationProvider
+  - navigation readiness
+
+Navigation handling:
+- ZIBA does NOT have internal maps
+- Drivers use EXTERNAL navigation apps
+- On Accept Ride:
+  - Allow ride acceptance even if navigation provider not selected
+  - AFTER acceptance, prompt driver to choose external map (Google Maps / Apple Maps / Waze if available)
+- Navigation permission is FRONTEND-ONLY
+
+────────────────────────────────
+SECTION I — PROFILE PHOTO SYNC FIX
+────────────────────────────────
+
+Problem:
+- Profile photo shows in profile page
+- Home dashboard shows fallback initial
+
+Fix:
+- Ensure driver.profilePhoto is fetched once on login
+- Cache in driver session/context
+- Use same source for:
+  - Home header avatar
+  - Profile page avatar
+
+NO duplicate uploads.
+NO new storage.
+
+────────────────────────────────
+SECTION J — FINAL SAFETY & COST RULES
+────────────────────────────────
+
+- DO NOT touch Rider app
+- DO NOT refactor core backend
+- DO NOT add workers, cron, queues
+- DO NOT introduce paid services
+- DO NOT optimize prematurely
+
+EXECUTION ORDER:
+1. Routes + sidebar restructuring
+2. Trainee & document auto-approval logic
+3. Orphaned trip cleanup
+4. Driver setup & navigation fix
+5. Profile photo sync fix
+
+DELIVERABLE:
+- List files changed
+- Confirm:
+  - Trainees auto-approved
+  - Orphaned trips removable
+  - Driver can accept rides without setup error
+  - Profile photo appears everywhere
+  - Rider app untouched
+
+EXECUTE NOW.
