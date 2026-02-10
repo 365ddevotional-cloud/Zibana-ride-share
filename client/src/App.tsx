@@ -441,7 +441,11 @@ function AdminRouter() {
   return (
     <Switch>
       <Route path="/admin">
-        <LazyComponent><AdminDashboard userRole={role as "super_admin" | "admin" | "director" | "finance" | "trip_coordinator"} /></LazyComponent>
+        <LazyComponent>
+          <AdminLayout userRole={role || "admin"} activeTab="overview">
+            <AdminControlCenter />
+          </AdminLayout>
+        </LazyComponent>
       </Route>
       <Route path="/admin/approvals">
         <LazyComponent><ApprovalsPage /></LazyComponent>
