@@ -1,0 +1,81 @@
+YOU ARE OPERATING IN ZIBA RIDE SHARE (REPLIT).
+
+CONTEXT:
+Step 5 (Admin Section Landing Pages) is COMPLETE and VERIFIED.
+Do NOT revisit or modify Step 5.
+Speed and safety are the priority.
+
+OBJECTIVE — STEP 6: ADMIN UX HARDENING (SAFE + NON-DISRUPTIVE)
+
+GOAL:
+Improve admin usability and clarity WITHOUT touching:
+- Rider flows
+- Driver flows
+- Backend
+- Auth logic
+- Permissions
+- Existing admin business logic
+
+RULES (STRICT):
+- MODIFY UI ONLY
+- NO new APIs
+- NO schema changes
+- NO state refactors
+- NO logic refactors
+- NO performance tuning
+- NO feature expansion
+- DO NOT rename routes
+- DO NOT change permissions
+- DO NOT touch admin/index.tsx monolith logic
+
+ALLOWED FILE SCOPE (UI-ONLY):
+✔ client/src/pages/admin/*
+✔ client/src/components/admin/*
+✖ rider/*
+✖ driver/*
+✖ backend/*
+✖ auth/*
+✖ middleware/*
+
+STEP 6 TASKS (DO ALL):
+
+1️⃣ ADMIN CONTEXT HEADER
+- Add a small, consistent context header at the top of ALL admin pages:
+  - Shows: Section Name (from route)
+  - Optional short description (static map)
+- MUST be read-only
+- MUST NOT affect layout sizing or sidebar
+
+2️⃣ EMPTY / FIRST-LOAD STATES
+- For admin tables or sections that can load empty:
+  - Add a neutral placeholder message
+  - NO spinners
+  - NO skeleton loaders
+  - Text only (clean + professional)
+
+3️⃣ VISUAL SAFETY GUARDS
+- Add subtle visual separation so admin actions never look “tap-happy”:
+  - Group destructive actions visually
+  - No new confirmation modals
+  - No logic changes
+  - UI spacing only
+
+4️⃣ ROUTE FALLBACK SAFETY
+- If an unknown /admin/:section route is accessed:
+  - Show a clean “Section not found” UI
+  - Include link back to /admin/overview
+  - UI-only, no routing changes
+
+OUTPUT FORMAT (MANDATORY):
+At completion, print ONLY:
+
+REPORT:
+- Files touched (exact paths)
+- What was added (1-line per item)
+- What was NOT touched (confirm rider/driver/backend/auth untouched)
+- Status: READY FOR NEXT STEP
+
+STOP AFTER REPORT.
+DO NOT suggest Step 7.
+DO NOT ask questions.
+DO NOT continue after completion.

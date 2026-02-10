@@ -26,9 +26,9 @@ const quickAccessItems = [
 export default function AdminControlCenter() {
   return (
     <div className="space-y-8">
-      <div>
+      <div className="border-b pb-4" data-testid="overview-context-header">
         <h1 className="text-2xl font-bold" data-testid="text-control-center-title">Admin Control Center</h1>
-        <p className="text-muted-foreground">Navigate to any section of the admin dashboard</p>
+        <p className="text-sm text-muted-foreground mt-1">Central hub for managing all ZIBA operations, teams, and platform health.</p>
       </div>
 
       <div>
