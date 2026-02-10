@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -24,6 +25,7 @@ import {
   Banknote,
   UserCheck,
   ArrowRight,
+  CheckCircle,
   type LucideIcon,
 } from "lucide-react";
 
@@ -91,18 +93,27 @@ function formatCurrency(value: string): string {
   return `\u20A6${num.toFixed(0)}`;
 }
 
+function formatDate(): string {
+  return new Date().toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 export default function AdminControlCenter() {
-  const { data: stats, isLoading } = useQuery<AdminStats>({
+  const { data: stats, isLoading, isError } = useQuery<AdminStats>({
     queryKey: ["/api/admin/stats"],
   });
 
   const metricCards = [
     {
-      label: "Active Trips",
-      value: stats?.activeTrips ?? 0,
-      icon: MapPin,
-      accent: "text-emerald-600 dark:text-emerald-400",
-      route: "/admin/trips",
+      label: "Total Riders",
+      value: stats?.totalRiders ?? 0,
+      icon: Users,
+      accent: "text-violet-600 dark:text-violet-400",
+      route: "/admin/riders",
     },
     {
       label: "Total Drivers",
@@ -112,18 +123,18 @@ export default function AdminControlCenter() {
       route: "/admin/drivers",
     },
     {
+      label: "Active Trips",
+      value: stats?.activeTrips ?? 0,
+      icon: MapPin,
+      accent: "text-emerald-600 dark:text-emerald-400",
+      route: "/admin/trips",
+    },
+    {
       label: "Pending Approvals",
       value: stats?.pendingDrivers ?? 0,
       icon: Clock,
       accent: "text-orange-600 dark:text-orange-400",
       route: "/admin/drivers",
-    },
-    {
-      label: "Total Riders",
-      value: stats?.totalRiders ?? 0,
-      icon: Users,
-      accent: "text-violet-600 dark:text-violet-400",
-      route: "/admin/riders",
     },
     {
       label: "Revenue",
@@ -147,7 +158,12 @@ export default function AdminControlCenter() {
       count: stats?.pendingDrivers ?? 0,
       icon: Clock,
       route: "/admin/drivers",
-      accent: "text-orange-600 dark:text-orange-400",
+    },
+    {
+      label: "Active Trips Requiring Monitor",
+      count: stats?.activeTrips ?? 0,
+      icon: MapPin,
+      route: "/admin/trips",
     },
   ].filter((item) => item.count > 0);
 
@@ -161,9 +177,17 @@ export default function AdminControlCenter() {
         </BreadcrumbList>
       </Breadcrumb>
 
-      <div className="border-b pb-4" data-testid="overview-context-header">
-        <h1 className="text-2xl font-bold" data-testid="text-control-center-title">Admin Control Center</h1>
-        <p className="text-sm text-muted-foreground mt-1">Live operations & system oversight</p>
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b pb-4" data-testid="overview-context-header">
+        <div>
+          <h1 className="text-2xl font-bold" data-testid="text-control-center-title">Admin Overview</h1>
+          <p className="text-sm text-muted-foreground mt-1">System-wide operational snapshot</p>
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          <span className="text-xs text-muted-foreground" data-testid="text-current-date">{formatDate()}</span>
+          <Badge variant="outline" className="text-xs" data-testid="badge-environment">
+            {import.meta.env.MODE === "production" ? "Production" : "Development"}
+          </Badge>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3" data-testid="metrics-row">
@@ -171,14 +195,16 @@ export default function AdminControlCenter() {
           <Link key={metric.label} href={metric.route} data-testid={`metric-${metric.label.toLowerCase().replace(/\s+/g, "-")}`}>
             <Card className="hover-elevate">
               <CardContent className="pt-4 pb-4 px-4">
-                <div className="flex items-center gap-2 mb-2">
+                <div className="flex items-center gap-2 mb-3">
                   <metric.icon className={`h-4 w-4 shrink-0 ${metric.accent}`} />
                   <span className="text-xs text-muted-foreground truncate">{metric.label}</span>
                 </div>
                 {isLoading ? (
+                  <Skeleton className="h-7 w-16" />
+                ) : isError ? (
                   <p className="text-lg font-semibold text-muted-foreground">--</p>
                 ) : (
-                  <p className="text-lg font-semibold" data-testid={`value-${metric.label.toLowerCase().replace(/\s+/g, "-")}`}>
+                  <p className="text-xl font-bold" data-testid={`value-${metric.label.toLowerCase().replace(/\s+/g, "-")}`}>
                     {metric.value}
                   </p>
                 )}
@@ -242,9 +268,15 @@ export default function AdminControlCenter() {
         </div>
       </div>
 
-      {attentionItems.length > 0 && (
-        <div data-testid="attention-required">
-          <h2 className="text-sm font-medium text-muted-foreground mb-3">Attention Required</h2>
+      <div data-testid="attention-section">
+        <h2 className="text-sm font-medium text-muted-foreground mb-3">Attention Required</h2>
+        {isLoading ? (
+          <Card>
+            <CardContent className="pt-4 pb-4 px-4">
+              <Skeleton className="h-5 w-48" />
+            </CardContent>
+          </Card>
+        ) : attentionItems.length > 0 ? (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {attentionItems.map((item) => (
               <Link key={item.label} href={item.route} data-testid={`attention-${item.label.toLowerCase().replace(/\s+/g, "-")}`}>
@@ -255,11 +287,9 @@ export default function AdminControlCenter() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium truncate">{item.label}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <Badge variant="secondary" className="text-xs">
-                          {item.count}
-                        </Badge>
-                      </div>
+                      <Badge variant="secondary" className="text-xs mt-0.5">
+                        {item.count}
+                      </Badge>
                     </div>
                     <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                   </CardContent>
@@ -267,8 +297,15 @@ export default function AdminControlCenter() {
               </Link>
             ))}
           </div>
-        </div>
-      )}
+        ) : (
+          <Card data-testid="no-attention-needed">
+            <CardContent className="flex items-center gap-3 pt-4 pb-4 px-4">
+              <CheckCircle className="h-4 w-4 shrink-0 text-green-600 dark:text-green-400" />
+              <p className="text-sm text-muted-foreground">No pending issues. All systems operational.</p>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   );
 }

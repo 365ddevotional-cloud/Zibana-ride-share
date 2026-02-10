@@ -1,0 +1,102 @@
+YOU ARE OPERATING INSIDE THE ZIBA RIDE-SHARE REPLIT CODEBASE.
+
+OBJECTIVE:
+Redesign the **Admin Overview (Admin Control Center)** UI to be clean, modern, operationally focused, and clearly reorganized.
+
+STRICT RULES:
+- DO NOT touch backend, auth, middleware, database, or APIs
+- DO NOT change routes or permissions
+- DO NOT modify rider or driver apps
+- ONLY modify admin UI files
+- Use existing data sources only
+- Keep styling consistent with current admin theme
+- Minimal text, visual clarity, operational usefulness
+- Implement directly, no explanations
+- After completion: REPORT → STOP
+
+SCOPE:
+Target file:
+client/src/pages/admin/admin-control-center.tsx
+
+DESIGN REQUIREMENTS:
+
+1️⃣ TOP: ADMIN OVERVIEW HEADER
+- Page title: “Admin Overview”
+- Subtitle: “System-wide operational snapshot”
+- Right side: current date + environment badge (e.g. Production / Test)
+
+2️⃣ METRICS ROW (FIRST ROW)
+Create a responsive grid of metric cards using existing /api/admin/stats data:
+- Total Riders
+- Total Drivers
+- Active Trips (today)
+- Pending Approvals
+- Open Support Tickets
+- Wallet Balance (system)
+
+Design:
+- White/dark neutral cards
+- Icons with orange accent only (no orange backgrounds)
+- Big numbers, small labels
+- Skeleton loaders while fetching
+
+3️⃣ ACTION ZONES (SECOND ROW)
+Create **7 section cards**, matching sidebar structure:
+
+- Control Center
+- Users & People
+- Trips & Operations
+- Finance & Wallets
+- Ratings & Support
+- Safety & Compliance
+- Growth & Intelligence
+
+Each card must include:
+- Icon
+- Short description (1 sentence)
+- Top 4–5 quick links from that section
+- “More…” indicator if additional links exist
+- Click navigates to section landing (no routing changes)
+
+4️⃣ ATTENTION REQUIRED SECTION (CONDITIONAL)
+Only render if counts > 0:
+- Pending driver approvals
+- Flagged trips
+- Open disputes
+- Wallet reconciliation issues
+
+Design:
+- Compact alert-style panel
+- Orange border + icon
+- Each item links to its existing admin page
+
+5️⃣ CLEAN LAYOUT RULES
+- No clutter
+- No long tables on overview
+- No duplicated sidebar content
+- Mobile responsive
+- Keyboard accessible
+
+6️⃣ EMPTY & ERROR STATES
+- Graceful empty state if stats are unavailable
+- “No pending issues” message when attention section is empty
+
+FILES ALLOWED TO TOUCH:
+- client/src/pages/admin/admin-control-center.tsx ONLY
+
+FILES NOT ALLOWED:
+- admin/index.tsx
+- admin-layout.tsx
+- admin-sidebar.tsx
+- admin-section-landing.tsx
+- App.tsx
+- Any rider/driver/backend files
+
+FINAL STEP:
+- Ensure build passes
+- Verify Admin Overview renders correctly
+- REPORT:
+  - Files touched
+  - What changed
+  - Confirmation no restricted files were modified
+- STOP AND WAIT
