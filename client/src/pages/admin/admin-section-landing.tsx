@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -10,6 +11,12 @@ import {
 } from "@/components/ui/breadcrumb";
 import { sidebarSections } from "./admin-sidebar";
 import { AlertTriangle } from "lucide-react";
+
+const AdminDriversOverview = lazy(() => import("./admin-drivers-overview"));
+
+const dedicatedPages: Record<string, React.ComponentType> = {
+  drivers: AdminDriversOverview,
+};
 
 const sectionDescriptions: Record<string, string> = {
   "Control Center": "System health, monitoring, and launch readiness at a glance.",
@@ -26,6 +33,15 @@ interface AdminSectionLandingProps {
 }
 
 export default function AdminSectionLanding({ section }: AdminSectionLandingProps) {
+  const DedicatedPage = dedicatedPages[section];
+  if (DedicatedPage) {
+    return (
+      <Suspense fallback={<div className="py-8 text-center text-sm text-muted-foreground">Loading...</div>}>
+        <DedicatedPage />
+      </Suspense>
+    );
+  }
+
   const matchedGroup = sidebarSections.find((group) =>
     group.items.some((item) => item.value === section)
   );
