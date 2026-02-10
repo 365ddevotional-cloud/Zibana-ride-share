@@ -1,11 +1,13 @@
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   Breadcrumb,
   BreadcrumbList,
   BreadcrumbItem,
   BreadcrumbPage,
 } from "@/components/ui/breadcrumb";
+import { useQuery } from "@tanstack/react-query";
 import { sidebarSections } from "./admin-sidebar";
 import {
   Car,
@@ -16,20 +18,139 @@ import {
   Shield,
   Users,
   Activity,
+  TrendingUp,
+  AlertTriangle,
+  Clock,
+  Banknote,
+  UserCheck,
+  ArrowRight,
+  type LucideIcon,
 } from "lucide-react";
 
-const quickAccessItems = [
-  { label: "Drivers", icon: Car, route: "/admin/drivers", color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-100 dark:bg-blue-900/30" },
-  { label: "Riders", icon: Users, route: "/admin/riders", color: "text-violet-600 dark:text-violet-400", bg: "bg-violet-100 dark:bg-violet-900/30" },
-  { label: "Trips", icon: MapPin, route: "/admin/trips", color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-100 dark:bg-emerald-900/30" },
-  { label: "Wallets", icon: Wallet, route: "/admin/wallets", color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-100 dark:bg-amber-900/30" },
-  { label: "Fraud", icon: ShieldAlert, route: "/admin/fraud", color: "text-red-600 dark:text-red-400", bg: "bg-red-100 dark:bg-red-900/30" },
-  { label: "Safety", icon: Shield, route: "/admin/safety", color: "text-orange-600 dark:text-orange-400", bg: "bg-orange-100 dark:bg-orange-900/30" },
-  { label: "Reports", icon: BarChart3, route: "/admin/reports", color: "text-teal-600 dark:text-teal-400", bg: "bg-teal-100 dark:bg-teal-900/30" },
-  { label: "Monitoring", icon: Activity, route: "/admin/monitoring", color: "text-pink-600 dark:text-pink-400", bg: "bg-pink-100 dark:bg-pink-900/30" },
-];
+interface AdminStats {
+  totalDrivers: number;
+  pendingDrivers: number;
+  totalTrips: number;
+  activeTrips: number;
+  totalRiders: number;
+  completedTrips: number;
+  totalFares: string;
+  totalCommission: string;
+  totalDriverPayouts: string;
+}
+
+const sectionMeta: Record<string, { icon: LucideIcon; accent: string; accentBg: string; description: string }> = {
+  "Control Center": {
+    icon: Activity,
+    accent: "text-orange-600 dark:text-orange-400",
+    accentBg: "bg-orange-100 dark:bg-orange-900/30",
+    description: "Monitoring, health alerts, and launch readiness",
+  },
+  "Users & People": {
+    icon: Users,
+    accent: "text-blue-600 dark:text-blue-400",
+    accentBg: "bg-blue-100 dark:bg-blue-900/30",
+    description: "Drivers, riders, directors, and team management",
+  },
+  "Trips & Operations": {
+    icon: MapPin,
+    accent: "text-emerald-600 dark:text-emerald-400",
+    accentBg: "bg-emerald-100 dark:bg-emerald-900/30",
+    description: "Active trips, reservations, ride classes, and fees",
+  },
+  "Finance & Wallets": {
+    icon: Wallet,
+    accent: "text-amber-600 dark:text-amber-400",
+    accentBg: "bg-amber-100 dark:bg-amber-900/30",
+    description: "Payouts, wallets, settlements, and tax documents",
+  },
+  "Ratings & Support": {
+    icon: BarChart3,
+    accent: "text-violet-600 dark:text-violet-400",
+    accentBg: "bg-violet-100 dark:bg-violet-900/30",
+    description: "Ratings, disputes, inbox, and help center",
+  },
+  "Safety & Compliance": {
+    icon: Shield,
+    accent: "text-red-600 dark:text-red-400",
+    accentBg: "bg-red-100 dark:bg-red-900/30",
+    description: "Fraud detection, incidents, insurance, and compliance",
+  },
+  "Growth & Intelligence": {
+    icon: TrendingUp,
+    accent: "text-teal-600 dark:text-teal-400",
+    accentBg: "bg-teal-100 dark:bg-teal-900/30",
+    description: "Reports, analytics, incentives, and ZIBRA insights",
+  },
+};
+
+function formatCurrency(value: string): string {
+  const num = parseFloat(value || "0");
+  if (num >= 1_000_000) return `\u20A6${(num / 1_000_000).toFixed(1)}M`;
+  if (num >= 1_000) return `\u20A6${(num / 1_000).toFixed(1)}K`;
+  return `\u20A6${num.toFixed(0)}`;
+}
 
 export default function AdminControlCenter() {
+  const { data: stats, isLoading } = useQuery<AdminStats>({
+    queryKey: ["/api/admin/stats"],
+  });
+
+  const metricCards = [
+    {
+      label: "Active Trips",
+      value: stats?.activeTrips ?? 0,
+      icon: MapPin,
+      accent: "text-emerald-600 dark:text-emerald-400",
+      route: "/admin/trips",
+    },
+    {
+      label: "Total Drivers",
+      value: stats?.totalDrivers ?? 0,
+      icon: Car,
+      accent: "text-blue-600 dark:text-blue-400",
+      route: "/admin/drivers",
+    },
+    {
+      label: "Pending Approvals",
+      value: stats?.pendingDrivers ?? 0,
+      icon: Clock,
+      accent: "text-orange-600 dark:text-orange-400",
+      route: "/admin/drivers",
+    },
+    {
+      label: "Total Riders",
+      value: stats?.totalRiders ?? 0,
+      icon: Users,
+      accent: "text-violet-600 dark:text-violet-400",
+      route: "/admin/riders",
+    },
+    {
+      label: "Revenue",
+      value: stats ? formatCurrency(stats.totalFares) : "\u20A60",
+      icon: Banknote,
+      accent: "text-amber-600 dark:text-amber-400",
+      route: "/admin/wallets",
+    },
+    {
+      label: "Completed Trips",
+      value: stats?.completedTrips ?? 0,
+      icon: UserCheck,
+      accent: "text-teal-600 dark:text-teal-400",
+      route: "/admin/trips",
+    },
+  ];
+
+  const attentionItems = [
+    {
+      label: "Pending Driver Approvals",
+      count: stats?.pendingDrivers ?? 0,
+      icon: Clock,
+      route: "/admin/drivers",
+      accent: "text-orange-600 dark:text-orange-400",
+    },
+  ].filter((item) => item.count > 0);
+
   return (
     <div className="space-y-8">
       <Breadcrumb data-testid="breadcrumb-nav">
@@ -42,52 +163,112 @@ export default function AdminControlCenter() {
 
       <div className="border-b pb-4" data-testid="overview-context-header">
         <h1 className="text-2xl font-bold" data-testid="text-control-center-title">Admin Control Center</h1>
-        <p className="text-sm text-muted-foreground mt-1">Central hub for managing all ZIBA operations, teams, and platform health.</p>
+        <p className="text-sm text-muted-foreground mt-1">Live operations & system oversight</p>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3" data-testid="metrics-row">
+        {metricCards.map((metric) => (
+          <Link key={metric.label} href={metric.route} data-testid={`metric-${metric.label.toLowerCase().replace(/\s+/g, "-")}`}>
+            <Card className="hover-elevate">
+              <CardContent className="pt-4 pb-4 px-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <metric.icon className={`h-4 w-4 shrink-0 ${metric.accent}`} />
+                  <span className="text-xs text-muted-foreground truncate">{metric.label}</span>
+                </div>
+                {isLoading ? (
+                  <p className="text-lg font-semibold text-muted-foreground">--</p>
+                ) : (
+                  <p className="text-lg font-semibold" data-testid={`value-${metric.label.toLowerCase().replace(/\s+/g, "-")}`}>
+                    {metric.value}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
       </div>
 
       <div>
-        <h2 className="text-sm font-medium text-muted-foreground mb-3">Quick Access</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-          {quickAccessItems.map((item) => (
-            <Link
-              key={item.label}
-              href={item.route}
-              className="flex flex-col items-center gap-2 rounded-md p-3 hover-elevate transition-colors"
-              data-testid={`quick-${item.label.toLowerCase()}`}
-            >
-              <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${item.bg}`}>
-                <item.icon className={`h-5 w-5 ${item.color}`} />
-              </div>
-              <span className="text-xs font-medium">{item.label}</span>
-            </Link>
-          ))}
+        <h2 className="text-sm font-medium text-muted-foreground mb-3">Action Zones</h2>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" data-testid="action-zones">
+          {sidebarSections.map((section) => {
+            const meta = sectionMeta[section.label];
+            const SectionIcon = meta?.icon || Activity;
+            const firstRoute = section.items[0]?.route || "/admin/overview";
+
+            return (
+              <Card key={section.label} className="hover-elevate" data-testid={`zone-${section.label.toLowerCase().replace(/\s+/g, "-")}`}>
+                <CardHeader className="pb-2 gap-2">
+                  <div className="flex items-center gap-3">
+                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${meta?.accentBg || "bg-muted"}`}>
+                      <SectionIcon className={`h-4 w-4 ${meta?.accent || "text-muted-foreground"}`} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <CardTitle className="text-sm">{section.label}</CardTitle>
+                      {meta?.description && (
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate">{meta.description}</p>
+                      )}
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="grid gap-0.5">
+                    {section.items.slice(0, 5).map((item) => (
+                      <Link
+                        key={item.value}
+                        href={item.route}
+                        className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover-elevate transition-colors"
+                        data-testid={`link-${item.value}`}
+                      >
+                        <item.icon className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate">{item.label}</span>
+                      </Link>
+                    ))}
+                    {section.items.length > 5 && (
+                      <Link
+                        href={firstRoute}
+                        className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover-elevate transition-colors"
+                        data-testid={`link-more-${section.label.toLowerCase().replace(/\s+/g, "-")}`}
+                      >
+                        <ArrowRight className="h-3 w-3 shrink-0" />
+                        <span>+{section.items.length - 5} more</span>
+                      </Link>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-        {sidebarSections.map((section) => (
-          <Card key={section.label} data-testid={`card-section-${section.label.toLowerCase().replace(/\s+/g, "-")}`}>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">{section.label}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-1">
-                {section.items.map((item) => (
-                  <Link
-                    key={item.value}
-                    href={item.route}
-                    className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover-elevate transition-colors"
-                    data-testid={`link-${item.value}`}
-                  >
-                    <item.icon className="h-4 w-4 shrink-0" />
-                    <span>{item.label}</span>
-                  </Link>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {attentionItems.length > 0 && (
+        <div data-testid="attention-required">
+          <h2 className="text-sm font-medium text-muted-foreground mb-3">Attention Required</h2>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {attentionItems.map((item) => (
+              <Link key={item.label} href={item.route} data-testid={`attention-${item.label.toLowerCase().replace(/\s+/g, "-")}`}>
+                <Card className="hover-elevate border-orange-200 dark:border-orange-800/40">
+                  <CardContent className="flex items-center gap-3 pt-4 pb-4 px-4">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/30">
+                      <item.icon className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium truncate">{item.label}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <Badge variant="secondary" className="text-xs">
+                          {item.count}
+                        </Badge>
+                      </div>
+                    </div>
+                    <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
