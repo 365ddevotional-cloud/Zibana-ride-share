@@ -1,0 +1,88 @@
+REPLIT AI — SINGLE COPY PROMPT FLOW
+⚠️ CLOUD RUN DEPLOY FIX — ULTRA LOW COST MODE
+
+ABSOLUTE RULES:
+- DO NOT refactor the app
+- DO NOT touch Rider logic
+- DO NOT add services or packages
+- DO NOT optimize frontend bundles
+- Make the SMALLEST backend changes possible
+- Goal: PASS Cloud Run health check FAST
+
+-----------------------------------
+1) FIX SERVER HOST + PORT BINDING
+-----------------------------------
+Locate the main server entry file (e.g. server.js, index.js, app.js).
+
+Ensure Express (or equivalent) listens like this:
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server running on port ${PORT}`);
+});
+
+IMPORTANT:
+- Must bind to "0.0.0.0"
+- Must use process.env.PORT
+- Do NOT hardcode localhost
+
+-----------------------------------
+2) ADD FAST HEALTH CHECK ENDPOINT
+-----------------------------------
+Add this endpoint near the TOP of server startup:
+
+app.get("/health", (req, res) => {
+  res.status(200).send("OK");
+});
+
+Rules:
+- No DB calls
+- No auth
+- No middleware
+- Must respond instantly
+
+-----------------------------------
+3) REGISTER HEALTH ROUTE BEFORE HEAVY LOGIC
+-----------------------------------
+Ensure /health is defined BEFORE:
+- DB connections
+- Auth setup
+- Websocket init
+- Job queues
+- Anything slow
+
+-----------------------------------
+4) DO NOT WAIT FOR DB TO START SERVER
+-----------------------------------
+If server startup currently waits for DB connection:
+- Allow server to start immediately
+- DB can connect asynchronously
+
+Example:
+❌ await connectDB(); app.listen(...)
+✅ connectDB().catch(console.error); app.listen(...)
+
+-----------------------------------
+5) NO BUNDLE OPTIMIZATION (SKIP)
+-----------------------------------
+Ignore chunk size warnings.
+Do NOT modify frontend build.
+Startup speed is solved by steps above.
+
+-----------------------------------
+6) VERIFY LOCALLY
+-----------------------------------
+Confirm:
+- Server boots
+- GET /health returns 200 in <50ms
+- App listens on process.env.PORT
+
+-----------------------------------
+DELIVERABLE (REQUIRED):
+Report ONLY:
+- File(s) modified
+- Confirmation: "Cloud Run health check passes"
+
+DO NOT do anything else.
+KEEP COST LOW.
+EXECUTE CAREFULLY.
