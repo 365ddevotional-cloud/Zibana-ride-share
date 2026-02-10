@@ -124,7 +124,7 @@ function RoleSelectRoute({ authLoading, user }: { authLoading: boolean; user: an
   useEffect(() => {
     if (!invalidated.current) {
       invalidated.current = true;
-      sessionStorage.removeItem("ziba-active-role");
+      localStorage.removeItem("ziba-active-role");
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       queryClient.invalidateQueries({ queryKey: ["/api/user/role"] });
     }
@@ -266,7 +266,7 @@ function DriverRouter() {
       const hasDriverRole = roles.includes("driver");
       if (hasDriverRole && userRole.role !== "driver" && !activatingRole.current) {
         activatingRole.current = true;
-        sessionStorage.setItem("ziba-active-role", "driver");
+        localStorage.setItem("ziba-active-role", "driver");
         fetch("/api/user/active-role", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -321,7 +321,7 @@ function DriverRouter() {
     return <DriverAccessDenied />;
   }
 
-  const welcomeShown = typeof window !== "undefined" && sessionStorage.getItem("ziba-driver-welcome-shown") === "true";
+  const welcomeShown = typeof window !== "undefined" && localStorage.getItem("ziba-driver-welcome-shown") === "true";
 
   return (
     <Switch>
@@ -615,7 +615,7 @@ function AuthenticatedRoutes() {
     return <RoleSelectionPage />;
   }
 
-  const selectedRole = typeof window !== "undefined" ? sessionStorage.getItem("ziba-active-role") : null;
+  const selectedRole = typeof window !== "undefined" ? localStorage.getItem("ziba-active-role") : null;
 
   if (!selectedRole) {
     return <RoleSelectionPage />;
@@ -634,7 +634,7 @@ function AuthenticatedRoutes() {
   }
   
   if (selectedRole === "rider") {
-    const riderWelcomeShown = typeof window !== "undefined" && sessionStorage.getItem("ziba-rider-welcome-shown") === "true";
+    const riderWelcomeShown = typeof window !== "undefined" && localStorage.getItem("ziba-rider-welcome-shown") === "true";
     if (!riderWelcomeShown) {
       return <Redirect to="/rider/welcome-back" />;
     }
@@ -1017,7 +1017,7 @@ function MainRouter() {
         return <FullPageLoading text="Loading your dashboard..." />;
       }
       
-      const selectedRole = typeof window !== "undefined" ? sessionStorage.getItem("ziba-active-role") : null;
+      const selectedRole = typeof window !== "undefined" ? localStorage.getItem("ziba-active-role") : null;
 
       if (!selectedRole || !userRole?.role) {
         return <Redirect to="/role-select" />;

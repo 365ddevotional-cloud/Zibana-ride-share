@@ -95,7 +95,7 @@ export default function RoleSelectionPage() {
       return response.json();
     },
     onSuccess: (_data, role) => {
-      sessionStorage.setItem("ziba-active-role", role);
+      localStorage.setItem("ziba-active-role", role);
       queryClient.invalidateQueries({ queryKey: ["/api/user/role"] });
       const config = ROLE_CONFIG[role];
       if (config) {
@@ -123,7 +123,7 @@ export default function RoleSelectionPage() {
       return result;
     },
     onSuccess: () => {
-      sessionStorage.setItem("ziba-active-role", "rider");
+      localStorage.setItem("ziba-active-role", "rider");
       queryClient.invalidateQueries({ queryKey: ["/api/user/role"] });
       setLocation("/rider/home");
     },
