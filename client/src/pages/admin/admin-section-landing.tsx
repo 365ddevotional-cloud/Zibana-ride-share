@@ -13,9 +13,11 @@ import { sidebarSections } from "./admin-sidebar";
 import { AlertTriangle } from "lucide-react";
 
 const AdminDriversOverview = lazy(() => import("./admin-drivers-overview"));
+const AdminRidersOverview = lazy(() => import("./admin-riders-overview"));
 
 const dedicatedPages: Record<string, React.ComponentType> = {
   drivers: AdminDriversOverview,
+  riders: AdminRidersOverview,
 };
 
 const sectionDescriptions: Record<string, string> = {
