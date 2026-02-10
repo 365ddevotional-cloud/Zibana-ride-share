@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef } from "react";
+import { lazy, Suspense, useEffect, useRef, useState, useCallback } from "react";
 import { Switch, Route, Redirect, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -14,6 +14,7 @@ import { APP_MODE, isRoleAllowedInAppMode } from "@/config/appMode";
 import { AppModeProvider, useAppMode } from "@/context/AppModeContext";
 import { SimulationProvider, SimulationBanner } from "@/context/SimulationContext";
 import { useAuth } from "@/hooks/use-auth";
+import { useAdminInactivity } from "@/hooks/use-admin-inactivity";
 import { useQuery } from "@tanstack/react-query";
 import { FullPageLoading } from "@/components/loading-spinner";
 import { DashboardSkeleton } from "@/components/loading-skeleton";
@@ -409,14 +410,53 @@ function DriverRouter() {
   );
 }
 
+function InactivityWarningOverlay({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60" data-testid="inactivity-warning-overlay">
+      <div className="bg-background rounded-md shadow-lg max-w-sm w-full mx-4 p-6 text-center">
+        <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
+          <svg className="w-6 h-6 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <h2 className="text-lg font-semibold mb-2">Session Timeout Warning</h2>
+        <p className="text-sm text-muted-foreground mb-5">
+          You'll be logged out soon for security reasons due to inactivity.
+        </p>
+        <button
+          onClick={onDismiss}
+          className="px-6 py-2 bg-primary text-primary-foreground rounded-md hover-elevate text-sm"
+          data-testid="button-stay-signed-in"
+        >
+          Stay Signed In
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function SuperAdminGuard({ children }: { children: React.ReactNode }) {
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading, logout } = useAuth();
   const [location] = useLocation();
 
   const { data: userRole, isLoading: roleLoading } = useQuery<{ role: string; roles?: string[] } | null>({
     queryKey: ["/api/user/role"],
     enabled: !!user,
     retry: false,
+  });
+
+  const role = userRole?.role;
+  const roles = userRole?.roles || [];
+  const isSuperAdmin = role === "super_admin" || roles.includes("super_admin");
+  const isAdminRoute = location.startsWith("/admin");
+
+  const handleInactivityLogout = useCallback(() => {
+    if (logout) logout();
+  }, [logout]);
+
+  const { showWarning, dismissWarning } = useAdminInactivity({
+    enabled: !!user && isSuperAdmin && isAdminRoute,
+    onLogout: handleInactivityLogout,
   });
 
   if (authLoading) {
@@ -431,11 +471,6 @@ function SuperAdminGuard({ children }: { children: React.ReactNode }) {
     return <FullPageLoading text="Verifying access..." />;
   }
 
-  const role = userRole?.role;
-  const roles = userRole?.roles || [];
-  const isSuperAdmin = role === "super_admin" || roles.includes("super_admin");
-  const isAdminRoute = location.startsWith("/admin");
-
   if (isAdminRoute && !isSuperAdmin) {
     return <AdminAccessDenied />;
   }
@@ -445,7 +480,12 @@ function SuperAdminGuard({ children }: { children: React.ReactNode }) {
     return <AdminAccessDenied />;
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      {showWarning && <InactivityWarningOverlay onDismiss={dismissWarning} />}
+    </>
+  );
 }
 
 function AdminRouter() {
