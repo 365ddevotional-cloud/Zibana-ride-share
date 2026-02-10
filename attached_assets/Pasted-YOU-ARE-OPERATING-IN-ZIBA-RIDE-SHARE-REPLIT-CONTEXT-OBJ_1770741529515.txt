@@ -1,0 +1,98 @@
+YOU ARE OPERATING IN ZIBA RIDE-SHARE REPLIT CONTEXT.
+
+OBJECTIVE:
+Redesign and finalize the Admin Overview (Admin Control Center) UI only.
+
+STRICT RULES:
+- DO NOT explain.
+- DO NOT summarize.
+- DO NOT propose alternatives.
+- DO NOT modify backend, auth, middleware, routes, schemas, rider app, driver app.
+- TOUCH ADMIN UI FILES ONLY.
+- AFTER COMPLETION: STOP AND WAIT.
+
+IMPLEMENT EXACTLY:
+
+1) TARGET FILE
+client/src/pages/admin/admin-control-center.tsx
+
+2) ADMIN OVERVIEW HEADER
+- Title: "Admin Overview"
+- Subtitle: "System-wide operational snapshot"
+- Right side: 
+  - Current date (formatted)
+  - Environment badge (DEV / PROD)
+- Clean, professional layout. No heavy backgrounds.
+
+3) METRICS ROW (6 CARDS)
+Order EXACTLY:
+- Total Riders
+- Total Drivers
+- Active Trips
+- Pending Approvals
+- Revenue
+- Completed Trips
+
+Rules:
+- Fetch live data from /api/admin/stats
+- While loading → Skeleton loaders (no "--")
+- On error → subtle error state
+- Numbers bold, labels muted
+- No background color fills
+
+4) ATTENTION REQUIRED SECTION (ALWAYS VISIBLE)
+Behavior:
+- If issues exist:
+  - Orange-bordered alert cards
+  - Examples:
+    - Pending Driver Approvals
+    - Pending Rider Verifications
+    - Active Trips Requiring Monitor
+- If NO issues:
+  - Show green check icon
+  - Text: "No pending issues. All systems operational."
+
+Include skeleton loader while fetching.
+
+5) ACTION ZONES (SECTION CARDS)
+7 cards matching sidebar groups:
+- Control Center
+- Users & People
+- Trips & Operations
+- Finance & Wallets
+- Ratings & Support
+- Safety & Compliance
+- Growth & Intelligence
+
+Each card:
+- Icon
+- Short description
+- Top 5 links
+- "+ more" indicator if overflow
+- Click routes to section landing
+
+6) UI STYLE CONSTRAINTS
+- Orange ONLY for borders/icons (no fills)
+- Neutral dark UI
+- Consistent spacing
+- Professional admin-grade look
+- No animations beyond skeletons
+
+7) IMPORTS
+- Skeleton
+- CheckCircle (green)
+- AlertTriangle (orange)
+
+8) VERIFICATION
+- App runs clean
+- No console errors
+- No LSP issues
+
+9) REPORT FORMAT (MANDATORY)
+After completion output ONLY:
+- Files touched
+- What changed (bullet list)
+- Confirmation of untouched areas
+
+THEN:
+STOP AND WAIT FOR NEXT INSTRUCTION.
