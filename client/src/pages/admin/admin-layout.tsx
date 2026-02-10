@@ -1,0 +1,236 @@
+import { Link, useLocation } from "wouter";
+import {
+  SidebarProvider,
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarGroupContent,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { Logo } from "@/components/logo";
+import { NotificationBell } from "@/components/notification-bell";
+import { ProfileDropdown } from "@/components/profile-dropdown";
+import { useAuth } from "@/hooks/use-auth";
+import { Badge } from "@/components/ui/badge";
+import {
+  LayoutDashboard,
+  Activity,
+  HeartPulse,
+  Rocket,
+  CheckSquare,
+  Car,
+  Users,
+  Briefcase,
+  UserCheck,
+  Shield,
+  UserPlus,
+  TestTube,
+  BookOpen,
+  Award,
+  Ban,
+  MapPin,
+  Calendar,
+  Layers,
+  Settings2,
+  Building,
+  Zap,
+  Play,
+  Percent,
+  DollarSign,
+  Wallet,
+  ArrowLeftRight,
+  Banknote,
+  CreditCard,
+  ShieldAlert,
+  AlertTriangle,
+  FileText,
+  Star,
+  Mail,
+  Headphones,
+  ScrollText,
+  Package,
+  Heart,
+  Gift,
+  BarChart3,
+  TrendingUp,
+  Target,
+  Globe,
+  Settings,
+} from "lucide-react";
+
+interface AdminLayoutProps {
+  children: React.ReactNode;
+  userRole: string;
+  activeTab?: string;
+}
+
+const sidebarSections = [
+  {
+    label: "Control Center",
+    items: [
+      { value: "overview", label: "Overview", icon: LayoutDashboard, route: "/admin" },
+      { value: "monitoring", label: "Monitoring", icon: Activity, route: "/admin/monitoring" },
+      { value: "health-alerts", label: "Health Alerts", icon: HeartPulse, route: "/admin/health-alerts" },
+      { value: "launch-readiness", label: "Launch Readiness", icon: Rocket, route: "/admin/launch-readiness" },
+      { value: "ops-readiness", label: "Ops Readiness", icon: CheckSquare, route: "/admin/ops-readiness" },
+    ],
+  },
+  {
+    label: "Users & People",
+    items: [
+      { value: "drivers", label: "Drivers", icon: Car, route: "/admin/drivers" },
+      { value: "riders", label: "Riders", icon: Users, route: "/admin/riders" },
+      { value: "directors", label: "Directors", icon: Briefcase, route: "/admin/directors" },
+      { value: "my-drivers", label: "My Drivers", icon: UserCheck, route: "/admin/my-drivers" },
+      { value: "admin-management", label: "Admin Management", icon: Shield, route: "/admin/admin-management" },
+      { value: "role-appointments", label: "Role Appointments", icon: UserPlus, route: "/admin/role-appointments" },
+      { value: "training", label: "Training Mode", icon: TestTube, route: "/admin/training" },
+      { value: "training-center", label: "Training Center", icon: BookOpen, route: "/admin/training-center" },
+      { value: "rider-trust", label: "Rider Trust", icon: Award, route: "/admin/rider-trust" },
+      { value: "pairing-blocks", label: "Pairing Blocks", icon: Ban, route: "/admin/pairing-blocks" },
+    ],
+  },
+  {
+    label: "Trips & Operations",
+    items: [
+      { value: "trips", label: "Trips", icon: MapPin, route: "/admin/trips" },
+      { value: "reservations", label: "Reservations", icon: Calendar, route: "/admin/reservations" },
+      { value: "ride-classes", label: "Ride Classes", icon: Layers, route: "/admin/ride-classes" },
+      { value: "driver-prefs", label: "Driver Preferences", icon: Settings2, route: "/admin/driver-prefs" },
+      { value: "corporate", label: "Corporate Rides", icon: Building, route: "/admin/corporate" },
+      { value: "special-rides", label: "Special Rides", icon: Zap, route: "/admin/special-rides" },
+      { value: "simulation", label: "Simulation", icon: Play, route: "/admin/simulation" },
+      { value: "fee-settings", label: "Fee Settings", icon: Percent, route: "/admin/fee-settings" },
+    ],
+  },
+  {
+    label: "Finance & Wallets",
+    items: [
+      { value: "payouts", label: "Payouts", icon: DollarSign, route: "/admin/payouts" },
+      { value: "wallets", label: "Wallets", icon: Wallet, route: "/admin/wallets" },
+      { value: "wallet-funding", label: "Wallet Funding", icon: ArrowLeftRight, route: "/admin/wallet-funding" },
+      { value: "director-funding", label: "Director Funding", icon: Banknote, route: "/admin/director-funding" },
+      { value: "third-party-funding", label: "Third-Party Funding", icon: Users, route: "/admin/third-party-funding" },
+      { value: "refunds", label: "Refunds", icon: CreditCard, route: "/admin/refunds" },
+      { value: "chargebacks", label: "Chargebacks", icon: ShieldAlert, route: "/admin/chargebacks" },
+      { value: "bank-transfers", label: "Bank Transfers", icon: ArrowLeftRight, route: "/admin/bank-transfers" },
+      { value: "cash-settlements", label: "Cash Settlements", icon: Banknote, route: "/admin/cash-settlements" },
+      { value: "cash-disputes", label: "Cash Disputes", icon: AlertTriangle, route: "/admin/cash-disputes" },
+      { value: "tax-documents", label: "Tax Documents", icon: FileText, route: "/admin/tax-documents" },
+    ],
+  },
+  {
+    label: "Ratings & Support",
+    items: [
+      { value: "ratings", label: "Ratings", icon: Star, route: "/admin/ratings" },
+      { value: "disputes", label: "Disputes", icon: AlertTriangle, route: "/admin/disputes" },
+      { value: "inbox", label: "Inbox", icon: Mail, route: "/admin/inbox" },
+      { value: "help-center", label: "Help Center", icon: Headphones, route: "/admin/help-center" },
+      { value: "support-logs", label: "Support Logs", icon: ScrollText, route: "/admin/support-logs" },
+    ],
+  },
+  {
+    label: "Safety & Compliance",
+    items: [
+      { value: "fraud", label: "Fraud Detection", icon: ShieldAlert, route: "/admin/fraud" },
+      { value: "safety", label: "Safety", icon: Shield, route: "/admin/safety" },
+      { value: "lost-items", label: "Lost Items", icon: Package, route: "/admin/lost-items" },
+      { value: "lost-item-fraud", label: "Lost Item Fraud", icon: AlertTriangle, route: "/admin/lost-item-fraud" },
+      { value: "accident-reports", label: "Accident Reports", icon: FileText, route: "/admin/accident-reports" },
+      { value: "insurance", label: "Insurance", icon: Heart, route: "/admin/insurance" },
+      { value: "relief-fund", label: "Relief Fund", icon: Gift, route: "/admin/relief-fund" },
+      { value: "compliance-logs", label: "Compliance Logs", icon: ScrollText, route: "/admin/compliance-logs" },
+      { value: "store-compliance", label: "Store Compliance", icon: CheckSquare, route: "/admin/store-compliance" },
+    ],
+  },
+  {
+    label: "Growth & Intelligence",
+    items: [
+      { value: "reports", label: "Reports", icon: BarChart3, route: "/admin/reports" },
+      { value: "growth", label: "Growth", icon: TrendingUp, route: "/admin/growth" },
+      { value: "user-growth", label: "User Growth", icon: UserPlus, route: "/admin/user-growth" },
+      { value: "incentives", label: "Incentives", icon: Gift, route: "/admin/incentives" },
+      { value: "acquisition", label: "Acquisition", icon: Target, route: "/admin/acquisition" },
+      { value: "countries", label: "Countries", icon: Globe, route: "/admin/countries" },
+      { value: "contracts", label: "Contracts", icon: FileText, route: "/admin/contracts" },
+      { value: "overrides", label: "Overrides", icon: Settings, route: "/admin/overrides" },
+      { value: "zibra-insights", label: "ZIBRA Insights", icon: Activity, route: "/admin/zibra-insights" },
+      { value: "welcome-insights", label: "Welcome Insights", icon: Zap, route: "/admin/welcome-insights" },
+      { value: "zibra-governance", label: "ZIBRA Governance", icon: Shield, route: "/admin/zibra-governance" },
+      { value: "director-settings", label: "Director Settings", icon: Settings2, route: "/admin/director-settings" },
+      { value: "director-performance", label: "Director Performance", icon: Award, route: "/admin/director-performance" },
+    ],
+  },
+];
+
+export default function AdminLayout({ children, userRole, activeTab }: AdminLayoutProps) {
+  const { user, logout } = useAuth();
+
+  const style = {
+    "--sidebar-width": "16rem",
+    "--sidebar-width-icon": "3.5rem",
+  };
+
+  return (
+    <SidebarProvider style={style as React.CSSProperties}>
+      <div className="flex h-screen w-full">
+        <Sidebar collapsible="icon">
+          <SidebarContent>
+            {sidebarSections.map((section) => (
+              <SidebarGroup key={section.label}>
+                <SidebarGroupLabel>{section.label}</SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {section.items.map((item) => (
+                      <SidebarMenuItem key={item.value}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={activeTab === item.value}
+                          data-active={activeTab === item.value}
+                          data-testid={`nav-${item.value}`}
+                        >
+                          <Link href={item.route}>
+                            <item.icon />
+                            <span>{item.label}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            ))}
+          </SidebarContent>
+        </Sidebar>
+        <div className="flex flex-col flex-1 min-w-0">
+          <header className="flex items-center justify-between gap-2 border-b p-2 sticky top-0 z-50 bg-background">
+            <div className="flex items-center gap-2 flex-wrap">
+              <SidebarTrigger data-testid="button-sidebar-toggle" />
+              <Logo size="sm" />
+              <Badge variant="secondary" data-testid="badge-admin-role">
+                {userRole}
+              </Badge>
+            </div>
+            <div className="flex items-center gap-1 flex-wrap">
+              <NotificationBell />
+              <ThemeToggle />
+              <ProfileDropdown
+                user={user ?? null}
+                role={(userRole as any) || "admin"}
+                onLogout={() => logout()}
+              />
+            </div>
+          </header>
+          <main className="flex-1 overflow-y-auto p-4">
+            {children}
+          </main>
+        </div>
+      </div>
+    </SidebarProvider>
+  );
+}
