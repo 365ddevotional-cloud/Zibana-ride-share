@@ -44,6 +44,7 @@ const ApprovalsPage = lazy(() => import("@/pages/admin/approvals"));
 const AdminLanguagePage = lazy(() => import("@/pages/admin/language"));
 const AdminLayout = lazy(() => import("@/pages/admin/admin-layout"));
 const AdminControlCenter = lazy(() => import("@/pages/admin/admin-control-center"));
+const AdminSectionLanding = lazy(() => import("@/pages/admin/admin-section-landing"));
 
 const DriverDashboard = lazy(() => import("@/pages/driver/dashboard"));
 const DriverTripsPage = lazy(() => import("@/pages/driver/trips"));
@@ -494,7 +495,7 @@ function AdminRouter() {
               {params.section === "overview" ? (
                 <AdminControlCenter />
               ) : (
-                <AdminDashboard userRole={role as "super_admin" | "admin" | "director" | "finance" | "trip_coordinator"} />
+                <AdminSectionLanding section={params.section} />
               )}
             </AdminLayout>
           </LazyComponent>
