@@ -1,0 +1,90 @@
+REPLIT AI — SINGLE COPY PROMPT FLOW
+⚠️ DRIVER APP + BACKEND ONLY — DATA CLEANUP — ULTRA COST-SAVING MODE
+
+ABSOLUTE RULES:
+- DO NOT touch Rider UI or flows.
+- DO NOT add new features.
+- DO NOT add new services or background jobs.
+- Make minimal backend-only fixes.
+- Prefer ONE-TIME cleanup + simple guards.
+- Keep token usage and compute LOW.
+
+CONTEXT:
+App: ZIBA
+Issue:
+- Old rider emails were deleted from the database.
+- Ride requests created by those deleted riders are still visible to drivers.
+- These rides are INVALID and must be removed.
+- These requests were created BEFORE rider deletion.
+- Driver app is now correct; backend data is stale.
+
+GOALS:
+1) DELETE all orphan ride requests
+2) PREVENT orphan ride requests going forward
+3) DO NOT impact active valid riders
+
+---------------------------------------
+1) ONE-TIME DATABASE CLEANUP (REQUIRED)
+---------------------------------------
+Identify orphan ride requests where:
+- ride.riderId does NOT exist in Riders table
+  OR
+- ride.riderId exists but rider.isDeleted = true
+  OR
+- rider record is missing entirely
+
+Action:
+- DELETE these ride requests from database:
+  - pending
+  - queued
+  - unassigned
+- Do NOT touch completed or historical trips.
+
+Implementation:
+- Write ONE safe cleanup script or query.
+- Log how many records were deleted.
+- Run ONCE only.
+
+---------------------------------------
+2) BACKEND GUARD (PREVENT FUTURE ORPHANS)
+---------------------------------------
+Fix ride creation logic:
+- When creating a ride request:
+  - Validate riderId exists
+  - Validate rider.isActive === true
+- If validation fails:
+  - Reject ride creation
+  - Return 400 "Invalid rider"
+
+NO retries.
+NO silent failures.
+
+---------------------------------------
+3) DRIVER FEED SAFETY CHECK
+---------------------------------------
+When fetching available rides for drivers:
+- Filter out any ride where:
+  - rider record is missing
+  - rider.isDeleted === true
+
+This is a safety net ONLY.
+
+---------------------------------------
+4) NO FRONTEND CHANGES REQUIRED
+---------------------------------------
+- Driver UI should update automatically after cleanup.
+- No UI work needed.
+
+---------------------------------------
+DELIVERABLE (MANDATORY):
+After execution, report ONLY:
+- Number of orphan rides deleted
+- Files or queries touched
+- Confirmation:
+  "Driver no longer sees rides from deleted riders"
+
+DO NOT add cron jobs.
+DO NOT add background workers.
+DO NOT refactor existing logic.
+KEEP COST LOW.
+EXECUTE CAREFULLY.

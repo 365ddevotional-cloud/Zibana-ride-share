@@ -3477,6 +3477,11 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Invalid trip data", errors: parsed.error.flatten() });
       }
 
+      const riderUser = await storage.getUser(userId);
+      if (!riderUser) {
+        return res.status(400).json({ message: "Invalid rider" });
+      }
+
       const currentTrip = await storage.getRiderCurrentTrip(userId);
       if (currentTrip) {
         return res.status(400).json({ message: "Already have an active trip" });
