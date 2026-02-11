@@ -1,3 +1,4 @@
+import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -94,15 +95,17 @@ export default function UsersTrainingCenterPage() {
               <p className="text-sm text-slate-600 dark:text-slate-400" data-testid={`text-description-${cat.id}`}>
                 {cat.description}
               </p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full"
-                data-testid={`button-view-${cat.id}`}
-              >
-                <Eye className="h-4 w-4 mr-2" />
-                View Materials
-              </Button>
+              <Link href={`/admin/users/training-center/${cat.id}`}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  data-testid={`button-view-${cat.id}`}
+                >
+                  <Eye className="h-4 w-4 mr-2" />
+                  View Materials
+                </Button>
+              </Link>
             </CardContent>
           </Card>
         ))}

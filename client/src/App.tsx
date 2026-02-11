@@ -48,6 +48,7 @@ const AdminControlCenter = lazy(() => import("@/pages/admin/admin-control-center
 const AdminSectionLanding = lazy(() => import("@/pages/admin/admin-section-landing"));
 const ControlCenterLayout = lazy(() => import("@/pages/admin/control-center-layout"));
 const UsersLayout = lazy(() => import("@/pages/admin/users-layout"));
+const UsersTrainingDetailPage = lazy(() => import("@/pages/admin/users-training-detail"));
 const AdminGroupLayout = lazy(() => import("@/pages/admin/admin-group-layout"));
 
 const DriverDashboard = lazy(() => import("@/pages/driver/dashboard"));
@@ -584,6 +585,15 @@ function AdminRouter() {
           <LazyComponent>
             <AdminLayout userRole={role || "admin"} activeTab={params.section === "alerts" ? "health-alerts" : params.section === "launch" ? "launch-readiness" : params.section === "ops" ? "ops-readiness" : params.section}>
               <ControlCenterLayout section={params.section} />
+            </AdminLayout>
+          </LazyComponent>
+        )}
+      </Route>
+      <Route path="/admin/users/training-center/:slug">
+        {(params: { slug: string }) => (
+          <LazyComponent>
+            <AdminLayout userRole={role || "admin"} activeTab="training-center">
+              <UsersTrainingDetailPage />
             </AdminLayout>
           </LazyComponent>
         )}

@@ -1,0 +1,110 @@
+PHASE 4 – PRE-LAUNCH CLEAN MODE + CLICK RESTORE
+
+We are officially in PRE-LAUNCH MODE.
+ZIBA has NOT launched.
+All fake seeded metrics must be removed immediately.
+
+========================================
+PART 1 – REMOVE ALL DUMMY NUMBERS
+========================================
+
+Across ALL admin sections:
+
+- Trips
+- Reservations
+- Ride Classes
+- Finance & Wallets
+- Ratings & Support
+- Safety & Compliance
+- Growth & Intelligence
+
+Remove ALL hardcoded numeric stats.
+
+Replace with:
+
+const isPreLaunch = true;
+
+If isPreLaunch:
+- Show all KPI cards as 0
+- Replace large numbers with "—"
+- Replace currency with "₦0"
+- Show banner at top:
+
+"Platform Status: PRE-LAUNCH
+No operational data available yet.
+Metrics will populate after go-live."
+
+Tables must display:
+Empty state component with:
+
+"No data available.
+ZIBA operations have not started."
+
+Do NOT seed mock trips, mock wallets, mock ratings, or mock revenue.
+
+Remove any fake ₦ amounts or fabricated statistics.
+
+========================================
+PART 2 – MAKE ALL TRAINING CENTER BUTTONS CLICKABLE
+========================================
+
+Under:
+
+/admin/users/training-center
+
+Every "View Materials" button must route to:
+
+/admin/users/training-center/:slug
+
+Create these routes:
+
+- driver-onboarding
+- safety-protocols
+- app-navigation
+- customer-service
+- earnings-payouts
+
+Each page must include:
+
+- Proper header
+- Structured content
+- Relevant bullet points
+- Back button to Training Center
+
+No page should be blank.
+No dead ends.
+
+========================================
+PART 3 – VALIDATE ALL SIDEBAR SECTIONS
+========================================
+
+Ensure ALL subgroups under:
+
+Trips & Operations
+Finance & Wallets
+Ratings & Support
+Safety & Compliance
+Growth & Intelligence
+
+Are:
+
+- Clickable
+- Route to correct page
+- Have content
+- Have back navigation to parent
+- No redirect loops to dashboard
+
+========================================
+PART 4 – FINAL CHECK
+========================================
+
+- No fake metrics
+- No hardcoded numbers
+- No placeholder lorem text
+- No dead routes
+- No console errors
+
+This is a CLEAN PRE-LAUNCH admin.
+We are stabilizing, not adding new features.
+
+Proceed.
