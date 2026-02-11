@@ -1,0 +1,127 @@
+ZIBA V1 – SECURE IN-APP MESSAGING POLICY (FINAL VERSION – NO MASKING)
+
+GOAL:
+Protect rider and driver phone numbers by default.
+Allow voluntary sharing at user discretion.
+Add safety logging.
+Do not restrict or mask numbers.
+Keep system simple and stable.
+
+DO NOT expand features.
+Only secure and stabilize chat.
+
+==================================================
+SECTION 1 – REMOVE PHONE NUMBER EXPOSURE FROM SYSTEM
+==================================================
+
+1. Ensure no API response includes:
+   - phone number
+   - mobile number
+   - contact field
+
+2. Confirm:
+   - Trip endpoints do NOT return phone numbers
+   - Driver profile endpoint does NOT return phone
+   - Rider profile endpoint does NOT return phone
+   - Chat endpoint does NOT return phone
+
+3. Phone numbers remain stored in database only.
+4. No phone numbers logged in console.
+
+==================================================
+SECTION 2 – CHAT ACCESS RULES
+==================================================
+
+1. Chat allowed ONLY when:
+   trip.status === "ACTIVE"
+
+2. If trip is not ACTIVE:
+   - Chat input disabled
+   - Display message:
+     "Messaging is available during active trips only."
+
+3. After trip ends:
+   - Chat remains visible for 24 hours.
+   - After 24 hours, hide chat from rider and driver UI.
+   - Messages remain securely stored for 30 days.
+
+4. After 30 days:
+   - Permanently delete messages.
+
+==================================================
+SECTION 3 – SOFT DISCRETION WARNING
+==================================================
+
+Add small banner inside chat window:
+
+"For your privacy and security, please communicate through the ZIBA app.
+If you choose to share your phone number, you do so at your own discretion."
+
+Style:
+- Calm tone
+- Small font
+- Light neutral background
+- Not alarming
+- Not harsh
+
+Do NOT block number sharing.
+Do NOT mask numbers.
+Do NOT modify user message content.
+
+==================================================
+SECTION 4 – ADMIN SAFETY LOG
+==================================================
+
+Create admin page:
+
+/admin/safety/chat-logs
+
+Display:
+
+- Trip ID
+- Rider name
+- Driver name
+- Timestamp
+- Full message content
+- Sender
+
+Read-only view.
+No editing allowed.
+
+Admin must be able to:
+- Filter by Trip ID
+- Filter by Rider
+- Filter by Driver
+- Search by keyword
+
+==================================================
+SECTION 5 – BACKEND PROTECTION
+==================================================
+
+1. Backend must validate:
+   - Only assigned rider or driver can fetch chat for trip.
+   - Cannot access chat of another trip via URL.
+
+2. If unauthorized:
+   - Return 403 error.
+
+==================================================
+SECTION 6 – FINAL VALIDATION
+==================================================
+
+Confirm:
+
+- No phone numbers shown anywhere in UI by default.
+- Users can voluntarily share numbers in chat.
+- Warning banner visible.
+- Chat disabled outside active trip.
+- Chat visible 24 hours post-trip.
+- Chat auto-deletes after 30 days.
+- Admin chat logs accessible.
+- No console errors.
+- No TypeScript errors.
+- Build compiles clean.
+
+Do not add new modules.
+Do not overcomplicate.
+Stabilize messaging system only.
