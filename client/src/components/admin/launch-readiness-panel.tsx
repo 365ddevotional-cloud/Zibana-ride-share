@@ -174,6 +174,34 @@ export function LaunchReadinessPanel() {
   const [newSubInput, setNewSubInput] = useState({ code: "", name: "" });
   const [showAddSubregion, setShowAddSubregion] = useState(false);
   const [addSubregionInput, setAddSubregionInput] = useState({ stateCode: "", stateName: "", subregionType: "state" });
+  const [showGoLiveConfirm, setShowGoLiveConfirm] = useState(false);
+
+  const { data: platformData } = useQuery<{ isLive: boolean; environment: string; launchDate: string | null }>({
+    queryKey: ["/api/admin/platform-settings"],
+  });
+
+  const goLiveMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/admin/platform-go-live"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/platform-settings"] });
+      toast({ title: "Platform is now LIVE", description: "All metrics and financial systems are active." });
+      setShowGoLiveConfirm(false);
+    },
+    onError: () => {
+      toast({ title: "Failed to go live", variant: "destructive" });
+    },
+  });
+
+  const revertMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/admin/platform-revert-prelaunch"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/platform-settings"] });
+      toast({ title: "Reverted to PRE-LAUNCH mode" });
+    },
+    onError: () => {
+      toast({ title: "Failed to revert", variant: "destructive" });
+    },
+  });
 
   const { data: countries } = useQuery<CountryData[]>({
     queryKey: ["/api/admin/launch/countries"],
@@ -576,6 +604,7 @@ export function LaunchReadinessPanel() {
           <TabsTrigger value="killswitches" data-testid="tab-killswitches">Kill Switches</TabsTrigger>
           <TabsTrigger value="subregions" data-testid="tab-subregions">{subregionLabel}s</TabsTrigger>
           <TabsTrigger value="rollout" data-testid="tab-rollout">Rollout</TabsTrigger>
+          <TabsTrigger value="golive" data-testid="tab-golive">Go Live</TabsTrigger>
         </TabsList>
 
         <TabsContent value="countries">
@@ -1471,7 +1500,119 @@ export function LaunchReadinessPanel() {
             </Card>
           </div>
         </TabsContent>
+
+        <TabsContent value="golive">
+          <Card data-testid="card-go-live">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="h-5 w-5" />
+                Platform Go Live Control
+              </CardTitle>
+              <CardDescription>
+                Manage the platform environment status. Super Admin only.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid gap-4 sm:grid-cols-3">
+                <Card>
+                  <CardContent className="pt-6 text-center">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Environment</p>
+                    <Badge variant={platformData?.isLive ? "default" : "secondary"} className="text-sm px-3 py-1" data-testid="badge-platform-environment">
+                      {platformData?.environment ?? "PRE_LAUNCH"}
+                    </Badge>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-6 text-center">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Status</p>
+                    <Badge variant={platformData?.isLive ? "default" : "outline"} className="text-sm px-3 py-1" data-testid="badge-platform-status">
+                      {platformData?.isLive ? "LIVE" : "OFFLINE"}
+                    </Badge>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-6 text-center">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Launch Date</p>
+                    <p className="text-sm font-medium" data-testid="text-launch-date">
+                      {platformData?.launchDate ? new Date(platformData.launchDate).toLocaleDateString() : "Not launched"}
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card className={platformData?.isLive ? "border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20" : "border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20"}>
+                <CardContent className="py-4">
+                  <div className="flex items-start gap-3">
+                    {platformData?.isLive ? (
+                      <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+                    ) : (
+                      <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                    )}
+                    <div>
+                      <p className="text-sm font-semibold">{platformData?.isLive ? "Platform is LIVE" : "Pre-Launch Mode Active"}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {platformData?.isLive
+                          ? "All financial metrics, analytics, and growth dashboards are active. Real data is being collected."
+                          : "Live metrics are disabled. Revenue totals, wallet balances, and financial aggregates are hidden. Complete QA checklist before going live."}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="flex flex-wrap gap-3">
+                {!platformData?.isLive ? (
+                  <Button
+                    variant="default"
+                    className="bg-emerald-600 hover:bg-emerald-700"
+                    onClick={() => setShowGoLiveConfirm(true)}
+                    data-testid="button-go-live"
+                  >
+                    <Power className="mr-1.5 h-4 w-4" />
+                    GO LIVE
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    onClick={() => revertMutation.mutate()}
+                    disabled={revertMutation.isPending}
+                    data-testid="button-revert-prelaunch"
+                  >
+                    {revertMutation.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <ArrowLeft className="mr-1.5 h-4 w-4" />}
+                    Revert to Pre-Launch
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+
+      <AlertDialog open={showGoLiveConfirm} onOpenChange={setShowGoLiveConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Power className="h-5 w-5 text-emerald-600" />
+              Confirm Go Live
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to switch the platform to LIVE mode. This will enable all financial metrics, real analytics, growth dashboards, and remove the pre-launch banner. This action should only be performed after all QA checklists have passed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-golive">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => goLiveMutation.mutate()}
+              className="bg-emerald-600 hover:bg-emerald-700"
+              disabled={goLiveMutation.isPending}
+              data-testid="button-confirm-golive"
+            >
+              {goLiveMutation.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Zap className="mr-1.5 h-4 w-4" />}
+              Confirm Go Live
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={confirmAction !== null} onOpenChange={(open) => { if (!open) { setConfirmAction(null); setActionReason(""); } }}>
         <AlertDialogContent>

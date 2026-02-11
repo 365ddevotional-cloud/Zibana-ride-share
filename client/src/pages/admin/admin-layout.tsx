@@ -19,6 +19,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { sidebarSections } from "./admin-sidebar";
+import { ZibaAiAssistant } from "@/components/admin/ziba-ai-assistant";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -111,6 +112,7 @@ export default function AdminLayout({ children, userRole, activeTab }: AdminLayo
             </div>
           </main>
         </div>
+        <ZibaAiAssistant />
       </div>
     </SidebarProvider>
   );

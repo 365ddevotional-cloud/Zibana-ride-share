@@ -87,6 +87,10 @@ export default function ControlOverviewPage() {
   const { data: stats, isLoading, isError } = useQuery<AdminStats>({
     queryKey: ["/api/admin/stats"],
   });
+  const { data: platformData } = useQuery<{ isLive: boolean; environment: string }>({
+    queryKey: ["/api/admin/platform-settings"],
+  });
+  const isPreLaunch = !platformData?.isLive;
 
   const systemStatus: SystemStatusItem[] = [
     { label: "Drivers Online", value: stats?.totalDrivers ?? 0, icon: Car, route: "/admin/control/monitoring", color: "text-emerald-600 dark:text-emerald-400" },
@@ -102,7 +106,9 @@ export default function ControlOverviewPage() {
           const KpiIcon = kpi.icon;
           let displayValue: string | number = "--";
           if (!isLoading && !isError && stats) {
-            if (kpi.key === "totalFares") {
+            if (kpi.key === "totalFares" && isPreLaunch) {
+              displayValue = "—";
+            } else if (kpi.key === "totalFares") {
               displayValue = formatCurrency(stats.totalFares);
             } else {
               const raw = stats[kpi.key];
