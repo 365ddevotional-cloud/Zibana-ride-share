@@ -5883,3 +5883,38 @@ export const sponsoredBalances = pgTable("sponsored_balances", {
 });
 
 export type SponsoredBalance = typeof sponsoredBalances.$inferSelect;
+
+export const platformSettings = pgTable("platform_settings", {
+  id: serial("id").primaryKey(),
+  isLive: boolean("is_live").notNull().default(false),
+  environment: varchar("environment", { length: 20 }).notNull().default("PRE_LAUNCH"),
+  launchDate: timestamp("launch_date"),
+  launchedBy: varchar("launched_by"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type PlatformSettings = typeof platformSettings.$inferSelect;
+
+export const qaChecklistItems = pgTable("qa_checklist_items", {
+  id: serial("id").primaryKey(),
+  category: varchar("category", { length: 20 }).notNull(),
+  itemKey: varchar("item_key", { length: 100 }).notNull(),
+  label: varchar("label", { length: 200 }).notNull(),
+  passed: boolean("passed").notNull().default(false),
+  testedBy: varchar("tested_by"),
+  testedAt: timestamp("tested_at"),
+  notes: text("notes"),
+});
+
+export type QaChecklistItem = typeof qaChecklistItems.$inferSelect;
+
+export const qaSimulationLogs = pgTable("qa_simulation_logs", {
+  id: serial("id").primaryKey(),
+  simulationType: varchar("simulation_type", { length: 50 }).notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("completed"),
+  details: text("details"),
+  simulatedBy: varchar("simulated_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type QaSimulationLog = typeof qaSimulationLogs.$inferSelect;

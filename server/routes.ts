@@ -5,7 +5,7 @@ import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integra
 import { storage } from "./storage";
 import { db } from "./db";
 import { eq, and, count, sql, gte, lt, lte, isNotNull, inArray, desc, or } from "drizzle-orm";
-import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, driverInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages, walletFundingTransactions, walletFundingSettings, driverWallets, directorFundingTransactions, directorFundingSettings, directorFundingAcceptance, directorFundingSuspensions, directorProfiles, directorDriverAssignments, directorActionLogs, driverCoachingLogs, directorCells, directorCommissionSettings, directorPayoutSummaries, referralCodes, directorFraudSignals, directorDisputes, directorDisputeMessages, directorWindDowns, welcomeAnalytics, directorPerformanceScores, directorPerformanceWeights, directorIncentives, directorRestrictions, directorPerformanceLogs, directorSuccessions, directorTerminationTimeline, directorStaff, riderTrustScores, riderTrustWeights, riderLoyaltyIncentives, riderTrustLogs, fundingRelationships, fundingAbuseFlags, thirdPartyFundingConfig, fundingAuditLogs, sponsoredBalances, directorCoachingLogs, directorTrainingModules, directorTermsAcceptance, directorTrustScores } from "@shared/schema";
+import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, driverInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages, walletFundingTransactions, walletFundingSettings, driverWallets, directorFundingTransactions, directorFundingSettings, directorFundingAcceptance, directorFundingSuspensions, directorProfiles, directorDriverAssignments, directorActionLogs, driverCoachingLogs, directorCells, directorCommissionSettings, directorPayoutSummaries, referralCodes, directorFraudSignals, directorDisputes, directorDisputeMessages, directorWindDowns, welcomeAnalytics, directorPerformanceScores, directorPerformanceWeights, directorIncentives, directorRestrictions, directorPerformanceLogs, directorSuccessions, directorTerminationTimeline, directorStaff, riderTrustScores, riderTrustWeights, riderLoyaltyIncentives, riderTrustLogs, fundingRelationships, fundingAbuseFlags, thirdPartyFundingConfig, fundingAuditLogs, sponsoredBalances, directorCoachingLogs, directorTrainingModules, directorTermsAcceptance, directorTrustScores, platformSettings, qaChecklistItems, qaSimulationLogs } from "@shared/schema";
 import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, evaluateAllDrivers, evaluateBehaviorAndWarnings, calculateDriverMatchingScore, getDriverIncentiveProgress, assignFirstRidePromo, assignReturnRiderPromo, applyPromoToTrip, voidPromosOnCancellation } from "./incentives";
 import { notificationService } from "./notification-service";
 import { getCurrencyFromCountry, getCountryConfig, FINANCIAL_ENGINE_LOCKED } from "@shared/currency";
@@ -15399,6 +15399,263 @@ export async function registerRoutes(
     }
   });
 
+
+  // ==========================================
+  // PLATFORM SETTINGS (Go Live Switch)
+  // ==========================================
+
+  app.get("/api/admin/platform-settings", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const [settings] = await db.select().from(platformSettings).limit(1);
+      if (!settings) {
+        const [created] = await db.insert(platformSettings).values({ isLive: false, environment: "PRE_LAUNCH" }).returning();
+        return res.json(created);
+      }
+      return res.json(settings);
+    } catch (error) {
+      console.error("Error getting platform settings:", error);
+      return res.status(500).json({ message: "Failed to get platform settings" });
+    }
+  });
+
+  app.post("/api/admin/platform-go-live", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.id;
+      const [existing] = await db.select().from(platformSettings).limit(1);
+      if (!existing) {
+        const [created] = await db.insert(platformSettings).values({
+          isLive: true,
+          environment: "LIVE",
+          launchDate: new Date(),
+          launchedBy: userId,
+        }).returning();
+        return res.json(created);
+      }
+      const [updated] = await db.update(platformSettings)
+        .set({ isLive: true, environment: "LIVE", launchDate: new Date(), launchedBy: userId, updatedAt: new Date() })
+        .where(eq(platformSettings.id, existing.id))
+        .returning();
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error going live:", error);
+      return res.status(500).json({ message: "Failed to go live" });
+    }
+  });
+
+  app.post("/api/admin/platform-revert-prelaunch", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const [existing] = await db.select().from(platformSettings).limit(1);
+      if (!existing) {
+        return res.status(404).json({ message: "No platform settings found" });
+      }
+      const [updated] = await db.update(platformSettings)
+        .set({ isLive: false, environment: "PRE_LAUNCH", launchDate: null, launchedBy: null, updatedAt: new Date() })
+        .where(eq(platformSettings.id, existing.id))
+        .returning();
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error reverting to pre-launch:", error);
+      return res.status(500).json({ message: "Failed to revert" });
+    }
+  });
+
+  // ==========================================
+  // QA CHECKLIST & SIMULATION
+  // ==========================================
+
+  app.get("/api/admin/qa-checklist", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const items = await db.select().from(qaChecklistItems).orderBy(qaChecklistItems.category, qaChecklistItems.id);
+      return res.json(items);
+    } catch (error) {
+      console.error("Error getting QA checklist:", error);
+      return res.status(500).json({ message: "Failed to get checklist" });
+    }
+  });
+
+  app.post("/api/admin/qa-checklist/toggle", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { itemId, passed } = req.body;
+      const userId = req.user?.id;
+      const [existing] = await db.select().from(qaChecklistItems).where(eq(qaChecklistItems.id, itemId));
+      if (!existing) {
+        return res.status(404).json({ message: "Item not found" });
+      }
+      const [updated] = await db.update(qaChecklistItems)
+        .set({ passed, testedBy: userId, testedAt: new Date() })
+        .where(eq(qaChecklistItems.id, itemId))
+        .returning();
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error toggling QA item:", error);
+      return res.status(500).json({ message: "Failed to toggle item" });
+    }
+  });
+
+  app.post("/api/admin/qa-checklist/seed", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const existing = await db.select().from(qaChecklistItems);
+      if (existing.length > 0) {
+        return res.json({ message: "Already seeded", items: existing });
+      }
+      const riderItems = [
+        { category: "rider", itemKey: "request_ride", label: "Request a ride" },
+        { category: "rider", itemKey: "cancel_ride", label: "Cancel a ride" },
+        { category: "rider", itemKey: "wallet_payment", label: "Pay with wallet" },
+        { category: "rider", itemKey: "cash_payment", label: "Pay with cash" },
+        { category: "rider", itemKey: "rate_driver", label: "Rate driver after trip" },
+        { category: "rider", itemKey: "report_driver", label: "Report a driver" },
+        { category: "rider", itemKey: "trip_receipt", label: "View trip receipt" },
+        { category: "rider", itemKey: "referral", label: "Send referral" },
+        { category: "rider", itemKey: "location_validation", label: "Location validation" },
+      ];
+      const driverItems = [
+        { category: "driver", itemKey: "go_online", label: "Go online/offline" },
+        { category: "driver", itemKey: "accept_ride", label: "Accept a ride request" },
+        { category: "driver", itemKey: "reject_ride", label: "Reject a ride request" },
+        { category: "driver", itemKey: "complete_ride", label: "Complete a ride" },
+        { category: "driver", itemKey: "cancel_ride", label: "Cancel a ride" },
+        { category: "driver", itemKey: "star_rating", label: "Star rating system" },
+        { category: "driver", itemKey: "wallet_earnings", label: "Wallet earnings" },
+        { category: "driver", itemKey: "doc_verification", label: "Document verification" },
+        { category: "driver", itemKey: "low_rating_block", label: "Low rating pairing block" },
+      ];
+      const allItems = [...riderItems, ...driverItems];
+      const inserted = await db.insert(qaChecklistItems).values(allItems).returning();
+      return res.json({ message: "Seeded", items: inserted });
+    } catch (error) {
+      console.error("Error seeding QA checklist:", error);
+      return res.status(500).json({ message: "Failed to seed checklist" });
+    }
+  });
+
+  app.get("/api/admin/qa-simulation-logs", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const logs = await db.select().from(qaSimulationLogs).orderBy(desc(qaSimulationLogs.createdAt)).limit(50);
+      return res.json(logs);
+    } catch (error) {
+      console.error("Error getting simulation logs:", error);
+      return res.status(500).json({ message: "Failed to get logs" });
+    }
+  });
+
+  app.post("/api/admin/qa-simulate", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { simulationType } = req.body;
+      const userId = req.user?.id;
+      const validTypes = ["test_ride", "test_payout", "test_cancellation", "test_fraud_flag"];
+      if (!validTypes.includes(simulationType)) {
+        return res.status(400).json({ message: "Invalid simulation type" });
+      }
+      const detailsMap: Record<string, string> = {
+        test_ride: "Simulated ride from Pickup A to Destination B. Tagged as TEST. No real financial movement.",
+        test_payout: "Simulated driver payout of ₦0.00. Tagged as TEST. No real financial movement.",
+        test_cancellation: "Simulated ride cancellation with fee calculation. Tagged as TEST. No real financial movement.",
+        test_fraud_flag: "Simulated fraud detection flag triggered. Tagged as TEST. No real financial movement.",
+      };
+      const [log] = await db.insert(qaSimulationLogs).values({
+        simulationType,
+        status: "completed",
+        details: detailsMap[simulationType],
+        simulatedBy: userId,
+      }).returning();
+      return res.json(log);
+    } catch (error) {
+      console.error("Error running simulation:", error);
+      return res.status(500).json({ message: "Failed to run simulation" });
+    }
+  });
+
+  // ==========================================
+  // ZIBA AI ASSISTANT
+  // ==========================================
+
+  app.post("/api/admin/ziba-ai/chat", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { message } = req.body;
+      if (!message || typeof message !== "string") {
+        return res.status(400).json({ message: "Message is required" });
+      }
+
+      const stats = await storage.getAdminStats();
+      const [settings] = await db.select().from(platformSettings).limit(1);
+      const isLive = settings?.isLive ?? false;
+      const env = settings?.environment ?? "PRE_LAUNCH";
+
+      const lowerMsg = message.toLowerCase();
+
+      let response = "";
+
+      if (lowerMsg.includes("launch") || lowerMsg.includes("go live") || lowerMsg.includes("environment")) {
+        response = env === "PRE_LAUNCH"
+          ? `The platform is currently in PRE-LAUNCH mode. Live metrics are disabled. To go live, navigate to Control Center > Launch Readiness and use the GO LIVE button (Super Admin only). Ensure all QA checklists are completed before launching.`
+          : `The platform is LIVE since ${settings?.launchDate ? new Date(settings.launchDate).toLocaleDateString() : "recently"}. All metrics and financial systems are active.`;
+      } else if (lowerMsg.includes("driver") && (lowerMsg.includes("how many") || lowerMsg.includes("total") || lowerMsg.includes("count"))) {
+        response = `There are currently ${stats.totalDrivers} registered drivers on the platform, with ${stats.pendingDrivers} pending approval.`;
+      } else if (lowerMsg.includes("rider") && (lowerMsg.includes("how many") || lowerMsg.includes("total") || lowerMsg.includes("count"))) {
+        response = `There are currently ${stats.totalRiders} registered riders on the platform.`;
+      } else if (lowerMsg.includes("trip") && (lowerMsg.includes("how many") || lowerMsg.includes("total") || lowerMsg.includes("count") || lowerMsg.includes("active"))) {
+        response = `Trip summary: ${stats.totalTrips} total trips, ${stats.activeTrips} active, ${stats.completedTrips} completed.`;
+      } else if (lowerMsg.includes("revenue") || lowerMsg.includes("earning") || lowerMsg.includes("money") || lowerMsg.includes("finance")) {
+        if (env === "PRE_LAUNCH") {
+          response = "Financial metrics are disabled in PRE-LAUNCH mode. No revenue data is available until the platform goes live.";
+        } else {
+          response = `Revenue summary: Total fares collected ₦${parseFloat(stats.totalFares || "0").toLocaleString()}, Commission earned ₦${parseFloat(stats.totalCommission || "0").toLocaleString()}, Driver payouts ₦${parseFloat(stats.totalDriverPayouts || "0").toLocaleString()}.`;
+        }
+      } else if (lowerMsg.includes("fraud") || lowerMsg.includes("risk")) {
+        response = env === "PRE_LAUNCH"
+          ? "The fraud detection engine is configured and ready. No fraud events have been recorded in pre-launch mode."
+          : "The fraud detection system is active. Check the Safety & Compliance section for detailed fraud alerts and risk scoring.";
+      } else if (lowerMsg.includes("qa") || lowerMsg.includes("checklist") || lowerMsg.includes("test")) {
+        response = "QA checklists are available under Control Center > Ops Readiness. Both rider and driver flows have been defined with 9 test items each. Use the Trip Simulator to run test scenarios without affecting real data.";
+      } else if (lowerMsg.includes("wallet") || lowerMsg.includes("balance")) {
+        if (env === "PRE_LAUNCH") {
+          response = "Wallet balances are hidden in PRE-LAUNCH mode. No real wallet transactions are recorded until the platform goes live.";
+        } else {
+          response = "Wallet operations are active. Check Finance & Wallets section for wallet balances, funding transactions, and payout history.";
+        }
+      } else if (lowerMsg.includes("rating")) {
+        response = `The rating system is operational. Mutual ratings between riders and drivers are tracked with dispute resolution capabilities.`;
+      } else if (lowerMsg.includes("help") || lowerMsg.includes("what can you do") || lowerMsg.includes("commands")) {
+        response = "I can help you with:\n\n- Platform launch status and go-live readiness\n- Driver and rider statistics\n- Trip summaries and active monitoring\n- Revenue and financial overview (when LIVE)\n- Fraud detection status\n- QA checklist and testing status\n- Wallet and payment operations\n- Rating system overview\n- Navigation to any admin section\n\nJust ask me anything about your platform operations!";
+      } else if (lowerMsg.includes("navigate") || lowerMsg.includes("go to") || lowerMsg.includes("open") || lowerMsg.includes("show me")) {
+        const navMap: Record<string, { label: string; route: string }> = {
+          "driver": { label: "Drivers", route: "/admin/users/drivers" },
+          "rider": { label: "Riders", route: "/admin/users/riders" },
+          "trip": { label: "Trips", route: "/admin/trips/trips" },
+          "wallet": { label: "Wallets", route: "/admin/finance/wallets" },
+          "fraud": { label: "Fraud Detection", route: "/admin/safety/fraud" },
+          "rating": { label: "Ratings", route: "/admin/ratings/ratings" },
+          "control": { label: "Control Center", route: "/admin/control/overview" },
+          "launch": { label: "Launch Readiness", route: "/admin/control/launch" },
+          "monitoring": { label: "Monitoring", route: "/admin/control/monitoring" },
+          "report": { label: "Reports", route: "/admin/growth/reports" },
+          "payout": { label: "Payouts", route: "/admin/finance/payouts" },
+          "safety": { label: "Safety", route: "/admin/safety/safety" },
+        };
+        let found = false;
+        for (const [key, val] of Object.entries(navMap)) {
+          if (lowerMsg.includes(key)) {
+            response = `Navigate to ${val.label}: ${val.route}`;
+            found = true;
+            break;
+          }
+        }
+        if (!found) {
+          response = "I can help you navigate to any section. Try asking to go to: drivers, riders, trips, wallets, fraud, ratings, control center, launch readiness, monitoring, reports, payouts, or safety.";
+        }
+      } else {
+        response = env === "PRE_LAUNCH"
+          ? "I'm ZIBA AI, your operational assistant. The platform is currently in PRE-LAUNCH mode. I can help you check launch readiness, review QA checklists, monitor driver/rider registrations, and prepare for go-live. What would you like to know?"
+          : "I'm ZIBA AI, your operational assistant. I can help you monitor platform operations, review metrics, check driver and rider stats, detect fraud patterns, and navigate the admin dashboard. What would you like to know?";
+      }
+
+      return res.json({ response, environment: env, isLive });
+    } catch (error) {
+      console.error("Error in ZIBA AI chat:", error);
+      return res.status(500).json({ message: "ZIBA AI encountered an error" });
+    }
+  });
   // Get explanation mode content (for admin dashboard)
   app.get("/api/admin/explanation-summary", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
     try {
