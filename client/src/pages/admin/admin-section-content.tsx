@@ -1,12 +1,11 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Search, Download, Eye, Filter, Info } from "lucide-react";
-
-const isPreLaunch = true;
 
 interface SectionMeta {
   title: string;
@@ -586,6 +585,11 @@ function EmptyTableState() {
 }
 
 export default function AdminSectionContent({ section, parentGroup, parentRoute }: Props) {
+  const { data: platformData } = useQuery<{ isLive: boolean; environment: string }>({
+    queryKey: ["/api/admin/platform-settings"],
+  });
+  const isPreLaunch = !platformData?.isLive;
+
   const [searchQuery, setSearchQuery] = useState("");
   const meta = sectionMeta[section];
 
