@@ -30,6 +30,16 @@ const sectionDescriptions: Record<string, string> = {
   "Growth & Intelligence": "Reports, analytics, growth metrics, and ZIBRA insights.",
 };
 
+const sectionAccents: Record<string, string> = {
+  "Control Center": "bg-blue-500",
+  "Users & People": "bg-indigo-500",
+  "Trips & Operations": "bg-emerald-500",
+  "Finance & Wallets": "bg-amber-500",
+  "Ratings & Support": "bg-violet-500",
+  "Safety & Compliance": "bg-red-500",
+  "Growth & Intelligence": "bg-teal-500",
+};
+
 interface AdminSectionLandingProps {
   section: string;
 }
@@ -38,7 +48,7 @@ export default function AdminSectionLanding({ section }: AdminSectionLandingProp
   const DedicatedPage = dedicatedPages[section];
   if (DedicatedPage) {
     return (
-      <Suspense fallback={<div className="py-8 text-center text-sm text-muted-foreground">Loading...</div>}>
+      <Suspense fallback={<div className="py-8 text-center text-sm text-slate-500 dark:text-slate-400">Loading...</div>}>
         <DedicatedPage />
       </Suspense>
     );
@@ -54,8 +64,8 @@ export default function AdminSectionLanding({ section }: AdminSectionLandingProp
         <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
           <AlertTriangle className="h-7 w-7 text-muted-foreground" />
         </div>
-        <h1 className="text-xl font-bold" data-testid="text-section-not-found">Section Not Found</h1>
-        <p className="text-sm text-muted-foreground text-center max-w-md">
+        <h1 className="text-xl font-semibold tracking-tight" data-testid="text-section-not-found">Section Not Found</h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400 text-center max-w-md">
           The section you're looking for doesn't exist or may have been moved.
         </p>
         <Link
@@ -70,6 +80,7 @@ export default function AdminSectionLanding({ section }: AdminSectionLandingProp
   }
 
   const description = sectionDescriptions[matchedGroup.label] || "";
+  const accentDot = sectionAccents[matchedGroup.label] || "bg-slate-500";
 
   return (
     <div className="space-y-6">
@@ -87,27 +98,30 @@ export default function AdminSectionLanding({ section }: AdminSectionLandingProp
         </BreadcrumbList>
       </Breadcrumb>
 
-      <div className="border-b pb-4" data-testid="section-context-header">
-        <h1 className="text-2xl font-bold" data-testid="text-section-title">{matchedGroup.label}</h1>
+      <div className="border-b pb-5" data-testid="section-context-header">
+        <div className="flex items-center gap-3">
+          <div className={`w-1.5 h-7 rounded-full ${accentDot}`} />
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-800 dark:text-slate-100" data-testid="text-section-title">{matchedGroup.label}</h1>
+        </div>
         {description && (
-          <p className="text-sm text-muted-foreground mt-1">{description}</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 ml-[1.125rem]">{description}</p>
         )}
       </div>
 
       {matchedGroup.items.length === 0 ? (
         <div className="py-12 text-center" data-testid="empty-section">
-          <p className="text-sm text-muted-foreground">No items available in this section yet.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">No items available in this section yet.</p>
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {matchedGroup.items.map((item) => (
             <Link key={item.value} href={item.route} data-testid={`card-${item.value}`}>
-              <Card className={`hover-elevate transition-colors ${item.value === section ? "border-primary" : ""}`}>
-                <CardContent className="flex items-center gap-3 pt-6">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
-                    <item.icon className="h-5 w-5 text-muted-foreground" />
+              <Card className={`hover-elevate rounded-xl shadow-lg transition-all duration-200 ${item.value === section ? "border-primary" : ""}`}>
+                <CardContent className="flex items-center gap-4 py-5 px-5">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800">
+                    <item.icon className="h-5 w-5 text-slate-600 dark:text-slate-300" />
                   </div>
-                  <span className="text-sm font-medium">{item.label}</span>
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{item.label}</span>
                 </CardContent>
               </Card>
             </Link>
