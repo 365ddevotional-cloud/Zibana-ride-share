@@ -5937,3 +5937,18 @@ export const insertTripMessageSchema = createInsertSchema(tripMessages).omit({
 });
 export type TripMessage = typeof tripMessages.$inferSelect;
 export type InsertTripMessage = z.infer<typeof insertTripMessageSchema>;
+
+// ==========================================
+// AI COMMAND LAYER - Audit Logs
+// ==========================================
+export const aiCommandAuditLogs = pgTable("ai_command_audit_logs", {
+  id: serial("id").primaryKey(),
+  adminId: varchar("admin_id").notNull(),
+  queryType: varchar("query_type", { length: 50 }).notNull(),
+  query: text("query"),
+  aiEnabled: boolean("ai_enabled").notNull().default(true),
+  responseStatus: varchar("response_status", { length: 50 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type AiCommandAuditLog = typeof aiCommandAuditLogs.$inferSelect;
