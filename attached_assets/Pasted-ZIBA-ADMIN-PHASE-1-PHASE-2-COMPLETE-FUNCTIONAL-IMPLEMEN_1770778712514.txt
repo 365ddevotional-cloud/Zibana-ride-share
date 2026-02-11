@@ -1,0 +1,347 @@
+ZIBA ADMIN — PHASE 1 + PHASE 2 COMPLETE FUNCTIONAL IMPLEMENTATION
+
+IMPORTANT:
+- Do NOT modify backend logic
+- Do NOT modify auth logic
+- Do NOT break SuperAdminGuard
+- Do NOT break inactivity timer
+- Do NOT duplicate layouts unnecessarily
+- No placeholder pages
+- No redirects back to /admin unless intentional
+- No dead links
+
+=====================================================
+PHASE 1 — CONTROL CENTER (FULLY FUNCTIONAL)
+=====================================================
+
+ROUTE STRUCTURE
+
+Create dynamic route:
+
+/admin/control/:section
+
+Supported sections:
+- overview
+- monitoring
+- alerts
+- launch
+- ops
+
+Ensure:
+- Deep linking works
+- Refresh works
+- Back navigation works
+- Breadcrumb included
+
+-----------------------------------------------------
+CONTROL CENTER LAYOUT
+-----------------------------------------------------
+
+Create ControlCenterLayout:
+
+Includes:
+- Breadcrumb navigation
+- Section title
+- Back to Control Center button
+- Dynamic section renderer based on :section
+
+-----------------------------------------------------
+OVERVIEW PAGE
+-----------------------------------------------------
+
+Display:
+
+1. KPI summary cards (reuse existing metrics)
+2. Recent Activity panel (last 10 actions)
+3. System Status indicators:
+   - Drivers Online
+   - Active Trips
+   - Pending Approvals
+   - Critical Alerts count
+
+All metrics clickable to respective sections.
+
+-----------------------------------------------------
+MONITORING PAGE
+-----------------------------------------------------
+
+Create:
+
+Active Trips Table
+Columns:
+- Trip ID
+- Rider
+- Driver
+- Status
+- Duration
+- View button
+
+Driver Status Table
+Columns:
+- Name
+- Online/Offline
+- Rating
+- Last Active
+
+Include:
+- Search
+- Filter (Active / Completed / Cancelled)
+
+-----------------------------------------------------
+HEALTH ALERTS PAGE
+-----------------------------------------------------
+
+Create AlertTable:
+
+Columns:
+- Alert ID
+- Type
+- Severity badge
+- Date
+- Status
+- Resolve button
+
+Include:
+- Filter by severity
+- Resolve action updates UI state
+
+-----------------------------------------------------
+LAUNCH READINESS PAGE
+-----------------------------------------------------
+
+Checklist:
+
+- Driver Verification Complete
+- Payment System Active
+- Insurance Uploaded
+- Admin Approvals Cleared
+- Monitoring Enabled
+
+Include:
+- Toggle per item
+- % Completion progress bar
+- Warning banner if < 80%
+
+-----------------------------------------------------
+OPS READINESS PAGE
+-----------------------------------------------------
+
+Display:
+
+- Driver Availability %
+- Ride Success Rate %
+- Cancellation Rate %
+- Dispute Rate %
+
+Show warning banner if thresholds are unhealthy.
+
+-----------------------------------------------------
+CONTROL CENTER NAVIGATION FIX
+-----------------------------------------------------
+
+Update links:
+
+Control Center Card → /admin/control/overview
+Overview → /admin/control/overview
+Monitoring → /admin/control/monitoring
+Health Alerts → /admin/control/alerts
+Launch Readiness → /admin/control/launch
+Ops Readiness → /admin/control/ops
+
+Ensure no fallback redirect to /admin root.
+
+=====================================================
+PHASE 2 — USERS & PEOPLE (FULLY FUNCTIONAL)
+=====================================================
+
+ROUTE STRUCTURE
+
+Create dynamic route:
+
+/admin/users/:section
+
+Supported sections:
+- drivers
+- riders
+- directors
+- my-drivers
+- admin-management
+- role-appointments
+- training-mode
+- training-center
+- rider-trust
+- pairing-blocks
+
+Ensure:
+- Deep linking works
+- Refresh works
+- Breadcrumb included
+- Back to Users button included
+
+-----------------------------------------------------
+DRIVERS PAGE
+-----------------------------------------------------
+
+Columns:
+- Driver ID
+- Name
+- Phone
+- Rating
+- Status (Active/Suspended)
+- Documents Verified
+- Actions (View / Suspend / Approve)
+
+Include:
+- Search
+- Filter by status
+- Filter by rating
+
+-----------------------------------------------------
+RIDERS PAGE
+-----------------------------------------------------
+
+Columns:
+- Rider ID
+- Name
+- Phone
+- Total Trips
+- Cancellation %
+- Status
+- Actions (View / Flag)
+
+Include:
+- Search
+- Filter by cancellation rate
+
+-----------------------------------------------------
+DIRECTORS PAGE
+-----------------------------------------------------
+
+Columns:
+- Director ID
+- Name
+- Assigned Drivers
+- Commission %
+- Wallet Balance
+- Status
+- Actions (View / Adjust Commission)
+
+-----------------------------------------------------
+MY DRIVERS PAGE
+-----------------------------------------------------
+
+If director:
+Show assigned drivers only.
+
+Else:
+Show filtered list based on assignment logic.
+
+-----------------------------------------------------
+ADMIN MANAGEMENT PAGE
+-----------------------------------------------------
+
+Columns:
+- Admin Name
+- Role
+- Last Active
+- Status
+- Actions (Change Role / Disable)
+
+-----------------------------------------------------
+ROLE APPOINTMENTS PAGE
+-----------------------------------------------------
+
+Interface:
+- Select user
+- Select role
+- Assign
+- Remove role
+
+Show list of assignments.
+
+-----------------------------------------------------
+TRAINING MODE PAGE
+-----------------------------------------------------
+
+Toggle:
+- Enable Training Mode
+
+Show:
+- Test accounts
+- Simulated trips list
+
+-----------------------------------------------------
+TRAINING CENTER PAGE
+-----------------------------------------------------
+
+List:
+- Training materials
+- Video links
+- PDF uploads
+
+-----------------------------------------------------
+RIDER TRUST PAGE
+-----------------------------------------------------
+
+Columns:
+- Rider ID
+- Trust Score
+- Disputes
+- Flags
+- Actions (Restrict / Clear)
+
+-----------------------------------------------------
+PAIRING BLOCKS PAGE
+-----------------------------------------------------
+
+Columns:
+- Rider
+- Driver
+- Reason
+- Date
+- Remove Block
+
+-----------------------------------------------------
+USERS NAVIGATION FIX
+-----------------------------------------------------
+
+Update links:
+
+Drivers → /admin/users/drivers
+Riders → /admin/users/riders
+Directors → /admin/users/directors
+My Drivers → /admin/users/my-drivers
+Admin Management → /admin/users/admin-management
+Role Appointments → /admin/users/role-appointments
+Training Mode → /admin/users/training-mode
+Training Center → /admin/users/training-center
+Rider Trust → /admin/users/rider-trust
+Pairing Blocks → /admin/users/pairing-blocks
+
+Ensure no redirect to /admin root.
+
+=====================================================
+FINAL SYSTEM CHECK
+=====================================================
+
+App must:
+
+- Compile clean
+- No console errors
+- No dead links
+- SuperAdminGuard intact
+- Inactivity timer intact
+- Breadcrumb navigation working
+- Back buttons working
+- All cards clickable
+- All sub-items clickable
+- No empty pages
+
+After implementation provide:
+
+1. Files created
+2. Files modified
+3. Route tree summary
+4. Confirmation no dead ends
+
+END.
