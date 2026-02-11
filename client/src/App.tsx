@@ -21,6 +21,7 @@ import { DashboardSkeleton } from "@/components/loading-skeleton";
 import NotFound from "@/pages/not-found";
 import LandingPage from "@/pages/landing";
 import RoleSelectionPage from "@/pages/role-selection";
+import { sidebarSections } from "@/pages/admin/admin-sidebar";
 
 const RiderHomePage = lazy(() => import("@/pages/rider/home"));
 const RiderTripsPage = lazy(() => import("@/pages/rider/trips"));
@@ -47,6 +48,7 @@ const AdminControlCenter = lazy(() => import("@/pages/admin/admin-control-center
 const AdminSectionLanding = lazy(() => import("@/pages/admin/admin-section-landing"));
 const ControlCenterLayout = lazy(() => import("@/pages/admin/control-center-layout"));
 const UsersLayout = lazy(() => import("@/pages/admin/users-layout"));
+const AdminGroupLayout = lazy(() => import("@/pages/admin/admin-group-layout"));
 
 const DriverDashboard = lazy(() => import("@/pages/driver/dashboard"));
 const DriverTripsPage = lazy(() => import("@/pages/driver/trips"));
@@ -518,6 +520,11 @@ function AdminRouter() {
     return <AdminAccessDenied />;
   }
 
+  const financeItems = sidebarSections.find(s => s.label === "Finance & Wallets")?.items || [];
+  const supportItems = sidebarSections.find(s => s.label === "Ratings & Support")?.items || [];
+  const safetyItems = sidebarSections.find(s => s.label === "Safety & Compliance")?.items || [];
+  const growthItems = sidebarSections.find(s => s.label === "Growth & Intelligence")?.items || [];
+
   return (
     <Switch>
       <Route path="/admin">
@@ -586,6 +593,62 @@ function AdminRouter() {
           <LazyComponent>
             <AdminLayout userRole={role || "admin"} activeTab={params.section}>
               <UsersLayout section={params.section} />
+            </AdminLayout>
+          </LazyComponent>
+        )}
+      </Route>
+      <Route path="/admin/finance/:section">
+        {(params: { section: string }) => (
+          <LazyComponent>
+            <AdminLayout userRole={role || "admin"} activeTab={params.section}>
+              <AdminGroupLayout
+                section={params.section}
+                groupLabel="Finance & Wallets"
+                groupRoute="/admin/finance/payouts"
+                items={financeItems}
+              />
+            </AdminLayout>
+          </LazyComponent>
+        )}
+      </Route>
+      <Route path="/admin/support/:section">
+        {(params: { section: string }) => (
+          <LazyComponent>
+            <AdminLayout userRole={role || "admin"} activeTab={params.section}>
+              <AdminGroupLayout
+                section={params.section}
+                groupLabel="Ratings & Support"
+                groupRoute="/admin/support/ratings"
+                items={supportItems}
+              />
+            </AdminLayout>
+          </LazyComponent>
+        )}
+      </Route>
+      <Route path="/admin/safety/:section">
+        {(params: { section: string }) => (
+          <LazyComponent>
+            <AdminLayout userRole={role || "admin"} activeTab={params.section}>
+              <AdminGroupLayout
+                section={params.section}
+                groupLabel="Safety & Compliance"
+                groupRoute="/admin/safety/fraud"
+                items={safetyItems}
+              />
+            </AdminLayout>
+          </LazyComponent>
+        )}
+      </Route>
+      <Route path="/admin/growth/:section">
+        {(params: { section: string }) => (
+          <LazyComponent>
+            <AdminLayout userRole={role || "admin"} activeTab={params.section}>
+              <AdminGroupLayout
+                section={params.section}
+                groupLabel="Growth & Intelligence"
+                groupRoute="/admin/growth/reports"
+                items={growthItems}
+              />
             </AdminLayout>
           </LazyComponent>
         )}

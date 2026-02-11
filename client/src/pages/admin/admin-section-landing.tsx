@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { sidebarSections } from "./admin-sidebar";
 import { AlertTriangle } from "lucide-react";
+import AdminSectionContent from "./admin-section-content";
 
 const AdminDriversOverview = lazy(() => import("./admin-drivers-overview"));
 const AdminRidersOverview = lazy(() => import("./admin-riders-overview"));
@@ -51,6 +52,18 @@ export default function AdminSectionLanding({ section }: AdminSectionLandingProp
       <Suspense fallback={<div className="py-8 text-center text-sm text-slate-500 dark:text-slate-400">Loading...</div>}>
         <DedicatedPage />
       </Suspense>
+    );
+  }
+
+  const matchedItem = sidebarSections.flatMap(g => g.items.map(item => ({ ...item, groupLabel: g.label, groupRoute: g.items[0]?.route || "/admin" }))).find(item => item.value === section);
+
+  if (matchedItem) {
+    return (
+      <AdminSectionContent
+        section={section}
+        parentGroup={matchedItem.groupLabel}
+        parentRoute={matchedItem.groupRoute}
+      />
     );
   }
 

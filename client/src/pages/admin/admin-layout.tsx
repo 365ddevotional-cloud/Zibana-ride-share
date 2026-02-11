@@ -55,8 +55,8 @@ export default function AdminLayout({ children, userRole, activeTab }: AdminLayo
                       <SidebarMenuItem key={item.value}>
                         <SidebarMenuButton
                           asChild
-                          isActive={activeTab === item.value}
-                          data-active={activeTab === item.value}
+                          isActive={activeTab === item.value || item.route.split("/").pop() === activeTab}
+                          data-active={activeTab === item.value || item.route.split("/").pop() === activeTab}
                           data-testid={`nav-${item.value}`}
                         >
                           <Link href={item.route}>
