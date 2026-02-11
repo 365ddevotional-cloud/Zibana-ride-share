@@ -42,7 +42,7 @@ interface AdminStats {
 }
 
 const sectionRoutes: Record<string, string> = {
-  "Control Center": "/admin/overview",
+  "Control Center": "/admin/control/overview",
   "Users & People": "/admin/drivers",
   "Trips & Operations": "/admin/trips",
   "Finance & Wallets": "/admin/payouts",

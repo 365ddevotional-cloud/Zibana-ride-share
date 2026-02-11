@@ -45,6 +45,7 @@ const AdminLanguagePage = lazy(() => import("@/pages/admin/language"));
 const AdminLayout = lazy(() => import("@/pages/admin/admin-layout"));
 const AdminControlCenter = lazy(() => import("@/pages/admin/admin-control-center"));
 const AdminSectionLanding = lazy(() => import("@/pages/admin/admin-section-landing"));
+const ControlCenterLayout = lazy(() => import("@/pages/admin/control-center-layout"));
 
 const DriverDashboard = lazy(() => import("@/pages/driver/dashboard"));
 const DriverTripsPage = lazy(() => import("@/pages/driver/trips"));
@@ -569,6 +570,15 @@ function AdminRouter() {
       </Route>
       <Route path="/director/training">
         <LazyComponent><DirectorTrainingPage /></LazyComponent>
+      </Route>
+      <Route path="/admin/control/:section">
+        {(params: { section: string }) => (
+          <LazyComponent>
+            <AdminLayout userRole={role || "admin"} activeTab={params.section === "alerts" ? "health-alerts" : params.section === "launch" ? "launch-readiness" : params.section === "ops" ? "ops-readiness" : params.section}>
+              <ControlCenterLayout section={params.section} />
+            </AdminLayout>
+          </LazyComponent>
+        )}
       </Route>
       <Route path="/admin/:section">
         {(params: { section: string }) => (

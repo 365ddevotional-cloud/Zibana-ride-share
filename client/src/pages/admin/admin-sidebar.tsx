@@ -58,11 +58,11 @@ const sidebarSections = [
   {
     label: "Control Center",
     items: [
-      { value: "overview", label: "Overview", icon: LayoutDashboard, route: "/admin" },
-      { value: "monitoring", label: "Monitoring", icon: Activity, route: "/admin/monitoring" },
-      { value: "health-alerts", label: "Health Alerts", icon: HeartPulse, route: "/admin/health-alerts" },
-      { value: "launch-readiness", label: "Launch Readiness", icon: Rocket, route: "/admin/launch-readiness" },
-      { value: "ops-readiness", label: "Ops Readiness", icon: CheckSquare, route: "/admin/ops-readiness" },
+      { value: "overview", label: "Overview", icon: LayoutDashboard, route: "/admin/control/overview" },
+      { value: "monitoring", label: "Monitoring", icon: Activity, route: "/admin/control/monitoring" },
+      { value: "health-alerts", label: "Health Alerts", icon: HeartPulse, route: "/admin/control/alerts" },
+      { value: "launch-readiness", label: "Launch Readiness", icon: Rocket, route: "/admin/control/launch" },
+      { value: "ops-readiness", label: "Ops Readiness", icon: CheckSquare, route: "/admin/control/ops" },
     ],
   },
   {

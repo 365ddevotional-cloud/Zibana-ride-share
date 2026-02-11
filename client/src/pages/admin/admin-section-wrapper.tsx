@@ -2,10 +2,11 @@ import { useLocation } from "wouter";
 
 const routeToTabMap: Record<string, string> = {
   "/admin": "overview",
-  "/admin/monitoring": "monitoring",
-  "/admin/health-alerts": "health-alerts",
-  "/admin/launch-readiness": "launch-readiness",
-  "/admin/ops-readiness": "ops-readiness",
+  "/admin/control/overview": "overview",
+  "/admin/control/monitoring": "monitoring",
+  "/admin/control/alerts": "health-alerts",
+  "/admin/control/launch": "launch-readiness",
+  "/admin/control/ops": "ops-readiness",
   "/admin/drivers": "drivers",
   "/admin/riders": "riders",
   "/admin/directors": "directors",
