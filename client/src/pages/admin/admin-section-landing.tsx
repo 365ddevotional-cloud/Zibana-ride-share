@@ -116,7 +116,7 @@ export default function AdminSectionLanding({ section }: AdminSectionLandingProp
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {matchedGroup.items.map((item) => (
             <Link key={item.value} href={item.route} data-testid={`card-${item.value}`}>
-              <Card className={`hover-elevate rounded-xl shadow-xl shadow-slate-300/40 dark:shadow-slate-900/40 border border-slate-200 dark:border-slate-700 hover:scale-[1.01] transition-all duration-200 ease-out ${item.value === section ? "border-primary" : ""}`}>
+              <Card className={`hover-elevate rounded-xl shadow-xl shadow-slate-300/40 dark:shadow-slate-900/40 border border-slate-200 dark:border-slate-700 hover:scale-[1.01] hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-200 ease-out cursor-pointer ${item.value === section ? "border-primary" : ""}`}>
                 <CardContent className="flex items-center gap-4 py-5 px-5">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800">
                     <item.icon className="h-5 w-5 text-slate-600 dark:text-slate-300" />

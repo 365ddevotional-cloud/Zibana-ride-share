@@ -1,0 +1,111 @@
+COMPLETE ZIBA ADMIN CLICKABILITY + KPI FIX
+
+Do NOT touch backend, guards, auth, routes structure.
+Only improve routing wiring and UI formatting.
+
+=================================================
+PHASE 1 — MAKE ALL ACTION ZONE CARDS CLICKABLE
+=================================================
+
+For each Action Zone main card:
+- Control Center
+- Users & People
+- Trips & Operations
+- Finance & Wallets
+- Ratings & Support
+- Safety & Compliance
+- Growth & Intelligence
+
+Wrap the entire card with <Link> to its main route:
+
+Control Center → /admin/overview
+Users & People → /admin/users
+Trips & Operations → /admin/trips
+Finance & Wallets → /admin/payouts
+Ratings & Support → /admin/ratings
+Safety & Compliance → /admin/safety
+Growth & Intelligence → /admin/reports
+
+Add:
+cursor-pointer
+hover:shadow-lg
+hover:border-blue-400
+transition-all duration-200
+
+=================================================
+PHASE 2 — MAKE ALL SUB-SECTIONS CLICKABLE
+=================================================
+
+Every list item inside each card must be wrapped with <Link>.
+
+Example:
+Overview → /admin/overview
+Monitoring → /admin/monitoring
+Health Alerts → /admin/alerts
+Launch Readiness → /admin/launch
+Drivers → /admin/drivers
+Riders → /admin/riders
+Directors → /admin/directors
+Trips → /admin/trips
+Reservations → /admin/reservations
+Ride Classes → /admin/ride-classes
+Payouts → /admin/payouts
+Wallets → /admin/wallets
+Fraud Detection → /admin/fraud
+Reports → /admin/reports
+
+Add hover effect:
+hover:text-blue-600
+hover:bg-slate-50
+rounded-md px-2 py-1
+
+=================================================
+PHASE 3 — FIX KPI OVERFLOW (₦5.0K ISSUE)
+=================================================
+
+For KPI number text:
+
+Replace:
+text-4xl
+
+With:
+text-3xl md:text-4xl
+truncate
+leading-tight
+
+Add:
+overflow-hidden
+whitespace-nowrap
+text-ellipsis
+
+Ensure currency formatting auto-adjusts font if too long.
+
+If value > 6 characters, reduce to text-2xl automatically.
+
+=================================================
+PHASE 4 — ENSURE SUB-ADMIN CONSISTENCY
+=================================================
+
+Apply same clickability + overflow fixes to:
+
+/director/*
+/sub-admin/*
+Any dashboard variant
+
+=================================================
+PHASE 5 — SAFETY CHECK
+=================================================
+
+App must:
+- Compile clean
+- Keep SuperAdminGuard intact
+- Keep inactivity timer intact
+- No route breaking
+- No console errors
+
+After implementation provide:
+- Files modified
+- Confirmation that all cards & sub-items are clickable
+- Confirmation KPI overflow fixed
+
+END.

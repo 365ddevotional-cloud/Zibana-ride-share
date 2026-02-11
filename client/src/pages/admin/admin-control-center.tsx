@@ -1,4 +1,4 @@
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -40,6 +40,16 @@ interface AdminStats {
   totalCommission: string;
   totalDriverPayouts: string;
 }
+
+const sectionRoutes: Record<string, string> = {
+  "Control Center": "/admin/overview",
+  "Users & People": "/admin/drivers",
+  "Trips & Operations": "/admin/trips",
+  "Finance & Wallets": "/admin/payouts",
+  "Ratings & Support": "/admin/ratings",
+  "Safety & Compliance": "/admin/fraud",
+  "Growth & Intelligence": "/admin/reports",
+};
 
 const sectionMeta: Record<string, { icon: LucideIcon; accent: string; accentBg: string; borderColor: string; hoverGlow: string; description: string }> = {
   "Control Center": {
@@ -122,7 +132,6 @@ const kpiCards = [
     key: "totalRiders" as const,
     icon: Users,
     borderColor: "border-t-blue-500",
-    gradientBorder: "from-blue-600 to-blue-400",
     iconBg: "text-blue-500/15",
     format: (v: number) => String(v),
   },
@@ -131,7 +140,6 @@ const kpiCards = [
     key: "totalDrivers" as const,
     icon: Car,
     borderColor: "border-t-emerald-500",
-    gradientBorder: "from-emerald-600 to-emerald-400",
     iconBg: "text-emerald-500/15",
     format: (v: number) => String(v),
   },
@@ -140,7 +148,6 @@ const kpiCards = [
     key: "activeTrips" as const,
     icon: MapPin,
     borderColor: "border-t-amber-500",
-    gradientBorder: "from-amber-600 to-amber-400",
     iconBg: "text-amber-500/15",
     format: (v: number) => String(v),
   },
@@ -149,7 +156,6 @@ const kpiCards = [
     key: "pendingDrivers" as const,
     icon: Clock,
     borderColor: "border-t-red-500",
-    gradientBorder: "from-red-600 to-red-400",
     iconBg: "text-red-500/15",
     format: (v: number) => String(v),
   },
@@ -158,7 +164,6 @@ const kpiCards = [
     key: "totalFares" as const,
     icon: Banknote,
     borderColor: "border-t-violet-500",
-    gradientBorder: "from-violet-600 to-violet-400",
     iconBg: "text-violet-500/15",
     format: null,
   },
@@ -167,13 +172,19 @@ const kpiCards = [
     key: "completedTrips" as const,
     icon: UserCheck,
     borderColor: "border-t-blue-700 dark:border-t-blue-400",
-    gradientBorder: "from-blue-700 to-blue-500 dark:from-blue-500 dark:to-blue-300",
     iconBg: "text-blue-700/15 dark:text-blue-400/15",
     format: (v: number) => String(v),
   },
 ];
 
+function getKpiTextSize(value: string | number): string {
+  const str = String(value);
+  if (str.length > 6) return "text-2xl md:text-3xl";
+  return "text-3xl md:text-4xl";
+}
+
 export default function AdminControlCenter() {
+  const [, navigate] = useLocation();
   const { data: stats, isLoading, isError } = useQuery<AdminStats>({
     queryKey: ["/api/admin/stats"],
   });
@@ -231,6 +242,8 @@ export default function AdminControlCenter() {
             }
           }
 
+          const textSize = getKpiTextSize(displayValue);
+
           return (
             <Card
               key={kpi.label}
@@ -247,7 +260,7 @@ export default function AdminControlCenter() {
                     <Skeleton className="h-10 w-20" />
                   ) : (
                     <p
-                      className="text-4xl font-extrabold text-slate-800 dark:text-slate-100 admin-kpi-number"
+                      className={`${textSize} font-extrabold text-slate-800 dark:text-slate-100 leading-tight truncate overflow-hidden whitespace-nowrap admin-kpi-number`}
                       style={{ animationDelay: `${index * 80}ms` }}
                       data-testid={`value-${kpi.label.toLowerCase().replace(/\s+/g, "-")}`}
                     >
@@ -267,53 +280,68 @@ export default function AdminControlCenter() {
           {sidebarSections.map((section) => {
             const meta = sectionMeta[section.label];
             const SectionIcon = meta?.icon || Activity;
-            const firstRoute = section.items[0]?.route || "/admin/overview";
+            const sectionRoute = sectionRoutes[section.label] || section.items[0]?.route || "/admin/overview";
 
             return (
-              <Card
+              <Link
                 key={section.label}
-                className={`hover-elevate rounded-xl shadow-xl shadow-slate-300/40 dark:shadow-slate-900/40 border border-slate-200 dark:border-slate-700 border-l-[3px] ${meta?.borderColor || ""} ${meta?.hoverGlow || ""} hover:scale-[1.01] transition-all duration-200 ease-out`}
-                data-testid={`zone-${section.label.toLowerCase().replace(/\s+/g, "-")}`}
+                href={sectionRoute}
+                className="block cursor-pointer"
+                data-testid={`zone-link-${section.label.toLowerCase().replace(/\s+/g, "-")}`}
               >
-                <CardHeader className="pb-3 gap-2">
-                  <div className="flex items-center gap-3">
-                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${meta?.accentBg || "bg-muted"}`}>
-                      <SectionIcon className={`h-5 w-5 ${meta?.accent || "text-muted-foreground"}`} />
+                <Card
+                  className={`hover-elevate rounded-xl shadow-xl shadow-slate-300/40 dark:shadow-slate-900/40 border border-slate-200 dark:border-slate-700 border-l-[3px] ${meta?.borderColor || ""} ${meta?.hoverGlow || ""} hover:scale-[1.01] hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-200 ease-out`}
+                  data-testid={`zone-${section.label.toLowerCase().replace(/\s+/g, "-")}`}
+                >
+                  <CardHeader className="pb-3 gap-2">
+                    <div className="flex items-center gap-3">
+                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${meta?.accentBg || "bg-muted"}`}>
+                        <SectionIcon className={`h-5 w-5 ${meta?.accent || "text-muted-foreground"}`} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <CardTitle className="text-lg font-semibold text-slate-800 dark:text-slate-100">{section.label}</CardTitle>
+                        {meta?.description && (
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">{meta.description}</p>
+                        )}
+                      </div>
+                      <ArrowRight className="h-4 w-4 shrink-0 text-slate-400" />
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <CardTitle className="text-lg font-semibold text-slate-800 dark:text-slate-100">{section.label}</CardTitle>
-                      {meta?.description && (
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">{meta.description}</p>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="grid gap-0.5">
+                      {section.items.slice(0, 5).map((item) => (
+                        <span
+                          key={item.value}
+                          className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
+                          data-testid={`link-${item.value}`}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            navigate(item.route);
+                          }}
+                        >
+                          <item.icon className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate">{item.label}</span>
+                        </span>
+                      ))}
+                      {section.items.length > 5 && (
+                        <span
+                          className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
+                          data-testid={`link-more-${section.label.toLowerCase().replace(/\s+/g, "-")}`}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            navigate(sectionRoute);
+                          }}
+                        >
+                          <ArrowRight className="h-3 w-3 shrink-0" />
+                          <span>+{section.items.length - 5} more</span>
+                        </span>
                       )}
                     </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="grid gap-0.5">
-                    {section.items.slice(0, 5).map((item) => (
-                      <Link
-                        key={item.value}
-                        href={item.route}
-                        className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-600 dark:text-slate-300 hover-elevate transition-colors"
-                        data-testid={`link-${item.value}`}
-                      >
-                        <item.icon className="h-3.5 w-3.5 shrink-0" />
-                        <span className="truncate">{item.label}</span>
-                      </Link>
-                    ))}
-                    {section.items.length > 5 && (
-                      <Link
-                        href={firstRoute}
-                        className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-slate-500 dark:text-slate-400 hover-elevate transition-colors"
-                        data-testid={`link-more-${section.label.toLowerCase().replace(/\s+/g, "-")}`}
-                      >
-                        <ArrowRight className="h-3 w-3 shrink-0" />
-                        <span>+{section.items.length - 5} more</span>
-                      </Link>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              </Link>
             );
           })}
         </div>
@@ -331,7 +359,7 @@ export default function AdminControlCenter() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {attentionItems.map((item) => (
               <Link key={item.label} href={item.route} data-testid={`attention-${item.label.toLowerCase().replace(/\s+/g, "-")}`}>
-                <Card className="hover-elevate rounded-xl shadow-xl shadow-slate-300/40 dark:shadow-slate-900/40 border border-slate-200 dark:border-slate-700 border-l-[3px] border-l-orange-400 hover:scale-[1.01] transition-all duration-200 ease-out">
+                <Card className="hover-elevate rounded-xl shadow-xl shadow-slate-300/40 dark:shadow-slate-900/40 border border-slate-200 dark:border-slate-700 border-l-[3px] border-l-orange-400 hover:scale-[1.01] hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-200 ease-out cursor-pointer">
                   <CardContent className="flex items-center gap-3 pt-4 pb-4 px-4">
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-orange-50 dark:bg-orange-900/20">
                       <item.icon className="h-4 w-4 text-orange-600 dark:text-orange-400" />
