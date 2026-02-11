@@ -1,0 +1,263 @@
+ZIBA AI COMMAND LAYER – MASTER IMPLEMENTATION (ADMIN ONLY)
+
+MODEL: OpenAI GPT-4o-mini
+SCOPE: Admin Dashboard Only
+PRIORITY: Optional, Modular, Kill-Switch Controlled
+DO NOT affect Rider or Driver apps.
+
+=========================================================
+GOAL
+=========================================================
+
+Implement ZIBA AI Command Layer inside Admin Dashboard with:
+
+- Advanced Operational Analytics
+- Founder Decision Assistant
+- Enterprise Risk Intelligence
+- Weekly Executive Reports
+- Fraud Pattern Suggestions
+
+This AI must NEVER be required for core app operation.
+
+=========================================================
+CRITICAL SAFETY REQUIREMENT
+=========================================================
+
+ZIBA must function 100% normally if AI is disabled.
+
+AI must:
+- Not block routes
+- Not block rendering
+- Not block database
+- Not block wallet
+- Not block dispatch
+- Not block login
+- Not block payments
+
+AI is advisory only.
+
+=========================================================
+SECTION 1 – ENV KILL SWITCH
+=========================================================
+
+Add environment variable:
+
+AI_COMMAND_ENABLED=true
+
+Backend logic:
+
+IF AI_COMMAND_ENABLED !== "true"
+  → Do NOT call OpenAI
+  → Return:
+    {
+      status: "AI_DISABLED",
+      message: "ZIBA AI Command Layer is currently offline."
+    }
+
+Frontend must:
+- Hide AI panel
+- Hide AI routes
+- Prevent API calls
+
+=========================================================
+SECTION 2 – ADMIN UI PANEL
+=========================================================
+
+Add top-right button in Admin:
+
+🟣 ZIBA AI (Command Mode)
+
+Click → Slide-out intelligence panel.
+
+Panel Tabs:
+
+1. Ask ZIBA
+2. Risk Alerts
+3. Weekly Report
+4. Founder Mode
+5. Promotion Advisor
+
+If AI disabled:
+Display:
+"ZIBA AI is currently offline."
+
+=========================================================
+SECTION 3 – ADMIN TOGGLE SWITCH
+=========================================================
+
+In Admin Settings:
+
+Add toggle:
+
+ZIBA AI Command Layer: ON / OFF
+
+When OFF:
+- Override ENV check in memory
+- Block AI calls
+- Log action in admin audit
+
+Only Super Admin can toggle.
+
+=========================================================
+SECTION 4 – DATA CONTEXT ENDPOINT
+=========================================================
+
+Create backend endpoint:
+
+/admin/ai/data-context
+
+This endpoint must:
+
+Aggregate structured data ONLY:
+
+- Total trips (7d, 30d)
+- Cancellation rate
+- Acceptance rate
+- Active drivers
+- Active riders
+- Dispute count
+- Wallet anomalies
+- Rating trends
+- Revenue trends
+- Zone demand heat summary
+
+Return structured JSON.
+
+DO NOT send raw database.
+DO NOT send sensitive personal data.
+DO NOT send full chat logs.
+
+=========================================================
+SECTION 5 – OPENAI INTEGRATION
+=========================================================
+
+Create backend endpoint:
+
+/admin/ai/query
+
+Flow:
+
+1. Check AI_COMMAND_ENABLED
+2. Get structured data from /data-context
+3. Combine with admin question
+4. Send to OpenAI GPT-4o-mini
+5. Return structured response
+
+Use safe system prompt:
+
+"You are ZIBA AI Command Intelligence.
+You analyze structured operational data.
+You do not invent numbers.
+If data is missing, say so.
+You provide recommendations but do not execute actions."
+
+Temperature: 0.4
+Max tokens: controlled.
+
+=========================================================
+SECTION 6 – FEATURE MODES
+=========================================================
+
+LEVEL B – Operational Analytics
+
+Examples:
+- "Analyze cancellation trends this week."
+- "Show risk drivers."
+- "Which zones are declining?"
+
+Return:
+- Summary
+- Risk level
+- Suggested action
+
+LEVEL C – Founder Assistant
+
+Examples:
+- "Are we ready to scale?"
+- "Should we run promotions?"
+- "Driver churn risk?"
+- "Financial health summary?"
+
+Return structured business insight.
+
+LEVEL D – Enterprise Intelligence
+
+- Fraud pattern detection suggestions
+- Incentive optimization ideas
+- Driver reliability ranking suggestions
+- Risk scoring summaries
+- Weekly executive report generation
+
+AI suggests only.
+Admin approves manually.
+
+=========================================================
+SECTION 7 – FAIL SAFE PROTECTION
+=========================================================
+
+If OpenAI API fails:
+
+Catch error.
+Return:
+
+{
+  status: "AI_TEMPORARILY_UNAVAILABLE",
+  message: "ZIBA AI is temporarily unavailable."
+}
+
+Do NOT crash backend.
+Do NOT throw unhandled error.
+Do NOT block page.
+
+=========================================================
+SECTION 8 – AUDIT LOGGING
+=========================================================
+
+Log:
+
+- Admin ID
+- Timestamp
+- Query type
+- AI enabled/disabled state
+
+Create:
+
+/admin/ai/audit-log
+
+Read-only.
+
+=========================================================
+SECTION 9 – SECURITY RULES
+=========================================================
+
+AI must NOT:
+
+- Modify database
+- Suspend users
+- Approve payouts
+- Execute financial actions
+- Change commission
+- Trigger promotions
+
+AI provides recommendation only.
+
+All execution remains manual.
+
+=========================================================
+SECTION 10 – FINAL VALIDATION
+=========================================================
+
+Confirm:
+
+- Rider app unaffected
+- Driver app unaffected
+- Admin loads without AI
+- Kill switch works
+- No OpenAI call when disabled
+- No crash when API fails
+- TypeScript clean
+- Build compiles clean
+- No console errors
+
+Do NOT expand scope.
+Implement modular AI command layer only.
