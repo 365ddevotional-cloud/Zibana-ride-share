@@ -20,6 +20,11 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { sidebarSections } from "./admin-sidebar";
 import { ZibaAiAssistant } from "@/components/admin/ziba-ai-assistant";
+import { AiCommandPanel } from "@/components/admin/ai-command-panel";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Brain } from "lucide-react";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -29,6 +34,12 @@ interface AdminLayoutProps {
 
 export default function AdminLayout({ children, userRole, activeTab }: AdminLayoutProps) {
   const { user, logout } = useAuth();
+  const [aiPanelOpen, setAiPanelOpen] = useState(false);
+
+  const { data: aiStatus } = useQuery<{ enabled: boolean }>({
+    queryKey: ["/api/admin/ai/status"],
+    staleTime: 60000,
+  });
 
   const style = {
     "--sidebar-width": "17rem",
@@ -97,6 +108,16 @@ export default function AdminLayout({ children, userRole, activeTab }: AdminLayo
               )}
             </div>
             <div className="flex items-center gap-1 flex-wrap">
+              <Button
+                size="sm"
+                variant={aiStatus?.enabled ? "default" : "outline"}
+                className={aiStatus?.enabled ? "bg-violet-600 hover:bg-violet-700 text-white" : ""}
+                onClick={() => setAiPanelOpen(true)}
+                data-testid="button-ai-command"
+              >
+                <Brain className="h-3.5 w-3.5 mr-1" />
+                ZIBA AI
+              </Button>
               <NotificationBell />
               <ThemeToggle />
               <ProfileDropdown
@@ -113,6 +134,11 @@ export default function AdminLayout({ children, userRole, activeTab }: AdminLayo
           </main>
         </div>
         <ZibaAiAssistant />
+        <AiCommandPanel
+          open={aiPanelOpen}
+          onClose={() => setAiPanelOpen(false)}
+          isSuperAdmin={isSuperAdmin}
+        />
       </div>
     </SidebarProvider>
   );

@@ -8,6 +8,7 @@ import { eq, and, count, sql, gte, lt, lte, isNotNull, inArray, desc, or, ilike 
 import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, driverInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages, walletFundingTransactions, walletFundingSettings, driverWallets, directorFundingTransactions, directorFundingSettings, directorFundingAcceptance, directorFundingSuspensions, directorProfiles, directorDriverAssignments, directorActionLogs, driverCoachingLogs, directorCells, directorCommissionSettings, directorPayoutSummaries, referralCodes, directorFraudSignals, directorDisputes, directorDisputeMessages, directorWindDowns, welcomeAnalytics, directorPerformanceScores, directorPerformanceWeights, directorIncentives, directorRestrictions, directorPerformanceLogs, directorSuccessions, directorTerminationTimeline, directorStaff, riderTrustScores, riderTrustWeights, riderLoyaltyIncentives, riderTrustLogs, fundingRelationships, fundingAbuseFlags, thirdPartyFundingConfig, fundingAuditLogs, sponsoredBalances, directorCoachingLogs, directorTrainingModules, directorTermsAcceptance, directorTrustScores, platformSettings, qaChecklistItems, qaSimulationLogs, tripMessages, insertTripMessageSchema } from "@shared/schema";
 import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, evaluateAllDrivers, evaluateBehaviorAndWarnings, calculateDriverMatchingScore, getDriverIncentiveProgress, assignFirstRidePromo, assignReturnRiderPromo, applyPromoToTrip, voidPromosOnCancellation } from "./incentives";
 import { notificationService } from "./notification-service";
+import { registerAiCommandRoutes } from "./ai-command";
 import { getCurrencyFromCountry, getCountryConfig, FINANCIAL_ENGINE_LOCKED } from "@shared/currency";
 import { getPayoutProviderForCountry, generatePayoutReference, validatePaystackWebhook, validateFlutterwaveWebhook, type TransferStatus } from "./payout-provider";
 import { generateTaxPDF, generateTaxCSV, generateBulkTaxCSV, type TaxDocumentData, type CountryTaxRules } from "./tax-document-generator";
@@ -150,6 +151,7 @@ export async function registerRoutes(
   await setupAuth(app);
   registerAuthRoutes(app);
 
+  registerAiCommandRoutes(app, isAuthenticated, requireRole, requireSuperAdmin);
   // SUPER_ADMIN email binding - both emails have super admin access
   const SUPER_ADMIN_EMAILS = [
     "mosesafonabi951@gmail.com",  // Primary super admin (public/incognito)
