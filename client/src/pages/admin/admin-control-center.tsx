@@ -43,9 +43,9 @@ interface AdminStats {
 
 const sectionRoutes: Record<string, string> = {
   "Control Center": "/admin/control/overview",
-  "Users & People": "/admin/drivers",
+  "Users & People": "/admin/users/drivers",
   "Trips & Operations": "/admin/trips",
-  "Finance & Wallets": "/admin/payouts",
+  "Finance & Wallets": "/admin/wallets",
   "Ratings & Support": "/admin/ratings",
   "Safety & Compliance": "/admin/fraud",
   "Growth & Intelligence": "/admin/reports",
@@ -112,9 +112,7 @@ const sectionMeta: Record<string, { icon: LucideIcon; accent: string; accentBg: 
 
 function formatCurrency(value: string): string {
   const num = parseFloat(value || "0");
-  if (num >= 1_000_000) return `\u20A6${(num / 1_000_000).toFixed(1)}M`;
-  if (num >= 1_000) return `\u20A6${(num / 1_000).toFixed(1)}K`;
-  return `\u20A6${num.toFixed(0)}`;
+  return "\u20A6" + new Intl.NumberFormat("en-NG").format(num);
 }
 
 function formatDate(): string {
@@ -133,7 +131,7 @@ const kpiCards = [
     icon: Users,
     borderColor: "border-t-blue-500",
     iconBg: "text-blue-500/15",
-    format: (v: number) => String(v),
+    format: (v: number) => new Intl.NumberFormat("en-NG").format(v),
   },
   {
     label: "TOTAL DRIVERS",
@@ -141,7 +139,7 @@ const kpiCards = [
     icon: Car,
     borderColor: "border-t-emerald-500",
     iconBg: "text-emerald-500/15",
-    format: (v: number) => String(v),
+    format: (v: number) => new Intl.NumberFormat("en-NG").format(v),
   },
   {
     label: "ACTIVE TRIPS",
@@ -149,7 +147,7 @@ const kpiCards = [
     icon: MapPin,
     borderColor: "border-t-amber-500",
     iconBg: "text-amber-500/15",
-    format: (v: number) => String(v),
+    format: (v: number) => new Intl.NumberFormat("en-NG").format(v),
   },
   {
     label: "PENDING APPROVALS",
@@ -157,7 +155,7 @@ const kpiCards = [
     icon: Clock,
     borderColor: "border-t-red-500",
     iconBg: "text-red-500/15",
-    format: (v: number) => String(v),
+    format: (v: number) => new Intl.NumberFormat("en-NG").format(v),
   },
   {
     label: "REVENUE",
@@ -173,14 +171,21 @@ const kpiCards = [
     icon: UserCheck,
     borderColor: "border-t-blue-700 dark:border-t-blue-400",
     iconBg: "text-blue-700/15 dark:text-blue-400/15",
-    format: (v: number) => String(v),
+    format: (v: number) => new Intl.NumberFormat("en-NG").format(v),
   },
 ];
 
-function getKpiTextSize(value: string | number): string {
-  const str = String(value);
-  if (str.length > 6) return "text-2xl md:text-3xl";
-  return "text-3xl md:text-4xl";
+const kpiRoutes: Record<string, string> = {
+  "TOTAL RIDERS": "/admin/users/riders",
+  "TOTAL DRIVERS": "/admin/users/drivers",
+  "ACTIVE TRIPS": "/admin/trips",
+  "PENDING APPROVALS": "/admin/control/monitoring",
+  "REVENUE": "/admin/wallets",
+  "COMPLETED TRIPS": "/admin/trips",
+};
+
+function getKpiTextSize(_value: string | number): string {
+  return "";
 }
 
 export default function AdminControlCenter() {
@@ -194,7 +199,7 @@ export default function AdminControlCenter() {
       label: "Pending Driver Approvals",
       count: stats?.pendingDrivers ?? 0,
       icon: Clock,
-      route: "/admin/drivers",
+      route: "/admin/users/drivers",
     },
     {
       label: "Active Trips Requiring Monitor",
@@ -216,7 +221,7 @@ export default function AdminControlCenter() {
 
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 dark:border-slate-700 pb-5" data-testid="overview-context-header">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-800 dark:text-slate-100" data-testid="text-control-center-title">
+          <h1 className="text-[28px] font-bold tracking-tight text-slate-800 dark:text-slate-100" data-testid="text-control-center-title">
             Admin Overview
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">System-wide operational snapshot</p>
@@ -245,37 +250,38 @@ export default function AdminControlCenter() {
           const textSize = getKpiTextSize(displayValue);
 
           return (
-            <Card
-              key={kpi.label}
-              className={`rounded-xl shadow-xl shadow-slate-300/40 dark:shadow-slate-900/40 border border-slate-200 dark:border-slate-700 border-t-4 ${kpi.borderColor} relative overflow-visible hover:scale-[1.01] transition-all duration-200 ease-out`}
-              data-testid={`metric-${kpi.label.toLowerCase().replace(/\s+/g, "-")}`}
-            >
-              <CardContent className="pt-5 pb-4 px-4">
-                <div className="relative">
-                  <KpiIcon className={`absolute -top-1 right-0 h-10 w-10 ${kpi.iconBg}`} />
-                  <p className="text-[0.65rem] font-semibold tracking-wide text-slate-500 dark:text-slate-400 uppercase mb-2" data-testid={`label-${kpi.label.toLowerCase().replace(/\s+/g, "-")}`}>
-                    {kpi.label}
-                  </p>
-                  {isLoading ? (
-                    <Skeleton className="h-10 w-20" />
-                  ) : (
-                    <p
-                      className={`${textSize} font-extrabold text-slate-800 dark:text-slate-100 leading-tight truncate overflow-hidden whitespace-nowrap admin-kpi-number`}
-                      style={{ animationDelay: `${index * 80}ms` }}
-                      data-testid={`value-${kpi.label.toLowerCase().replace(/\s+/g, "-")}`}
-                    >
-                      {displayValue}
+            <Link key={kpi.label} href={kpiRoutes[kpi.label] || "/admin"}>
+              <Card
+                className={`rounded-xl shadow-xl shadow-slate-300/40 dark:shadow-slate-900/40 border border-slate-200 dark:border-slate-700 border-t-4 ${kpi.borderColor} relative overflow-visible hover:scale-[1.01] transition-all duration-200 ease-out cursor-pointer`}
+                data-testid={`metric-${kpi.label.toLowerCase().replace(/\s+/g, "-")}`}
+              >
+                <CardContent className="pt-5 pb-4 px-4 min-w-0">
+                  <div className="relative">
+                    <KpiIcon className={`absolute -top-1 right-0 h-10 w-10 ${kpi.iconBg}`} />
+                    <p className="text-[13px] font-medium opacity-70 tracking-wide text-slate-500 dark:text-slate-400 uppercase mb-2" data-testid={`label-${kpi.label.toLowerCase().replace(/\s+/g, "-")}`}>
+                      {kpi.label}
                     </p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                    {isLoading ? (
+                      <Skeleton className="h-10 w-20" />
+                    ) : (
+                      <p
+                        className="font-extrabold text-slate-800 dark:text-slate-100 leading-tight truncate overflow-hidden whitespace-nowrap admin-kpi-number"
+                        style={{ fontSize: "clamp(18px, 2.5vw, 26px)", animationDelay: `${index * 80}ms` }}
+                        data-testid={`value-${kpi.label.toLowerCase().replace(/\s+/g, "-")}`}
+                      >
+                        {displayValue}
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
           );
         })}
       </div>
 
       <div className="border-t border-slate-200 dark:border-slate-700 mt-2 pt-8">
-        <h2 className="text-lg font-semibold tracking-tight text-slate-800 dark:text-slate-100 mb-5">Action Zones</h2>
+        <h2 className="text-xl font-semibold tracking-tight text-slate-800 dark:text-slate-100 mb-5">Action Zones</h2>
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3" data-testid="action-zones">
           {sidebarSections.map((section) => {
             const meta = sectionMeta[section.label];
@@ -348,7 +354,7 @@ export default function AdminControlCenter() {
       </div>
 
       <div className="border-t border-slate-200 dark:border-slate-700 mt-2 pt-8" data-testid="attention-section">
-        <h2 className="text-lg font-semibold tracking-tight text-slate-800 dark:text-slate-100 mb-5">Attention Required</h2>
+        <h2 className="text-xl font-semibold tracking-tight text-slate-800 dark:text-slate-100 mb-5">Attention Required</h2>
         {isLoading ? (
           <Card className="rounded-xl shadow-xl shadow-slate-300/40 dark:shadow-slate-900/40 border border-slate-200 dark:border-slate-700">
             <CardContent className="pt-4 pb-4 px-4">

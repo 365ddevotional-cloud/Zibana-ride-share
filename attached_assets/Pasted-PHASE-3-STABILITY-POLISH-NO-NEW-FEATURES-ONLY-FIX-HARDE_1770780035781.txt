@@ -1,0 +1,184 @@
+PHASE 3 — STABILITY & POLISH (NO NEW FEATURES, ONLY FIX & HARDEN)
+
+You are working inside the existing ZIBA Ride Share Replit project.
+
+GOAL:
+Stabilize and polish the Admin Dashboard without adding new sections.
+Fix KPI overflow, make all KPI cards clickable, standardize typography,
+ensure no dead links, and keep everything compiling clean.
+
+DO NOT create new feature sections.
+DO NOT restructure architecture.
+ONLY refine and harden what already exists.
+
+------------------------------------------------------------
+1️⃣ FIX KPI NUMBER OVERFLOW (₦5K TOO BIG)
+------------------------------------------------------------
+
+In the Admin KPI card component:
+
+• Wrap all numeric values with:
+  new Intl.NumberFormat("en-NG").format(value)
+
+• Ensure revenue displays like:
+  ₦5,000
+  ₦15,200
+  ₦120,000
+
+• Apply responsive clamp to KPI numbers:
+  font-size: clamp(18px, 2.5vw, 26px);
+
+• Add:
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+• Ensure KPI container has:
+  min-width: 0;
+  flex-shrink: 1;
+
+This must prevent any digit from overflowing its box.
+
+------------------------------------------------------------
+2️⃣ MAKE ALL KPI CARDS CLICKABLE
+------------------------------------------------------------
+
+Each KPI card must navigate correctly.
+
+Routes:
+
+Total Riders → /admin/users/riders
+Total Drivers → /admin/users/drivers
+Active Trips → /admin/trips
+Pending Approvals → /admin/control/monitoring
+Revenue → /admin/finance/wallets
+Completed Trips → /admin/trips/completed
+
+Wrap each KPI card in:
+
+<Link to="ROUTE">
+  <KpiCard />
+</Link>
+
+Add:
+cursor: pointer;
+
+Add hover style:
+transform: translateY(-2px);
+box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+transition: all 0.2s ease;
+
+------------------------------------------------------------
+3️⃣ REMOVE DEAD FALLBACK REDIRECTS
+------------------------------------------------------------
+
+Ensure no section routes silently redirect to dashboard.
+
+If a route is missing:
+Return a clean “Section Not Found” component,
+NOT a redirect to /admin.
+
+------------------------------------------------------------
+4️⃣ STANDARDIZE ADMIN TYPOGRAPHY
+------------------------------------------------------------
+
+Apply consistent scale:
+
+Main page title (Admin Overview):
+font-size: 28px;
+font-weight: 700;
+
+Section headings:
+font-size: 20px;
+font-weight: 600;
+
+KPI labels:
+font-size: 13px;
+font-weight: 500;
+opacity: 0.7;
+
+Ensure consistent spacing between sections:
+margin-bottom: 24px;
+
+------------------------------------------------------------
+5️⃣ ENSURE ALL SIDEBAR ITEMS ARE ROUTED
+------------------------------------------------------------
+
+Verify every sidebar item links to its correct route.
+No link should return to /admin unless it is Overview.
+
+Control Center:
+Overview → /admin/control/overview
+Monitoring → /admin/control/monitoring
+Health Alerts → /admin/control/alerts
+Launch Readiness → /admin/control/launch
+Ops Readiness → /admin/control/ops
+
+Users & People:
+Drivers → /admin/users/drivers
+Riders → /admin/users/riders
+Directors → /admin/users/directors
+My Drivers → /admin/users/my-drivers
+Admin Management → /admin/users/admin-management
+
+Trips & Operations:
+Trips → /admin/trips
+Reservations → /admin/reservations
+Ride Classes → /admin/ride-classes
+Driver Preferences → /admin/preferences
+Corporate Rides → /admin/corporate
+
+Finance:
+Payouts → /admin/finance/payouts
+Wallets → /admin/finance/wallets
+Funding → /admin/finance/funding
+
+Ratings & Support:
+Ratings → /admin/support/ratings
+Disputes → /admin/support/disputes
+Inbox → /admin/support/inbox
+Support Logs → /admin/support/logs
+
+Safety:
+Fraud → /admin/safety/fraud
+Safety → /admin/safety
+Lost Items → /admin/safety/lost
+Accidents → /admin/safety/accidents
+
+DO NOT create new pages.
+Only ensure routing matches existing structure.
+
+------------------------------------------------------------
+6️⃣ ADD LOADING PLACEHOLDER
+------------------------------------------------------------
+
+For all admin section pages:
+
+If data is loading:
+Show a simple skeleton placeholder.
+No blank white screens.
+
+------------------------------------------------------------
+7️⃣ FINAL VERIFICATION
+------------------------------------------------------------
+
+• Fix all LSP errors
+• Ensure Vite compiles clean
+• Confirm no console errors
+• Confirm no overflow
+• Confirm all KPI cards clickable
+• Confirm sidebar fully functional
+
+When complete, output a short report:
+
+PHASE 3 COMPLETE
+Files touched:
+- ...
+Routes verified:
+- ...
+KPI overflow fixed: YES
+Dead links: NONE
+Build status: CLEAN
+
+Do not add commentary.
+Implement directly.

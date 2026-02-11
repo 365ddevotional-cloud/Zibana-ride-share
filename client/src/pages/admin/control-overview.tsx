@@ -33,25 +33,30 @@ interface AdminStats {
 
 function formatCurrency(value: string): string {
   const num = parseFloat(value || "0");
-  if (num >= 1_000_000) return `\u20A6${(num / 1_000_000).toFixed(1)}M`;
-  if (num >= 1_000) return `\u20A6${(num / 1_000).toFixed(1)}K`;
-  return `\u20A6${num.toFixed(0)}`;
+  return "\u20A6" + new Intl.NumberFormat("en-NG").format(num);
 }
 
-function getKpiTextSize(value: string | number): string {
-  const str = String(value);
-  if (str.length > 6) return "text-2xl md:text-3xl";
-  return "text-3xl md:text-4xl";
+function getKpiTextSize(_value: string | number): string {
+  return "";
 }
 
 const kpiCards = [
-  { label: "TOTAL RIDERS", key: "totalRiders" as const, icon: Users, borderColor: "border-t-blue-500", iconBg: "text-blue-500/15", format: (v: number) => String(v) },
-  { label: "TOTAL DRIVERS", key: "totalDrivers" as const, icon: Car, borderColor: "border-t-emerald-500", iconBg: "text-emerald-500/15", format: (v: number) => String(v) },
-  { label: "ACTIVE TRIPS", key: "activeTrips" as const, icon: MapPin, borderColor: "border-t-amber-500", iconBg: "text-amber-500/15", format: (v: number) => String(v) },
-  { label: "PENDING APPROVALS", key: "pendingDrivers" as const, icon: Clock, borderColor: "border-t-red-500", iconBg: "text-red-500/15", format: (v: number) => String(v) },
+  { label: "TOTAL RIDERS", key: "totalRiders" as const, icon: Users, borderColor: "border-t-blue-500", iconBg: "text-blue-500/15", format: (v: number) => new Intl.NumberFormat("en-NG").format(v) },
+  { label: "TOTAL DRIVERS", key: "totalDrivers" as const, icon: Car, borderColor: "border-t-emerald-500", iconBg: "text-emerald-500/15", format: (v: number) => new Intl.NumberFormat("en-NG").format(v) },
+  { label: "ACTIVE TRIPS", key: "activeTrips" as const, icon: MapPin, borderColor: "border-t-amber-500", iconBg: "text-amber-500/15", format: (v: number) => new Intl.NumberFormat("en-NG").format(v) },
+  { label: "PENDING APPROVALS", key: "pendingDrivers" as const, icon: Clock, borderColor: "border-t-red-500", iconBg: "text-red-500/15", format: (v: number) => new Intl.NumberFormat("en-NG").format(v) },
   { label: "REVENUE", key: "totalFares" as const, icon: Banknote, borderColor: "border-t-violet-500", iconBg: "text-violet-500/15", format: null },
-  { label: "COMPLETED TRIPS", key: "completedTrips" as const, icon: UserCheck, borderColor: "border-t-blue-700 dark:border-t-blue-400", iconBg: "text-blue-700/15 dark:text-blue-400/15", format: (v: number) => String(v) },
+  { label: "COMPLETED TRIPS", key: "completedTrips" as const, icon: UserCheck, borderColor: "border-t-blue-700 dark:border-t-blue-400", iconBg: "text-blue-700/15 dark:text-blue-400/15", format: (v: number) => new Intl.NumberFormat("en-NG").format(v) },
 ];
+
+const kpiRoutes: Record<string, string> = {
+  "TOTAL RIDERS": "/admin/users/riders",
+  "TOTAL DRIVERS": "/admin/users/drivers",
+  "ACTIVE TRIPS": "/admin/trips",
+  "PENDING APPROVALS": "/admin/control/monitoring",
+  "REVENUE": "/admin/wallets",
+  "COMPLETED TRIPS": "/admin/trips",
+};
 
 interface SystemStatusItem {
   label: string;
@@ -86,7 +91,7 @@ export default function ControlOverviewPage() {
   const systemStatus: SystemStatusItem[] = [
     { label: "Drivers Online", value: stats?.totalDrivers ?? 0, icon: Car, route: "/admin/control/monitoring", color: "text-emerald-600 dark:text-emerald-400" },
     { label: "Active Trips", value: stats?.activeTrips ?? 0, icon: MapPin, route: "/admin/control/monitoring", color: "text-blue-600 dark:text-blue-400" },
-    { label: "Pending Approvals", value: stats?.pendingDrivers ?? 0, icon: Clock, route: "/admin/drivers", color: "text-amber-600 dark:text-amber-400" },
+    { label: "Pending Approvals", value: stats?.pendingDrivers ?? 0, icon: Clock, route: "/admin/users/drivers", color: "text-amber-600 dark:text-amber-400" },
     { label: "Critical Alerts", value: 0, icon: AlertTriangle, route: "/admin/control/alerts", color: "text-red-600 dark:text-red-400" },
   ];
 
@@ -107,36 +112,37 @@ export default function ControlOverviewPage() {
           const textSize = getKpiTextSize(displayValue);
 
           return (
-            <Card
-              key={kpi.label}
-              className={`rounded-xl shadow-lg shadow-slate-200/40 dark:shadow-slate-900/40 border border-slate-200 dark:border-slate-700 border-t-4 ${kpi.borderColor} relative overflow-visible`}
-              data-testid={`control-kpi-${kpi.label.toLowerCase().replace(/\s+/g, "-")}`}
-            >
-              <CardContent className="pt-5 pb-4 px-4">
-                <div className="relative">
-                  <KpiIcon className={`absolute -top-1 right-0 h-10 w-10 ${kpi.iconBg}`} />
-                  <p className="text-[0.65rem] font-semibold tracking-wide text-slate-500 dark:text-slate-400 uppercase mb-2">
-                    {kpi.label}
-                  </p>
-                  {isLoading ? (
-                    <Skeleton className="h-10 w-20" />
-                  ) : (
-                    <p
-                      className={`${textSize} font-extrabold text-slate-800 dark:text-slate-100 leading-tight truncate overflow-hidden whitespace-nowrap admin-kpi-number`}
-                      style={{ animationDelay: `${index * 80}ms` }}
-                    >
-                      {displayValue}
+            <Link key={kpi.label} href={kpiRoutes[kpi.label] || "/admin"}>
+              <Card
+                className={`rounded-xl shadow-lg shadow-slate-200/40 dark:shadow-slate-900/40 border border-slate-200 dark:border-slate-700 border-t-4 ${kpi.borderColor} relative overflow-visible cursor-pointer`}
+                data-testid={`control-kpi-${kpi.label.toLowerCase().replace(/\s+/g, "-")}`}
+              >
+                <CardContent className="pt-5 pb-4 px-4 min-w-0">
+                  <div className="relative">
+                    <KpiIcon className={`absolute -top-1 right-0 h-10 w-10 ${kpi.iconBg}`} />
+                    <p className="text-[13px] font-medium opacity-70 tracking-wide text-slate-500 dark:text-slate-400 uppercase mb-2">
+                      {kpi.label}
                     </p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                    {isLoading ? (
+                      <Skeleton className="h-10 w-20" />
+                    ) : (
+                      <p
+                        className="font-extrabold text-slate-800 dark:text-slate-100 leading-tight truncate overflow-hidden whitespace-nowrap admin-kpi-number"
+                        style={{ fontSize: "clamp(18px, 2.5vw, 26px)", animationDelay: `${index * 80}ms` }}
+                      >
+                        {displayValue}
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
           );
         })}
       </div>
 
       <div data-testid="system-status-bar">
-        <h2 className="text-lg font-semibold tracking-tight text-slate-800 dark:text-slate-100 mb-4">System Status</h2>
+        <h2 className="text-xl font-semibold tracking-tight text-slate-800 dark:text-slate-100 mb-4">System Status</h2>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {systemStatus.map((item) => {
             const Icon = item.icon;
@@ -163,7 +169,7 @@ export default function ControlOverviewPage() {
       </div>
 
       <div data-testid="quick-navigation">
-        <h2 className="text-lg font-semibold tracking-tight text-slate-800 dark:text-slate-100 mb-4">Control Center Sections</h2>
+        <h2 className="text-xl font-semibold tracking-tight text-slate-800 dark:text-slate-100 mb-4">Control Center Sections</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {quickNavItems.map((item) => {
             const Icon = item.icon;
@@ -188,13 +194,13 @@ export default function ControlOverviewPage() {
       </div>
 
       <div data-testid="attention-items">
-        <h2 className="text-lg font-semibold tracking-tight text-slate-800 dark:text-slate-100 mb-4">Attention Required</h2>
+        <h2 className="text-xl font-semibold tracking-tight text-slate-800 dark:text-slate-100 mb-4">Attention Required</h2>
         {isLoading ? (
           <Skeleton className="h-16 w-full" />
         ) : (stats?.pendingDrivers ?? 0) > 0 || (stats?.activeTrips ?? 0) > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2">
             {(stats?.pendingDrivers ?? 0) > 0 && (
-              <Link href="/admin/drivers" data-testid="attention-pending-drivers">
+              <Link href="/admin/users/drivers" data-testid="attention-pending-drivers">
                 <Card className="hover-elevate rounded-xl border border-slate-200 dark:border-slate-700 border-l-[3px] border-l-orange-400 hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-200 cursor-pointer">
                   <CardContent className="flex items-center gap-3 py-4 px-4">
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-orange-50 dark:bg-orange-900/20">

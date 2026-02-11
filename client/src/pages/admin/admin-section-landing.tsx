@@ -69,7 +69,7 @@ export default function AdminSectionLanding({ section }: AdminSectionLandingProp
           The section you're looking for doesn't exist or may have been moved.
         </p>
         <Link
-          href="/admin/overview"
+          href="/admin/control/overview"
           className="text-sm text-primary underline"
           data-testid="link-back-overview"
         >
@@ -88,7 +88,7 @@ export default function AdminSectionLanding({ section }: AdminSectionLandingProp
         <BreadcrumbList>
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
-              <Link href="/admin/overview" data-testid="breadcrumb-admin">Admin</Link>
+              <Link href="/admin/control/overview" data-testid="breadcrumb-admin">Admin</Link>
             </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
