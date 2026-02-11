@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { AlertTriangle, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { AlertTriangle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 interface CancellationMetrics {
@@ -12,35 +13,31 @@ interface CancellationMetrics {
 }
 
 function DriverWarningCard({ onDismiss }: { onDismiss: () => void }) {
-  useEffect(() => {
-    const timer = setTimeout(onDismiss, 10000);
-    return () => clearTimeout(timer);
-  }, [onDismiss]);
-
   return (
-    <Card className="border-amber-400/50 bg-amber-50 dark:bg-amber-950/30 shadow-lg mx-4 mt-4" data-testid="card-cancellation-warning">
-      <CardContent className="p-4 relative">
-        <button
-          onClick={onDismiss}
-          className="absolute top-3 right-3 text-amber-600/60 dark:text-amber-400/60"
-          data-testid="button-dismiss-warning"
-        >
-          <X className="w-4 h-4" />
-        </button>
+    <Card className="border-amber-400/50 bg-amber-50 dark:bg-amber-950/30 mx-4 mt-4" data-testid="card-cancellation-warning">
+      <CardContent className="p-4">
         <div className="flex gap-3">
           <div className="flex-shrink-0 mt-0.5">
             <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
           </div>
-          <div className="space-y-1.5">
-            <h3 className="font-bold text-amber-900 dark:text-amber-200 text-sm" data-testid="text-warning-title">
-              Your cancellation rate is increasing
+          <div className="space-y-2 flex-1">
+            <h3 className="font-semibold text-amber-900 dark:text-amber-200 text-sm" data-testid="text-warning-title">
+              Your cancellation rate needs attention
             </h3>
             <p className="text-amber-800/80 dark:text-amber-300/80 text-sm leading-relaxed" data-testid="text-warning-body">
-              You've been canceling more trips recently. This can affect rider trust and your access to rewards.
+              Frequent cancellations may affect trip priority and rewards.
             </p>
-            <p className="text-amber-700/70 dark:text-amber-400/70 text-xs pt-1" data-testid="text-warning-footer">
-              Staying consistent helps you earn more.
-            </p>
+            <div className="pt-1">
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-amber-400 text-amber-800 dark:text-amber-300"
+                onClick={onDismiss}
+                data-testid="button-dismiss-warning"
+              >
+                Understood
+              </Button>
+            </div>
           </div>
         </div>
       </CardContent>
@@ -49,35 +46,31 @@ function DriverWarningCard({ onDismiss }: { onDismiss: () => void }) {
 }
 
 function RiderWarningCard({ onDismiss }: { onDismiss: () => void }) {
-  useEffect(() => {
-    const timer = setTimeout(onDismiss, 10000);
-    return () => clearTimeout(timer);
-  }, [onDismiss]);
-
   return (
-    <Card className="border-amber-400/50 bg-amber-50 dark:bg-amber-950/30 shadow-lg mx-4 mt-4" data-testid="card-cancellation-warning">
-      <CardContent className="p-4 relative">
-        <button
-          onClick={onDismiss}
-          className="absolute top-3 right-3 text-amber-600/60 dark:text-amber-400/60"
-          data-testid="button-dismiss-warning"
-        >
-          <X className="w-4 h-4" />
-        </button>
+    <Card className="border-amber-400/50 bg-amber-50 dark:bg-amber-950/30 mx-4 mt-4" data-testid="card-cancellation-warning">
+      <CardContent className="p-4">
         <div className="flex gap-3">
           <div className="flex-shrink-0 mt-0.5">
             <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
           </div>
-          <div className="space-y-1.5">
-            <h3 className="font-bold text-amber-900 dark:text-amber-200 text-sm" data-testid="text-warning-title">
-              Your cancellations are increasing
+          <div className="space-y-2 flex-1">
+            <h3 className="font-semibold text-amber-900 dark:text-amber-200 text-sm" data-testid="text-warning-title">
+              Your recent cancellations are higher than usual
             </h3>
             <p className="text-amber-800/80 dark:text-amber-300/80 text-sm leading-relaxed" data-testid="text-warning-body">
-              Canceling after a driver accepts delays pickups for others.
+              Frequent cancellations can delay pickups for everyone.
             </p>
-            <p className="text-amber-700/70 dark:text-amber-400/70 text-xs pt-1" data-testid="text-warning-footer">
-              Request rides only when ready to go.
-            </p>
+            <div className="pt-1">
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-amber-400 text-amber-800 dark:text-amber-300"
+                onClick={onDismiss}
+                data-testid="button-dismiss-warning"
+              >
+                Continue
+              </Button>
+            </div>
           </div>
         </div>
       </CardContent>

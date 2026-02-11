@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent } from "@/components/ui/card";
-import { TrendingDown, X, Lightbulb } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { TrendingDown, AlertTriangle } from "lucide-react";
 
 interface CancellationMetrics {
   cancellationRate: number;
@@ -20,7 +21,17 @@ interface BehaviorSignals {
 
 export function BehaviorAdvisory() {
   const { user } = useAuth();
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissedTypes, setDismissedTypes] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    const stored = sessionStorage.getItem("ziba-driver-advisory-dismissed");
+    if (stored) {
+      try {
+        const arr: string[] = JSON.parse(stored);
+        setDismissedTypes(new Set(arr));
+      } catch {}
+    }
+  }, []);
 
   const { data: cancellationMetrics } = useQuery<CancellationMetrics>({
     queryKey: ["/api/driver/cancellation-metrics"],
@@ -32,48 +43,81 @@ export function BehaviorAdvisory() {
     enabled: !!user,
   });
 
-  if (dismissed) return null;
+  const dismiss = (type: string) => {
+    const next = new Set(dismissedTypes);
+    next.add(type);
+    setDismissedTypes(next);
+    sessionStorage.setItem("ziba-driver-advisory-dismissed", JSON.stringify(Array.from(next)));
+  };
 
-  const messages: string[] = [];
+  const showAcceptanceWarning = behaviorData && (behaviorData.negativeSignalCount ?? 0) > 3 && !dismissedTypes.has("acceptance");
+  const showCancellationWarning = cancellationMetrics && cancellationMetrics.cancellationRate > 10 && !dismissedTypes.has("cancellation");
 
-  if (cancellationMetrics) {
-    if (cancellationMetrics.cancellationRate > 10) {
-      messages.push("We noticed a few cancelled trips lately. Completing trips builds rider trust. Every completed trip strengthens your standing. You've got this!");
-    }
-  }
-
-  if (behaviorData) {
-    const negativeCount = behaviorData.negativeSignalCount ?? 0;
-    if (negativeCount > 3) {
-      messages.push("Your recent acceptance rate has dipped. Accepting more rides helps you earn more!");
-    }
-  }
-
-  if (messages.length === 0) return null;
+  if (!showAcceptanceWarning && !showCancellationWarning) return null;
 
   return (
-    <Card className="border-amber-400/50 bg-amber-50 dark:bg-amber-950/30" data-testid="card-behavior-advisory">
-      <CardContent className="p-4 relative">
-        <button
-          onClick={() => setDismissed(true)}
-          className="absolute top-3 right-3 text-amber-600/60 dark:text-amber-400/60"
-          data-testid="button-dismiss-advisory"
-        >
-          <X className="w-4 h-4" />
-        </button>
-        <div className="flex gap-3">
-          <div className="flex-shrink-0 mt-0.5">
-            <Lightbulb className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-          </div>
-          <div className="space-y-2">
-            {messages.map((msg, idx) => (
-              <p key={idx} className="text-amber-800/80 dark:text-amber-300/80 text-sm leading-relaxed" data-testid={`text-advisory-${idx}`}>
-                {msg}
-              </p>
-            ))}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="space-y-3">
+      {showAcceptanceWarning && (
+        <Card className="border-amber-400/50 bg-amber-50 dark:bg-amber-950/30" data-testid="card-acceptance-advisory">
+          <CardContent className="p-4">
+            <div className="flex gap-3">
+              <div className="flex-shrink-0 mt-0.5">
+                <TrendingDown className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div className="space-y-2 flex-1">
+                <h3 className="font-semibold text-amber-900 dark:text-amber-200 text-sm" data-testid="text-acceptance-title">
+                  Your acceptance rate is trending down
+                </h3>
+                <p className="text-amber-800/80 dark:text-amber-300/80 text-sm leading-relaxed" data-testid="text-acceptance-body">
+                  Consistently accepting trips helps you earn more and stay eligible for rewards.
+                </p>
+                <div className="pt-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-amber-400 text-amber-800 dark:text-amber-300"
+                    onClick={() => dismiss("acceptance")}
+                    data-testid="button-dismiss-acceptance"
+                  >
+                    Got it
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {showCancellationWarning && (
+        <Card className="border-orange-400/50 bg-orange-50 dark:bg-orange-950/30" data-testid="card-cancellation-advisory">
+          <CardContent className="p-4">
+            <div className="flex gap-3">
+              <div className="flex-shrink-0 mt-0.5">
+                <AlertTriangle className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+              </div>
+              <div className="space-y-2 flex-1">
+                <h3 className="font-semibold text-orange-900 dark:text-orange-200 text-sm" data-testid="text-cancellation-title">
+                  Your cancellation rate needs attention
+                </h3>
+                <p className="text-orange-800/80 dark:text-orange-300/80 text-sm leading-relaxed" data-testid="text-cancellation-body">
+                  Frequent cancellations may affect trip priority and rewards.
+                </p>
+                <div className="pt-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-orange-400 text-orange-800 dark:text-orange-300"
+                    onClick={() => dismiss("cancellation")}
+                    data-testid="button-dismiss-cancellation"
+                  >
+                    Understood
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   );
 }

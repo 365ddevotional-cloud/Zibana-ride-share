@@ -357,61 +357,82 @@ export default function DriverDashboard() {
           </CardContent>
         </Card>
 
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-medium">
-            {isTraining 
-              ? (isOnline ? "Training Mode Active" : "Training Mode") 
-              : (isOnline ? "You're Online" : "You're Offline")}
-          </span>
-          <Switch
-            checked={isOnline}
-            onCheckedChange={() => toggleOnlineStatus()}
-            disabled={!canGoOnline || toggleOnlineMutation.isPending}
-            data-testid="switch-online-toggle"
-          />
-        </div>
+        {!isOnline && canGoOnline && (
+          <div className="flex flex-col items-center gap-4 py-6" data-testid="section-go-online">
+            <p className="text-sm text-muted-foreground font-medium">You are currently offline</p>
+            <Button
+              size="lg"
+              className="w-full max-w-xs h-14 rounded-full text-lg font-bold bg-emerald-600 text-white"
+              onClick={toggleOnlineStatus}
+              disabled={toggleOnlineMutation.isPending}
+              data-testid="button-go-online-primary"
+            >
+              <Power className="h-5 w-5 mr-2" />
+              {toggleOnlineMutation.isPending ? "Going online..." : "GO ONLINE"}
+            </Button>
+            <p className="text-xs text-muted-foreground">Tap to start receiving ride requests</p>
+          </div>
+        )}
 
-        <div className="flex justify-center">
-          <Button
-            size="lg"
-            className={cn(
-              "w-32 h-32 rounded-full text-lg font-semibold transition-all",
-              isOnline 
-                ? "bg-emerald-600 text-white" 
-                : "bg-muted text-foreground"
-            )}
-            onClick={toggleOnlineStatus}
-            disabled={!canGoOnline || toggleOnlineMutation.isPending}
-            data-testid="button-toggle-online"
-          >
-            <div className="flex flex-col items-center gap-2">
-              <Power className="h-8 w-8" />
-              <span>
-                {toggleOnlineMutation.isPending 
-                  ? "..." 
-                  : isOnline ? t("driver.offline") : t("driver.online")}
+        {(isOnline || !canGoOnline) && (
+          <>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">
+                {isTraining 
+                  ? (isOnline ? "Training Mode Active" : "Training Mode") 
+                  : (isOnline ? "You're Online" : "You're Offline")}
               </span>
+              <Switch
+                checked={isOnline}
+                onCheckedChange={() => toggleOnlineStatus()}
+                disabled={!canGoOnline || toggleOnlineMutation.isPending}
+                data-testid="switch-online-toggle"
+              />
             </div>
-          </Button>
-        </div>
 
-        <div className="flex justify-center">
-          <Badge 
-            variant={isOnline ? "default" : "secondary"}
-            className={isOnline ? "bg-emerald-600" : ""}
-            data-testid="badge-online-status"
-          >
-            {isRejected
-              ? "Application Rejected"
-              : isSuspended
-                ? "Account Suspended"
-                : isPending
-                  ? "Pending Approval"
-                  : isTraining 
-                    ? (isOnline ? "Training Mode" : "Training - Offline")
-                    : (isOnline ? "Accepting Rides" : "Not Accepting Rides")}
-          </Badge>
-        </div>
+            <div className="flex justify-center">
+              <Button
+                size="lg"
+                className={cn(
+                  "w-32 h-32 rounded-full text-lg font-semibold transition-all",
+                  isOnline 
+                    ? "bg-emerald-600 text-white" 
+                    : "bg-muted text-foreground"
+                )}
+                onClick={toggleOnlineStatus}
+                disabled={!canGoOnline || toggleOnlineMutation.isPending}
+                data-testid="button-toggle-online"
+              >
+                <div className="flex flex-col items-center gap-2">
+                  <Power className="h-8 w-8" />
+                  <span>
+                    {toggleOnlineMutation.isPending 
+                      ? "..." 
+                      : isOnline ? t("driver.offline") : t("driver.online")}
+                  </span>
+                </div>
+              </Button>
+            </div>
+
+            <div className="flex justify-center">
+              <Badge 
+                variant={isOnline ? "default" : "secondary"}
+                className={isOnline ? "bg-emerald-600" : ""}
+                data-testid="badge-online-status"
+              >
+                {isRejected
+                  ? "Application Rejected"
+                  : isSuspended
+                    ? "Account Suspended"
+                    : isPending
+                      ? "Pending Approval"
+                      : isTraining 
+                        ? (isOnline ? "Training Mode" : "Training - Offline")
+                        : (isOnline ? "Accepting Rides" : "Not Accepting Rides")}
+              </Badge>
+            </div>
+          </>
+        )}
 
         {isOnline && <BehaviorAdvisory />}
 
