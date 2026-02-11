@@ -4,8 +4,8 @@ import { createHash } from "crypto";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { storage } from "./storage";
 import { db } from "./db";
-import { eq, and, count, sql, gte, lt, lte, isNotNull, inArray, desc, or } from "drizzle-orm";
-import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, driverInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages, walletFundingTransactions, walletFundingSettings, driverWallets, directorFundingTransactions, directorFundingSettings, directorFundingAcceptance, directorFundingSuspensions, directorProfiles, directorDriverAssignments, directorActionLogs, driverCoachingLogs, directorCells, directorCommissionSettings, directorPayoutSummaries, referralCodes, directorFraudSignals, directorDisputes, directorDisputeMessages, directorWindDowns, welcomeAnalytics, directorPerformanceScores, directorPerformanceWeights, directorIncentives, directorRestrictions, directorPerformanceLogs, directorSuccessions, directorTerminationTimeline, directorStaff, riderTrustScores, riderTrustWeights, riderLoyaltyIncentives, riderTrustLogs, fundingRelationships, fundingAbuseFlags, thirdPartyFundingConfig, fundingAuditLogs, sponsoredBalances, directorCoachingLogs, directorTrainingModules, directorTermsAcceptance, directorTrustScores, platformSettings, qaChecklistItems, qaSimulationLogs } from "@shared/schema";
+import { eq, and, count, sql, gte, lt, lte, isNotNull, inArray, desc, or, ilike } from "drizzle-orm";
+import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, driverInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages, walletFundingTransactions, walletFundingSettings, driverWallets, directorFundingTransactions, directorFundingSettings, directorFundingAcceptance, directorFundingSuspensions, directorProfiles, directorDriverAssignments, directorActionLogs, driverCoachingLogs, directorCells, directorCommissionSettings, directorPayoutSummaries, referralCodes, directorFraudSignals, directorDisputes, directorDisputeMessages, directorWindDowns, welcomeAnalytics, directorPerformanceScores, directorPerformanceWeights, directorIncentives, directorRestrictions, directorPerformanceLogs, directorSuccessions, directorTerminationTimeline, directorStaff, riderTrustScores, riderTrustWeights, riderLoyaltyIncentives, riderTrustLogs, fundingRelationships, fundingAbuseFlags, thirdPartyFundingConfig, fundingAuditLogs, sponsoredBalances, directorCoachingLogs, directorTrainingModules, directorTermsAcceptance, directorTrustScores, platformSettings, qaChecklistItems, qaSimulationLogs, tripMessages, insertTripMessageSchema } from "@shared/schema";
 import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, evaluateAllDrivers, evaluateBehaviorAndWarnings, calculateDriverMatchingScore, getDriverIncentiveProgress, assignFirstRidePromo, assignReturnRiderPromo, applyPromoToTrip, voidPromosOnCancellation } from "./incentives";
 import { notificationService } from "./notification-service";
 import { getCurrencyFromCountry, getCountryConfig, FINANCIAL_ENGINE_LOCKED } from "@shared/currency";
@@ -12513,7 +12513,6 @@ export async function registerRoutes(
           return res.json({
             ...ride,
             driverName: driverProfile.fullName,
-            driverPhone: driverProfile.phone,
             driverVehicle: `${driverProfile.vehicleMake} ${driverProfile.vehicleModel}`,
             driverLicensePlate: driverProfile.licensePlate,
             driverRating: driverProfile.averageRating,
@@ -29577,6 +29576,177 @@ export async function registerRoutes(
       res.json(results);
     } catch (error) {
       res.status(500).json({ error: "Failed to load director performance overview" });
+    }
+  });
+
+
+  // ==========================================
+  // TRIP CHAT - Secure In-App Messaging
+  // ==========================================
+
+  // Get messages for a trip (rider/driver only if assigned, or admin)
+  app.get("/api/trips/:tripId/messages", isAuthenticated, async (req: any, res) => {
+    try {
+      const { tripId } = req.params;
+      const userId = req.user.claims.sub;
+      const userRole = await storage.getUserRole(userId);
+
+      const trip = await storage.getTripById(tripId);
+      if (!trip) {
+        return res.status(404).json({ message: "Trip not found" });
+      }
+
+      // Admin/director can view any trip's messages
+      if (userRole?.role !== "admin" && userRole?.role !== "director" && userRole?.role !== "super_admin") {
+        // Rider or driver must be assigned to this trip
+        if (trip.riderId !== userId && trip.driverId !== userId) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+
+        // Check trip status: active trips always allowed, completed/cancelled trips only within 24 hours
+        if (trip.status !== "in_progress" && trip.status !== "accepted") {
+          const endTime = trip.completedAt || trip.cancelledAt;
+          if (endTime) {
+            const hoursSinceEnd = (Date.now() - new Date(endTime).getTime()) / (1000 * 60 * 60);
+            if (hoursSinceEnd > 24) {
+              return res.status(403).json({ message: "Chat is no longer available for this trip" });
+            }
+          }
+        }
+      }
+
+      const messages = await db.select().from(tripMessages)
+        .where(eq(tripMessages.tripId, tripId))
+        .orderBy(tripMessages.createdAt);
+
+      return res.json(messages);
+    } catch (error) {
+      console.error("Error fetching trip messages:", error);
+      return res.status(500).json({ message: "Failed to fetch messages" });
+    }
+  });
+
+  // Send a message in a trip chat (rider/driver only, trip must be active)
+  app.post("/api/trips/:tripId/messages", isAuthenticated, async (req: any, res) => {
+    try {
+      const { tripId } = req.params;
+      const userId = req.user.claims.sub;
+      const userRole = await storage.getUserRole(userId);
+
+      const trip = await storage.getTripById(tripId);
+      if (!trip) {
+        return res.status(404).json({ message: "Trip not found" });
+      }
+
+      // Only rider or driver assigned to this trip can send messages
+      if (trip.riderId !== userId && trip.driverId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Chat only allowed during active trips
+      if (trip.status !== "in_progress" && trip.status !== "accepted") {
+        return res.status(403).json({ message: "Messaging is available during active trips only" });
+      }
+
+      const { message } = req.body;
+      if (!message || typeof message !== "string" || message.trim().length === 0) {
+        return res.status(400).json({ message: "Message cannot be empty" });
+      }
+
+      if (message.length > 1000) {
+        return res.status(400).json({ message: "Message too long (max 1000 characters)" });
+      }
+
+      const senderRole = trip.riderId === userId ? "rider" : "driver";
+
+      const [newMessage] = await db.insert(tripMessages).values({
+        tripId,
+        senderId: userId,
+        senderRole,
+        message: message.trim(),
+      }).returning();
+
+      return res.json(newMessage);
+    } catch (error) {
+      console.error("Error sending trip message:", error);
+      return res.status(500).json({ message: "Failed to send message" });
+    }
+  });
+
+  // Admin: Get all chat logs with filtering
+  app.get("/api/admin/chat-logs", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { tripId, keyword, limit: queryLimit, offset: queryOffset } = req.query;
+      const limitNum = Math.min(parseInt(queryLimit as string) || 50, 200);
+      const offsetNum = parseInt(queryOffset as string) || 0;
+
+      let query = db.select({
+        id: tripMessages.id,
+        tripId: tripMessages.tripId,
+        senderId: tripMessages.senderId,
+        senderRole: tripMessages.senderRole,
+        message: tripMessages.message,
+        createdAt: tripMessages.createdAt,
+      }).from(tripMessages);
+
+      const conditions: any[] = [];
+      if (tripId && typeof tripId === "string" && tripId.trim()) {
+        conditions.push(eq(tripMessages.tripId, tripId.trim()));
+      }
+      if (keyword && typeof keyword === "string" && keyword.trim()) {
+        conditions.push(ilike(tripMessages.message, `%${keyword.trim()}%`));
+      }
+
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions)) as any;
+      }
+
+      const messages = await (query as any)
+        .orderBy(desc(tripMessages.createdAt))
+        .limit(limitNum)
+        .offset(offsetNum);
+
+      // Enrich with user names
+      const enriched = await Promise.all(messages.map(async (msg: any) => {
+        const user = await storage.getUser(msg.senderId);
+        const trip = await storage.getTripById(msg.tripId);
+        let riderName = "Unknown";
+        let driverName = "Unknown";
+        if (trip) {
+          const riderUser = await storage.getUser(trip.riderId);
+          riderName = riderUser ? `${riderUser.firstName || ""} ${riderUser.lastName || ""}`.trim() || "Unknown" : "Unknown";
+          if (trip.driverId) {
+            const driverUser = await storage.getUser(trip.driverId);
+            driverName = driverUser ? `${driverUser.firstName || ""} ${driverUser.lastName || ""}`.trim() || "Unknown" : "Unknown";
+          }
+        }
+        return {
+          ...msg,
+          senderName: user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() || "Unknown" : "Unknown",
+          riderName,
+          driverName,
+        };
+      }));
+
+      return res.json(enriched);
+    } catch (error) {
+      console.error("Error fetching chat logs:", error);
+      return res.status(500).json({ message: "Failed to fetch chat logs" });
+    }
+  });
+
+  // Cleanup: Delete messages older than 30 days (can be called by admin or scheduled)
+  app.post("/api/admin/chat-logs/cleanup", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const deleted = await db.delete(tripMessages)
+        .where(sql`${tripMessages.createdAt} < ${thirtyDaysAgo}`)
+        .returning({ id: tripMessages.id });
+
+      return res.json({ deleted: deleted.length, message: `Cleaned up ${deleted.length} messages older than 30 days` });
+    } catch (error) {
+      console.error("Error cleaning up chat logs:", error);
+      return res.status(500).json({ message: "Failed to cleanup messages" });
     }
   });
 
