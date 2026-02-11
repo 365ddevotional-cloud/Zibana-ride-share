@@ -30,7 +30,7 @@ export default function AdminLayout({ children, userRole, activeTab }: AdminLayo
   const { user, logout } = useAuth();
 
   const style = {
-    "--sidebar-width": "16rem",
+    "--sidebar-width": "17rem",
     "--sidebar-width-icon": "3.5rem",
   };
 
@@ -73,7 +73,7 @@ export default function AdminLayout({ children, userRole, activeTab }: AdminLayo
           </SidebarContent>
         </Sidebar>
         <div className="flex flex-col flex-1 min-w-0">
-          <header className="flex items-center justify-between gap-2 border-b px-4 py-2.5 sticky top-0 z-50 bg-background" data-testid="admin-header">
+          <header className="flex items-center justify-between gap-2 border-b px-5 py-2.5 sticky top-0 z-50 admin-header-glass shadow-sm" data-testid="admin-header">
             <div className="flex items-center gap-3 flex-wrap">
               <SidebarTrigger data-testid="button-sidebar-toggle" />
               <Separator orientation="vertical" className="h-5" />
@@ -83,7 +83,7 @@ export default function AdminLayout({ children, userRole, activeTab }: AdminLayo
               {isSuperAdmin && (
                 <Badge
                   variant="secondary"
-                  className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-full px-3 py-0.5 text-xs font-medium no-default-hover-elevate no-default-active-elevate"
+                  className="bg-emerald-600 text-white dark:bg-emerald-600 dark:text-white rounded-full px-3 py-0.5 text-xs font-semibold shadow-sm no-default-hover-elevate no-default-active-elevate"
                   data-testid="badge-super-admin"
                 >
                   Super Admin
@@ -106,7 +106,7 @@ export default function AdminLayout({ children, userRole, activeTab }: AdminLayo
             </div>
           </header>
           <main className="flex-1 overflow-y-auto">
-            <div className="max-w-7xl mx-auto p-6">
+            <div className="max-w-[1400px] mx-auto px-8 py-8">
               {children}
             </div>
           </main>

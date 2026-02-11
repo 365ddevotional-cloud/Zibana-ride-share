@@ -41,12 +41,13 @@ interface AdminStats {
   totalDriverPayouts: string;
 }
 
-const sectionMeta: Record<string, { icon: LucideIcon; accent: string; accentBg: string; borderColor: string; description: string }> = {
+const sectionMeta: Record<string, { icon: LucideIcon; accent: string; accentBg: string; borderColor: string; hoverGlow: string; description: string }> = {
   "Control Center": {
     icon: Activity,
     accent: "text-blue-600 dark:text-blue-400",
     accentBg: "bg-blue-50 dark:bg-blue-900/20",
     borderColor: "border-l-blue-500",
+    hoverGlow: "hover:shadow-blue-200/40 dark:hover:shadow-blue-900/30",
     description: "Monitoring, health alerts, and launch readiness",
   },
   "Users & People": {
@@ -54,6 +55,7 @@ const sectionMeta: Record<string, { icon: LucideIcon; accent: string; accentBg: 
     accent: "text-indigo-600 dark:text-indigo-400",
     accentBg: "bg-indigo-50 dark:bg-indigo-900/20",
     borderColor: "border-l-indigo-500",
+    hoverGlow: "hover:shadow-indigo-200/40 dark:hover:shadow-indigo-900/30",
     description: "Drivers, riders, directors, and team management",
   },
   "Trips & Operations": {
@@ -61,6 +63,7 @@ const sectionMeta: Record<string, { icon: LucideIcon; accent: string; accentBg: 
     accent: "text-emerald-600 dark:text-emerald-400",
     accentBg: "bg-emerald-50 dark:bg-emerald-900/20",
     borderColor: "border-l-emerald-500",
+    hoverGlow: "hover:shadow-emerald-200/40 dark:hover:shadow-emerald-900/30",
     description: "Active trips, reservations, ride classes, and fees",
   },
   "Finance & Wallets": {
@@ -68,6 +71,7 @@ const sectionMeta: Record<string, { icon: LucideIcon; accent: string; accentBg: 
     accent: "text-amber-600 dark:text-amber-400",
     accentBg: "bg-amber-50 dark:bg-amber-900/20",
     borderColor: "border-l-amber-500",
+    hoverGlow: "hover:shadow-amber-200/40 dark:hover:shadow-amber-900/30",
     description: "Payouts, wallets, settlements, and tax documents",
   },
   "Ratings & Support": {
@@ -75,6 +79,7 @@ const sectionMeta: Record<string, { icon: LucideIcon; accent: string; accentBg: 
     accent: "text-violet-600 dark:text-violet-400",
     accentBg: "bg-violet-50 dark:bg-violet-900/20",
     borderColor: "border-l-violet-500",
+    hoverGlow: "hover:shadow-violet-200/40 dark:hover:shadow-violet-900/30",
     description: "Ratings, disputes, inbox, and help center",
   },
   "Safety & Compliance": {
@@ -82,6 +87,7 @@ const sectionMeta: Record<string, { icon: LucideIcon; accent: string; accentBg: 
     accent: "text-red-600 dark:text-red-400",
     accentBg: "bg-red-50 dark:bg-red-900/20",
     borderColor: "border-l-red-500",
+    hoverGlow: "hover:shadow-red-200/40 dark:hover:shadow-red-900/30",
     description: "Fraud detection, incidents, insurance, and compliance",
   },
   "Growth & Intelligence": {
@@ -89,6 +95,7 @@ const sectionMeta: Record<string, { icon: LucideIcon; accent: string; accentBg: 
     accent: "text-teal-600 dark:text-teal-400",
     accentBg: "bg-teal-50 dark:bg-teal-900/20",
     borderColor: "border-l-teal-500",
+    hoverGlow: "hover:shadow-teal-200/40 dark:hover:shadow-teal-900/30",
     description: "Reports, analytics, incentives, and ZIBRA insights",
   },
 };
@@ -115,6 +122,7 @@ const kpiCards = [
     key: "totalRiders" as const,
     icon: Users,
     borderColor: "border-t-blue-500",
+    gradientBorder: "from-blue-600 to-blue-400",
     iconBg: "text-blue-500/15",
     format: (v: number) => String(v),
   },
@@ -123,6 +131,7 @@ const kpiCards = [
     key: "totalDrivers" as const,
     icon: Car,
     borderColor: "border-t-emerald-500",
+    gradientBorder: "from-emerald-600 to-emerald-400",
     iconBg: "text-emerald-500/15",
     format: (v: number) => String(v),
   },
@@ -131,6 +140,7 @@ const kpiCards = [
     key: "activeTrips" as const,
     icon: MapPin,
     borderColor: "border-t-amber-500",
+    gradientBorder: "from-amber-600 to-amber-400",
     iconBg: "text-amber-500/15",
     format: (v: number) => String(v),
   },
@@ -139,6 +149,7 @@ const kpiCards = [
     key: "pendingDrivers" as const,
     icon: Clock,
     borderColor: "border-t-red-500",
+    gradientBorder: "from-red-600 to-red-400",
     iconBg: "text-red-500/15",
     format: (v: number) => String(v),
   },
@@ -147,6 +158,7 @@ const kpiCards = [
     key: "totalFares" as const,
     icon: Banknote,
     borderColor: "border-t-violet-500",
+    gradientBorder: "from-violet-600 to-violet-400",
     iconBg: "text-violet-500/15",
     format: null,
   },
@@ -155,6 +167,7 @@ const kpiCards = [
     key: "completedTrips" as const,
     icon: UserCheck,
     borderColor: "border-t-blue-700 dark:border-t-blue-400",
+    gradientBorder: "from-blue-700 to-blue-500 dark:from-blue-500 dark:to-blue-300",
     iconBg: "text-blue-700/15 dark:text-blue-400/15",
     format: (v: number) => String(v),
   },
@@ -181,7 +194,7 @@ export default function AdminControlCenter() {
   ].filter((item) => item.count > 0);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10 admin-fade-in">
       <Breadcrumb data-testid="breadcrumb-nav">
         <BreadcrumbList>
           <BreadcrumbItem>
@@ -190,7 +203,7 @@ export default function AdminControlCenter() {
         </BreadcrumbList>
       </Breadcrumb>
 
-      <div className="flex flex-wrap items-start justify-between gap-4 border-b pb-5" data-testid="overview-context-header">
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 dark:border-slate-700 pb-5" data-testid="overview-context-header">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-slate-800 dark:text-slate-100" data-testid="text-control-center-title">
             Admin Overview
@@ -205,8 +218,8 @@ export default function AdminControlCenter() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6" data-testid="metrics-row">
-        {kpiCards.map((kpi) => {
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-8" data-testid="metrics-row">
+        {kpiCards.map((kpi, index) => {
           const KpiIcon = kpi.icon;
           let displayValue: string | number = "--";
           if (!isLoading && !isError && stats) {
@@ -221,7 +234,7 @@ export default function AdminControlCenter() {
           return (
             <Card
               key={kpi.label}
-              className={`rounded-xl shadow-lg border-t-4 ${kpi.borderColor} relative overflow-visible`}
+              className={`rounded-xl shadow-xl shadow-slate-300/40 dark:shadow-slate-900/40 border border-slate-200 dark:border-slate-700 border-t-4 ${kpi.borderColor} relative overflow-visible hover:scale-[1.01] transition-all duration-200 ease-out`}
               data-testid={`metric-${kpi.label.toLowerCase().replace(/\s+/g, "-")}`}
             >
               <CardContent className="pt-5 pb-4 px-4">
@@ -231,9 +244,13 @@ export default function AdminControlCenter() {
                     {kpi.label}
                   </p>
                   {isLoading ? (
-                    <Skeleton className="h-8 w-20" />
+                    <Skeleton className="h-10 w-20" />
                   ) : (
-                    <p className="text-3xl font-bold text-slate-800 dark:text-slate-100" data-testid={`value-${kpi.label.toLowerCase().replace(/\s+/g, "-")}`}>
+                    <p
+                      className="text-4xl font-extrabold text-slate-800 dark:text-slate-100 admin-kpi-number"
+                      style={{ animationDelay: `${index * 80}ms` }}
+                      data-testid={`value-${kpi.label.toLowerCase().replace(/\s+/g, "-")}`}
+                    >
                       {displayValue}
                     </p>
                   )}
@@ -244,8 +261,8 @@ export default function AdminControlCenter() {
         })}
       </div>
 
-      <div>
-        <h2 className="text-lg font-semibold tracking-tight text-slate-800 dark:text-slate-100 mb-4">Action Zones</h2>
+      <div className="border-t border-slate-200 dark:border-slate-700 mt-2 pt-8">
+        <h2 className="text-lg font-semibold tracking-tight text-slate-800 dark:text-slate-100 mb-5">Action Zones</h2>
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3" data-testid="action-zones">
           {sidebarSections.map((section) => {
             const meta = sectionMeta[section.label];
@@ -255,7 +272,7 @@ export default function AdminControlCenter() {
             return (
               <Card
                 key={section.label}
-                className={`hover-elevate rounded-xl shadow-lg border-l-2 ${meta?.borderColor || ""} transition-all duration-200`}
+                className={`hover-elevate rounded-xl shadow-xl shadow-slate-300/40 dark:shadow-slate-900/40 border border-slate-200 dark:border-slate-700 border-l-[3px] ${meta?.borderColor || ""} ${meta?.hoverGlow || ""} hover:scale-[1.01] transition-all duration-200 ease-out`}
                 data-testid={`zone-${section.label.toLowerCase().replace(/\s+/g, "-")}`}
               >
                 <CardHeader className="pb-3 gap-2">
@@ -264,7 +281,7 @@ export default function AdminControlCenter() {
                       <SectionIcon className={`h-5 w-5 ${meta?.accent || "text-muted-foreground"}`} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <CardTitle className="text-sm font-semibold text-slate-800 dark:text-slate-100">{section.label}</CardTitle>
+                      <CardTitle className="text-lg font-semibold text-slate-800 dark:text-slate-100">{section.label}</CardTitle>
                       {meta?.description && (
                         <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">{meta.description}</p>
                       )}
@@ -302,10 +319,10 @@ export default function AdminControlCenter() {
         </div>
       </div>
 
-      <div data-testid="attention-section">
-        <h2 className="text-lg font-semibold tracking-tight text-slate-800 dark:text-slate-100 mb-4">Attention Required</h2>
+      <div className="border-t border-slate-200 dark:border-slate-700 mt-2 pt-8" data-testid="attention-section">
+        <h2 className="text-lg font-semibold tracking-tight text-slate-800 dark:text-slate-100 mb-5">Attention Required</h2>
         {isLoading ? (
-          <Card className="rounded-xl shadow-lg">
+          <Card className="rounded-xl shadow-xl shadow-slate-300/40 dark:shadow-slate-900/40 border border-slate-200 dark:border-slate-700">
             <CardContent className="pt-4 pb-4 px-4">
               <Skeleton className="h-5 w-48" />
             </CardContent>
@@ -314,7 +331,7 @@ export default function AdminControlCenter() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {attentionItems.map((item) => (
               <Link key={item.label} href={item.route} data-testid={`attention-${item.label.toLowerCase().replace(/\s+/g, "-")}`}>
-                <Card className="hover-elevate rounded-xl shadow-lg border-l-2 border-l-orange-400">
+                <Card className="hover-elevate rounded-xl shadow-xl shadow-slate-300/40 dark:shadow-slate-900/40 border border-slate-200 dark:border-slate-700 border-l-[3px] border-l-orange-400 hover:scale-[1.01] transition-all duration-200 ease-out">
                   <CardContent className="flex items-center gap-3 pt-4 pb-4 px-4">
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-orange-50 dark:bg-orange-900/20">
                       <item.icon className="h-4 w-4 text-orange-600 dark:text-orange-400" />
@@ -332,7 +349,7 @@ export default function AdminControlCenter() {
             ))}
           </div>
         ) : (
-          <Card className="rounded-xl shadow-lg" data-testid="no-attention-needed">
+          <Card className="rounded-xl shadow-xl shadow-slate-300/40 dark:shadow-slate-900/40 border border-slate-200 dark:border-slate-700" data-testid="no-attention-needed">
             <CardContent className="flex items-center gap-3 pt-4 pb-4 px-4">
               <CheckCircle className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
               <p className="text-sm text-slate-500 dark:text-slate-400">No pending issues. All systems operational.</p>

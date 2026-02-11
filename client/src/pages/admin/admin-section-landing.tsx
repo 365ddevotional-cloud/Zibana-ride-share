@@ -60,7 +60,7 @@ export default function AdminSectionLanding({ section }: AdminSectionLandingProp
 
   if (!matchedGroup) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 space-y-4">
+      <div className="flex flex-col items-center justify-center py-16 space-y-4 admin-fade-in">
         <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
           <AlertTriangle className="h-7 w-7 text-muted-foreground" />
         </div>
@@ -83,7 +83,7 @@ export default function AdminSectionLanding({ section }: AdminSectionLandingProp
   const accentDot = sectionAccents[matchedGroup.label] || "bg-slate-500";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 admin-fade-in">
       <Breadcrumb data-testid="breadcrumb-nav">
         <BreadcrumbList>
           <BreadcrumbItem>
@@ -98,7 +98,7 @@ export default function AdminSectionLanding({ section }: AdminSectionLandingProp
         </BreadcrumbList>
       </Breadcrumb>
 
-      <div className="border-b pb-5" data-testid="section-context-header">
+      <div className="border-b border-slate-200 dark:border-slate-700 pb-5" data-testid="section-context-header">
         <div className="flex items-center gap-3">
           <div className={`w-1.5 h-7 rounded-full ${accentDot}`} />
           <h1 className="text-2xl font-semibold tracking-tight text-slate-800 dark:text-slate-100" data-testid="text-section-title">{matchedGroup.label}</h1>
@@ -113,10 +113,10 @@ export default function AdminSectionLanding({ section }: AdminSectionLandingProp
           <p className="text-sm text-slate-500 dark:text-slate-400">No items available in this section yet.</p>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {matchedGroup.items.map((item) => (
             <Link key={item.value} href={item.route} data-testid={`card-${item.value}`}>
-              <Card className={`hover-elevate rounded-xl shadow-lg transition-all duration-200 ${item.value === section ? "border-primary" : ""}`}>
+              <Card className={`hover-elevate rounded-xl shadow-xl shadow-slate-300/40 dark:shadow-slate-900/40 border border-slate-200 dark:border-slate-700 hover:scale-[1.01] transition-all duration-200 ease-out ${item.value === section ? "border-primary" : ""}`}>
                 <CardContent className="flex items-center gap-4 py-5 px-5">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800">
                     <item.icon className="h-5 w-5 text-slate-600 dark:text-slate-300" />
