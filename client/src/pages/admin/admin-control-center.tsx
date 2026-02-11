@@ -45,10 +45,10 @@ const sectionRoutes: Record<string, string> = {
   "Control Center": "/admin/control/overview",
   "Users & People": "/admin/users/drivers",
   "Trips & Operations": "/admin/trips",
-  "Finance & Wallets": "/admin/wallets",
-  "Ratings & Support": "/admin/ratings",
-  "Safety & Compliance": "/admin/fraud",
-  "Growth & Intelligence": "/admin/reports",
+  "Finance & Wallets": "/admin/finance/payouts",
+  "Ratings & Support": "/admin/support/ratings",
+  "Safety & Compliance": "/admin/safety/fraud",
+  "Growth & Intelligence": "/admin/growth/reports",
 };
 
 const sectionMeta: Record<string, { icon: LucideIcon; accent: string; accentBg: string; borderColor: string; hoverGlow: string; description: string }> = {
@@ -180,7 +180,7 @@ const kpiRoutes: Record<string, string> = {
   "TOTAL DRIVERS": "/admin/users/drivers",
   "ACTIVE TRIPS": "/admin/trips",
   "PENDING APPROVALS": "/admin/control/monitoring",
-  "REVENUE": "/admin/wallets",
+  "REVENUE": "/admin/finance/wallets",
   "COMPLETED TRIPS": "/admin/trips",
 };
 

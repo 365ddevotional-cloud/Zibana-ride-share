@@ -54,7 +54,7 @@ const kpiRoutes: Record<string, string> = {
   "TOTAL DRIVERS": "/admin/users/drivers",
   "ACTIVE TRIPS": "/admin/trips",
   "PENDING APPROVALS": "/admin/control/monitoring",
-  "REVENUE": "/admin/wallets",
+  "REVENUE": "/admin/finance/wallets",
   "COMPLETED TRIPS": "/admin/trips",
 };
 
