@@ -1,0 +1,162 @@
+ZIBA ADMIN — CONTROL CENTER FULL FUNCTIONAL IMPLEMENTATION
+
+Do NOT modify backend logic, auth, guards, or SuperAdminGuard.
+Do NOT duplicate layouts.
+Extend existing architecture cleanly.
+
+==================================================
+STEP 1 — ROUTE STRUCTURE
+==================================================
+
+Create dynamic route:
+
+/admin/control/:section
+
+Supported sections:
+- overview
+- monitoring
+- alerts
+- launch
+- ops
+
+Ensure route works with deep linking and refresh.
+
+==================================================
+STEP 2 — CONTROL LAYOUT
+==================================================
+
+Create ControlCenterLayout component:
+
+Includes:
+- Breadcrumb navigation
+- Section title
+- Back to Control Center button
+- Dynamic section renderer
+
+Switch logic based on :section param.
+
+==================================================
+STEP 3 — OVERVIEW PAGE (REAL DATA WIRED)
+==================================================
+
+Show:
+
+1. KPI summary cards (reuse existing metrics)
+2. Recent Activity panel (last 10 actions)
+3. System Status bar:
+   - Drivers Online
+   - Active Trips
+   - Pending Approvals
+   - Critical Alerts count
+
+All clickable to respective section pages.
+
+==================================================
+STEP 4 — MONITORING PAGE
+==================================================
+
+Show:
+
+1. Active Trips Table
+   Columns:
+   - Trip ID
+   - Rider
+   - Driver
+   - Status
+   - Duration
+   - Actions (View)
+
+2. Driver Status Table
+   - Name
+   - Online status
+   - Rating
+   - Last Active
+
+Add:
+- Search bar
+- Filter dropdown (Active / Completed / Cancelled)
+
+==================================================
+STEP 5 — HEALTH ALERTS PAGE
+==================================================
+
+Create AlertTable:
+
+Columns:
+- Alert ID
+- Type
+- Severity (badge)
+- Date
+- Status
+- Resolve button
+
+Add:
+- Filter by severity
+- Resolve action updates state
+
+==================================================
+STEP 6 — LAUNCH READINESS PAGE
+==================================================
+
+Create checklist component:
+
+Items:
+- Driver Verification Complete
+- Payment System Active
+- Insurance Uploaded
+- Admin Approvals Cleared
+- System Monitoring Enabled
+
+Each item toggleable.
+
+Show:
+- % Completion progress bar
+- Blocker warning if below 80%
+
+==================================================
+STEP 7 — OPS READINESS PAGE
+==================================================
+
+Show operational stats:
+
+- Driver availability %
+- Ride success rate %
+- Cancellation rate %
+- Dispute rate %
+
+If thresholds bad:
+Display warning banner.
+
+==================================================
+STEP 8 — NAVIGATION FIX
+==================================================
+
+Update:
+
+Control Center card → /admin/control/overview
+Overview → /admin/control/overview
+Monitoring → /admin/control/monitoring
+Health Alerts → /admin/control/alerts
+Launch Readiness → /admin/control/launch
+Ops Readiness → /admin/control/ops
+
+Ensure no redirects to /admin root.
+
+==================================================
+STEP 9 — CLEAN CHECK
+==================================================
+
+App must:
+- Compile clean
+- No console errors
+- No dead links
+- SuperAdminGuard intact
+- Inactivity timer intact
+
+After implementation provide:
+- Files created
+- Files modified
+- Route tree summary
+- Confirmation all links functional
+
+END.
