@@ -1,11 +1,17 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Search, Download, Eye, Filter, Info } from "lucide-react";
+import { ArrowLeft, Search, Download, Eye, Filter, Info, Loader2 } from "lucide-react";
+
+const ChatLogsPanel = lazy(() => import("@/components/admin/chat-logs-panel"));
+
+const customPanelSections: Record<string, React.LazyExoticComponent<any>> = {
+  "chat-logs": ChatLogsPanel,
+};
 
 interface SectionMeta {
   title: string;
@@ -592,6 +598,23 @@ export default function AdminSectionContent({ section, parentGroup, parentRoute 
 
   const [searchQuery, setSearchQuery] = useState("");
   const meta = sectionMeta[section];
+
+  const CustomPanel = customPanelSections[section];
+  if (CustomPanel) {
+    return (
+      <div className="admin-fade-in space-y-6">
+        <Link href={parentRoute}>
+          <Button variant="ghost" size="sm" data-testid="button-back-to-parent">
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            Back to {parentGroup}
+          </Button>
+        </Link>
+        <Suspense fallback={<div className="flex items-center justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>}>
+          <CustomPanel />
+        </Suspense>
+      </div>
+    );
+  }
 
   if (!meta) {
     return (

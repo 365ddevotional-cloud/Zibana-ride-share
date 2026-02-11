@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { useLocation } from "wouter";
 import { useTranslation } from "@/i18n";
 import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
+import { TripChat } from "@/components/trip-chat";
 import type { DriverProfile, Trip } from "@shared/schema";
 
 export default function DriverDashboard() {
@@ -691,6 +692,15 @@ export default function DriverDashboard() {
         </Card>
 
       </div>
+      {currentTrip && user && (
+        <TripChat
+          tripId={currentTrip.id}
+          tripStatus={currentTrip.status}
+          currentUserId={user.id}
+          completedAt={currentTrip.completedAt ? String(currentTrip.completedAt) : null}
+          cancelledAt={currentTrip.cancelledAt ? String(currentTrip.cancelledAt) : null}
+        />
+      )}
       <ZibraFloatingButton />
     </DriverLayout>
   );

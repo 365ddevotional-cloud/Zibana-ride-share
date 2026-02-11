@@ -98,6 +98,7 @@ const routeToTabMap: Record<string, string> = {
   "/admin/safety/relief-fund": "relief-fund",
   "/admin/safety/compliance-logs": "compliance-logs",
   "/admin/safety/store-compliance": "store-compliance",
+  "/admin/safety/chat-logs": "chat-logs",
   "/admin/growth/reports": "reports",
   "/admin/growth/overview": "growth",
   "/admin/growth/user-growth": "user-growth",

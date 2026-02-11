@@ -46,6 +46,7 @@ import {
   Link2,
   DollarSign
 } from "lucide-react";
+import { TripChat } from "@/components/trip-chat";
 import type { Trip, RiderProfile, Ride } from "@shared/schema";
 import { NotificationBell } from "@/components/notification-bell";
 import { SupportSection } from "@/components/support-section";
@@ -1286,6 +1287,15 @@ export default function RiderDashboard() {
         role="rider"
         accusedUserId={incidentAccusedUserId}
       />
+      {currentTrip && user && (
+        <TripChat
+          tripId={currentTrip.id}
+          tripStatus={currentTrip.status}
+          currentUserId={user.id}
+          completedAt={currentTrip.completedAt ? String(currentTrip.completedAt) : null}
+          cancelledAt={currentTrip.cancelledAt ? String(currentTrip.cancelledAt) : null}
+        />
+      )}
       <ZibraFloatingButton />
     </div>
   );

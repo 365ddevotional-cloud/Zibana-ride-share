@@ -52,6 +52,7 @@ import {
   Target,
   Globe,
   Settings,
+  MessageCircle,
 } from "lucide-react";
 
 const sidebarSections = [
@@ -131,6 +132,7 @@ const sidebarSections = [
       { value: "relief-fund", label: "Relief Fund", icon: Gift, route: "/admin/safety/relief-fund" },
       { value: "compliance-logs", label: "Compliance Logs", icon: ScrollText, route: "/admin/safety/compliance-logs" },
       { value: "store-compliance", label: "Store Compliance", icon: CheckSquare, route: "/admin/safety/store-compliance" },
+      { value: "chat-logs", label: "Chat Logs", icon: MessageCircle, route: "/admin/safety/chat-logs" },
     ],
   },
   {
