@@ -1,0 +1,262 @@
+PHASE 5 – PLATFORM STABILIZATION + GO LIVE CONTROL + QA + ZIBA AI
+
+============================================================
+SECTION 1 – REMOVE ALL FAKE / HARD-CODED METRICS
+============================================================
+
+1. Remove ALL hard-coded financial and operational numbers from:
+   - Trips
+   - Reservations
+   - Ride Classes
+   - Wallets
+   - Third-Party Funding
+   - Ratings
+   - Fraud
+   - Growth
+   - Reports
+
+2. Replace them with:
+   - Zero state if no real data
+   - "No Data Yet" placeholders
+   - Clean empty states with professional messaging
+
+3. If environment = PRE_LAUNCH:
+   - Hide revenue totals
+   - Hide wallet balances
+   - Hide financial aggregates
+   - Display "Pre-Launch Mode – Live Metrics Disabled"
+
+NO dummy financial figures.
+NO simulated revenue.
+NO fake totals.
+
+============================================================
+SECTION 2 – PLATFORM GO LIVE SWITCH
+============================================================
+
+Create PlatformSettings table:
+
+Fields:
+- id
+- isLive (boolean default false)
+- launchDate (nullable)
+- environment (enum: PRE_LAUNCH | LIVE)
+
+Create page:
+   /admin/control/launch-readiness
+
+Display:
+- Current environment badge
+- Launch readiness checklist
+- System health summary
+- QA status
+- GO LIVE button (Super Admin only)
+
+On GO LIVE:
+- Confirm modal
+- Set:
+    isLive = true
+    launchDate = now
+    environment = LIVE
+
+When LIVE:
+- Enable financial metrics
+- Enable real analytics
+- Remove pre-launch banner
+- Activate growth dashboards
+
+All dashboards must read from isLive flag.
+
+============================================================
+SECTION 3 – RIDER & DRIVER FINAL QA MODE
+============================================================
+
+Create:
+
+/admin/control/ops-readiness
+
+Add:
+
+1. Rider QA Checklist
+   - Request ride
+   - Cancel ride
+   - Wallet payment
+   - Cash payment
+   - Rate driver
+   - Report driver
+   - Trip receipt
+   - Referral
+   - Location validation
+
+2. Driver QA Checklist
+   - Go online/offline
+   - Accept ride
+   - Reject ride
+   - Complete ride
+   - Cancel ride
+   - Star rating system
+   - Wallet earnings
+   - Document verification
+   - Low rating pairing block
+
+3. Trip Simulator
+   - Simulate test ride
+   - Simulate payout
+   - Simulate cancellation
+   - Simulate fraud flag
+
+All simulated transactions tagged:
+   type = TEST
+
+All QA logs stored in:
+   /admin/control/ops-readiness/logs
+
+NO real financial movements during simulation.
+
+============================================================
+SECTION 4 – MAKE ALL SUB-SECTIONS CLICKABLE
+============================================================
+
+Ensure every sidebar section and sub-section:
+
+Trips & Operations:
+- Trips
+- Reservations
+- Ride Classes
+- Driver Preferences
+- Corporate Rides
+- Special Rides
+- Simulation
+- Fee Settings
+
+Finance & Wallets:
+- Payouts
+- Wallets
+- Wallet Funding
+- Director Funding
+- Third Party Funding
+- Refunds
+- Chargebacks
+- Bank Transfers
+- Cash Settlements
+- Cash Disputes
+- Tax Documents
+
+Ratings & Support:
+- Ratings
+- Disputes
+- Inbox
+- Help Center
+- Support Logs
+
+Safety & Compliance:
+- Fraud Detection
+- Safety
+- Lost Items
+- Lost Item Fraud
+- Accident Reports
+- Insurance
+- Relief Fund
+- Compliance Logs
+- Store Compliance
+
+Growth & Intelligence:
+- Reports
+- Growth
+- User Growth
+- Incentives
+- Acquisition
+- Countries
+- Contracts
+
+Each must:
+- Route to dedicated page
+- Have breadcrumb
+- Have back-to-parent link
+- No dead-end pages
+- No redirect-to-dashboard behavior
+
+============================================================
+SECTION 5 – TRAINING CENTER FIX
+============================================================
+
+Under:
+   /admin/users/training-center
+
+Make ALL "View Materials" buttons clickable.
+
+Each category:
+- Driver Onboarding
+- Safety Protocols
+- App Navigation
+- Customer Service
+- Earnings & Payouts
+
+Must open:
+   /admin/users/training-center/{category}
+
+Each page must:
+- Display training materials
+- Have breadcrumb
+- Have back button
+- Have structured content
+- No empty pages
+
+============================================================
+SECTION 6 – ADD ZIBA AI ADMIN ASSISTANT
+============================================================
+
+Add floating AI button bottom-right:
+Label: ZIBA AI
+
+Admin-only access.
+
+Opens slide-in assistant panel.
+
+ZIBA AI must:
+- Answer operational questions
+- Navigate to admin pages
+- Summarize metrics
+- Detect risk alerts
+- Read launch status
+- Generate reports
+- Assist Super Admin decisions
+
+System Prompt:
+"You are ZIBA AI, an operational assistant for ZIBA Ride Share administrators."
+
+If environment = PRE_LAUNCH:
+AI must respond accordingly.
+No hallucinated financial data.
+
+AI must read:
+- Trips
+- Ratings
+- Fraud
+- Wallet status
+- QA logs
+- Launch status
+
+Clean executive UI.
+Typing animation.
+Professional design.
+
+============================================================
+FINAL REQUIREMENTS
+============================================================
+
+- No hard-coded fake metrics
+- No dummy money
+- All pages clickable
+- No dead ends
+- Breadcrumb navigation everywhere
+- Back-to-parent routing everywhere
+- Pre-Launch mode respected globally
+- Super Admin controls live state
+- QA must pass before launch
+- ZIBA AI integrated into admin dashboard
+
+Proceed sequentially.
+Build clean.
+No unnecessary new features.
+Stabilize existing system.
