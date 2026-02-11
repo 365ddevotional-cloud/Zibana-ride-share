@@ -1,0 +1,174 @@
+Implement the full ZIBA user experience, session persistence, and UX safeguards in a single coordinated flow.
+
+CONTEXT:
+- ZIBA is a ride-hailing app with Rider, Driver, Director, and Super Admin roles.
+- SuperAdminGuard, Admin routing, Admin session persistence, and Admin inactivity timeout are already implemented and working.
+- This task focuses on Rider + Driver experience, UX polish, and retention-critical behaviors.
+- Backend, auth issuance, wallets, and pricing logic must NOT be modified.
+
+GOALS:
+1. Eliminate signup/login friction.
+2. Improve Driver & Rider return experience.
+3. Match mature Uber/Bolt-level UX tone.
+4. Add respectful, data-driven behavioral warnings.
+5. Maintain role isolation and app stability.
+
+----------------------------------------------------------------
+PART 1 — GLOBAL AUTO-LOGIN (RIDER + DRIVER)
+----------------------------------------------------------------
+REQUIREMENTS:
+- Once a user signs up or signs in, they must remain logged in automatically.
+- Closing the app, refreshing, backgrounding, or reopening must NOT require sign-in again.
+- Auth state must hydrate BEFORE route guards execute.
+- Explicit logout clears session and requires sign-in again.
+- App deletion + reinstall requires SIGN IN (not sign-up).
+- Prevent duplicate accounts.
+
+RULES:
+- Frontend-only.
+- Use existing auth/session/token mechanisms.
+- No redirect flicker.
+- No signup loops.
+
+----------------------------------------------------------------
+PART 2 — DRIVER PRIMARY CTA: “GO ONLINE”
+----------------------------------------------------------------
+REQUIREMENTS:
+- Add a bold, centered, primary action button for drivers.
+- Button text: “GO ONLINE”.
+- Rounded pill style, visually dominant.
+- Appears immediately when driver opens the app.
+- Subtext: “You are currently offline”.
+- One tap switches driver to online state.
+
+UX:
+- Smooth transition.
+- Light haptic feedback.
+- No clutter around button.
+- Driver feels welcomed and ready to earn.
+
+----------------------------------------------------------------
+PART 3 — DRIVER “WELCOME BACK” SCREEN
+----------------------------------------------------------------
+FLOW:
+- Driver taps “GO ONLINE”.
+- Show a brief, warm welcome screen.
+- Auto-dismiss and transition to map / “Finding trips”.
+
+COPY:
+“Welcome back 👋
+You’re online and ready to earn today.”
+
+RULES:
+- No extra clicks.
+- No blocking interaction.
+- Auto-dismiss after short delay.
+
+----------------------------------------------------------------
+PART 4 — RIDER “WELCOME BACK” EXPERIENCE
+----------------------------------------------------------------
+FLOW:
+- Rider reopens app via auto-login.
+- Show brief welcome message.
+- Immediately open destination input.
+
+COPY:
+“Welcome back 👋
+Ready to get moving?”
+
+RULES:
+- Do NOT block booking.
+- Do NOT add extra steps.
+
+----------------------------------------------------------------
+PART 5 — DRIVER ACCEPTANCE RATE WARNING (RESPECTFUL)
+----------------------------------------------------------------
+WHEN:
+- Driver goes online.
+- Acceptance rate is trending downward.
+
+COPY:
+“Your acceptance rate is trending down.
+Consistently accepting trips helps you earn more and stay eligible for rewards.”
+
+RULES:
+- Calm, respectful tone.
+- Informational only.
+- Show once per session.
+- No punishment language.
+
+CTA:
+“Got it”
+
+----------------------------------------------------------------
+PART 6 — DRIVER CANCELLATION WARNING (STRONGER BUT RESPECTFUL)
+----------------------------------------------------------------
+WHEN:
+- Driver comes online.
+- Cancellation rate exceeds threshold.
+
+COPY:
+“Your cancellation rate needs attention.
+Frequent cancellations may affect trip priority and rewards.”
+
+RULES:
+- Respectful tone.
+- No scare tactics.
+- No immediate penalties.
+
+CTA:
+“Understood”
+
+----------------------------------------------------------------
+PART 7 — RIDER CANCELLATION NOTICE (SOFT)
+----------------------------------------------------------------
+WHEN:
+- Rider opens app or attempts to request a ride.
+- Cancellation rate is higher than normal.
+
+COPY:
+“Your recent cancellations are higher than usual.
+Frequent cancellations can delay pickups for everyone.”
+
+RULES:
+- Informational only.
+- Must NOT block booking.
+
+CTA:
+“Continue”
+
+----------------------------------------------------------------
+PART 8 — UI FONT & TONE STANDARDIZATION
+----------------------------------------------------------------
+GOAL:
+- Achieve clean, modern, Uber-style visual tone.
+- Optimize readability for low-end devices.
+
+RULES:
+- Use modern sans-serif font.
+- Bold for primary actions.
+- Medium weight for warnings.
+- Regular for helper text.
+- No decorative or playful fonts.
+
+APPLY TO:
+- Buttons
+- Warnings
+- Welcome screens
+- System messages
+
+----------------------------------------------------------------
+PART 9 — SAFETY & REGRESSION CHECK
+----------------------------------------------------------------
+CONFIRM:
+- Auto-login works for Rider and Driver.
+- No signup or login loops.
+- Admin, Driver, Rider logic remain isolated.
+- No console errors.
+- No backend changes.
+- App remains stable on refresh, deep links, and backgrounding.
+
+OUTPUT:
+- Implement all above changes.
+- Provide a concise confirmation summary.
+- Declare system ready for launch UX-wise.
