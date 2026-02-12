@@ -5888,12 +5888,33 @@ export const platformSettings = pgTable("platform_settings", {
   id: serial("id").primaryKey(),
   isLive: boolean("is_live").notNull().default(false),
   environment: varchar("environment", { length: 20 }).notNull().default("PRE_LAUNCH"),
+  systemMode: varchar("system_mode", { length: 20 }).notNull().default("development"),
+  qaMode: boolean("qa_mode").notNull().default(false),
+  qaModeEnabledBy: varchar("qa_mode_enabled_by"),
+  qaModeEnabledAt: timestamp("qa_mode_enabled_at"),
   launchDate: timestamp("launch_date"),
   launchedBy: varchar("launched_by"),
+  modeChangedBy: varchar("mode_changed_by"),
+  modeChangedAt: timestamp("mode_changed_at"),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export type PlatformSettings = typeof platformSettings.$inferSelect;
+
+export const qaSessionLogs = pgTable("qa_session_logs", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  role: varchar("role", { length: 30 }).notNull(),
+  actionType: varchar("action_type", { length: 50 }).notNull(),
+  endpoint: varchar("endpoint", { length: 255 }).notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("success"),
+  errorFlag: boolean("error_flag").notNull().default(false),
+  errorMessage: text("error_message"),
+  metadata: text("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type QaSessionLog = typeof qaSessionLogs.$inferSelect;
 
 export const qaChecklistItems = pgTable("qa_checklist_items", {
   id: serial("id").primaryKey(),

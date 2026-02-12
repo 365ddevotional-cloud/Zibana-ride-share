@@ -5,7 +5,7 @@ import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integra
 import { storage } from "./storage";
 import { db } from "./db";
 import { eq, and, count, sql, gte, lt, lte, isNotNull, inArray, desc, or, ilike } from "drizzle-orm";
-import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, driverInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages, walletFundingTransactions, walletFundingSettings, driverWallets, directorFundingTransactions, directorFundingSettings, directorFundingAcceptance, directorFundingSuspensions, directorProfiles, directorDriverAssignments, directorActionLogs, driverCoachingLogs, directorCells, directorCommissionSettings, directorPayoutSummaries, referralCodes, directorFraudSignals, directorDisputes, directorDisputeMessages, directorWindDowns, welcomeAnalytics, directorPerformanceScores, directorPerformanceWeights, directorIncentives, directorRestrictions, directorPerformanceLogs, directorSuccessions, directorTerminationTimeline, directorStaff, riderTrustScores, riderTrustWeights, riderLoyaltyIncentives, riderTrustLogs, fundingRelationships, fundingAbuseFlags, thirdPartyFundingConfig, fundingAuditLogs, sponsoredBalances, directorCoachingLogs, directorTrainingModules, directorTermsAcceptance, directorTrustScores, platformSettings, qaChecklistItems, qaSimulationLogs, tripMessages, insertTripMessageSchema } from "@shared/schema";
+import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, driverInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages, walletFundingTransactions, walletFundingSettings, driverWallets, directorFundingTransactions, directorFundingSettings, directorFundingAcceptance, directorFundingSuspensions, directorProfiles, directorDriverAssignments, directorActionLogs, driverCoachingLogs, directorCells, directorCommissionSettings, directorPayoutSummaries, referralCodes, directorFraudSignals, directorDisputes, directorDisputeMessages, directorWindDowns, welcomeAnalytics, directorPerformanceScores, directorPerformanceWeights, directorIncentives, directorRestrictions, directorPerformanceLogs, directorSuccessions, directorTerminationTimeline, directorStaff, riderTrustScores, riderTrustWeights, riderLoyaltyIncentives, riderTrustLogs, fundingRelationships, fundingAbuseFlags, thirdPartyFundingConfig, fundingAuditLogs, sponsoredBalances, directorCoachingLogs, directorTrainingModules, directorTermsAcceptance, directorTrustScores, platformSettings, qaChecklistItems, qaSimulationLogs, tripMessages, insertTripMessageSchema, qaSessionLogs } from "@shared/schema";
 import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, evaluateAllDrivers, evaluateBehaviorAndWarnings, calculateDriverMatchingScore, getDriverIncentiveProgress, assignFirstRidePromo, assignReturnRiderPromo, applyPromoToTrip, voidPromosOnCancellation } from "./incentives";
 import { notificationService } from "./notification-service";
 import { registerAiCommandRoutes } from "./ai-command";
@@ -15457,6 +15457,254 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error reverting to pre-launch:", error);
       return res.status(500).json({ message: "Failed to revert" });
+    }
+  });
+
+  // ==========================================
+  // SYSTEM MODE SWITCH (Go Live)
+  // ==========================================
+
+  app.get("/api/system/status", async (_req: any, res) => {
+    try {
+      const [settings] = await db.select().from(platformSettings).limit(1);
+      if (!settings) {
+        return res.json({ systemMode: "development", isLive: false, qaMode: false });
+      }
+      return res.json({
+        systemMode: settings.systemMode || "development",
+        isLive: settings.isLive,
+        qaMode: settings.qaMode || false,
+        environment: settings.environment,
+      });
+    } catch (error) {
+      console.error("Error getting system status:", error);
+      return res.status(500).json({ message: "Failed to get system status" });
+    }
+  });
+
+  app.patch("/api/system/mode", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const { mode } = req.body;
+      const validModes = ["development", "soft_launch", "live"];
+      if (!validModes.includes(mode)) {
+        return res.status(400).json({ message: `Invalid mode. Must be one of: ${validModes.join(", ")}` });
+      }
+
+      const [existing] = await db.select().from(platformSettings).limit(1);
+      const isLive = mode === "live";
+      const environment = mode === "live" ? "LIVE" : mode === "soft_launch" ? "SOFT_LAUNCH" : "PRE_LAUNCH";
+
+      if (!existing) {
+        const [created] = await db.insert(platformSettings).values({
+          isLive,
+          environment,
+          systemMode: mode,
+          launchDate: isLive ? new Date() : null,
+          launchedBy: isLive ? userId : null,
+          modeChangedBy: userId,
+          modeChangedAt: new Date(),
+        }).returning();
+        console.log(`[SYSTEM MODE] Changed to ${mode} by ${userId}`);
+        return res.json(created);
+      }
+
+      const [updated] = await db.update(platformSettings)
+        .set({
+          isLive,
+          environment,
+          systemMode: mode,
+          launchDate: isLive ? new Date() : existing.launchDate,
+          launchedBy: isLive ? userId : existing.launchedBy,
+          modeChangedBy: userId,
+          modeChangedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(platformSettings.id, existing.id))
+        .returning();
+      console.log(`[SYSTEM MODE] Changed to ${mode} by ${userId}`);
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error changing system mode:", error);
+      return res.status(500).json({ message: "Failed to change system mode" });
+    }
+  });
+
+  // ==========================================
+  // QA SESSION LOGGING & MONITORING
+  // ==========================================
+
+  app.post("/api/admin/qa-mode/toggle", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const { enabled } = req.body;
+      const [existing] = await db.select().from(platformSettings).limit(1);
+      if (!existing) {
+        const [created] = await db.insert(platformSettings).values({
+          qaMode: !!enabled,
+          qaModeEnabledBy: enabled ? userId : null,
+          qaModeEnabledAt: enabled ? new Date() : null,
+        }).returning();
+        console.log(`[QA MODE] ${enabled ? "ENABLED" : "DISABLED"} by ${userId}`);
+        return res.json(created);
+      }
+      const [updated] = await db.update(platformSettings)
+        .set({
+          qaMode: !!enabled,
+          qaModeEnabledBy: enabled ? userId : null,
+          qaModeEnabledAt: enabled ? new Date() : null,
+          updatedAt: new Date(),
+        })
+        .where(eq(platformSettings.id, existing.id))
+        .returning();
+      console.log(`[QA MODE] ${enabled ? "ENABLED" : "DISABLED"} by ${userId}`);
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error toggling QA mode:", error);
+      return res.status(500).json({ message: "Failed to toggle QA mode" });
+    }
+  });
+
+  app.get("/api/admin/qa-session-logs", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { actionType, errorOnly, limit: limitParam } = req.query;
+      const logLimit = Math.min(parseInt(limitParam as string) || 200, 1000);
+
+      let query = db.select().from(qaSessionLogs).orderBy(desc(qaSessionLogs.createdAt)).limit(logLimit);
+
+      const logs = await query;
+
+      const filtered = logs.filter((log: any) => {
+        if (actionType && log.actionType !== actionType) return false;
+        if (errorOnly === "true" && !log.errorFlag) return false;
+        return true;
+      });
+
+      return res.json(filtered);
+    } catch (error) {
+      console.error("Error getting QA session logs:", error);
+      return res.status(500).json({ message: "Failed to get QA session logs" });
+    }
+  });
+
+  app.get("/api/admin/qa-monitor/summary", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const now = new Date();
+      const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+      const allLogs = await db.select().from(qaSessionLogs)
+        .where(gte(qaSessionLogs.createdAt, last24h))
+        .orderBy(desc(qaSessionLogs.createdAt));
+
+      const totalActions = allLogs.length;
+      const errors = allLogs.filter((l: any) => l.errorFlag);
+      const errorCount = errors.length;
+      const errorRate = totalActions > 0 ? ((errorCount / totalActions) * 100).toFixed(1) : "0.0";
+
+      const rideRequests = allLogs.filter((l: any) => l.actionType === "ride_request").length;
+      const rideAccepts = allLogs.filter((l: any) => l.actionType === "ride_accept").length;
+      const rideCancels = allLogs.filter((l: any) => l.actionType === "ride_cancel").length;
+      const tripCompletes = allLogs.filter((l: any) => l.actionType === "trip_complete").length;
+      const walletDebits = allLogs.filter((l: any) => l.actionType === "wallet_debit").length;
+      const walletCredits = allLogs.filter((l: any) => l.actionType === "wallet_credit").length;
+      const ratingSubmissions = allLogs.filter((l: any) => l.actionType === "rating_submission").length;
+      const messagesSent = allLogs.filter((l: any) => l.actionType === "message_sent").length;
+
+      const rideSuccessRate = rideRequests > 0
+        ? (((tripCompletes) / rideRequests) * 100).toFixed(1)
+        : "0.0";
+
+      const paymentErrors = allLogs.filter((l: any) =>
+        (l.actionType === "wallet_debit" || l.actionType === "wallet_credit") && l.errorFlag
+      ).length;
+
+      const ratingErrors = allLogs.filter((l: any) =>
+        l.actionType === "rating_submission" && l.errorFlag
+      ).length;
+
+      const messageErrors = allLogs.filter((l: any) =>
+        l.actionType === "message_sent" && l.errorFlag
+      ).length;
+
+      const [settings] = await db.select().from(platformSettings).limit(1);
+
+      return res.json({
+        period: "last_24h",
+        totalActions,
+        errorCount,
+        errorRate: parseFloat(errorRate),
+        rideRequests,
+        rideAccepts,
+        rideCancels,
+        tripCompletes,
+        rideSuccessRate: parseFloat(rideSuccessRate),
+        walletDebits,
+        walletCredits,
+        paymentErrors,
+        ratingSubmissions,
+        ratingErrors,
+        messagesSent,
+        messageErrors,
+        qaMode: settings?.qaMode || false,
+        systemMode: settings?.systemMode || "development",
+        recentErrors: errors.slice(0, 20),
+      });
+    } catch (error) {
+      console.error("Error getting QA monitor summary:", error);
+      return res.status(500).json({ message: "Failed to get QA summary" });
+    }
+  });
+
+  app.get("/api/admin/system-stability", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const now = new Date();
+      const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+      const allLogs = await db.select().from(qaSessionLogs)
+        .where(gte(qaSessionLogs.createdAt, last24h));
+
+      const totalActions = allLogs.length;
+      const errorCount = allLogs.filter((l: any) => l.errorFlag).length;
+      const errorRate = totalActions > 0 ? ((errorCount / totalActions) * 100).toFixed(1) : "0.0";
+
+      const rideRequests = allLogs.filter((l: any) => l.actionType === "ride_request").length;
+      const tripCompletes = allLogs.filter((l: any) => l.actionType === "trip_complete").length;
+      const rideSuccessRate = rideRequests > 0 ? (((tripCompletes) / rideRequests) * 100).toFixed(1) : "0.0";
+
+      const paymentActions = allLogs.filter((l: any) =>
+        l.actionType === "wallet_debit" || l.actionType === "wallet_credit"
+      );
+      const paymentErrors = paymentActions.filter((l: any) => l.errorFlag).length;
+      const paymentSuccessRate = paymentActions.length > 0
+        ? ((1 - paymentErrors / paymentActions.length) * 100).toFixed(1)
+        : "100.0";
+
+      const activeDriversResult = await db.select({ count: count() }).from(driverProfiles).where(eq(driverProfiles.isOnline, true));
+      const activeDrivers = activeDriversResult[0]?.count || 0;
+
+      const activeRidersResult = await db.select({ count: count() }).from(riderProfiles);
+      const activeRiders = activeRidersResult[0]?.count || 0;
+
+      const paymentMismatchFlag = paymentErrors > 0;
+
+      const [settings] = await db.select().from(platformSettings).limit(1);
+
+      return res.json({
+        errorRate: parseFloat(errorRate),
+        rideSuccessRate: parseFloat(rideSuccessRate),
+        paymentSuccessRate: parseFloat(paymentSuccessRate),
+        activeDrivers,
+        activeRiders,
+        paymentMismatchFlag,
+        paymentMismatchCount: paymentErrors,
+        errorWarning: parseFloat(errorRate) > 5,
+        totalActions,
+        qaMode: settings?.qaMode || false,
+        systemMode: settings?.systemMode || "development",
+      });
+    } catch (error) {
+      console.error("Error getting system stability:", error);
+      return res.status(500).json({ message: "Failed to get system stability" });
     }
   });
 

@@ -1,0 +1,140 @@
+PHASE: ZIBA V1 STABILIZATION MODE
+
+We are NOT adding new features.
+We are NOT expanding architecture.
+We are entering controlled stabilization.
+
+---------------------------------------------------
+STEP 1 — IMPLEMENT GO LIVE SWITCH
+---------------------------------------------------
+
+Create a global system setting called:
+
+systemMode:
+- "development"
+- "soft_launch"
+- "live"
+
+Default: "development"
+
+Create:
+GET /api/system/status
+PATCH /api/system/mode (Super Admin only)
+
+When systemMode = "development":
+- Only approved test users can book rides
+- Payments operate in sandbox mode
+- Promotions disabled
+- Driver acquisition engine disabled
+
+When systemMode = "soft_launch":
+- Only manually approved drivers can go online
+- Rider registrations allowed
+- Real ride creation allowed
+- Promotions OFF
+- AI ON (if enabled)
+- Payment processing enabled (real)
+- All activity fully logged
+
+When systemMode = "live":
+- All restrictions lifted
+- Promotions allowed
+- Driver acquisition engine allowed
+
+Add visible badge in Admin header:
+- Yellow = Soft Launch
+- Green = Live
+- Gray = Development
+
+---------------------------------------------------
+STEP 2 — INTERNAL QA LOCK (48 HOURS)
+---------------------------------------------------
+
+Create QA Monitoring Layer:
+
+Add table:
+qaSessionLogs:
+- id
+- userId
+- role (rider/driver)
+- actionType
+- endpoint
+- status
+- timestamp
+- errorFlag
+
+Log automatically:
+- ride request
+- ride accept
+- ride cancel
+- trip complete
+- wallet debit
+- wallet credit
+- rating submission
+- message sent
+
+Add Admin Page:
+"QA Monitor"
+
+Show:
+- Total ride attempts
+- Failed rides
+- Payment mismatches
+- Rating submission errors
+- Message delivery failures
+
+Add toggle:
+Enable QA Mode (Super Admin only)
+
+When QA Mode ON:
+- Every error becomes high visibility
+- Alert banner shown in admin
+- No silent failures allowed
+
+---------------------------------------------------
+STEP 3 — PAUSE & OBSERVE MODE
+---------------------------------------------------
+
+Add Admin Dashboard Widget:
+
+"System Stability"
+
+Display:
+- Error rate %
+- Ride success rate %
+- Payment success rate %
+- Average response time
+- Active drivers
+- Active riders
+
+If error rate > 5%:
+- Show red warning
+
+If payment mismatch detected:
+- Auto flag
+- Require manual review
+
+---------------------------------------------------
+SAFETY RULES
+---------------------------------------------------
+
+1. Do NOT modify core trip logic.
+2. Do NOT alter wallet math.
+3. Do NOT change schema unrelated to stabilization.
+4. Do NOT refactor layout.
+5. Keep all changes isolated.
+
+---------------------------------------------------
+FINAL RESULT
+---------------------------------------------------
+
+After implementation:
+
+- System can switch between Development, Soft Launch, and Live
+- Full QA monitoring exists
+- Error visibility is high
+- No new feature expansion
+- Fully reversible
+- Zero structural disruption
+
+Begin implementation cleanly.
