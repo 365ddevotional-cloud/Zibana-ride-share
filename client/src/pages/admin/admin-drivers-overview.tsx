@@ -367,6 +367,11 @@ export default function AdminDriversOverview() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex flex-wrap justify-end gap-1">
+                          <Link href={`/admin/users/drivers/${driver.userId}`}>
+                            <Button size="sm" variant="ghost" data-testid={`button-view-${driver.id}`} title="View Details">
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </Link>
                           <Button
                             size="sm"
                             variant="ghost"

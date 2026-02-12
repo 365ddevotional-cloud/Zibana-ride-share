@@ -211,7 +211,7 @@ export default function AdminRidersOverview() {
                         <span className="text-sm text-muted-foreground">{formatDate(rider.createdAt)}</span>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Link href="/admin">
+                        <Link href={`/admin/users/riders/${rider.id}`}>
                           <Button size="sm" variant="ghost" data-testid={`button-view-rider-${rider.id}`}>
                             <Eye className="h-4 w-4" />
                           </Button>
