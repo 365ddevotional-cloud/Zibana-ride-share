@@ -7,6 +7,8 @@ const routeToTabMap: Record<string, string> = {
   "/admin/control/alerts": "health-alerts",
   "/admin/control/launch": "launch-readiness",
   "/admin/control/ops": "ops-readiness",
+  "/admin/control/qa-monitor": "qa-monitor",
+  "/admin/control/stability": "system-stability",
   "/admin/drivers": "drivers",
   "/admin/riders": "riders",
   "/admin/directors": "directors",

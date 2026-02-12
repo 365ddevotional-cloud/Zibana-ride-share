@@ -14,6 +14,7 @@ import {
   HeartPulse,
   Rocket,
   CheckSquare,
+  TestTube,
   ArrowRight,
   AlertTriangle,
   type LucideIcon,
@@ -80,6 +81,8 @@ const quickNavItems: QuickNavItem[] = [
   { label: "Health Alerts", description: "System alerts and warnings", icon: HeartPulse, route: "/admin/control/alerts", accent: "text-rose-600 dark:text-rose-400", accentBg: "bg-rose-50 dark:bg-rose-900/20" },
   { label: "Launch Readiness", description: "Checklists and kill switches", icon: Rocket, route: "/admin/control/launch", accent: "text-amber-600 dark:text-amber-400", accentBg: "bg-amber-50 dark:bg-amber-900/20" },
   { label: "Ops Readiness", description: "Playbooks and escalation", icon: CheckSquare, route: "/admin/control/ops", accent: "text-emerald-600 dark:text-emerald-400", accentBg: "bg-emerald-50 dark:bg-emerald-900/20" },
+  { label: "QA Monitor", description: "Error tracking and QA sessions", icon: TestTube, route: "/admin/control/qa-monitor", accent: "text-orange-600 dark:text-orange-400", accentBg: "bg-orange-50 dark:bg-orange-900/20" },
+  { label: "System Stability", description: "Health metrics and stability", icon: HeartPulse, route: "/admin/control/stability", accent: "text-violet-600 dark:text-violet-400", accentBg: "bg-violet-50 dark:bg-violet-900/20" },
 ];
 
 export default function ControlOverviewPage() {

@@ -16,12 +16,15 @@ import {
   HeartPulse,
   Rocket,
   CheckSquare,
+  TestTube,
   ArrowLeft,
   type LucideIcon,
 } from "lucide-react";
 
 const ControlOverviewPage = lazy(() => import("./control-overview"));
 const ControlMonitoringPage = lazy(() => import("./control-monitoring"));
+const QaMonitorPanel = lazy(() => import("@/components/admin/qa-monitor-panel"));
+const SystemStabilityPanel = lazy(() => import("@/components/admin/system-stability-panel"));
 
 import { HealthAlertsPanel } from "@/components/admin/health-alerts-panel";
 import { LaunchReadinessPanel } from "@/components/admin/launch-readiness-panel";
@@ -58,6 +61,16 @@ const sectionConfig: Record<string, SectionConfig> = {
     label: "Ops Readiness",
     icon: CheckSquare,
     description: "Operational playbooks, readiness checks, and escalation procedures.",
+  },
+  "qa-monitor": {
+    label: "QA Monitor",
+    icon: TestTube,
+    description: "Quality assurance monitoring, error tracking, and session logging.",
+  },
+  stability: {
+    label: "System Stability",
+    icon: HeartPulse,
+    description: "Real-time system health, error rates, and stability indicators.",
   },
 };
 
@@ -97,6 +110,18 @@ function renderSection(section: string) {
       return <LaunchReadinessPanel />;
     case "ops":
       return <OperationalReadinessPanel />;
+    case "qa-monitor":
+      return (
+        <Suspense fallback={<SectionFallback />}>
+          <QaMonitorPanel isSuperAdmin={true} />
+        </Suspense>
+      );
+    case "stability":
+      return (
+        <Suspense fallback={<SectionFallback />}>
+          <SystemStabilityPanel />
+        </Suspense>
+      );
     default:
       return (
         <Suspense fallback={<SectionFallback />}>
