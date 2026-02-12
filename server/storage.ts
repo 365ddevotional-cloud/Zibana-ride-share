@@ -2162,6 +2162,7 @@ export class DatabaseStorage implements IStorage {
           lastName: user?.lastName,
           fullName: profile?.fullName || (user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user?.email),
           phone: profile?.phone,
+          profilePhoto: (profile as any)?.profilePhoto || user?.profileImageUrl,
           createdAt: role.createdAt,
         };
       })

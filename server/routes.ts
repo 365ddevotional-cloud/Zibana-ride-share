@@ -4328,12 +4328,12 @@ export async function registerRoutes(
       const { status } = req.body;
 
       if (!["pending", "approved", "suspended", "rejected"].includes(status)) {
-        return res.status(400).json({ message: "Invalid status" });
+        return res.status(400).json({ success: false, message: "Invalid status value" });
       }
 
       const driver = await storage.updateDriverStatus(driverId, status, { reason: req.body.reason, adminId: req.user.claims.sub });
       if (!driver) {
-        return res.status(404).json({ message: "Driver not found" });
+        return res.status(404).json({ success: false, message: "Driver not found" });
       }
 
       if (status === "approved") {
@@ -4362,10 +4362,10 @@ export async function registerRoutes(
         });
       }
 
-      return res.json(driver);
-    } catch (error) {
+      return res.json({ success: true, driver });
+    } catch (error: any) {
       console.error("Error updating driver status:", error);
-      return res.status(500).json({ message: "Failed to update driver status" });
+      return res.status(500).json({ success: false, message: "Approval failed", reason: error?.message || "Unknown error" });
     }
   });
 
@@ -20971,10 +20971,13 @@ export async function registerRoutes(
       
       const profile = await storage.getDriverProfile(userId);
       if (!profile) {
-        return res.status(404).json({ message: "Driver profile not found" });
+        return res.status(404).json({ success: false, message: "Driver not found" });
       }
 
-      // Build update data
+      if (isTraining === true && profile.status !== "approved") {
+        return res.status(400).json({ success: false, message: "Driver must be approved before training assignment" });
+      }
+
       const updateData: any = {};
       
       if (typeof isTraining === "boolean") {
@@ -21006,10 +21009,10 @@ export async function registerRoutes(
         details: JSON.stringify({ isTraining, trainingCredits, previousTraining: profile.isTraining }),
       });
       
-      return res.json({ success: true, profile: updated });
-    } catch (error) {
+      return res.json({ success: true, message: "Training status updated", profile: updated });
+    } catch (error: any) {
       console.error("Error updating driver training:", error);
-      return res.status(500).json({ message: "Failed to update driver training mode" });
+      return res.status(500).json({ success: false, message: "Training update failed", reason: error?.message || "Unknown error" });
     }
   });
 

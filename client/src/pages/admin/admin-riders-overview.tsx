@@ -20,7 +20,7 @@ import {
   BreadcrumbSeparator,
   BreadcrumbPage,
 } from "@/components/ui/breadcrumb";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import {
   Users,
   UserCheck,
@@ -37,6 +37,7 @@ type RiderWithDetails = {
   lastName?: string;
   fullName?: string;
   phone?: string;
+  profilePhoto?: string;
   createdAt?: string;
 };
 
@@ -178,7 +179,6 @@ export default function AdminRidersOverview() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Rider</TableHead>
-                    <TableHead>Email</TableHead>
                     <TableHead>Phone</TableHead>
                     <TableHead>Joined</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -190,6 +190,9 @@ export default function AdminRidersOverview() {
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <Avatar className="h-8 w-8">
+                            {rider.profilePhoto ? (
+                              <AvatarImage src={rider.profilePhoto} alt={rider.fullName || "Rider"} />
+                            ) : null}
                             <AvatarFallback className="text-xs">
                               {getInitials(rider.fullName || rider.firstName)}
                             </AvatarFallback>
@@ -198,11 +201,9 @@ export default function AdminRidersOverview() {
                             <p className="text-sm font-medium truncate">
                               {rider.fullName || `${rider.firstName || ""} ${rider.lastName || ""}`.trim() || "--"}
                             </p>
+                            <p className="text-xs text-muted-foreground truncate">{rider.email || "--"}</p>
                           </div>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm truncate">{rider.email || "--"}</span>
                       </TableCell>
                       <TableCell>
                         <span className="text-sm">{rider.phone || "--"}</span>

@@ -1,0 +1,122 @@
+ZIBA ADMIN UI + TRAINING STABILITY PATCH
+DO NOT BREAK EXISTING STRUCTURE
+DO NOT REDESIGN LAYOUT
+ONLY FIX AND ENHANCE
+
+=====================================
+PART 1 — FIX TRAINING TOGGLE 500 ERROR
+=====================================
+
+In backend route handling driver training update:
+
+1. Wrap logic in try/catch.
+2. Return structured response:
+
+Success:
+{
+  success: true,
+  message: "Training status updated"
+}
+
+Failure:
+{
+  success: false,
+  message: "Training update failed",
+  reason: <actual error message>
+}
+
+3. Add validations:
+   - If driver does not exist:
+       success: false,
+       message: "Driver not found"
+   - If driver status is not "Approved":
+       success: false,
+       message: "Driver must be approved before training assignment"
+
+4. Frontend:
+   - If success === false:
+       Show toast:
+       "Training update failed: {reason || message}"
+   - Never show raw 500 error.
+   - Do not redirect page.
+   - Refresh list only on success.
+
+=====================================
+PART 2 — DRIVER OPERATIONS TABLE ENHANCEMENT
+=====================================
+
+In Admin → Users → Drivers table:
+
+Under "Driver" column, display:
+
+[ Profile Avatar ]   Full Name
+                     Email (muted smaller text)
+
+Requirements:
+
+• If driver.profileImage exists → show image
+• If not → show circle avatar with initials
+• Keep spacing clean and aligned
+• Do not break responsive layout
+
+Example layout:
+
+(Avatar)   Moses Rocky
+           mosesrocky@gmail.com
+
+=====================================
+PART 3 — RIDER OPERATIONS TABLE ENHANCEMENT
+=====================================
+
+Apply SAME enhancement to:
+
+Admin → Users → Riders
+
+Under "Rider" column:
+
+Show:
+
+[ Profile Avatar ]   Full Name
+                     Email (muted)
+
+Same rules:
+• Use profileImage if available
+• Otherwise generate initials avatar
+• Do not redesign entire table
+
+=====================================
+PART 4 — PENDING APPROVAL RESTORE
+=====================================
+
+If driver status === "Pending":
+
+Ensure Approve button is visible in Actions column.
+
+If approval fails:
+Return structured backend reason and show toast:
+"Approval failed: {reason}"
+
+=====================================
+STABILITY RULES
+=====================================
+
+• Do NOT redirect to Admin Overview on action clicks
+• Stay on current page
+• After success → refresh table data only
+• After failure → show reason and do not refresh
+
+=====================================
+QUALITY CHECK
+=====================================
+
+After patch:
+
+• Driver table shows avatar + name + email
+• Rider table shows avatar + name + email
+• No silent 500 errors
+• No generic failure messages
+• All errors return readable explanation
+
+Apply carefully.
+Return summary of changes.
+Do not restructure admin architecture.

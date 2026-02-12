@@ -96,7 +96,11 @@ export default function AdminDriversOverview() {
         status,
         reason,
       });
-      return response.json();
+      const data = await response.json();
+      if (data.success === false) {
+        throw new Error(data.reason || data.message || "Unknown error");
+      }
+      return data;
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/drivers"] });
@@ -110,7 +114,7 @@ export default function AdminDriversOverview() {
       toast({ title: labels[variables.status] || "Driver status updated" });
     },
     onError: (error: Error) => {
-      toast({ title: "Failed to update driver", description: error.message, variant: "destructive" });
+      toast({ title: "Status update failed", description: error.message, variant: "destructive" });
     },
   });
 
@@ -119,7 +123,11 @@ export default function AdminDriversOverview() {
       const response = await apiRequest("POST", `/api/admin/driver/${userId}/training`, {
         isTraining,
       });
-      return response.json();
+      const data = await response.json();
+      if (data.success === false) {
+        throw new Error(data.reason || data.message || "Training update failed");
+      }
+      return data;
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/drivers"] });
@@ -132,7 +140,7 @@ export default function AdminDriversOverview() {
       });
     },
     onError: (error: Error) => {
-      toast({ title: "Failed to update training status", description: error.message, variant: "destructive" });
+      toast({ title: "Training update failed", description: error.message, variant: "destructive" });
     },
   });
 
@@ -314,7 +322,7 @@ export default function AdminDriversOverview() {
                           </Avatar>
                           <div className="min-w-0">
                             <p className="text-sm font-medium truncate">{driver.fullName}</p>
-                            <p className="text-xs text-muted-foreground truncate">{driver.phone}</p>
+                            <p className="text-xs text-muted-foreground truncate">{driver.email || driver.phone}</p>
                           </div>
                         </div>
                       </TableCell>
