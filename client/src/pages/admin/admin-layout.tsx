@@ -26,6 +26,45 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Brain } from "lucide-react";
 
+function SystemModeBadge() {
+  const { data } = useQuery<{ systemMode: string; qaMode: boolean }>({
+    queryKey: ["/api/system/status"],
+    staleTime: 30000,
+  });
+
+  const mode = data?.systemMode || "development";
+  const qaMode = data?.qaMode || false;
+
+  const modeConfig: Record<string, { label: string; className: string }> = {
+    development: { label: "Development", className: "bg-slate-500 text-white dark:bg-slate-600 dark:text-white" },
+    soft_launch: { label: "Soft Launch", className: "bg-amber-500 text-white dark:bg-amber-600 dark:text-white" },
+    live: { label: "Live", className: "bg-emerald-500 text-white dark:bg-emerald-600 dark:text-white" },
+  };
+
+  const cfg = modeConfig[mode] || modeConfig.development;
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <Badge
+        variant="secondary"
+        className={`${cfg.className} rounded-full px-3 py-0.5 text-xs font-semibold shadow-sm no-default-hover-elevate no-default-active-elevate`}
+        data-testid="badge-system-mode"
+      >
+        {cfg.label}
+      </Badge>
+      {qaMode && (
+        <Badge
+          variant="secondary"
+          className="bg-orange-500 text-white dark:bg-orange-600 dark:text-white rounded-full px-2 py-0.5 text-xs font-semibold shadow-sm no-default-hover-elevate no-default-active-elevate"
+          data-testid="badge-qa-mode"
+        >
+          QA
+        </Badge>
+      )}
+    </div>
+  );
+}
+
 interface AdminLayoutProps {
   children: React.ReactNode;
   userRole: string;
@@ -106,6 +145,7 @@ export default function AdminLayout({ children, userRole, activeTab }: AdminLayo
                   {userRole}
                 </Badge>
               )}
+              <SystemModeBadge />
             </div>
             <div className="flex items-center gap-1 flex-wrap">
               <Button

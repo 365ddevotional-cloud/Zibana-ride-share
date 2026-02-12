@@ -65,6 +65,8 @@ const sidebarSections = [
       { value: "health-alerts", label: "Health Alerts", icon: HeartPulse, route: "/admin/control/alerts" },
       { value: "launch-readiness", label: "Launch Readiness", icon: Rocket, route: "/admin/control/launch" },
       { value: "ops-readiness", label: "Ops Readiness", icon: CheckSquare, route: "/admin/control/ops" },
+      { value: "qa-monitor", label: "QA Monitor", icon: TestTube, route: "/admin/control/qa-monitor" },
+      { value: "system-stability", label: "System Stability", icon: HeartPulse, route: "/admin/control/stability" },
     ],
   },
   {
