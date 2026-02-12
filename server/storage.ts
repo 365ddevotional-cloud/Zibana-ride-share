@@ -2435,7 +2435,9 @@ export class DatabaseStorage implements IStorage {
 
   private async enrichTripWithDetails(trip: Trip): Promise<any> {
     let driverName = undefined;
+    let driverEmail = undefined;
     let riderName = undefined;
+    let riderEmail = undefined;
 
     if (trip.driverId) {
       const [driver] = await db
@@ -2443,6 +2445,8 @@ export class DatabaseStorage implements IStorage {
         .from(driverProfiles)
         .where(eq(driverProfiles.userId, trip.driverId));
       driverName = driver?.fullName;
+      const [driverUser] = await db.select().from(users).where(eq(users.id, trip.driverId));
+      driverEmail = driverUser?.email;
     }
 
     const [rider] = await db
@@ -2450,19 +2454,18 @@ export class DatabaseStorage implements IStorage {
       .from(riderProfiles)
       .where(eq(riderProfiles.userId, trip.riderId));
     
+    const [riderUser] = await db.select().from(users).where(eq(users.id, trip.riderId));
+    riderEmail = riderUser?.email;
+
     if (rider?.fullName) {
       riderName = rider.fullName;
     } else {
-      const [user] = await db
-        .select()
-        .from(users)
-        .where(eq(users.id, trip.riderId));
-      riderName = user?.firstName 
-        ? `${user.firstName} ${user.lastName || ''}`.trim() 
-        : user?.email || 'Unknown';
+      riderName = riderUser?.firstName 
+        ? `${riderUser.firstName} ${riderUser.lastName || ''}`.trim() 
+        : riderUser?.email || 'Unknown';
     }
 
-    return { ...trip, driverName, riderName };
+    return { ...trip, driverName, driverEmail, riderName, riderEmail };
   }
 
   async getFilteredTrips(filter: TripFilter): Promise<any[]> {

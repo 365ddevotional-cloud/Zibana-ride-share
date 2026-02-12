@@ -1,0 +1,137 @@
+ZIBA ADMIN GLOBAL ACTION FIX + MONITORING STABILITY PATCH
+DO NOT REDESIGN UI
+DO NOT REMOVE EXISTING STRUCTURE
+ONLY FIX BROKEN ACTIONS + DURATION LOGIC
+
+=================================================
+PART 1 — FIX ALL "EYE" / ACTION ICONS GLOBALLY
+=================================================
+
+1. Audit every admin table that contains an "Actions" column.
+   Includes:
+   - Drivers table
+   - Riders table
+   - Trips table (Monitoring)
+   - Approvals
+   - Training
+   - Any list with action icons
+
+2. For each action icon:
+   - Ensure it has a valid route
+   - Ensure it uses navigate() or Link with correct dynamic ID
+   - Remove any placeholder or empty onClick handlers
+
+3. For Monitoring → Active Trips:
+   Eye icon MUST navigate to:
+
+   /admin/trips/:tripId
+
+4. If tripId does not exist:
+   Show toast:
+   "Trip record not found"
+
+5. If driverId or riderId is missing:
+   Show proper warning:
+   "Trip has no assigned driver yet"
+
+6. NEVER redirect to admin overview unless explicitly intended.
+
+=================================================
+PART 2 — BUILD TRIP DETAIL PAGE IF MISSING
+=================================================
+
+If /admin/trips/:tripId does not exist:
+
+Create it.
+
+Display:
+
+• Trip ID
+• Rider (name + email)
+• Driver (name + email or Unassigned)
+• Trip status
+• Pickup location
+• Dropoff location
+• Created time
+• Assigned time
+• Completed time
+• Cancel reason (if exists)
+• Payment info (if exists)
+• Duration (calculated live)
+
+Must load from backend.
+Must handle loading state.
+Must handle not found state.
+
+=================================================
+PART 3 — FIX DURATION COLUMN
+=================================================
+
+In Monitoring → Active Trips table:
+
+Replace empty duration with:
+
+If status === "Completed":
+   duration = completedAt - startedAt
+
+If status === "Requested":
+   duration = now - createdAt
+
+If status === "Cancelled":
+   duration = cancelledAt - createdAt
+
+Display formatted:
+
+MM:SS (if < 1 hour)
+HH:MM:SS (if >= 1 hour)
+
+If timestamps missing:
+Display "--"
+
+=================================================
+PART 4 — GLOBAL ACTION VALIDATION
+=================================================
+
+For every admin table:
+
+If an action icon exists:
+   It must:
+   • Navigate somewhere
+   OR
+   • Perform a visible backend operation
+   OR
+   • Open a modal
+
+If not:
+   Remove the icon entirely.
+
+NO dead buttons allowed.
+
+=================================================
+PART 5 — SAFETY GUARD
+=================================================
+
+Wrap all navigation calls in try/catch.
+
+If navigation fails:
+   Show toast:
+   "Unable to open details. Please refresh."
+
+=================================================
+QUALITY CHECK
+=================================================
+
+After patch:
+
+• Every action icon is clickable.
+• Every action icon routes properly.
+• No silent click failures.
+• Duration column always shows valid data or "--".
+• Monitoring dashboard looks complete.
+• No redirect to Admin Overview on random clicks.
+
+Apply carefully.
+Return summary of fixes.
+Do not expand features.
+Do not redesign.
+Only fix broken functionality.

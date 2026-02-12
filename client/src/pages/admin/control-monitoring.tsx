@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -40,13 +41,34 @@ function formatDuration(startDate: string | Date | null, endDate: string | Date 
   if (!startDate) return "--";
   const start = new Date(startDate);
   const end = endDate ? new Date(endDate) : new Date();
-  const diffMs = end.getTime() - start.getTime();
-  const mins = Math.floor(diffMs / 60000);
-  if (mins < 1) return "<1 min";
-  if (mins < 60) return `${mins} min`;
-  const hrs = Math.floor(mins / 60);
-  const remainMins = mins % 60;
-  return `${hrs}h ${remainMins}m`;
+  const diffMs = Math.max(0, end.getTime() - start.getTime());
+  const totalSecs = Math.floor(diffMs / 1000);
+  const hrs = Math.floor(totalSecs / 3600);
+  const mins = Math.floor((totalSecs % 3600) / 60);
+  const secs = totalSecs % 60;
+  if (hrs > 0) {
+    return `${String(hrs).padStart(2, "0")}:${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+  }
+  return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+}
+
+function getTripDuration(trip: any): string {
+  const status = trip.status;
+  if (status === "completed") {
+    const start = trip.acceptedAt || trip.startedAt || trip.createdAt;
+    return formatDuration(start, trip.completedAt);
+  }
+  if (status === "cancelled") {
+    return formatDuration(trip.createdAt, trip.cancelledAt);
+  }
+  if (status === "in_progress") {
+    const start = trip.acceptedAt || trip.startedAt || trip.createdAt;
+    return formatDuration(start, null);
+  }
+  if (status === "requested") {
+    return formatDuration(trip.createdAt, null);
+  }
+  return "--";
 }
 
 function getDriverStatusBadge(status: string) {
@@ -199,12 +221,14 @@ export default function ControlMonitoringPage() {
                       <TableCell className="text-sm">{trip.driverName || "Unassigned"}</TableCell>
                       <TableCell>{getStatusBadge(trip.status || "unknown")}</TableCell>
                       <TableCell className="text-sm text-slate-500 dark:text-slate-400">
-                        {formatDuration((trip as any).startedAt ?? (trip as any).started_at ?? null, (trip as any).completedAt ?? (trip as any).completed_at ?? null)}
+                        {getTripDuration(trip)}
                       </TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="icon" data-testid={`button-view-trip-${trip.id}`}>
-                          <Eye className="h-4 w-4" />
-                        </Button>
+                        <Link href={`/admin/trips/${trip.id}`}>
+                          <Button variant="ghost" size="icon" data-testid={`button-view-trip-${trip.id}`} title="View Trip Details">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </Link>
                       </TableCell>
                     </TableRow>
                   ))}

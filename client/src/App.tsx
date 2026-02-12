@@ -52,6 +52,7 @@ const UsersTrainingDetailPage = lazy(() => import("@/pages/admin/users-training-
 const AdminGroupLayout = lazy(() => import("@/pages/admin/admin-group-layout"));
 const AdminDriverDetail = lazy(() => import("@/pages/admin/admin-driver-detail"));
 const AdminRiderDetail = lazy(() => import("@/pages/admin/admin-rider-detail"));
+const AdminTripDetail = lazy(() => import("@/pages/admin/admin-trip-detail"));
 
 const DriverDashboard = lazy(() => import("@/pages/driver/dashboard"));
 const DriverTripsPage = lazy(() => import("@/pages/driver/trips"));
@@ -596,6 +597,15 @@ function AdminRouter() {
           <LazyComponent>
             <AdminLayout userRole={role || "admin"} activeTab="training-center">
               <UsersTrainingDetailPage />
+            </AdminLayout>
+          </LazyComponent>
+        )}
+      </Route>
+      <Route path="/admin/trips/:tripId">
+        {(params: { tripId: string }) => (
+          <LazyComponent>
+            <AdminLayout userRole={role || "admin"} activeTab="monitoring">
+              <AdminTripDetail tripId={params.tripId} />
             </AdminLayout>
           </LazyComponent>
         )}
