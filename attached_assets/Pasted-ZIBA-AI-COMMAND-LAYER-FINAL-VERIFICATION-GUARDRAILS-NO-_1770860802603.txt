@@ -1,0 +1,104 @@
+ZIBA AI COMMAND LAYER – FINAL VERIFICATION + GUARDRAILS (NO EXPANSION)
+
+GOAL:
+Verify the new ZIBA AI Command Layer is correct, admin-only, fail-safe, and fully optional.
+Fix any missing guardrails immediately.
+Do NOT add new features. Only stabilize.
+
+========================================================
+1) VERIFY UI INTEGRATION
+========================================================
+- Confirm "ZIBA AI" button appears in Admin header for Admin/SuperAdmin only.
+- Confirm it does NOT appear in Rider or Driver apps.
+- Confirm clicking opens a slide-out panel with 5 tabs:
+  Ask ZIBA, Risk Alerts, Weekly Report, Founder Mode, Promotion Advisor.
+- Confirm panel closes correctly and does not break navigation.
+
+========================================================
+2) VERIFY AUTH + PERMISSIONS
+========================================================
+- Ensure ALL AI endpoints are protected (requireAdmin at minimum).
+- Ensure kill switch control is restricted to Super Admin only.
+- Confirm non-super-admin users cannot toggle AI ON/OFF.
+- Confirm a logged-out user cannot access any AI endpoints (403).
+
+========================================================
+3) VERIFY KILL SWITCH BEHAVIOR (MUST BE HARD-OFF)
+========================================================
+When AI is OFF:
+- UI must show "offline" state (outlined button or clear badge).
+- Frontend must not call /admin/ai/query or equivalent.
+- Backend must immediately return:
+  { status: "AI_DISABLED", message: "ZIBA AI is currently offline." }
+- Confirm NO OpenAI client call happens when disabled.
+
+Add unit/console proof:
+- Log (server-side) "AI disabled: skipping OpenAI call" once per request (not spam).
+
+========================================================
+4) VERIFY FAIL-SAFE IF OPENAI FAILS
+========================================================
+Simulate OpenAI failure (throw error / disable network):
+- Admin dashboard must still load.
+- AI query should return:
+  { status: "AI_TEMPORARILY_UNAVAILABLE", message: "ZIBA AI is temporarily unavailable." }
+- No server crash, no unhandled promise rejection.
+
+========================================================
+5) VERIFY DATA CONTEXT (NO HALLUCINATION SUPPORT)
+========================================================
+- Ensure /admin/ai/data-context returns ONLY aggregated safe data.
+- No phone numbers, no raw chat logs, no PII beyond IDs/names needed for admin.
+- Ensure AI prompts include instruction:
+  "Do not invent numbers. If data missing, say so."
+
+========================================================
+6) ADD HARD MONTHLY CAP (REPLIT-CREDITS SAFE VERSION)
+========================================================
+Even though billing is through Replit credits, implement internal hard cap:
+- ENV:
+  AI_MONTHLY_BUDGET_USD=12
+  AI_AUTO_DISABLE=true
+
+- Create DB table ai_usage_log:
+  id, adminId, createdAt, monthKey, inputTokens, outputTokens, estimatedCost
+
+- Before calling OpenAI:
+  sum estimatedCost for current month
+  if >= AI_MONTHLY_BUDGET_USD:
+     auto-disable AI (server-side flag OR DB setting)
+     return:
+       { status: "AI_BUDGET_LIMIT_REACHED", message: "ZIBA AI monthly budget limit reached. AI is temporarily disabled." }
+  Do NOT call OpenAI.
+
+- On first day of new month:
+  auto-reset monthly counters and allow re-enable (if ENV says allowed).
+
+NOTE:
+Use OpenAI response token usage (if available) to estimate cost.
+If token usage not available via Replit integration, estimate conservatively using:
+- approximate tokens = Math.ceil(text.length / 4)
+This is fine for budget protection.
+
+Frontend:
+- If status AI_BUDGET_LIMIT_REACHED, disable panel input and show message.
+
+========================================================
+7) AUDIT LOG
+========================================================
+- Confirm every AI query creates an audit record:
+  adminId, timestamp, tab/mode, status (success/disabled/budget-limited/error)
+- Add Admin page:
+  /admin/ai/audit-log (read-only)
+
+========================================================
+8) FINAL OUTPUT
+========================================================
+After changes, produce:
+- List of files changed
+- Confirmation checklist (PASS/FAIL)
+- Confirm: “Admin works normally even when AI is OFF”
+- Confirm: “No OpenAI calls when OFF or budget reached”
+- Confirm: “No Rider/Driver impact”
+- Confirm: “Build clean, no TS errors”
+Proceed now.
