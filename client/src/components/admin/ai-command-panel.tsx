@@ -1,12 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Separator } from "@/components/ui/separator";
-import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
@@ -14,12 +12,10 @@ import {
   X,
   Send,
   AlertTriangle,
-  BarChart3,
   FileText,
   Lightbulb,
   TrendingUp,
   Shield,
-  Clock,
   Loader2,
   Power,
   ChevronRight,
@@ -27,6 +23,7 @@ import {
   Users,
   Car,
   Zap,
+  DollarSign,
 } from "lucide-react";
 
 interface AiCommandPanelProps {
@@ -73,6 +70,14 @@ const QUICK_PROMPTS: Record<TabKey, string[]> = {
   ],
 };
 
+interface AiStatus {
+  enabled: boolean;
+  budgetLimitReached?: boolean;
+  monthlySpend?: string;
+  monthlyBudget?: string;
+  monthKey?: string;
+}
+
 export function AiCommandPanel({ open, onClose, isSuperAdmin }: AiCommandPanelProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("ask");
   const [question, setQuestion] = useState("");
@@ -80,7 +85,7 @@ export function AiCommandPanel({ open, onClose, isSuperAdmin }: AiCommandPanelPr
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  const { data: aiStatus } = useQuery<{ enabled: boolean }>({
+  const { data: aiStatus } = useQuery<AiStatus>({
     queryKey: ["/api/admin/ai/status"],
     refetchInterval: 30000,
   });
@@ -88,11 +93,6 @@ export function AiCommandPanel({ open, onClose, isSuperAdmin }: AiCommandPanelPr
   const { data: dataContext } = useQuery<any>({
     queryKey: ["/api/admin/ai/data-context"],
     enabled: aiStatus?.enabled === true,
-  });
-
-  const { data: auditLogs = [] } = useQuery<any[]>({
-    queryKey: ["/api/admin/ai/audit-log"],
-    enabled: activeTab === "ask",
   });
 
   const toggleMutation = useMutation({
@@ -115,12 +115,13 @@ export function AiCommandPanel({ open, onClose, isSuperAdmin }: AiCommandPanelPr
       return res.json();
     },
     onSuccess: (data) => {
-      if (data.status === "AI_DISABLED") {
+      if (data.status === "AI_BUDGET_LIMIT_REACHED") {
         setConversation((prev) => [
           ...prev,
           { role: "assistant", content: data.message },
         ]);
-      } else if (data.status === "AI_TEMPORARILY_UNAVAILABLE") {
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/ai/status"] });
+      } else if (data.status === "AI_DISABLED" || data.status === "AI_TEMPORARILY_UNAVAILABLE") {
         setConversation((prev) => [
           ...prev,
           { role: "assistant", content: data.message },
@@ -146,7 +147,7 @@ export function AiCommandPanel({ open, onClose, isSuperAdmin }: AiCommandPanelPr
   }, [conversation]);
 
   const handleSend = () => {
-    if (!question.trim()) return;
+    if (!question.trim() || !isEnabled || isBudgetLimited) return;
     const q = question.trim();
     setConversation((prev) => [...prev, { role: "user", content: q }]);
     setQuestion("");
@@ -154,11 +155,13 @@ export function AiCommandPanel({ open, onClose, isSuperAdmin }: AiCommandPanelPr
   };
 
   const handleQuickPrompt = (prompt: string) => {
+    if (!isEnabled || isBudgetLimited) return;
     setConversation((prev) => [...prev, { role: "user", content: prompt }]);
     queryMutation.mutate({ q: prompt, type: activeTab });
   };
 
   const isEnabled = aiStatus?.enabled ?? false;
+  const isBudgetLimited = aiStatus?.budgetLimitReached ?? false;
 
   if (!open) return null;
 
@@ -177,7 +180,11 @@ export function AiCommandPanel({ open, onClose, isSuperAdmin }: AiCommandPanelPr
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {isEnabled ? (
+            {isBudgetLimited ? (
+              <Badge variant="secondary" className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" data-testid="badge-ai-budget">
+                Budget Reached
+              </Badge>
+            ) : isEnabled ? (
               <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" data-testid="badge-ai-online">
                 Online
               </Badge>
@@ -207,6 +214,16 @@ export function AiCommandPanel({ open, onClose, isSuperAdmin }: AiCommandPanelPr
           </div>
         )}
 
+        {aiStatus?.monthlySpend && (
+          <div className="flex items-center justify-between px-4 py-1.5 border-b bg-muted/5 text-[10px] text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <DollarSign className="h-3 w-3" />
+              Monthly: ${aiStatus.monthlySpend} / ${aiStatus.monthlyBudget}
+            </span>
+            <span>{aiStatus.monthKey}</span>
+          </div>
+        )}
+
         <div className="flex gap-1 px-3 py-2 border-b overflow-x-auto">
           {TABS.map((tab) => (
             <Button
@@ -226,7 +243,7 @@ export function AiCommandPanel({ open, onClose, isSuperAdmin }: AiCommandPanelPr
           ))}
         </div>
 
-        {!isEnabled ? (
+        {!isEnabled && !isBudgetLimited ? (
           <div className="flex-1 flex items-center justify-center p-8">
             <Card className="w-full">
               <CardContent className="pt-6 text-center space-y-3">
@@ -238,6 +255,20 @@ export function AiCommandPanel({ open, onClose, isSuperAdmin }: AiCommandPanelPr
                   {isSuperAdmin
                     ? "Use the toggle above to enable the AI Command Layer."
                     : "Contact your Super Admin to enable the AI Command Layer."}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        ) : isBudgetLimited ? (
+          <div className="flex-1 flex items-center justify-center p-8">
+            <Card className="w-full">
+              <CardContent className="pt-6 text-center space-y-3">
+                <div className="flex h-12 w-12 mx-auto items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
+                  <DollarSign className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+                </div>
+                <p className="text-sm font-medium" data-testid="text-ai-budget-message">Monthly budget limit reached.</p>
+                <p className="text-xs text-muted-foreground">
+                  ZIBA AI has been automatically disabled to protect your credits. It will reset at the start of next month.
                 </p>
               </CardContent>
             </Card>

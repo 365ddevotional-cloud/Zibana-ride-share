@@ -5952,3 +5952,18 @@ export const aiCommandAuditLogs = pgTable("ai_command_audit_logs", {
 });
 
 export type AiCommandAuditLog = typeof aiCommandAuditLogs.$inferSelect;
+
+// ==========================================
+// AI COMMAND LAYER - Usage Tracking (Budget Cap)
+// ==========================================
+export const aiUsageLogs = pgTable("ai_usage_logs", {
+  id: serial("id").primaryKey(),
+  adminId: varchar("admin_id").notNull(),
+  monthKey: varchar("month_key", { length: 7 }).notNull(),
+  inputTokens: integer("input_tokens").notNull().default(0),
+  outputTokens: integer("output_tokens").notNull().default(0),
+  estimatedCost: decimal("estimated_cost", { precision: 10, scale: 6 }).notNull().default("0"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type AiUsageLog = typeof aiUsageLogs.$inferSelect;

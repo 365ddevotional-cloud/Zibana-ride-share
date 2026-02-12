@@ -53,6 +53,7 @@ import {
   Globe,
   Settings,
   MessageCircle,
+  Brain,
 } from "lucide-react";
 
 const sidebarSections = [
@@ -151,6 +152,7 @@ const sidebarSections = [
       { value: "zibra-governance", label: "ZIBRA Governance", icon: Shield, route: "/admin/growth/zibra-governance" },
       { value: "director-settings", label: "Director Settings", icon: Settings2, route: "/admin/growth/director-settings" },
       { value: "director-performance", label: "Director Performance", icon: Award, route: "/admin/growth/director-performance" },
+      { value: "ai-audit", label: "AI Audit Log", icon: Brain, route: "/admin/growth/ai-audit" },
     ],
   },
 ];

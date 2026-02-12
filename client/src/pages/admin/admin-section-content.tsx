@@ -545,6 +545,18 @@ const sectionMeta: Record<string, SectionMeta> = {
     columns: ["Director", "DPS Score", "Drivers Managed", "Revenue", "Tier", "Status"],
     actions: ["Export", "Filter"],
   },
+  "ai-audit": {
+    title: "AI Audit Log",
+    description: "ZIBA AI Command Layer usage history, query audit trail, and cost tracking.",
+    kpis: [
+      { label: "Total Queries", zeroValue: "0", color: "border-t-violet-500" },
+      { label: "Monthly Spend", zeroValue: "$0.00", color: "border-t-blue-500" },
+      { label: "Success Rate", zeroValue: "0%", color: "border-t-emerald-500" },
+      { label: "Budget Remaining", zeroValue: "$12.00", color: "border-t-amber-500" },
+    ],
+    columns: ["Timestamp", "Admin", "Type", "Query", "Status"],
+    actions: ["Export", "Filter"],
+  },
 };
 
 const kpiColors = [

@@ -3,28 +3,65 @@ import type { Express, RequestHandler } from "express";
 import { db } from "./db";
 import { 
   trips, users, wallets, disputes, driverProfiles, riderProfiles,
-  aiCommandAuditLogs, platformSettings, tripRatings
+  aiCommandAuditLogs, aiUsageLogs, platformSettings, tripRatings
 } from "@shared/schema";
-import { sql, eq, gte, and, count, avg, desc } from "drizzle-orm";
+import { sql, eq, gte, and, count, avg, desc, sum } from "drizzle-orm";
 
-const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-});
+let openaiClient: OpenAI | null = null;
+try {
+  if (process.env.AI_INTEGRATIONS_OPENAI_API_KEY) {
+    openaiClient = new OpenAI({
+      apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+      baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+    });
+  }
+} catch (e) {
+  console.warn("[AI COMMAND] OpenAI client initialization failed — AI queries will be unavailable");
+}
 
 let aiCommandOverride: boolean | null = null;
+let budgetDisabled = false;
 
 function isAiEnabled(): boolean {
+  if (budgetDisabled) return false;
   if (aiCommandOverride !== null) return aiCommandOverride;
   return process.env.AI_COMMAND_ENABLED === "true";
 }
 
+function getCurrentMonthKey(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+async function getMonthlySpend(): Promise<number> {
+  const monthKey = getCurrentMonthKey();
+  const result = await db.select({
+    total: sql<string>`COALESCE(SUM(${aiUsageLogs.estimatedCost}), 0)`
+  }).from(aiUsageLogs).where(eq(aiUsageLogs.monthKey, monthKey));
+  return parseFloat(result[0]?.total ?? "0");
+}
+
+function getMonthlyBudget(): number {
+  return parseFloat(process.env.AI_MONTHLY_BUDGET_USD || "12");
+}
+
+function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 4);
+}
+
+function estimateCost(inputTokens: number, outputTokens: number): number {
+  return (inputTokens * 0.00000015) + (outputTokens * 0.0000006);
+}
+
 const SYSTEM_PROMPT = `You are ZIBA AI Command Intelligence.
 You analyze structured operational data for a ride-hailing platform operating in emerging markets.
-You do not invent numbers. If data is missing, say so.
-You provide recommendations but do not execute actions.
-You format responses with clear sections, bullet points, and actionable insights.
-You respond concisely and professionally. Keep answers focused and data-driven.`;
+CRITICAL RULES:
+- Do NOT invent, fabricate, or estimate numbers. Only use data explicitly provided to you.
+- If data is missing or unavailable, explicitly state: "This data is not available in the current snapshot."
+- You provide advisory recommendations but do NOT execute any actions.
+- Format responses with clear sections, bullet points, and actionable insights.
+- Respond concisely and professionally. Keep answers focused and data-driven.
+- Never include personal identifiable information (phone numbers, addresses, emails) in your responses.`;
 
 async function getDataContext() {
   const now = new Date();
@@ -106,7 +143,15 @@ export function registerAiCommandRoutes(
 ) {
   app.get("/api/admin/ai/status", isAuthenticated, requireRole(["admin", "super_admin"]), async (_req: any, res) => {
     try {
-      return res.json({ enabled: isAiEnabled() });
+      const monthlySpend = await getMonthlySpend();
+      const budget = getMonthlyBudget();
+      return res.json({
+        enabled: isAiEnabled(),
+        budgetLimitReached: budgetDisabled,
+        monthlySpend: monthlySpend.toFixed(4),
+        monthlyBudget: budget.toFixed(2),
+        monthKey: getCurrentMonthKey(),
+      });
     } catch (error) {
       return res.status(500).json({ message: "Failed to get AI status" });
     }
@@ -117,7 +162,7 @@ export function registerAiCommandRoutes(
       const context = await getDataContext();
       return res.json(context);
     } catch (error) {
-      console.error("Error getting AI data context:", error);
+      console.error("[AI COMMAND] Error getting data context:", error);
       return res.status(500).json({ message: "Failed to aggregate data context" });
     }
   });
@@ -127,29 +172,66 @@ export function registerAiCommandRoutes(
     const { question, queryType = "ask" } = req.body;
 
     if (!isAiEnabled()) {
+      const status = budgetDisabled ? "AI_BUDGET_LIMIT_REACHED" : "AI_DISABLED";
+      const message = budgetDisabled
+        ? "ZIBA AI monthly budget limit reached. AI is temporarily disabled."
+        : "ZIBA AI Command Layer is currently offline.";
+
+      console.log(`[AI COMMAND] AI disabled: skipping OpenAI call (reason: ${status})`);
+
       await db.insert(aiCommandAuditLogs).values({
         adminId,
         queryType,
         query: question,
         aiEnabled: false,
-        responseStatus: "AI_DISABLED",
+        responseStatus: status,
       });
-      return res.json({
-        status: "AI_DISABLED",
-        message: "ZIBA AI Command Layer is currently offline.",
-      });
+      return res.json({ status, message });
     }
 
     if (!question || typeof question !== "string") {
       return res.status(400).json({ message: "Question is required" });
     }
 
+    const monthlySpend = await getMonthlySpend();
+    const budget = getMonthlyBudget();
+    if (monthlySpend >= budget) {
+      budgetDisabled = true;
+      console.log(`[AI COMMAND] Monthly budget exceeded ($${monthlySpend.toFixed(4)} >= $${budget}). Auto-disabling AI.`);
+
+      await db.insert(aiCommandAuditLogs).values({
+        adminId,
+        queryType,
+        query: question,
+        aiEnabled: false,
+        responseStatus: "AI_BUDGET_LIMIT_REACHED",
+      });
+      return res.json({
+        status: "AI_BUDGET_LIMIT_REACHED",
+        message: "ZIBA AI monthly budget limit reached. AI is temporarily disabled.",
+      });
+    }
+
+    if (!openaiClient) {
+      console.log("[AI COMMAND] OpenAI client not available — skipping call");
+      await db.insert(aiCommandAuditLogs).values({
+        adminId,
+        queryType,
+        query: question,
+        aiEnabled: true,
+        responseStatus: "AI_TEMPORARILY_UNAVAILABLE",
+      });
+      return res.json({
+        status: "AI_TEMPORARILY_UNAVAILABLE",
+        message: "ZIBA AI is temporarily unavailable. The AI service is not configured.",
+      });
+    }
+
     try {
       const context = await getDataContext();
-
       const userMessage = `OPERATIONAL DATA:\n${JSON.stringify(context, null, 2)}\n\nADMIN QUESTION (${queryType}):\n${question}`;
 
-      const completion = await openai.chat.completions.create({
+      const completion = await openaiClient.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
@@ -160,6 +242,18 @@ export function registerAiCommandRoutes(
       });
 
       const answer = completion.choices[0]?.message?.content || "No response generated.";
+
+      const inputTokens = completion.usage?.prompt_tokens ?? estimateTokens(SYSTEM_PROMPT + userMessage);
+      const outputTokens = completion.usage?.completion_tokens ?? estimateTokens(answer);
+      const cost = estimateCost(inputTokens, outputTokens);
+
+      await db.insert(aiUsageLogs).values({
+        adminId,
+        monthKey: getCurrentMonthKey(),
+        inputTokens,
+        outputTokens,
+        estimatedCost: cost.toFixed(6),
+      });
 
       await db.insert(aiCommandAuditLogs).values({
         adminId,
@@ -180,7 +274,7 @@ export function registerAiCommandRoutes(
         },
       });
     } catch (error: any) {
-      console.error("AI query error:", error);
+      console.error("[AI COMMAND] OpenAI query error:", error?.message || error);
 
       await db.insert(aiCommandAuditLogs).values({
         adminId,
@@ -206,6 +300,16 @@ export function registerAiCommandRoutes(
     }
 
     aiCommandOverride = enabled;
+    if (enabled) {
+      const currentMonth = getCurrentMonthKey();
+      const spend = await getMonthlySpend();
+      const budget = getMonthlyBudget();
+      if (spend < budget) {
+        budgetDisabled = false;
+      }
+    }
+
+    console.log(`[AI COMMAND] Toggle: AI ${enabled ? "ENABLED" : "DISABLED"} by admin ${adminId}`);
 
     await db.insert(aiCommandAuditLogs).values({
       adminId,
@@ -225,8 +329,28 @@ export function registerAiCommandRoutes(
         .limit(100);
       return res.json(logs);
     } catch (error) {
-      console.error("Error fetching AI audit logs:", error);
+      console.error("[AI COMMAND] Error fetching audit logs:", error);
       return res.status(500).json({ message: "Failed to fetch audit logs" });
+    }
+  });
+
+  app.get("/api/admin/ai/usage", isAuthenticated, requireRole(["admin", "super_admin"]), async (_req: any, res) => {
+    try {
+      const monthKey = getCurrentMonthKey();
+      const usage = await db.select().from(aiUsageLogs)
+        .where(eq(aiUsageLogs.monthKey, monthKey))
+        .orderBy(desc(aiUsageLogs.createdAt))
+        .limit(50);
+      const totalSpend = await getMonthlySpend();
+      return res.json({
+        monthKey,
+        totalSpend: totalSpend.toFixed(4),
+        budget: getMonthlyBudget().toFixed(2),
+        entries: usage,
+      });
+    } catch (error) {
+      console.error("[AI COMMAND] Error fetching usage data:", error);
+      return res.status(500).json({ message: "Failed to fetch usage data" });
     }
   });
 }

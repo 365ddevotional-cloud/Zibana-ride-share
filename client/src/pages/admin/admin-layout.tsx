@@ -111,7 +111,7 @@ export default function AdminLayout({ children, userRole, activeTab }: AdminLayo
               <Button
                 size="sm"
                 variant={aiStatus?.enabled ? "default" : "outline"}
-                className={aiStatus?.enabled ? "bg-violet-600 hover:bg-violet-700 text-white" : ""}
+                className={aiStatus?.enabled ? "bg-violet-600 text-white" : ""}
                 onClick={() => setAiPanelOpen(true)}
                 data-testid="button-ai-command"
               >
