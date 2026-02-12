@@ -1,0 +1,138 @@
+ZIBA INTERNAL QA MODE ACTIVATION
+DO NOT ADD NEW FEATURES
+DO NOT REDESIGN UI
+ENABLE QA TEST STRUCTURE ONLY
+
+=================================================
+PHASE 1 — FORCE DEVELOPMENT MODE BADGE
+=================================================
+
+Ensure admin header shows:
+"Development Mode"
+
+If APP_MODE !== "production"
+Display badge:
+Development
+
+=================================================
+PHASE 2 — ENABLE QA MONITORING LOG
+=================================================
+
+Create internal QA log system:
+
+Log events for:
+
+• Driver approval
+• Rider signup
+• Trip request
+• Trip assigned
+• Trip cancelled
+• Trip completed
+• Training mode toggle
+• Payment simulation
+• Messaging sent
+
+Store logs in:
+qaActivityLogs table
+
+Fields:
+id
+type
+userId
+entityId
+description
+createdAt
+
+=================================================
+PHASE 3 — ADD QA PANEL IN ADMIN
+=================================================
+
+Create:
+
+/admin/qa-monitor
+
+Show:
+
+• Total test trips
+• Total approvals
+• Errors last 24h
+• Failed API calls
+• Recent 50 QA logs
+
+Auto-refresh every 10 seconds.
+
+=================================================
+PHASE 4 — ERROR VISIBILITY IMPROVEMENT
+=================================================
+
+Every backend 500 error must return:
+
+{
+  message: "Clear readable error",
+  code: "ERROR_CODE",
+  context: optional
+}
+
+Never return generic:
+"Internal server error"
+
+=================================================
+PHASE 5 — DRIVER & RIDER FLOW TEST CHECKLIST
+=================================================
+
+Add visible QA checklist in QA Monitor page:
+
+Driver Flow:
+☐ Signup
+☐ Upload vehicle
+☐ Await approval
+☐ Approve driver
+☐ Toggle training
+☐ Go online
+☐ Accept trip
+☐ Complete trip
+
+Rider Flow:
+☐ Signup
+☐ Request ride
+☐ Cancel ride
+☐ Complete ride
+☐ Rate driver
+
+Admin Flow:
+☐ Approve driver
+☐ Assign training
+☐ View trip detail
+☐ Toggle Go Live
+☐ Toggle AI
+
+=================================================
+PHASE 6 — SAFETY RULE
+=================================================
+
+QA mode must NOT:
+• Charge real money
+• Send real notifications
+• Send real SMS
+• Enable production payouts
+
+All payments simulated only.
+
+=================================================
+FINAL CHECK
+=================================================
+
+After activation:
+
+• All actions clickable
+• No silent errors
+• QA logs visible
+• Duration working
+• Training toggle working
+• Approval working
+• Eye icons working
+
+Return summary when complete.
+Do not expand features.
+Do not add UI redesign.
+This is stabilization only.

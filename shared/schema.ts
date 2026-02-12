@@ -5940,6 +5940,17 @@ export const qaSimulationLogs = pgTable("qa_simulation_logs", {
 
 export type QaSimulationLog = typeof qaSimulationLogs.$inferSelect;
 
+export const qaActivityLogs = pgTable("qa_activity_logs", {
+  id: serial("id").primaryKey(),
+  type: varchar("type", { length: 50 }).notNull(),
+  userId: varchar("user_id"),
+  entityId: varchar("entity_id"),
+  description: text("description").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type QaActivityLog = typeof qaActivityLogs.$inferSelect;
+
 // ==========================================
 // TRIP MESSAGES - In-App Chat for Active Trips
 // ==========================================

@@ -5,7 +5,7 @@ import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integra
 import { storage } from "./storage";
 import { db } from "./db";
 import { eq, and, count, sql, gte, lt, lte, isNotNull, inArray, desc, or, ilike } from "drizzle-orm";
-import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, driverInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages, walletFundingTransactions, walletFundingSettings, driverWallets, directorFundingTransactions, directorFundingSettings, directorFundingAcceptance, directorFundingSuspensions, directorProfiles, directorDriverAssignments, directorActionLogs, driverCoachingLogs, directorCells, directorCommissionSettings, directorPayoutSummaries, referralCodes, directorFraudSignals, directorDisputes, directorDisputeMessages, directorWindDowns, welcomeAnalytics, directorPerformanceScores, directorPerformanceWeights, directorIncentives, directorRestrictions, directorPerformanceLogs, directorSuccessions, directorTerminationTimeline, directorStaff, riderTrustScores, riderTrustWeights, riderLoyaltyIncentives, riderTrustLogs, fundingRelationships, fundingAbuseFlags, thirdPartyFundingConfig, fundingAuditLogs, sponsoredBalances, directorCoachingLogs, directorTrainingModules, directorTermsAcceptance, directorTrustScores, platformSettings, qaChecklistItems, qaSimulationLogs, tripMessages, insertTripMessageSchema, qaSessionLogs } from "@shared/schema";
+import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, driverInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages, walletFundingTransactions, walletFundingSettings, driverWallets, directorFundingTransactions, directorFundingSettings, directorFundingAcceptance, directorFundingSuspensions, directorProfiles, directorDriverAssignments, directorActionLogs, driverCoachingLogs, directorCells, directorCommissionSettings, directorPayoutSummaries, referralCodes, directorFraudSignals, directorDisputes, directorDisputeMessages, directorWindDowns, welcomeAnalytics, directorPerformanceScores, directorPerformanceWeights, directorIncentives, directorRestrictions, directorPerformanceLogs, directorSuccessions, directorTerminationTimeline, directorStaff, riderTrustScores, riderTrustWeights, riderLoyaltyIncentives, riderTrustLogs, fundingRelationships, fundingAbuseFlags, thirdPartyFundingConfig, fundingAuditLogs, sponsoredBalances, directorCoachingLogs, directorTrainingModules, directorTermsAcceptance, directorTrustScores, platformSettings, qaChecklistItems, qaSimulationLogs, tripMessages, insertTripMessageSchema, qaSessionLogs, qaActivityLogs } from "@shared/schema";
 import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, evaluateAllDrivers, evaluateBehaviorAndWarnings, calculateDriverMatchingScore, getDriverIncentiveProgress, assignFirstRidePromo, assignReturnRiderPromo, applyPromoToTrip, voidPromosOnCancellation } from "./incentives";
 import { notificationService } from "./notification-service";
 import { registerAiCommandRoutes } from "./ai-command";
@@ -45,6 +45,14 @@ import { getTemplateResponse, matchTemplate, type ZibraRole } from "@shared/zibr
 import { applyTone } from "@shared/zibra-tone";
 import { scanForLegalRisks } from "@shared/zibra-legal-guard";
 import type { ToneStyle } from "@shared/country-profiles";
+
+async function logQaActivity(type: string, userId: string | null, entityId: string | null, description: string) {
+  try {
+    await db.insert(qaActivityLogs).values({ type, userId, entityId, description });
+  } catch (e) {
+    console.error("[QA LOG] Failed to log activity:", e);
+  }
+}
 
 function generateSupportResponse(input: string, role: string, _isPrivileged: boolean): string {
   const zibraRole: ZibraRole = (role === "admin" || role === "super_admin" || role === "rider" || role === "driver" || role === "director") ? role as ZibraRole : "general";
@@ -286,6 +294,7 @@ export async function registerRoutes(
       
       // DEFAULT RATING: Create trust profile with 5.0 stars on signup
       await storage.getOrCreateUserTrustProfile(userId);
+      await logQaActivity("rider_signup", userId, userId, "Rider signed up");
 
       // WELCOME MESSAGE: Send inbox welcome message to new rider
       try {
@@ -2269,6 +2278,7 @@ export async function registerRoutes(
       if (!trip) {
         return res.status(404).json({ message: "Trip not found or already accepted" });
       }
+      await logQaActivity("trip_assigned", userId, tripId, "Trip assigned to driver");
 
       await storage.createNotification({
         userId: trip.riderId,
@@ -2318,6 +2328,7 @@ export async function registerRoutes(
           type: "info",
         });
       } else if (status === "completed") {
+        await logQaActivity("trip_completed", userId, tripId, "Trip completed");
         // Format fare in NGN
         const fareInNaira = (parseFloat(String(trip.fareAmount)) / 100).toFixed(2);
         const commissionInNaira = (parseFloat(String(trip.commissionAmount || 0)) / 100).toFixed(2);
@@ -3587,6 +3598,7 @@ export async function registerRoutes(
       console.log(`[RIDE CREATED] tripId=${trip.id}, userId=${userId}, countryCode=${countryCode}, ` +
         `paymentSource=${resolvedPaymentSource}, isTester=${isTester}, walletBalance=${availableBalance}, ` +
         `currency=${tripCurrency}`);
+      await logQaActivity("trip_request", userId, String(trip.id), "Trip requested");
       
       await storage.notifyAllDrivers(
         "New Ride Request",
@@ -3866,6 +3878,7 @@ export async function registerRoutes(
       if (!trip) {
         return res.status(404).json({ message: "Trip not found or cannot be cancelled" });
       }
+      await logQaActivity("trip_cancelled", userId, tripId, "Trip cancelled");
 
       if (cancellationFeeAmount) {
         try {
@@ -4489,6 +4502,7 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Driver not found" });
       }
       console.log(`[DRIVER APPROVAL] Driver approved: userId=${driverId}, approvedBy=${req.user.claims.sub}, timestamp=${new Date().toISOString()}`);
+      await logQaActivity("driver_approval", req.user.claims.sub, driverId, "Driver approved");
       
       await storage.createNotification({
         userId: driverId,
@@ -8550,6 +8564,7 @@ export async function registerRoutes(
       
       // Audit log
       console.log(`[TEST_CREDIT] userId=${userId}, email=${userEmail}, amount=${creditAmount}, timestamp=${new Date().toISOString()}`);
+      await logQaActivity("payment_simulation", userId, userId, "Payment simulated");
       
       // Log to financial audit
       await storage.createFinancialAuditLog({
@@ -15655,6 +15670,19 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/admin/qa-activity-logs", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const limitParam = parseInt(req.query.limit as string) || 50;
+      const logs = await db.select().from(qaActivityLogs)
+        .orderBy(desc(qaActivityLogs.createdAt))
+        .limit(Math.min(limitParam, 200));
+      return res.json(logs);
+    } catch (error) {
+      console.error("Error getting QA activity logs:", error);
+      return res.status(500).json({ message: "Failed to get QA activity logs", code: "QA_ACTIVITY_LOGS_ERROR" });
+    }
+  });
+
   app.get("/api/admin/system-stability", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {
       const now = new Date();
@@ -21000,6 +21028,7 @@ export async function registerRoutes(
       const updated = await storage.updateDriverProfile(userId, updateData);
       
       console.log(`[TRAINING_MODE] Admin ${adminId} updated training for driver ${userId}: isTraining=${isTraining}, credits=${trainingCredits}`);
+      await logQaActivity("training_toggle", adminId, userId, "Training mode toggled");
       
       await storage.createAuditLog({
         userId: adminId,
@@ -29919,6 +29948,7 @@ export async function registerRoutes(
         message: message.trim(),
       }).returning();
 
+      await logQaActivity("message_sent", userId, tripId, "Message sent");
       return res.json(newMessage);
     } catch (error) {
       console.error("Error sending trip message:", error);
@@ -30002,6 +30032,18 @@ export async function registerRoutes(
       return res.status(500).json({ message: "Failed to cleanup messages" });
     }
   });
+  app.use((err: any, req: any, res: any, next: any) => {
+    console.error(`[ERROR] ${req.method} ${req.path}:`, err);
+    const statusCode = err.statusCode || err.status || 500;
+    const message = err.message || "An unexpected error occurred";
+    const code = err.code || "INTERNAL_ERROR";
+    res.status(statusCode).json({
+      message,
+      code,
+      context: process.env.NODE_ENV !== "production" ? err.stack?.split("\n").slice(0, 3).join("\n") : undefined,
+    });
+  });
+
 
   return httpServer;
 }

@@ -12,6 +12,8 @@ import {
   Loader2,
   RefreshCw,
   Shield,
+  ListChecks,
+  ClipboardList,
 } from "lucide-react";
 
 interface QaSummary {
@@ -45,10 +47,49 @@ interface QaMonitorPanelProps {
   isSuperAdmin: boolean;
 }
 
+function ChecklistGroup({ title, items, checklist, onToggle }: {
+  title: string;
+  items: { key: string; label: string }[];
+  checklist: Record<string, boolean>;
+  onToggle: (key: string) => void;
+}) {
+  const completed = items.filter(i => checklist[i.key]).length;
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">{title}</h3>
+        <span className="text-xs text-slate-500 dark:text-slate-400">{completed}/{items.length}</span>
+      </div>
+      <div className="space-y-2">
+        {items.map(item => (
+          <label
+            key={item.key}
+            className="flex items-center gap-2.5 cursor-pointer text-sm text-slate-600 dark:text-slate-300"
+            data-testid={`check-${item.key}`}
+          >
+            <input
+              type="checkbox"
+              checked={!!checklist[item.key]}
+              onChange={() => onToggle(item.key)}
+              className="rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 h-4 w-4"
+            />
+            <span className={checklist[item.key] ? "line-through opacity-60" : ""}>{item.label}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function QaMonitorPanel({ isSuperAdmin }: QaMonitorPanelProps) {
   const { data: summary, isLoading } = useQuery<QaSummary>({
     queryKey: ["/api/admin/qa-monitor/summary"],
-    refetchInterval: 15000,
+    refetchInterval: 10000,
+  });
+
+  const { data: activityLogs } = useQuery<any[]>({
+    queryKey: ["/api/admin/qa-activity-logs"],
+    refetchInterval: 10000,
   });
 
   const toggleQaMutation = useMutation({
@@ -61,6 +102,26 @@ export default function QaMonitorPanel({ isSuperAdmin }: QaMonitorPanelProps) {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/platform-settings"] });
     },
   });
+
+  const [checklist, setChecklist] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem("ziba-qa-checklist");
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
+
+  const toggleCheck = (key: string) => {
+    setChecklist(prev => {
+      const next = { ...prev, [key]: !prev[key] };
+      localStorage.setItem("ziba-qa-checklist", JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const resetChecklist = () => {
+    setChecklist({});
+    localStorage.removeItem("ziba-qa-checklist");
+  };
 
   if (isLoading) {
     return (
@@ -202,6 +263,121 @@ export default function QaMonitorPanel({ isSuperAdmin }: QaMonitorPanelProps) {
                 )}
               </tbody>
             </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-xl shadow-xl shadow-slate-300/40 dark:shadow-slate-900/40 border border-slate-200 dark:border-slate-700">
+        <CardHeader className="gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <CardTitle className="text-lg font-semibold text-slate-800 dark:text-slate-100" data-testid="text-qa-activity-title">
+              Recent QA Activity Logs
+            </CardTitle>
+            <Badge variant="secondary" className="no-default-hover-elevate no-default-active-elevate" data-testid="badge-activity-count">
+              {activityLogs?.length || 0} entries
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-card z-10">
+                <tr className="border-b border-slate-200 dark:border-slate-700">
+                  <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Time</th>
+                  <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Type</th>
+                  <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">User</th>
+                  <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Entity</th>
+                  <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(!activityLogs || activityLogs.length === 0) ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-sm text-slate-500 dark:text-slate-400">
+                      No QA activity logs recorded yet.
+                    </td>
+                  </tr>
+                ) : (
+                  activityLogs.map((log: any) => (
+                    <tr key={log.id} className="border-b border-slate-100 dark:border-slate-800">
+                      <td className="py-2.5 px-4 text-xs text-slate-500 dark:text-slate-400">
+                        {new Date(log.createdAt).toLocaleString()}
+                      </td>
+                      <td className="py-2.5 px-4">
+                        <Badge variant="secondary" className="no-default-hover-elevate no-default-active-elevate">
+                          {log.type}
+                        </Badge>
+                      </td>
+                      <td className="py-2.5 px-4 text-xs font-mono text-slate-600 dark:text-slate-300">
+                        {log.userId ? log.userId.slice(0, 8) + "..." : "--"}
+                      </td>
+                      <td className="py-2.5 px-4 text-xs font-mono text-slate-600 dark:text-slate-300">
+                        {log.entityId ? String(log.entityId).slice(0, 8) + "..." : "--"}
+                      </td>
+                      <td className="py-2.5 px-4 text-xs text-slate-600 dark:text-slate-300">
+                        {log.description}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-xl shadow-xl shadow-slate-300/40 dark:shadow-slate-900/40 border border-slate-200 dark:border-slate-700">
+        <CardHeader className="gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <CardTitle className="text-lg font-semibold text-slate-800 dark:text-slate-100" data-testid="text-qa-checklist-title">
+              QA Flow Checklist
+            </CardTitle>
+            <Button variant="outline" size="sm" onClick={resetChecklist} data-testid="button-reset-checklist">
+              Reset All
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <ChecklistGroup
+              title="Driver Flow"
+              items={[
+                { key: "driver_signup", label: "Signup" },
+                { key: "driver_upload_vehicle", label: "Upload vehicle" },
+                { key: "driver_await_approval", label: "Await approval" },
+                { key: "driver_approve", label: "Approve driver" },
+                { key: "driver_toggle_training", label: "Toggle training" },
+                { key: "driver_go_online", label: "Go online" },
+                { key: "driver_accept_trip", label: "Accept trip" },
+                { key: "driver_complete_trip", label: "Complete trip" },
+              ]}
+              checklist={checklist}
+              onToggle={toggleCheck}
+            />
+            <ChecklistGroup
+              title="Rider Flow"
+              items={[
+                { key: "rider_signup", label: "Signup" },
+                { key: "rider_request_ride", label: "Request ride" },
+                { key: "rider_cancel_ride", label: "Cancel ride" },
+                { key: "rider_complete_ride", label: "Complete ride" },
+                { key: "rider_rate_driver", label: "Rate driver" },
+              ]}
+              checklist={checklist}
+              onToggle={toggleCheck}
+            />
+            <ChecklistGroup
+              title="Admin Flow"
+              items={[
+                { key: "admin_approve_driver", label: "Approve driver" },
+                { key: "admin_assign_training", label: "Assign training" },
+                { key: "admin_view_trip_detail", label: "View trip detail" },
+                { key: "admin_toggle_go_live", label: "Toggle Go Live" },
+                { key: "admin_toggle_ai", label: "Toggle AI" },
+              ]}
+              checklist={checklist}
+              onToggle={toggleCheck}
+            />
           </div>
         </CardContent>
       </Card>
