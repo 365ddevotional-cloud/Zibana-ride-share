@@ -28,6 +28,14 @@ import {
   BreadcrumbSeparator,
   BreadcrumbPage,
 } from "@/components/ui/breadcrumb";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { StatusBadge } from "@/components/status-badge";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -35,7 +43,6 @@ import { useToast } from "@/hooks/use-toast";
 import type { DriverProfile } from "@shared/schema";
 import {
   Car,
-  Users,
   Clock,
   ShieldAlert,
   Search,
@@ -44,37 +51,88 @@ import {
   CheckCircle,
   AlertTriangle,
   Star,
-  WifiOff,
   Wifi,
+  XCircle,
+  FileText,
+  GraduationCap,
+  ShieldCheck,
 } from "lucide-react";
 
 type DriverWithUser = DriverProfile & { email?: string };
+
+interface DriverDocument {
+  type: string;
+  label: string;
+  submitted: boolean;
+  verified: boolean;
+  hasData: boolean;
+}
 
 export default function AdminDriversOverview() {
   const { toast } = useToast();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [onlineFilter, setOnlineFilter] = useState<string>("all");
+  const [docsDialogDriver, setDocsDialogDriver] = useState<DriverWithUser | null>(null);
 
   const { data: drivers = [], isLoading } = useQuery<DriverWithUser[]>({
     queryKey: ["/api/admin/drivers"],
   });
 
+  const { data: docsData } = useQuery<DriverDocument[]>({
+    queryKey: ["/api/admin/driver", docsDialogDriver?.userId, "documents"],
+    queryFn: async () => {
+      if (!docsDialogDriver) return [];
+      const res = await fetch(`/api/admin/driver/${docsDialogDriver.userId}/documents`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to load documents");
+      return res.json();
+    },
+    enabled: !!docsDialogDriver,
+  });
+
   const updateDriverStatusMutation = useMutation({
-    mutationFn: async ({ driverId, status }: { driverId: string; status: string }) => {
-      const response = await apiRequest("POST", "/api/admin/driver-status", {
-        driverId,
+    mutationFn: async ({ driverId, status, reason }: { driverId: string; status: string; reason?: string }) => {
+      const response = await apiRequest("POST", `/api/admin/driver/${driverId}/status`, {
         status,
+        reason,
       });
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/drivers"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
-      toast({ title: "Driver status updated" });
+      const labels: Record<string, string> = {
+        approved: "Driver approved",
+        rejected: "Driver rejected",
+        suspended: "Driver suspended",
+        pending: "Driver status reset to pending",
+      };
+      toast({ title: labels[variables.status] || "Driver status updated" });
     },
     onError: (error: Error) => {
       toast({ title: "Failed to update driver", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const toggleTrainingMutation = useMutation({
+    mutationFn: async ({ userId, isTraining }: { userId: string; isTraining: boolean }) => {
+      const response = await apiRequest("POST", `/api/admin/driver/${userId}/training`, {
+        isTraining,
+      });
+      return response.json();
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/drivers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+      toast({
+        title: variables.isTraining ? "Training mode enabled" : "Training mode disabled",
+        description: variables.isTraining
+          ? "Driver is now in training mode and will not receive real ride requests."
+          : "Driver has been marked as fully approved and can receive ride requests.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to update training status", description: error.message, variant: "destructive" });
     },
   });
 
@@ -180,6 +238,7 @@ export default function AdminDriversOverview() {
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="approved">Approved</SelectItem>
                 <SelectItem value="suspended">Suspended</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
               </SelectContent>
             </Select>
             <Select value={onlineFilter} onValueChange={setOnlineFilter}>
@@ -233,6 +292,7 @@ export default function AdminDriversOverview() {
                     <TableHead>Driver</TableHead>
                     <TableHead>Vehicle</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Training</TableHead>
                     <TableHead>Availability</TableHead>
                     <TableHead>Rating</TableHead>
                     <TableHead>Verification</TableHead>
@@ -268,6 +328,19 @@ export default function AdminDriversOverview() {
                         <StatusBadge status={driver.status as any} />
                       </TableCell>
                       <TableCell>
+                        {driver.isTraining ? (
+                          <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400 border-0">
+                            Training
+                          </Badge>
+                        ) : driver.status === "approved" ? (
+                          <Badge variant="secondary" className="text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 border-0">
+                            Active
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">--</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
                         <StatusBadge status={driver.isOnline ? "online" : "offline"} />
                       </TableCell>
                       <TableCell>
@@ -293,44 +366,121 @@ export default function AdminDriversOverview() {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Link href={`/admin`}>
-                            <Button size="sm" variant="ghost" data-testid={`button-view-${driver.id}`}>
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          </Link>
+                        <div className="flex flex-wrap justify-end gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setDocsDialogDriver(driver)}
+                            data-testid={`button-docs-${driver.id}`}
+                            title="View Documents"
+                          >
+                            <FileText className="h-4 w-4" />
+                          </Button>
+
                           {driver.status === "pending" && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() =>
+                                  updateDriverStatusMutation.mutate({
+                                    driverId: driver.userId,
+                                    status: "approved",
+                                  })
+                                }
+                                disabled={updateDriverStatusMutation.isPending}
+                                data-testid={`button-approve-${driver.id}`}
+                                title="Approve"
+                              >
+                                <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() =>
+                                  updateDriverStatusMutation.mutate({
+                                    driverId: driver.userId,
+                                    status: "rejected",
+                                    reason: "Rejected by admin",
+                                  })
+                                }
+                                disabled={updateDriverStatusMutation.isPending}
+                                data-testid={`button-reject-${driver.id}`}
+                                title="Reject"
+                              >
+                                <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() =>
+                                  updateDriverStatusMutation.mutate({
+                                    driverId: driver.userId,
+                                    status: "suspended",
+                                  })
+                                }
+                                disabled={updateDriverStatusMutation.isPending}
+                                data-testid={`button-suspend-pending-${driver.id}`}
+                                title="Suspend"
+                              >
+                                <UserX className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                              </Button>
+                            </>
+                          )}
+
+                          {driver.status === "approved" && !driver.isTraining && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() =>
+                                  toggleTrainingMutation.mutate({
+                                    userId: driver.userId,
+                                    isTraining: true,
+                                  })
+                                }
+                                disabled={toggleTrainingMutation.isPending}
+                                data-testid={`button-assign-training-${driver.id}`}
+                                title="Assign to Training"
+                              >
+                                <GraduationCap className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() =>
+                                  updateDriverStatusMutation.mutate({
+                                    driverId: driver.userId,
+                                    status: "suspended",
+                                  })
+                                }
+                                disabled={updateDriverStatusMutation.isPending}
+                                data-testid={`button-suspend-${driver.id}`}
+                                title="Suspend"
+                              >
+                                <UserX className="h-4 w-4 text-red-600 dark:text-red-400" />
+                              </Button>
+                            </>
+                          )}
+
+                          {driver.status === "approved" && driver.isTraining && (
                             <Button
                               size="sm"
                               variant="ghost"
                               onClick={() =>
-                                updateDriverStatusMutation.mutate({
-                                  driverId: driver.userId,
-                                  status: "approved",
+                                toggleTrainingMutation.mutate({
+                                  userId: driver.userId,
+                                  isTraining: false,
                                 })
                               }
-                              disabled={updateDriverStatusMutation.isPending}
-                              data-testid={`button-approve-${driver.id}`}
+                              disabled={toggleTrainingMutation.isPending}
+                              data-testid={`button-mark-approved-${driver.id}`}
+                              title="Mark as Fully Approved"
                             >
-                              <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+                              <ShieldCheck className="h-4 w-4 text-green-600 dark:text-green-400" />
                             </Button>
                           )}
-                          {driver.status === "approved" && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() =>
-                                updateDriverStatusMutation.mutate({
-                                  driverId: driver.userId,
-                                  status: "suspended",
-                                })
-                              }
-                              disabled={updateDriverStatusMutation.isPending}
-                              data-testid={`button-suspend-${driver.id}`}
-                            >
-                              <UserX className="h-4 w-4 text-red-600 dark:text-red-400" />
-                            </Button>
-                          )}
+
                           {driver.status === "suspended" && (
                             <Button
                               size="sm"
@@ -343,8 +493,27 @@ export default function AdminDriversOverview() {
                               }
                               disabled={updateDriverStatusMutation.isPending}
                               data-testid={`button-reinstate-${driver.id}`}
+                              title="Reinstate"
                             >
                               <CheckCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                            </Button>
+                          )}
+
+                          {driver.status === "rejected" && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() =>
+                                updateDriverStatusMutation.mutate({
+                                  driverId: driver.userId,
+                                  status: "approved",
+                                })
+                              }
+                              disabled={updateDriverStatusMutation.isPending}
+                              data-testid={`button-re-approve-${driver.id}`}
+                              title="Re-approve"
+                            >
+                              <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
                             </Button>
                           )}
                         </div>
@@ -403,6 +572,60 @@ export default function AdminDriversOverview() {
           </Card>
         </div>
       )}
+
+      <Dialog open={!!docsDialogDriver} onOpenChange={(open) => { if (!open) setDocsDialogDriver(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle data-testid="text-docs-dialog-title">
+              Documents: {docsDialogDriver?.fullName}
+            </DialogTitle>
+            <DialogDescription>
+              Document submission and verification status for this driver.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            {docsData && docsData.length > 0 ? (
+              docsData.map((doc) => (
+                <div
+                  key={doc.type}
+                  className="flex items-center justify-between gap-3 rounded-md border px-3 py-2"
+                  data-testid={`doc-row-${doc.type}`}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="text-sm truncate">{doc.label}</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {doc.submitted ? (
+                      <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border-0">
+                        Submitted
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary" className="text-xs border-0">Not Submitted</Badge>
+                    )}
+                    {doc.verified ? (
+                      <Badge variant="secondary" className="text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 border-0">
+                        Verified
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary" className="text-xs border-0">Unverified</Badge>
+                    )}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                {docsDialogDriver ? "Loading documents..." : "No documents available."}
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDocsDialogDriver(null)} data-testid="button-close-docs">
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
