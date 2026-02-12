@@ -41,6 +41,7 @@ ZIBA includes comprehensive features such as:
 - **Complete Driver Experience**: Full driver account management with profile editing, vehicle management, document management, data usage controls, emergency contacts, inbox, settings, and help center.
 - **Multi-Language Support (i18n)**: Supports 12 languages with RTL support for Arabic, language selection pages for all roles, and smart country-based detection for initial language setting.
 - **Admin Control Center**: Dedicated routable section at `/admin/control/:section` with sub-pages for Overview, Monitoring, Health Alerts, Launch Readiness, and Ops Readiness, featuring breadcrumb navigation and a consistent executive theme.
+- **QA Mode & Monitoring**: Internal QA stabilization system with `qaActivityLogs` table tracking 9 event types (driver approval, rider signup, trip lifecycle, training toggle, payment simulation, messaging). QA Monitor page at `/admin/control/qa-monitor` with auto-refresh (10s), KPI cards, error tracking, activity log table, and interactive QA Flow Checklist (Driver/Rider/Admin flows with localStorage persistence). Development Mode badge in admin header. Global structured error middleware returns `{ message, code, context }` for all 500 errors. All payments remain simulated-only in non-production mode.
 
 ### System Design Choices
 The data storage layer uses PostgreSQL as the database, with Drizzle ORM and Zod for schema validation. The schema is comprehensive, covering all operational aspects from users and trips to financial transactions, fraud profiles, and legal compliance.
