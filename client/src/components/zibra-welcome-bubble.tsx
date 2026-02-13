@@ -38,7 +38,7 @@ export function ZibraWelcomeBubble({ visible, onOpen, onDismiss }: ZibraWelcomeB
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium mb-1" data-testid="text-zibra-greeting">
-                Need help choosing how ZIBA works for you?
+                Need help choosing how ZIBANA works for you?
               </p>
               <p className="text-xs text-muted-foreground mb-3">
                 I can guide you.

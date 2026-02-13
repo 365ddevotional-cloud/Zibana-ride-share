@@ -40,7 +40,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "rider",
     category: "account",
     keywords: ["sign up", "signup", "create account", "register", "new account", "join"],
-    response: "To create an account:\n1. Open the ZIBA app.\n2. Log in using your Replit account.\n3. Your rider profile will be created automatically.\n\nLet me know if you'd like help with the next step."
+    response: "To create an account:\n1. Open the ZIBANA app.\n2. Log in using your Replit account.\n3. Your rider profile will be created automatically.\n\nLet me know if you'd like help with the next step."
   },
   {
     id: "r-account-edit",
@@ -61,7 +61,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "rider",
     category: "account",
     keywords: ["login", "log in", "can't login", "login issue", "sign in", "signin"],
-    response: "ZIBA uses your Replit account for sign-in. If you're having trouble logging in:\n1. Make sure you're using the correct Replit account.\n2. Try refreshing the page.\n3. Clear your browser cache if needed.\n\nIf the issue persists, submit a support ticket for assistance."
+    response: "ZIBANA uses your Replit account for sign-in. If you're having trouble logging in:\n1. Make sure you're using the correct Replit account.\n2. Try refreshing the page.\n3. Clear your browser cache if needed.\n\nIf the issue persists, submit a support ticket for assistance."
   },
   {
     id: "r-account-notifications",
@@ -151,7 +151,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "rider",
     category: "cash_wallet",
     keywords: ["cash or wallet", "which payment", "payment method", "how to pay", "payment options"],
-    response: "ZIBA supports three payment methods:\n- Wallet: Pre-funded balance for quick payment.\n- Cash: Pay the driver directly after the trip.\n- Card: Pay with a linked card.\n\nYou can select your preferred method when booking a ride."
+    response: "ZIBANA supports three payment methods:\n- Wallet: Pre-funded balance for quick payment.\n- Cash: Pay the driver directly after the trip.\n- Card: Pay with a linked card.\n\nYou can select your preferred method when booking a ride."
   },
   {
     id: "r-cash-change",
@@ -167,7 +167,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "rider",
     category: "scheduling",
     keywords: ["schedule", "schedule ride", "advance booking", "book later", "future ride", "pre-book"],
-    response: "To schedule a ride in advance:\n1. Go to Services.\n2. Select 'Scheduled Rides'.\n3. Set your pickup time (up to 7 days ahead).\n4. Enter your pickup and drop-off locations.\n\nZIBA will help match you with an available driver at the scheduled time. Let me know if you'd like help with the next step."
+    response: "To schedule a ride in advance:\n1. Go to Services.\n2. Select 'Scheduled Rides'.\n3. Set your pickup time (up to 7 days ahead).\n4. Enter your pickup and drop-off locations.\n\nZIBANA will help match you with an available driver at the scheduled time. Let me know if you'd like help with the next step."
   },
   {
     id: "r-schedule-cancel",
@@ -238,7 +238,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "rider",
     category: "lost_item",
     keywords: ["lost item", "left something", "forgot item", "lost phone", "lost bag", "lost in car"],
-    response: "ZIBA can help connect you with the driver to coordinate next steps.\n1. Go to Activity and find the trip.\n2. Tap 'Report Lost Item' and provide details.\n\nDrivers are not required to return items, but many choose to. You may also arrange pickup at a Safe Return Hub if available. Let me know if you need further guidance."
+    response: "ZIBANA can help connect you with the driver to coordinate next steps.\n1. Go to Activity and find the trip.\n2. Tap 'Report Lost Item' and provide details.\n\nDrivers are not required to return items, but many choose to. You may also arrange pickup at a Safe Return Hub if available. Let me know if you need further guidance."
   },
   {
     id: "r-lost-status",
@@ -266,7 +266,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "rider",
     category: "lost_item",
     keywords: ["driver denied", "item not found", "driver says no", "can't find item"],
-    response: "If the driver indicates they did not find the item, you can:\n1. Submit additional details through the lost item report.\n2. Submit a support ticket for further review.\n\nZIBA facilitates communication between riders and drivers but cannot guarantee item recovery. Let me know if you'd like to submit a ticket."
+    response: "If the driver indicates they did not find the item, you can:\n1. Submit additional details through the lost item report.\n2. Submit a support ticket for further review.\n\nZIBANA facilitates communication between riders and drivers but cannot guarantee item recovery. Let me know if you'd like to submit a ticket."
   },
 
   // Safety Concerns (Rider)
@@ -275,7 +275,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "rider",
     category: "safety",
     keywords: ["sos", "emergency", "help me", "danger", "unsafe", "911", "police"],
-    response: "If there's an emergency, please contact local emergency services first. During an active trip, you can use the SOS button for immediate assistance. ZIBA facilitates safety tools to assist you. Let me know if you'd like help with the next step.",
+    response: "If there's an emergency, please contact local emergency services first. During an active trip, you can use the SOS button for immediate assistance. ZIBANA facilitates safety tools to assist you. Let me know if you'd like help with the next step.",
     priority: 10
   },
   {
@@ -283,7 +283,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "rider",
     category: "safety",
     keywords: ["report incident", "incident", "bad experience", "harass", "uncomfortable", "threatened"],
-    response: "If there's an emergency, please contact local emergency services first. To report an incident:\n1. Go to the Safety Hub.\n2. Select 'Report Incident'.\n3. Provide details about what happened.\n\nYour report will be reviewed by our team. ZIBA facilitates incident documentation and review processes.",
+    response: "If there's an emergency, please contact local emergency services first. To report an incident:\n1. Go to the Safety Hub.\n2. Select 'Report Incident'.\n3. Provide details about what happened.\n\nYour report will be reviewed by our team. ZIBANA facilitates incident documentation and review processes.",
     priority: 10
   },
   {
@@ -298,7 +298,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "rider",
     category: "safety",
     keywords: ["bad driver", "reckless", "speeding", "rude driver", "unprofessional"],
-    response: "We're sorry to hear about this experience. To report driver behavior:\n1. Go to Activity and find the trip.\n2. Rate the trip and leave detailed feedback.\n3. For serious concerns, submit a report through the Safety Hub.\n\nZIBA facilitates review of reported behavior. Let me know if you'd like help with the next step."
+    response: "We're sorry to hear about this experience. To report driver behavior:\n1. Go to Activity and find the trip.\n2. Rate the trip and leave detailed feedback.\n3. For serious concerns, submit a report through the Safety Hub.\n\nZIBANA facilitates review of reported behavior. Let me know if you'd like help with the next step."
   },
 
   // Inbox & Notifications (Rider)
@@ -323,7 +323,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "rider",
     category: "booking",
     keywords: ["book", "ride", "request ride", "get ride", "order ride", "need ride", "find driver"],
-    response: "To book a ride:\n1. Go to the Home tab.\n2. Enter your pickup and drop-off locations.\n3. Choose your preferred ride type and confirm.\n\nZIBA helps connect you with available drivers in your area. Let me know if you'd like help with the next step."
+    response: "To book a ride:\n1. Go to the Home tab.\n2. Enter your pickup and drop-off locations.\n3. Choose your preferred ride type and confirm.\n\nZIBANA helps connect you with available drivers in your area. Let me know if you'd like help with the next step."
   },
   {
     id: "r-book-fare",
@@ -362,7 +362,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "rider",
     category: "app_settings",
     keywords: ["language", "change language", "app language", "english", "other language"],
-    response: "Language preferences can be managed in your Account settings. ZIBA currently supports English. Additional language support is being expanded. If your preferred language is not available, the app will default to English."
+    response: "Language preferences can be managed in your Account settings. ZIBANA currently supports English. Additional language support is being expanded. If your preferred language is not available, the app will default to English."
   },
 
   // Ride Experience (Rider)
@@ -441,14 +441,14 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "rider",
     category: "payment",
     keywords: ["fund another user", "send money", "send funds", "wallet transfer", "fund friend", "fund family", "fund child", "fund spouse", "fund colleague", "peer to peer", "transfer wallet"],
-    response: "ZIBA allows you to support others by funding their wallets. You can send funds to a family member, friend, spouse, or colleague who is a registered ZIBA user. Once funds are transferred, they are not reversible. ZIBA facilitates wallet transfers but does not mediate personal disputes. You can start from the Payments page under 'Fund Another User'."
+    response: "ZIBANA allows you to support others by funding their wallets. You can send funds to a family member, friend, spouse, or colleague who is a registered ZIBANA user. Once funds are transferred, they are not reversible. ZIBANA facilitates wallet transfers but does not mediate personal disputes. You can start from the Payments page under 'Fund Another User'."
   },
   {
     id: "r-fund-refund",
     role: "rider",
     category: "payment",
     keywords: ["refund wallet transfer", "reverse transfer", "undo send", "get money back", "funding refund", "cancel transfer"],
-    response: "Once a wallet transfer is completed, it cannot be reversed. ZIBA facilitates transfers between users but is not responsible for agreements between individuals. Please verify the recipient carefully before confirming any transfer. If you believe there is an error, you can contact support, but refunds on voluntary transfers are not guaranteed."
+    response: "Once a wallet transfer is completed, it cannot be reversed. ZIBANA facilitates transfers between users but is not responsible for agreements between individuals. Please verify the recipient carefully before confirming any transfer. If you believe there is an error, you can contact support, but refunds on voluntary transfers are not guaranteed."
   },
   {
     id: "d-fund-driver",
@@ -471,7 +471,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "rider",
     category: "safety",
     keywords: ["accident", "crash", "collision", "injured", "rider accident", "hurt"],
-    response: "If there's an emergency, please contact local emergency services first. To report an accident as a rider:\n1. Go to the Safety Hub.\n2. Select 'Report Incident' and choose 'Accident'.\n3. Provide details and any photos if available.\n\nZIBA facilitates documentation and review of accident reports. Let me know if you need immediate assistance.",
+    response: "If there's an emergency, please contact local emergency services first. To report an accident as a rider:\n1. Go to the Safety Hub.\n2. Select 'Report Incident' and choose 'Accident'.\n3. Provide details and any photos if available.\n\nZIBANA facilitates documentation and review of accident reports. Let me know if you need immediate assistance.",
     priority: 10
   },
 
@@ -499,7 +499,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "rider",
     category: "account",
     keywords: ["referral", "refer friend", "referral code", "invite friend", "referral program", "share code"],
-    response: "ZIBA helps facilitate referral rewards when you invite friends to the platform. To find your referral code:\n1. Go to the Account section.\n2. Look for the Referral or Invite Friends option.\n3. Share your unique code with friends.\n\nRewards are applied when your referral completes qualifying activity. Let me know if you need further guidance."
+    response: "ZIBANA helps facilitate referral rewards when you invite friends to the platform. To find your referral code:\n1. Go to the Account section.\n2. Look for the Referral or Invite Friends option.\n3. Share your unique code with friends.\n\nRewards are applied when your referral completes qualifying activity. Let me know if you need further guidance."
   },
   {
     id: "r-promo",
@@ -517,7 +517,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "rider",
     category: "general_help",
     keywords: ["feedback", "suggestion", "improve", "feature request", "idea"],
-    response: "We appreciate your feedback. To share suggestions or ideas:\n1. Go to the Help Center.\n2. Submit a support ticket with your feedback.\n\nYour input helps us improve the ZIBA experience. Let me know if you need further guidance."
+    response: "We appreciate your feedback. To share suggestions or ideas:\n1. Go to the Help Center.\n2. Submit a support ticket with your feedback.\n\nYour input helps us improve the ZIBANA experience. Let me know if you need further guidance."
   },
   {
     id: "r-help-center",
@@ -550,7 +550,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "rider",
     category: "rider_coaching",
     keywords: ["wallet tips", "use wallet", "wallet benefits", "should I use wallet", "wallet vs cash"],
-    response: "Using your ZIBA wallet for rides can offer a smoother experience with faster payments and no need for exact change. Wallet-funded rides are processed instantly and may contribute positively to your platform experience. You can top up your wallet anytime through the app."
+    response: "Using your ZIBANA wallet for rides can offer a smoother experience with faster payments and no need for exact change. Wallet-funded rides are processed instantly and may contribute positively to your platform experience. You can top up your wallet anytime through the app."
   },
   {
     id: "r-cancellation-guidance",
@@ -571,14 +571,14 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "rider",
     category: "rider_coaching",
     keywords: ["loyalty", "rewards", "incentive", "perks", "benefits", "ride credits"],
-    response: "ZIBA may occasionally offer loyalty incentives such as ride credits or reduced fees based on your platform activity. These are not guaranteed and are managed by the platform. Continue using ZIBA regularly and maintaining good standing to be eligible for available incentives."
+    response: "ZIBANA may occasionally offer loyalty incentives such as ride credits or reduced fees based on your platform activity. These are not guaranteed and are managed by the platform. Continue using ZIBANA regularly and maintaining good standing to be eligible for available incentives."
   },
   {
     id: "r-wallet-funding-others",
     role: "rider",
     category: "rider_coaching",
     keywords: ["someone fund my wallet", "parent fund", "employer fund", "friend fund", "receive funds"],
-    response: "Other people can send funds to your ZIBA wallet \u2014 such as family members, employers, or friends. You will need to accept incoming funds before they are added to your wallet. There are no repayment obligations for received funds. Caps may apply to prevent misuse."
+    response: "Other people can send funds to your ZIBANA wallet \u2014 such as family members, employers, or friends. You will need to accept incoming funds before they are added to your wallet. There are no repayment obligations for received funds. Caps may apply to prevent misuse."
   },
   {
     id: "r-score-decreased",
@@ -621,7 +621,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "driver",
     category: "driver_training",
     keywords: ["training required", "must complete training", "training modules", "mandatory training"],
-    response: "Training modules help you understand ZIBA's features and policies. Access them from the Help tab:\n- Lost Item Protocol\n- Safe Return Hubs\n- Accident Reporting\n- Trust Score & Safety\n\nCompleting training helps you provide better service and understand platform procedures. Let me know if you'd like help with the next step."
+    response: "Training modules help you understand ZIBANA's features and policies. Access them from the Help tab:\n- Lost Item Protocol\n- Safe Return Hubs\n- Accident Reporting\n- Trust Score & Safety\n\nCompleting training helps you provide better service and understand platform procedures. Let me know if you'd like help with the next step."
   },
 
   // Pending Approval
@@ -646,7 +646,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "driver",
     category: "going_online",
     keywords: ["go online", "start driving", "accept rides", "get started", "online", "begin"],
-    response: "To start accepting rides:\n1. Go to your Driver Home.\n2. Toggle the 'Go Online' switch.\n3. Make sure your GPS is enabled and you have an active internet connection.\n\nZIBA connects you with riders based on proximity and availability. Let me know if you'd like help with the next step."
+    response: "To start accepting rides:\n1. Go to your Driver Home.\n2. Toggle the 'Go Online' switch.\n3. Make sure your GPS is enabled and you have an active internet connection.\n\nZIBANA connects you with riders based on proximity and availability. Let me know if you'd like help with the next step."
   },
   {
     id: "d-go-offline",
@@ -676,7 +676,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "driver",
     category: "trip_acceptance",
     keywords: ["navigate", "navigation", "directions", "map", "route"],
-    response: "After accepting a trip, you can use your preferred navigation app for directions. ZIBA provides trip details including pickup and drop-off locations. Tap the navigation option to open directions in your GPS app."
+    response: "After accepting a trip, you can use your preferred navigation app for directions. ZIBANA provides trip details including pickup and drop-off locations. Tap the navigation option to open directions in your GPS app."
   },
 
   // Rider Cancellation (Driver perspective)
@@ -717,7 +717,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "driver",
     category: "accident",
     keywords: ["accident", "crash", "collision", "hit", "damage", "injured"],
-    response: "If there's an emergency, please contact local emergency services first. To report an accident:\n1. Open the Accident Report feature in your Safety Hub.\n2. Document the incident with photos and details.\n3. Submit the report.\n\nZIBA facilitates documentation and may connect you with relief fund resources based on eligibility.",
+    response: "If there's an emergency, please contact local emergency services first. To report an accident:\n1. Open the Accident Report feature in your Safety Hub.\n2. Document the incident with photos and details.\n3. Submit the report.\n\nZIBANA facilitates documentation and may connect you with relief fund resources based on eligibility.",
     priority: 10
   },
   {
@@ -725,7 +725,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "driver",
     category: "accident",
     keywords: ["relief fund", "accident fund", "financial help", "accident support", "claim"],
-    response: "The Driver Accident Relief Fund may provide support for verified accidents. Eligibility depends on:\n- Accident verification\n- Fault determination\n- Your trust score\n\nClaims are reviewed by the admin team. ZIBA facilitates documentation for your records. Submit a support ticket for more information."
+    response: "The Driver Accident Relief Fund may provide support for verified accidents. Eligibility depends on:\n- Accident verification\n- Fault determination\n- Your trust score\n\nClaims are reviewed by the admin team. ZIBANA facilitates documentation for your records. Submit a support ticket for more information."
   },
 
   // Wallet & Payouts (Driver)
@@ -831,7 +831,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "driver",
     category: "driver_wallet",
     keywords: ["incentive", "incentive program", "bonus program", "driver incentive", "earn more"],
-    response: "ZIBA helps facilitate incentive programs to reward active drivers. Incentive details vary by market and may include:\n- Trip completion bonuses\n- Peak hour multipliers\n- Weekly or monthly targets\n\nCheck your Earnings tab for current incentive opportunities. I can guide you through this if you want."
+    response: "ZIBANA helps facilitate incentive programs to reward active drivers. Incentive details vary by market and may include:\n- Trip completion bonuses\n- Peak hour multipliers\n- Weekly or monthly targets\n\nCheck your Earnings tab for current incentive opportunities. I can guide you through this if you want."
   },
   {
     id: "d-incentive-bonus",
@@ -847,7 +847,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "driver",
     category: "lost_item",
     keywords: ["chat rider", "message rider", "contact rider", "in-app chat", "lost item chat"],
-    response: "To communicate with a rider about a lost item:\n1. Open the lost item notification.\n2. Use the in-app messaging to coordinate return details.\n\nZIBA facilitates communication between you and the rider. We recommend keeping all communications within the app for documentation purposes. Let me know if you need further guidance."
+    response: "To communicate with a rider about a lost item:\n1. Open the lost item notification.\n2. Use the in-app messaging to coordinate return details.\n\nZIBANA facilitates communication between you and the rider. We recommend keeping all communications within the app for documentation purposes. Let me know if you need further guidance."
   },
 
   // Safety (Driver) - Additional
@@ -856,7 +856,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "driver",
     category: "safety",
     keywords: ["sos", "emergency", "driver emergency", "panic", "danger"],
-    response: "If there's an emergency, please contact local emergency services first. During an active trip, use the SOS button for immediate assistance. ZIBA facilitates safety tools to help protect you on the road. Let me know if you need immediate assistance.",
+    response: "If there's an emergency, please contact local emergency services first. During an active trip, use the SOS button for immediate assistance. ZIBANA facilitates safety tools to help protect you on the road. Let me know if you need immediate assistance.",
     priority: 10
   },
   {
@@ -864,7 +864,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "driver",
     category: "safety",
     keywords: ["report incident", "driver incident", "rider behavior", "unsafe rider", "problem rider"],
-    response: "To report a safety incident:\n1. Go to the Safety Hub from your Help tab.\n2. Select 'Report Incident'.\n3. Provide details about what happened.\n\nZIBA facilitates incident documentation and review. Your report will be reviewed by our team. Let me know if you need further guidance.",
+    response: "To report a safety incident:\n1. Go to the Safety Hub from your Help tab.\n2. Select 'Report Incident'.\n3. Provide details about what happened.\n\nZIBANA facilitates incident documentation and review. Your report will be reviewed by our team. Let me know if you need further guidance.",
     priority: 10
   },
 
@@ -1070,7 +1070,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "admin",
     category: "reports",
     keywords: ["cash settlement", "cash reconciliation", "cash trip settlement", "settle cash"],
-    response: "Cash trip settlements are managed in the Cash Settlement section. To review:\n1. Check outstanding cash balances for drivers.\n2. Review trip-by-trip cash collection records.\n3. Process settlements according to the configured schedule.\n\nZIBA helps facilitate transparent cash reconciliation. All settlement actions are logged. Let me know if you need further guidance."
+    response: "Cash trip settlements are managed in the Cash Settlement section. To review:\n1. Check outstanding cash balances for drivers.\n2. Review trip-by-trip cash collection records.\n3. Process settlements according to the configured schedule.\n\nZIBANA helps facilitate transparent cash reconciliation. All settlement actions are logged. Let me know if you need further guidance."
   },
 
   // Safety (Admin)
@@ -1429,7 +1429,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "director",
     category: "identity",
     keywords: ["who are you", "are you ai", "are you real", "bot", "human", "artificial"],
-    response: "I'm ZIBA Support. I'm here to help you navigate ZIBA and answer questions about your director dashboard, cell management, and eligibility criteria."
+    response: "I'm ZIBANA Support. I'm here to help you navigate ZIBANA and answer questions about your director dashboard, cell management, and eligibility criteria."
   },
 
   // General Help
@@ -1532,7 +1532,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: ["rider", "driver", "admin", "super_admin", "director", "general"],
     category: "identity",
     keywords: ["are you ai", "are you a bot", "are you real", "are you human", "what are you", "who are you"],
-    response: "I'm ZIBA Support. I'm here to help you navigate ZIBA and resolve common issues quickly.",
+    response: "I'm ZIBANA Support. I'm here to help you navigate ZIBANA and resolve common issues quickly.",
     priority: 100
   },
 
@@ -1568,7 +1568,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: ["rider", "driver", "admin", "super_admin", "director", "general"],
     category: "legal_threat",
     keywords: ["sue", "lawyer", "legal action", "court", "lawsuit", "attorney"],
-    response: "I understand your concern. For matters requiring formal review, we recommend submitting a support ticket through the Help Center with full details. Our team handles these cases with appropriate attention. ZIBA's terms and policies are available in the Legal section for your reference.",
+    response: "I understand your concern. For matters requiring formal review, we recommend submitting a support ticket through the Help Center with full details. Our team handles these cases with appropriate attention. ZIBANA's terms and policies are available in the Legal section for your reference.",
     priority: 95
   },
 
@@ -1608,7 +1608,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "rider",
     category: "safety",
     keywords: ["aggressive driver", "threatening driver", "driver threatened", "violent driver"],
-    response: "If there's an emergency, please contact local emergency services first. To report this:\n1. Go to the Safety Hub.\n2. Select 'Report Incident'.\n3. Provide details about what happened.\n\nZIBA facilitates incident documentation and review. Your safety report will be reviewed by our team. Let me know if you need immediate assistance.",
+    response: "If there's an emergency, please contact local emergency services first. To report this:\n1. Go to the Safety Hub.\n2. Select 'Report Incident'.\n3. Provide details about what happened.\n\nZIBANA facilitates incident documentation and review. Your safety report will be reviewed by our team. Let me know if you need immediate assistance.",
     priority: 95
   },
 
@@ -1618,7 +1618,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: ["rider", "admin"],
     category: "lost_item",
     keywords: ["won't return", "refuses to return", "keeping my item", "not giving back", "paid more"],
-    response: "Drivers are not required to return items. However, ZIBA facilitates communication and provides options like Safe Return Hubs to coordinate returns. If you're experiencing difficulty:\n1. Check the lost item report for status updates.\n2. Submit a support ticket for additional assistance.\n\nOur team can help facilitate further communication.",
+    response: "Drivers are not required to return items. However, ZIBANA facilitates communication and provides options like Safe Return Hubs to coordinate returns. If you're experiencing difficulty:\n1. Check the lost item report for status updates.\n2. Submit a support ticket for additional assistance.\n\nOur team can help facilitate further communication.",
     priority: 80
   },
 
@@ -1768,7 +1768,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "director",
     category: "director_drivers",
     keywords: ["repayment", "pay back", "pay me back", "return money", "expect repayment", "get my money back", "reimburse"],
-    response: "Funding is voluntary support and does not involve repayment or obligations. Director funding is a one-way transfer to support drivers. ZIBA does not facilitate, enforce, or track repayment of any kind. Any attempt to require repayment may result in a compliance review.",
+    response: "Funding is voluntary support and does not involve repayment or obligations. Director funding is a one-way transfer to support drivers. ZIBANA does not facilitate, enforce, or track repayment of any kind. Any attempt to require repayment may result in a compliance review.",
     priority: 95
   },
   {
@@ -1808,7 +1808,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "director",
     category: "director_drivers",
     keywords: ["condition", "conditional", "in exchange", "trade", "deal", "agreement", "contract"],
-    response: "Director funding must be unconditional. You may not attach conditions, expectations, or agreements to wallet funding. Any attempt to create conditional funding arrangements is a policy violation. ZIBA monitors funding patterns for compliance.",
+    response: "Director funding must be unconditional. You may not attach conditions, expectations, or agreements to wallet funding. Any attempt to create conditional funding arrangements is a policy violation. ZIBANA monitors funding patterns for compliance.",
     priority: 95
   },
 
@@ -1841,7 +1841,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "driver",
     category: "driver_wallet",
     keywords: ["coercion", "forced", "pressured", "threatened", "director demanding", "director forcing", "must stay online"],
-    response: "No one may force, pressure, or coerce you based on funding. If you are experiencing this, please report it immediately through the Help Center or submit a support ticket. ZIBA takes coercion reports seriously and will investigate promptly.",
+    response: "No one may force, pressure, or coerce you based on funding. If you are experiencing this, please report it immediately through the Help Center or submit a support ticket. ZIBANA takes coercion reports seriously and will investigate promptly.",
     priority: 100
   },
 
@@ -1883,7 +1883,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "director",
     category: "director_performance",
     keywords: ["tier", "gold", "silver", "bronze", "at risk", "my tier", "performance tier"],
-    response: "Performance tiers are assigned based on your score: Gold (85-100), Silver (70-84), Bronze (55-69), and At-Risk (below 55). Higher tiers may unlock discretionary benefits like expanded caps. Tiers are informational and do not constitute guarantees of any kind. ZIBA retains full discretion over tier-related decisions.",
+    response: "Performance tiers are assigned based on your score: Gold (85-100), Silver (70-84), Bronze (55-69), and At-Risk (below 55). Higher tiers may unlock discretionary benefits like expanded caps. Tiers are informational and do not constitute guarantees of any kind. ZIBANA retains full discretion over tier-related decisions.",
     priority: 85
   },
   {
@@ -1923,7 +1923,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "director",
     category: "director_performance",
     keywords: ["at risk", "at-risk", "below threshold", "poor performance", "will I be terminated"],
-    response: "An At-Risk status means your performance metrics need attention. This is an opportunity to improve, not a penalty. Review your driver activity, quality, and compliance metrics. ZIBA provides guidance and time to address performance gaps. The platform retains discretion over all operational decisions.",
+    response: "An At-Risk status means your performance metrics need attention. This is an opportunity to improve, not a penalty. Review your driver activity, quality, and compliance metrics. ZIBANA provides guidance and time to address performance gaps. The platform retains discretion over all operational decisions.",
     priority: 90
   },
 
@@ -2013,7 +2013,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "rider",
     category: "rider_coaching",
     keywords: ["third party funding", "someone fund my wallet", "how does funding work", "funded wallet", "sponsored"],
-    response: "Third-party wallet funding lets trusted people like family members, friends, or employers add funds to your ZIBA wallet. It is a voluntary convenience feature \u2014 not a loan or financial service. The funder sends an invite, and you choose to accept or decline. You can revoke the link anytime."
+    response: "Third-party wallet funding lets trusted people like family members, friends, or employers add funds to your ZIBANA wallet. It is a voluntary convenience feature \u2014 not a loan or financial service. The funder sends an invite, and you choose to accept or decline. You can revoke the link anytime."
   },
   {
     id: "r-funding-accept-decline",
@@ -2048,14 +2048,14 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "rider",
     category: "rider_coaching",
     keywords: ["is funding a loan", "repay funding", "owe money", "debt from funding"],
-    response: "Third-party wallet funding is not a loan. There are no repayment obligations, interest, or debt. It is a voluntary gift from the funder. ZIBA does not act as a lender, escrow, or financial intermediary."
+    response: "Third-party wallet funding is not a loan. There are no repayment obligations, interest, or debt. It is a voluntary gift from the funder. ZIBANA does not act as a lender, escrow, or financial intermediary."
   },
   {
     id: "funder-setup-guide",
     role: "rider",
     category: "rider_coaching",
     keywords: ["how to fund someone", "fund another wallet", "setup funding", "invite to fund"],
-    response: "To fund someone's wallet, go to Fund Another Wallet, search for the recipient by email, phone, or ZIBA ID, choose your relationship type, and set optional limits. The recipient must accept your invite before you can send funds. You can set daily and monthly limits and add a purpose tag."
+    response: "To fund someone's wallet, go to Fund Another Wallet, search for the recipient by email, phone, or ZIBANA ID, choose your relationship type, and set optional limits. The recipient must accept your invite before you can send funds. You can set daily and monthly limits and add a purpose tag."
   },
   {
     id: "funder-employer-setup",
@@ -2082,7 +2082,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "director",
     category: "director_commission",
     keywords: ["am I eligible for commission", "eligible commission", "commission eligibility", "do I qualify", "qualify for commission", "can I earn commission"],
-    response: "To be eligible for commission, the following conditions generally apply:\n1. Your director status must be active (not suspended or terminated).\n2. You must be within your contract period.\n3. Your cell must meet the minimum active driver threshold.\n4. Your commission must not be frozen or under review.\n\nYou can check your current eligibility status on your Director Dashboard. If you have questions about a specific condition, ZIBA Support is here to help.",
+    response: "To be eligible for commission, the following conditions generally apply:\n1. Your director status must be active (not suspended or terminated).\n2. You must be within your contract period.\n3. Your cell must meet the minimum active driver threshold.\n4. Your commission must not be frozen or under review.\n\nYou can check your current eligibility status on your Director Dashboard. If you have questions about a specific condition, ZIBANA Support is here to help.",
     priority: 70
   },
   {
@@ -2153,7 +2153,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "director",
     category: "director_lifecycle",
     keywords: ["extend contract", "contract extension", "renew contract", "contract renewal", "extend my contract", "new contract", "keep my contract"],
-    response: "Contract extensions and renewals must be requested through administration. There is no automatic renewal process for director contracts. To request an extension:\n1. Review your current contract status on your Director Dashboard.\n2. Contact administration or submit a support ticket expressing your interest in renewal.\n3. Administration will review your performance history, cell health, and compliance record before making a decision.\n\nWe recommend initiating this process well before your contract expiration date. ZIBA Support can help you submit the request.",
+    response: "Contract extensions and renewals must be requested through administration. There is no automatic renewal process for director contracts. To request an extension:\n1. Review your current contract status on your Director Dashboard.\n2. Contact administration or submit a support ticket expressing your interest in renewal.\n3. Administration will review your performance history, cell health, and compliance record before making a decision.\n\nWe recommend initiating this process well before your contract expiration date. ZIBANA Support can help you submit the request.",
     priority: 75
   },
 
@@ -2194,22 +2194,22 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     id: "r-rideclass-go",
     role: "rider",
     category: "booking",
-    keywords: ["ziba go", "what is go", "go ride", "cheapest ride", "affordable ride", "basic ride", "standard ride", "go class"],
-    response: "ZIBA Go is the most affordable everyday ride option on the platform. It seats up to 4 passengers and uses the standard fare rate (1.0x multiplier), making it the best value for daily commutes and short trips. Any available driver can offer Go rides, so pickup times tend to be quick. You can select ZIBA Go when booking from the Home screen. Let me know if you'd like help with the next step."
+    keywords: ["zibana go", "what is go", "go ride", "cheapest ride", "affordable ride", "basic ride", "standard ride", "go class"],
+    response: "ZIBANA Go is the most affordable everyday ride option on the platform. It seats up to 4 passengers and uses the standard fare rate (1.0x multiplier), making it the best value for daily commutes and short trips. Any available driver can offer Go rides, so pickup times tend to be quick. You can select ZIBANA Go when booking from the Home screen. Let me know if you'd like help with the next step."
   },
   {
     id: "r-rideclass-elite-cost",
     role: "rider",
     category: "booking",
     keywords: ["elite expensive", "why elite cost", "elite price", "elite fare", "elite multiplier", "premium cost", "elite worth it", "why is elite more"],
-    response: "ZIBA Elite is priced at a 2.0x fare multiplier because it provides a premium experience. Elite rides feature newer, high-end vehicles (2022 or newer) and top-rated drivers with a minimum 4.8 rating. Amenities may include complimentary water and a quieter, more refined ride experience. The higher fare reflects the quality of service and vehicle standards. You can compare ride classes when booking to choose what suits your needs best."
+    response: "ZIBANA Elite is priced at a 2.0x fare multiplier because it provides a premium experience. Elite rides feature newer, high-end vehicles (2022 or newer) and top-rated drivers with a minimum 4.8 rating. Amenities may include complimentary water and a quieter, more refined ride experience. The higher fare reflects the quality of service and vehicle standards. You can compare ride classes when booking to choose what suits your needs best."
   },
   {
     id: "r-rideclass-choose",
     role: "rider",
     category: "booking",
     keywords: ["choose ride class", "which ride", "best ride class", "ride options", "compare rides", "ride types", "all ride classes", "ride class list", "which class", "difference between rides"],
-    response: "ZIBA offers 6 ride classes to suit different needs:\n\n1. **Go** — Most affordable, 4 seats, standard fare (1.0x).\n2. **Plus** — Larger vehicles with 6–7 seats, ideal for groups (1.3x).\n3. **Comfort** — Newer vehicles (2020+), smoother and quieter ride (1.5x).\n4. **PetRide** — Pet-friendly vehicles with trained drivers (1.5x).\n5. **SafeTeen** — Safe rides for teen passengers with verified drivers and guardian alerts (1.4x).\n6. **Elite** — Premium vehicles, top-rated drivers, luxury experience (2.0x).\n\nYou can view and compare available classes when booking a ride. Availability may vary by location and driver supply. Let me know if you'd like more details on any class."
+    response: "ZIBANA offers 6 ride classes to suit different needs:\n\n1. **Go** — Most affordable, 4 seats, standard fare (1.0x).\n2. **Plus** — Larger vehicles with 6–7 seats, ideal for groups (1.3x).\n3. **Comfort** — Newer vehicles (2020+), smoother and quieter ride (1.5x).\n4. **PetRide** — Pet-friendly vehicles with trained drivers (1.5x).\n5. **SafeTeen** — Safe rides for teen passengers with verified drivers and guardian alerts (1.4x).\n6. **Elite** — Premium vehicles, top-rated drivers, luxury experience (2.0x).\n\nYou can view and compare available classes when booking a ride. Availability may vary by location and driver supply. Let me know if you'd like more details on any class."
   },
   {
     id: "r-rideclass-unavailable",
@@ -2222,43 +2222,43 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     id: "r-rideclass-petride",
     role: "rider",
     category: "booking",
-    keywords: ["petride", "pet ride", "ziba petride", "ride with pet", "pet friendly", "bring pet", "dog ride", "cat ride", "animal ride", "pet in car"],
-    response: "ZIBA PetRide is designed for riders traveling with pets. PetRide vehicles are driven by pet-approved drivers who are comfortable with animals, and vehicles are equipped with pet seat covers and extra space. The fare uses a 1.5x multiplier to account for the specialized service. Up to 3 passengers can ride alongside your pet. You can select PetRide when booking if eligible drivers are available in your area. Let me know if you'd like help with the next step."
+    keywords: ["petride", "pet ride", "zibana petride", "ride with pet", "pet friendly", "bring pet", "dog ride", "cat ride", "animal ride", "pet in car"],
+    response: "ZIBANA PetRide is designed for riders traveling with pets. PetRide vehicles are driven by pet-approved drivers who are comfortable with animals, and vehicles are equipped with pet seat covers and extra space. The fare uses a 1.5x multiplier to account for the specialized service. Up to 3 passengers can ride alongside your pet. You can select PetRide when booking if eligible drivers are available in your area. Let me know if you'd like help with the next step."
   },
   {
     id: "r-rideclass-safeteen",
     role: "rider",
     category: "booking",
-    keywords: ["safeteen", "safe teen", "ziba safeteen", "teen ride", "ride for teenager", "child ride", "minor ride", "teen safety", "guardian ride", "teen transport"],
-    response: "ZIBA SafeTeen provides safe rides specifically designed for teen passengers. SafeTeen drivers are verified with enhanced background checks and maintain a minimum 4.7 rating. Features include live trip sharing and automatic guardian alerts so parents or guardians can monitor the ride in real time. The fare uses a 1.4x multiplier to reflect the additional safety measures. Up to 3 passengers per ride. You can select SafeTeen when booking if eligible drivers are available in your area. Let me know if you'd like help with the next step."
+    keywords: ["safeteen", "safe teen", "zibana safeteen", "teen ride", "ride for teenager", "child ride", "minor ride", "teen safety", "guardian ride", "teen transport"],
+    response: "ZIBANA SafeTeen provides safe rides specifically designed for teen passengers. SafeTeen drivers are verified with enhanced background checks and maintain a minimum 4.7 rating. Features include live trip sharing and automatic guardian alerts so parents or guardians can monitor the ride in real time. The fare uses a 1.4x multiplier to reflect the additional safety measures. Up to 3 passengers per ride. You can select SafeTeen when booking if eligible drivers are available in your area. Let me know if you'd like help with the next step."
   },
   {
     id: "r-rideclass-comfort",
     role: "rider",
     category: "booking",
-    keywords: ["comfort ride", "ziba comfort", "comfortable ride", "newer car", "quiet ride", "smooth ride", "comfort class"],
-    response: "ZIBA Comfort offers newer vehicles (2020 or newer) with drivers rated 4.5 or higher. Enjoy a smoother, quieter ride with temperature control. The fare uses a 1.5x multiplier reflecting the higher vehicle standard. Comfort is ideal for longer trips or when you want a more relaxed experience. Select Comfort when booking if drivers are available in your area."
+    keywords: ["comfort ride", "zibana comfort", "comfortable ride", "newer car", "quiet ride", "smooth ride", "comfort class"],
+    response: "ZIBANA Comfort offers newer vehicles (2020 or newer) with drivers rated 4.5 or higher. Enjoy a smoother, quieter ride with temperature control. The fare uses a 1.5x multiplier reflecting the higher vehicle standard. Comfort is ideal for longer trips or when you want a more relaxed experience. Select Comfort when booking if drivers are available in your area."
   },
   {
     id: "r-rideclass-plus",
     role: "rider",
     category: "booking",
-    keywords: ["plus ride", "ziba plus", "bigger car", "larger vehicle", "group ride", "more seats", "6 seats", "7 seats", "family ride"],
-    response: "ZIBA Plus provides larger vehicles with 6-7 seats, perfect for group trips or family outings. Drivers need a minimum 4.3 rating. The fare uses a 1.3x multiplier. Plus vehicles include SUVs, minivans, and vans. Select Plus when booking if you need extra space for passengers or luggage."
+    keywords: ["plus ride", "zibana plus", "bigger car", "larger vehicle", "group ride", "more seats", "6 seats", "7 seats", "family ride"],
+    response: "ZIBANA Plus provides larger vehicles with 6-7 seats, perfect for group trips or family outings. Drivers need a minimum 4.3 rating. The fare uses a 1.3x multiplier. Plus vehicles include SUVs, minivans, and vans. Select Plus when booking if you need extra space for passengers or luggage."
   },
   {
     id: "r-rideclass-recommend-cheaper",
     role: "rider",
     category: "booking",
     keywords: ["cheaper option", "save money", "cheapest ride", "budget ride", "lower fare", "less expensive", "affordable option", "reduce cost", "spend less"],
-    response: "If you're looking for the most affordable option, ZIBA Go is our cheapest ride class with a standard 1.0x fare. It offers quick pickup and 4 seats for everyday travel. You can always compare fares across all available classes when booking — the fare estimate updates in real time as you switch between classes. Remember, availability depends on drivers in your area."
+    response: "If you're looking for the most affordable option, ZIBANA Go is our cheapest ride class with a standard 1.0x fare. It offers quick pickup and 4 seats for everyday travel. You can always compare fares across all available classes when booking — the fare estimate updates in real time as you switch between classes. Remember, availability depends on drivers in your area."
   },
   {
     id: "r-rideclass-recommend-faster",
     role: "rider",
     category: "booking",
     keywords: ["faster ride", "quick pickup", "fastest option", "shortest wait", "hurry", "urgent ride", "need ride now", "quickest"],
-    response: "For the fastest pickup, choose the ride class with the most drivers available in your area. ZIBA Go typically has the shortest wait times since more drivers are eligible. When booking, you'll see estimated wait times for each class — pick the one with the lowest wait. Higher-tier classes like Elite may have longer wait times due to fewer eligible drivers."
+    response: "For the fastest pickup, choose the ride class with the most drivers available in your area. ZIBANA Go typically has the shortest wait times since more drivers are eligible. When booking, you'll see estimated wait times for each class — pick the one with the lowest wait. Higher-tier classes like Elite may have longer wait times due to fewer eligible drivers."
   },
   {
     id: "d-rideclass-eligibility",
@@ -2272,7 +2272,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "driver",
     category: "booking",
     keywords: ["class preference", "turn off class", "disable class", "stop accepting", "ride preference", "choose class", "select class", "toggle class"],
-    response: "You can manage which ride classes you accept from your Account page. Go to Account > Ride Class Preferences to see your eligible classes and toggle each one on or off. Note that ZIBA Go is always enabled as the default class. Your preferences affect which ride requests you receive — disabling a class means you won't get matched with those rides."
+    response: "You can manage which ride classes you accept from your Account page. Go to Account > Ride Class Preferences to see your eligible classes and toggle each one on or off. Note that ZIBANA Go is always enabled as the default class. Your preferences affect which ride requests you receive — disabling a class means you won't get matched with those rides."
   },
   {
     id: "d-rideclass-qualify-higher",
@@ -2322,14 +2322,14 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "driver",
     category: "account",
     keywords: ["preferences locked", "can't change preferences", "locked settings", "admin locked", "restricted preferences"],
-    response: "If your preferences are locked, it means an administrator has temporarily restricted your ability to change settings. This usually happens when preference patterns suggest potential misuse. Contact your director or admin for clarification. You can also reach out through the ZIBA Support chat for assistance."
+    response: "If your preferences are locked, it means an administrator has temporarily restricted your ability to change settings. This usually happens when preference patterns suggest potential misuse. Contact your director or admin for clarification. You can also reach out through the ZIBANA Support chat for assistance."
   },
   {
     id: "d-pref-decline-warning",
     role: "driver",
     category: "rides",
     keywords: ["decline warning", "too many declines", "decline limit", "ride decline", "decline penalty", "excessive decline"],
-    response: "ZIBA tracks ride declines to maintain platform reliability. If you decline too many rides:\n\n- After 5 declines: You'll receive a warning.\n- After 10 declines: Your preferences may be temporarily restricted for 2 hours.\n\nTo avoid restrictions, adjust your preferences to match the rides you want instead of declining frequently. You can change your trip distance, ride class, and payment preferences anytime from Account > Driver Preferences."
+    response: "ZIBANA tracks ride declines to maintain platform reliability. If you decline too many rides:\n\n- After 5 declines: You'll receive a warning.\n- After 10 declines: Your preferences may be temporarily restricted for 2 hours.\n\nTo avoid restrictions, adjust your preferences to match the rides you want instead of declining frequently. You can change your trip distance, ride class, and payment preferences anytime from Account > Driver Preferences."
   },
 
   {

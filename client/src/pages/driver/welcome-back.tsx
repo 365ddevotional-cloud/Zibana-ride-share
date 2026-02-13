@@ -8,7 +8,7 @@ export default function DriverWelcomeBack() {
   const navigated = useRef(false);
 
   useEffect(() => {
-    const shown = localStorage.getItem("ziba-driver-welcome-shown");
+    const shown = localStorage.getItem("zibana-driver-welcome-shown");
     if (shown === "true") {
       setLocation("/driver/dashboard");
       return;
@@ -21,7 +21,7 @@ export default function DriverWelcomeBack() {
   useEffect(() => {
     if (phase !== "visible") return;
 
-    localStorage.setItem("ziba-driver-welcome-shown", "true");
+    localStorage.setItem("zibana-driver-welcome-shown", "true");
 
     const exitTimer = setTimeout(() => setPhase("exit"), 2200);
     return () => clearTimeout(exitTimer);

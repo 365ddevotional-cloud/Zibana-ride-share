@@ -24,7 +24,7 @@ function getConfig(): AppConfig {
   const environment = getEnvironment();
   
   const baseConfig = {
-    appName: "ZIBA",
+    appName: "ZIBANA",
     appVersion: "1.0.0",
   };
 

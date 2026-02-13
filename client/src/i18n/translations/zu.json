@@ -46,7 +46,7 @@
     "testCredits": "Imali yokuhlola",
     "noSavedPlaces": "Azikho izindawo ezilondoloziwe okwamanje",
     "locationRequired": "Kudingeka ukufinyelela indawo",
-    "locationDescription": "I-ZIBA idinga indawo yakho ukuze ithole abashayeli abaseduze futhi ibale imizila.",
+    "locationDescription": "I-ZIBANA idinga indawo yakho ukuze ithole abashayeli abaseduze futhi ibale imizila.",
     "allowLocation": "Vumela ukufinyelela indawo"
   },
   "services": {
@@ -132,7 +132,7 @@
     "ridePinDesc": "Qinisekisa umshayeli wakho ngaphambi kokugibela",
     "about": "Mayelana",
     "version": "Inguqulo",
-    "aboutDesc": "I-ZIBA iyinkundla yokucela uhambo eyakhelwe izimakethe ezisafufusayo, exhumanisa abagibeli nabashayeli abaphephile nabathembekile. Sizibophezele ekuthuthukiseni ukuhamba kanye nokudala amathuba omnotho e-Afrika nangaphezulu.",
+    "aboutDesc": "I-ZIBANA iyinkundla yokucela uhambo eyakhelwe izimakethe ezisafufusayo, exhumanisa abagibeli nabashayeli abaphephile nabathembekile. Sizibophezele ekuthuthukiseni ukuhamba kanye nokudala amathuba omnotho e-Afrika nangaphezulu.",
     "termsService": "Imigomo yenkonzo nenqubomgomo yobumfihlo",
     "resetLanguage": "Buyisela esiNgesini"
   },
@@ -151,7 +151,7 @@
     "title": "Izinkokhelo",
     "subtitle": "Phatha izindlela zokukhokha nesikhwama sakho",
     "walletBalance": "Ibhalansi yesikhwama",
-    "zibaWallet": "Isikhwama se-ZIBA",
+    "zibanaWallet": "Isikhwama se-ZIBANA",
     "manageWallet": "Phatha isikhwama",
     "sponsoredBy": "Ixhaswe yi",
     "supporters": "abaxhasi",
@@ -179,10 +179,10 @@
     "placeholder": "Bhala umlayezo...",
     "send": "Thumela",
     "helpReset": "Ungabuyisela ulimi kusuka Izilungiselelo → Ulimi → IsiNgesi.",
-    "greeting": "Sawubona! NginguZIBRA, umsizi wakho we-ZIBA. Ngingakusiza kanjani namhlanje?"
+    "greeting": "Sawubona! NginguZIBRA, umsizi wakho we-ZIBANA. Ngingakusiza kanjani namhlanje?"
   },
   "rider": {
-    "appName": "ZIBA",
+    "appName": "ZIBANA",
     "appRole": "Umgibeli"
   },
   "safety": {

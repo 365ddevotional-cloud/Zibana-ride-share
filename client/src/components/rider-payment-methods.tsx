@@ -231,7 +231,7 @@ export function RiderPaymentMethods() {
               <div className="p-4 rounded-lg border bg-muted/30 space-y-3" data-testid="fund-wallet-form">
                 <p className="text-sm font-medium">Fund Wallet with Card</p>
                 <p className="text-xs text-muted-foreground">
-                  Add funds to your ZIBA wallet. Cards can only be used to top up your wallet balance, not for direct trip payments.
+                  Add funds to your ZIBANA wallet. Cards can only be used to top up your wallet balance, not for direct trip payments.
                 </p>
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium text-muted-foreground">₦</span>
@@ -292,7 +292,7 @@ export function RiderPaymentMethods() {
                   <Wallet className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="font-medium">ZIBA Wallet</p>
+                  <p className="font-medium">ZIBANA Wallet</p>
                   <p className="text-sm text-muted-foreground">
                     Balance: {formatCurrency(availableBalance, wallet?.currency)}
                   </p>
@@ -385,7 +385,7 @@ export function RiderPaymentMethods() {
               <div className="flex items-start gap-2">
                 <AlertCircle className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                 <p className="text-xs text-muted-foreground">
-                  Cards can only be used to fund your ZIBA Wallet. Trip payments are made using your wallet balance or cash.
+                  Cards can only be used to fund your ZIBANA Wallet. Trip payments are made using your wallet balance or cash.
                 </p>
               </div>
             </div>

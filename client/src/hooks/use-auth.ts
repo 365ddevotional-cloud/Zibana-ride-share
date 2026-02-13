@@ -26,15 +26,15 @@ function getLogoutRedirect(): string {
   return "/";
 }
 
-const ZIBA_LOCAL_KEYS = [
-  "ziba-active-role",
-  "ziba-rider-welcome-shown",
-  "ziba-driver-welcome-shown",
+const ZIBANA_LOCAL_KEYS = [
+  "zibana-active-role",
+  "zibana-rider-welcome-shown",
+  "zibana-driver-welcome-shown",
 ];
 
 async function logout(): Promise<void> {
   sessionStorage.clear();
-  for (const key of ZIBA_LOCAL_KEYS) {
+  for (const key of ZIBANA_LOCAL_KEYS) {
     localStorage.removeItem(key);
   }
   const redirectPath = getLogoutRedirect();

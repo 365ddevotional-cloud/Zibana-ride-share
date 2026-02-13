@@ -1,5 +1,5 @@
 /**
- * Phase 22 Step D - ZIBA Comprehensive Fare Calculation
+ * Phase 22 Step D - ZIBANA Comprehensive Fare Calculation
  * 
  * Handles dynamic pricing with:
  * - Base fare + distance + time fees
@@ -40,7 +40,7 @@ export const TRAFFIC_OVERRUN_RATE_PER_MINUTE = 0.35;
 // Cancellation compensation rates
 export const CANCELLATION_DISTANCE_RATE_PER_KM = 1.00;  // Per km driven before cancel
 export const CANCELLATION_MINIMUM_FEE = 3.00;           // Minimum cancellation fee to rider
-export const CANCELLATION_PLATFORM_FEE_PERCENT = 20;    // ZIBA's cut of cancellation
+export const CANCELLATION_PLATFORM_FEE_PERCENT = 20;    // ZIBANA's cut of cancellation
 
 // Commission
 export const PLATFORM_COMMISSION_PERCENT = 20;

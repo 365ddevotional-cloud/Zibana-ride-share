@@ -58,10 +58,10 @@ export function generateTaxPDF(
     margins: { top: 50, bottom: 50, left: 60, right: 60 },
     bufferPages: true,
     info: {
-      Title: `ZIBA ${title} - ${data.taxYear}`,
-      Author: "ZIBA Technologies",
+      Title: `ZIBANA ${title} - ${data.taxYear}`,
+      Author: "ZIBANA Technologies",
       Subject: `Tax Year ${data.taxYear} - ${data.legalName}`,
-      Creator: "ZIBA Platform",
+      Creator: "ZIBANA Platform",
     },
   });
 
@@ -75,7 +75,7 @@ export function generateTaxPDF(
   const COLOR_LIGHT_GRAY = "#e5e5e5";
   const COLOR_BG_SECTION = "#f8f8f8";
 
-  doc.fontSize(22).font("Helvetica-Bold").fillColor(COLOR_BLACK).text("ZIBA", leftX, y);
+  doc.fontSize(22).font("Helvetica-Bold").fillColor(COLOR_BLACK).text("ZIBANA", leftX, y);
   y += 30;
 
   doc.moveTo(leftX, y).lineTo(leftX + pageWidth, y).strokeColor(COLOR_LIGHT_GRAY).lineWidth(1).stroke();
@@ -208,10 +208,10 @@ export function generateTaxPDF(
   doc.moveTo(leftX, footerY).lineTo(leftX + pageWidth, footerY).strokeColor(COLOR_LIGHT_GRAY).lineWidth(0.5).stroke();
 
   doc.fontSize(7).font("Helvetica").fillColor(COLOR_MID_GRAY);
-  doc.text("ZIBA Technologies", leftX, footerY + 10);
-  doc.text("Support: support@ziba.app", leftX, footerY + 22);
+  doc.text("ZIBANA Technologies", leftX, footerY + 10);
+  doc.text("Support: support@zibana.app", leftX, footerY + 22);
   doc.text(
-    "This document is generated from ZIBA platform records and provided for tax reporting purposes.",
+    "This document is generated from ZIBANA platform records and provided for tax reporting purposes.",
     leftX,
     footerY + 34,
     { width: pageWidth }

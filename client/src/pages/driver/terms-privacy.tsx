@@ -48,13 +48,13 @@ export default function DriverTermsPrivacy() {
                 <section data-testid="section-terms-acceptance">
                   <h3 className="font-semibold mb-1">1. Acceptance of Terms</h3>
                   <p className="text-muted-foreground">
-                    By accessing or using the ZIBA Driver platform, you agree to be bound by these Terms of Service. If you do not agree with any part of these terms, you must not use our services. These terms govern your use of the ZIBA platform as a driver partner.
+                    By accessing or using the ZIBANA Driver platform, you agree to be bound by these Terms of Service. If you do not agree with any part of these terms, you must not use our services. These terms govern your use of the ZIBANA platform as a driver partner.
                   </p>
                 </section>
                 <section data-testid="section-terms-service">
                   <h3 className="font-semibold mb-1">2. Service Description</h3>
                   <p className="text-muted-foreground">
-                    ZIBA provides a technology platform connecting independent drivers with riders seeking transportation. As a driver, you operate as an independent contractor, not an employee of ZIBA. You are responsible for providing transportation services to riders matched through the platform.
+                    ZIBANA provides a technology platform connecting independent drivers with riders seeking transportation. As a driver, you operate as an independent contractor, not an employee of ZIBANA. You are responsible for providing transportation services to riders matched through the platform.
                   </p>
                 </section>
                 <section data-testid="section-terms-responsibilities">
@@ -66,31 +66,31 @@ export default function DriverTermsPrivacy() {
                 <section data-testid="section-terms-earnings">
                   <h3 className="font-semibold mb-1">4. Earnings & Payouts</h3>
                   <p className="text-muted-foreground">
-                    Earnings are calculated based on completed trips, including base fare, distance, and time components. ZIBA retains a service fee from each trip. Payouts are processed according to the schedule set by your regional director. You are responsible for your own tax obligations.
+                    Earnings are calculated based on completed trips, including base fare, distance, and time components. ZIBANA retains a service fee from each trip. Payouts are processed according to the schedule set by your regional director. You are responsible for your own tax obligations.
                   </p>
                 </section>
                 <section data-testid="section-terms-vehicle">
                   <h3 className="font-semibold mb-1">5. Vehicle Requirements</h3>
                   <p className="text-muted-foreground">
-                    Your vehicle must meet ZIBA's safety and quality standards, including age, condition, and inspection requirements. Vehicle changes must be reported and approved by your regional director before you can continue accepting rides.
+                    Your vehicle must meet ZIBANA's safety and quality standards, including age, condition, and inspection requirements. Vehicle changes must be reported and approved by your regional director before you can continue accepting rides.
                   </p>
                 </section>
                 <section data-testid="section-terms-safety">
                   <h3 className="font-semibold mb-1">6. Safety</h3>
                   <p className="text-muted-foreground">
-                    Safety is paramount. You must verify rider identity using ride PINs when required, report any incidents immediately through the app, and cooperate with any safety investigations. ZIBA provides in-app emergency features for your protection.
+                    Safety is paramount. You must verify rider identity using ride PINs when required, report any incidents immediately through the app, and cooperate with any safety investigations. ZIBANA provides in-app emergency features for your protection.
                   </p>
                 </section>
                 <section data-testid="section-terms-liability">
                   <h3 className="font-semibold mb-1">7. Limitation of Liability</h3>
                   <p className="text-muted-foreground">
-                    ZIBA acts as a technology platform and is not a transportation provider. To the maximum extent permitted by law, ZIBA is not liable for incidents during rides. As an independent contractor, you are responsible for your own insurance and liability coverage.
+                    ZIBANA acts as a technology platform and is not a transportation provider. To the maximum extent permitted by law, ZIBANA is not liable for incidents during rides. As an independent contractor, you are responsible for your own insurance and liability coverage.
                   </p>
                 </section>
                 <section data-testid="section-terms-modifications">
                   <h3 className="font-semibold mb-1">8. Modifications</h3>
                   <p className="text-muted-foreground">
-                    ZIBA reserves the right to update these terms at any time. You will be notified of material changes. Continued use of the platform after changes constitutes acceptance of the updated terms.
+                    ZIBANA reserves the right to update these terms at any time. You will be notified of material changes. Continued use of the platform after changes constitutes acceptance of the updated terms.
                   </p>
                 </section>
               </CardContent>
@@ -149,7 +149,7 @@ export default function DriverTermsPrivacy() {
                 <section data-testid="section-privacy-contact">
                   <h3 className="font-semibold mb-1">8. Contact Us</h3>
                   <p className="text-muted-foreground">
-                    For privacy inquiries, please contact our support team through the Help Center or email us at privacy@ziba.app. We aim to respond to all privacy requests within 30 days.
+                    For privacy inquiries, please contact our support team through the Help Center or email us at privacy@zibana.app. We aim to respond to all privacy requests within 30 days.
                   </p>
                 </section>
               </CardContent>

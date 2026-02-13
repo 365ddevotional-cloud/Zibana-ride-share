@@ -85,7 +85,7 @@ export default function DriverSetupPage() {
             </div>
             <CardTitle className="text-2xl">Complete Your Profile</CardTitle>
             <CardDescription>
-              Tell us about yourself and your vehicle to start driving with ZIBA
+              Tell us about yourself and your vehicle to start driving with ZIBANA
             </CardDescription>
           </CardHeader>
           <CardContent>

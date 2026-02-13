@@ -46,7 +46,7 @@
     "testCredits": "Kudin gwaji",
     "noSavedPlaces": "Babu wuraren da aka ajiye tukuna",
     "locationRequired": "Ana bukatar samun wurin",
-    "locationDescription": "ZIBA yana bukatar wurinka don nemo direbobi kusa da lissafin hanyoyi.",
+    "locationDescription": "ZIBANA yana bukatar wurinka don nemo direbobi kusa da lissafin hanyoyi.",
     "allowLocation": "Bari samun wuri"
   },
   "services": {
@@ -132,7 +132,7 @@
     "ridePinDesc": "Tabbatar da direban ka kafin ka hau",
     "about": "Game da",
     "version": "Sigar",
-    "aboutDesc": "ZIBA dandali ne na neman hawa da aka tsara don kasuwannin da ke tasowa, yana hada fasinjoji da direbobi masu aminci da gaskiya. Muna da himma wajen inganta motsi da kirkirar damar tattalin arziki a ko'ina cikin Afirka da wajenta.",
+    "aboutDesc": "ZIBANA dandali ne na neman hawa da aka tsara don kasuwannin da ke tasowa, yana hada fasinjoji da direbobi masu aminci da gaskiya. Muna da himma wajen inganta motsi da kirkirar damar tattalin arziki a ko'ina cikin Afirka da wajenta.",
     "termsService": "Sharuddan sabis da manufar sirri",
     "resetLanguage": "Koma Turanci"
   },
@@ -151,7 +151,7 @@
     "title": "Biya",
     "subtitle": "Sarrafa hanyoyin biya da walat",
     "walletBalance": "Ragowar walat",
-    "zibaWallet": "Walat ZIBA",
+    "zibanaWallet": "Walat ZIBANA",
     "manageWallet": "Sarrafa walat",
     "sponsoredBy": "Tallafin",
     "supporters": "masu tallafi",
@@ -179,10 +179,10 @@
     "placeholder": "Rubuta sako...",
     "send": "Aika",
     "helpReset": "Kana iya sake saita harshe daga Saituna → Harshe → Turanci.",
-    "greeting": "Sannu! Ni ne ZIBRA, mataimakin ZIBA. Ta yaya zan iya taimaka maka a yau?"
+    "greeting": "Sannu! Ni ne ZIBRA, mataimakin ZIBANA. Ta yaya zan iya taimaka maka a yau?"
   },
   "rider": {
-    "appName": "ZIBA",
+    "appName": "ZIBANA",
     "appRole": "Fasinja"
   },
   "safety": {

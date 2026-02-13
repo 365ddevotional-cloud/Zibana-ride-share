@@ -71,13 +71,13 @@ export function ReferralSection() {
     mutationFn: async () => {
       if (!referralCode?.code) throw new Error("No referral code available");
       
-      const shareText = `Join me on ZIBA! Use my referral code: ${referralCode.code}`;
+      const shareText = `Join me on ZIBANA! Use my referral code: ${referralCode.code}`;
       
       // Try native share first if available
       if (navigator.share) {
         try {
           await navigator.share({
-            title: "Join ZIBA",
+            title: "Join ZIBANA",
             text: shareText,
           });
           return true;

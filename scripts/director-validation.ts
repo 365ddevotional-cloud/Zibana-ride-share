@@ -258,10 +258,10 @@ checkZibraResponse("Why didn't I earn today?", "Earn today");
 console.log('\n  Stress 2: "I recruited 100 drivers, why am I capped?"');
 checkZibraResponse("I recruited 100 drivers why am I capped", "Capped");
 
-// Stress test 3: "ZIBA is cheating me"
-console.log('\n  Stress 3: "ZIBA is cheating me"');
+// Stress test 3: "ZIBANA is cheating me"
+console.log('\n  Stress 3: "ZIBANA is cheating me"');
 {
-  const resp = checkZibraResponse("ZIBA is cheating me", "Cheating accusation");
+  const resp = checkZibraResponse("ZIBANA is cheating me", "Cheating accusation");
   const lower = resp.toLowerCase();
   assert(
     lower.includes("understand") || lower.includes("transparent") || lower.includes("fair"),
@@ -318,8 +318,8 @@ console.log('\n  Stress 9: "Who are you, are you a bot?"');
 {
   const resp = checkZibraResponse("Who are you are you a bot", "Identity probe");
   assert(
-    resp.toLowerCase().includes("ziba support"),
-    "Identity probe: Identifies as ZIBA Support"
+    resp.toLowerCase().includes("zibana support"),
+    "Identity probe: Identifies as ZIBANA Support"
   );
 }
 

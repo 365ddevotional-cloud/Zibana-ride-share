@@ -11,7 +11,7 @@ const steps = [
   {
     icon: Building2,
     title: "Your Company Sets It Up",
-    description: "Your employer or organization registers a corporate account with ZIBA. They choose a billing method — monthly invoicing, prepaid wallet, or a hybrid approach.",
+    description: "Your employer or organization registers a corporate account with ZIBANA. They choose a billing method — monthly invoicing, prepaid wallet, or a hybrid approach.",
   },
   {
     icon: Users,

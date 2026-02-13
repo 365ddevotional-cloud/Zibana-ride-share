@@ -46,7 +46,7 @@
     "testCredits": "Cr\u00e9dits de test",
     "noSavedPlaces": "Aucun lieu enregistr\u00e9",
     "locationRequired": "Acc\u00e8s \u00e0 la localisation requis",
-    "locationDescription": "ZIBA a besoin de votre position pour trouver des chauffeurs \u00e0 proximit\u00e9 et calculer les itin\u00e9raires.",
+    "locationDescription": "ZIBANA a besoin de votre position pour trouver des chauffeurs \u00e0 proximit\u00e9 et calculer les itin\u00e9raires.",
     "allowLocation": "Autoriser l'acc\u00e8s \u00e0 la localisation"
   },
   "services": {
@@ -132,7 +132,7 @@
     "ridePinDesc": "V\u00e9rifiez votre chauffeur avant de monter",
     "about": "\u00c0 propos",
     "version": "Version",
-    "aboutDesc": "ZIBA est une plateforme de VTC con\u00e7ue pour les march\u00e9s \u00e9mergents, connectant les passagers avec des chauffeurs s\u00fbrs et fiables. Nous nous engageons \u00e0 am\u00e9liorer la mobilit\u00e9 et \u00e0 cr\u00e9er des opportunit\u00e9s \u00e9conomiques en Afrique et au-del\u00e0.",
+    "aboutDesc": "ZIBANA est une plateforme de VTC con\u00e7ue pour les march\u00e9s \u00e9mergents, connectant les passagers avec des chauffeurs s\u00fbrs et fiables. Nous nous engageons \u00e0 am\u00e9liorer la mobilit\u00e9 et \u00e0 cr\u00e9er des opportunit\u00e9s \u00e9conomiques en Afrique et au-del\u00e0.",
     "termsService": "Conditions d'utilisation et politique de confidentialit\u00e9",
     "resetLanguage": "R\u00e9initialiser en anglais"
   },
@@ -151,7 +151,7 @@
     "title": "Paiements",
     "subtitle": "G\u00e9rez vos modes de paiement et votre portefeuille",
     "walletBalance": "Solde du portefeuille",
-    "zibaWallet": "Portefeuille ZIBA",
+    "zibanaWallet": "Portefeuille ZIBANA",
     "manageWallet": "G\u00e9rer le portefeuille",
     "sponsoredBy": "Sponsoris\u00e9 par",
     "supporters": "supporters",
@@ -179,10 +179,10 @@
     "placeholder": "Tapez un message...",
     "send": "Envoyer",
     "helpReset": "Vous pouvez r\u00e9initialiser la langue depuis Param\u00e8tres \u2192 Langue \u2192 Anglais.",
-    "greeting": "Bonjour ! Je suis ZIBRA, votre assistant ZIBA. Comment puis-je vous aider aujourd'hui ?"
+    "greeting": "Bonjour ! Je suis ZIBRA, votre assistant ZIBANA. Comment puis-je vous aider aujourd'hui ?"
   },
   "rider": {
-    "appName": "ZIBA",
+    "appName": "ZIBANA",
     "appRole": "Passager"
   },
   "safety": {

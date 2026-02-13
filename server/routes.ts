@@ -300,8 +300,8 @@ export async function registerRoutes(
       try {
         await storage.createRiderInboxMessage({
           userId,
-          title: "Welcome to ZIBA",
-          body: "Welcome to ZIBA! You can book rides, save your favorite places, and manage your wallet all from the Home tab. If you ever need help, visit the Help section or tap the support button.",
+          title: "Welcome to ZIBANA",
+          body: "Welcome to ZIBANA! You can book rides, save your favorite places, and manage your wallet all from the Home tab. If you ever need help, visit the Help section or tap the support button.",
           type: "system_announcement",
         });
       } catch (e) {
@@ -584,8 +584,8 @@ export async function registerRoutes(
       try {
         await storage.createDriverInboxMessage({
           userId,
-          title: "Welcome to ZIBA",
-          body: "Welcome to the ZIBA driver platform! Complete your profile setup, add your vehicle details, and wait for admin approval. Once approved, you can start accepting rides.",
+          title: "Welcome to ZIBANA",
+          body: "Welcome to the ZIBANA driver platform! Complete your profile setup, add your vehicle details, and wait for admin approval. Once approved, you can start accepting rides.",
           type: "system_announcement",
         });
       } catch (e) { console.warn("[INBOX] Failed to send driver welcome message:", e); }
@@ -1299,7 +1299,7 @@ export async function registerRoutes(
       return res.json({ 
         found: true, 
         userId: "user_" + Date.now(),
-        displayName: identifier.includes("@") ? identifier.split("@")[0] : "ZIBA User",
+        displayName: identifier.includes("@") ? identifier.split("@")[0] : "ZIBANA User",
         maskedIdentifier: masked
       });
     } catch (error) {
@@ -1451,7 +1451,7 @@ export async function registerRoutes(
         const simSession = await storage.getActiveSimulationSession(userId);
         if (simSession && simSession.role === "driver" && new Date(simSession.expiresAt) > new Date()) {
           const config = JSON.parse(simSession.config || "{}");
-          const userEmail = req.user.claims.email || "sim-driver@ziba.com";
+          const userEmail = req.user.claims.email || "sim-driver@zibana.com";
           const firstName = req.user.claims.first_name || "Simulation";
           const lastName = req.user.claims.last_name || "Driver";
           return res.json({
@@ -2345,7 +2345,7 @@ export async function registerRoutes(
           await storage.createRiderInboxMessage({
             userId: trip.riderId,
             title: "Trip Completed",
-            body: `Your trip from ${trip.pickupLocation} to ${trip.dropoffLocation} has been completed. Fare: ₦${fareInNaira}. Thank you for riding with ZIBA!`,
+            body: `Your trip from ${trip.pickupLocation} to ${trip.dropoffLocation} has been completed. Fare: ₦${fareInNaira}. Thank you for riding with ZIBANA!`,
             type: "trip_update",
           });
         } catch (e) {
@@ -2358,7 +2358,7 @@ export async function registerRoutes(
           "success"
         );
 
-        // Phase 11: Credit driver and ZIBA wallets (skip for cash - handled in storage layer)
+        // Phase 11: Credit driver and ZIBANA wallets (skip for cash - handled in storage layer)
         const isCashTrip = trip.paymentSource === "CASH";
         if (trip.driverPayout && trip.commissionAmount && !isCashTrip) {
           try {
@@ -2373,9 +2373,9 @@ export async function registerRoutes(
               `Earnings from trip: ${trip.pickupLocation} → ${trip.dropoffLocation}`
             );
 
-            const zibaWallet = await storage.getZibaWallet();
+            const zibanaWallet = await storage.getZibanaWallet();
             await storage.creditWallet(
-              zibaWallet.id,
+              zibanaWallet.id,
               trip.commissionAmount,
               "trip",
               tripId,
@@ -2956,7 +2956,7 @@ export async function registerRoutes(
       
       // Build available payment methods
       const availableMethods: { id: string; name: string; description: string; enabled: boolean }[] = [
-        { id: "WALLET", name: "Wallet", description: "Pay from your ZIBA wallet balance", enabled: true },
+        { id: "WALLET", name: "Wallet", description: "Pay from your ZIBANA wallet balance", enabled: true },
       ];
       
       // Test Wallet only available in simulated mode
@@ -6482,7 +6482,7 @@ export async function registerRoutes(
           accountNumber: bankAccount.accountNumber,
           accountName: bankAccount.accountName,
           reference: reference,
-          narration: `ZIBA Driver Payout - ${withdrawal.id}`,
+          narration: `ZIBANA Driver Payout - ${withdrawal.id}`,
         });
         
         if (result.success) {
@@ -8669,18 +8669,18 @@ export async function registerRoutes(
     }
   });
 
-  // Get ZIBA platform wallet (admin/finance)
-  app.get("/api/admin/wallets/ziba", isAuthenticated, requireRole(["admin", "finance", "director"]), async (req: any, res) => {
+  // Get ZIBANA platform wallet (admin/finance)
+  app.get("/api/admin/wallets/zibana", isAuthenticated, requireRole(["admin", "finance", "director"]), async (req: any, res) => {
     try {
-      const zibaWallet = await storage.getZibaWallet();
-      const transactions = await storage.getWalletTransactions(zibaWallet.id);
+      const zibanaWallet = await storage.getZibanaWallet();
+      const transactions = await storage.getWalletTransactions(zibanaWallet.id);
       return res.json({
-        ...zibaWallet,
+        ...zibanaWallet,
         transactions: transactions.slice(0, 50),
       });
     } catch (error) {
-      console.error("Error getting ZIBA wallet:", error);
-      return res.status(500).json({ message: "Failed to get ZIBA wallet" });
+      console.error("Error getting ZIBANA wallet:", error);
+      return res.status(500).json({ message: "Failed to get ZIBANA wallet" });
     }
   });
 
@@ -13138,7 +13138,7 @@ export async function registerRoutes(
         earlyStopData,
         revenueSplit: {
           driverEarning: revenueSplit.driverShare,
-          platformFee: revenueSplit.zibaShare,
+          platformFee: revenueSplit.zibanaShare,
           currencyCode: revenueSplit.currencyCode,
         }
       });
@@ -14960,13 +14960,13 @@ export async function registerRoutes(
     }
   });
 
-  // ZIBA Platform Wallet
-  app.get("/api/ziba-wallet", isAuthenticated, requireRole(["super_admin", "admin", "finance", "director"]), async (req, res) => {
+  // ZIBANA Platform Wallet
+  app.get("/api/zibana-wallet", isAuthenticated, requireRole(["super_admin", "admin", "finance", "director"]), async (req, res) => {
     try {
-      const wallet = await storage.getZibaPlatformWallet();
+      const wallet = await storage.getZibanaPlatformWallet();
       return res.json(wallet);
     } catch (error) {
-      console.error("Error fetching ZIBA wallet:", error);
+      console.error("Error fetching ZIBANA wallet:", error);
       return res.status(500).json({ message: "Failed to fetch platform wallet" });
     }
   });
@@ -15196,7 +15196,7 @@ export async function registerRoutes(
         currency: "NGN",
         userId,
         email: userEmail || undefined,
-        description: "ZIBA Wallet Funding",
+        description: "ZIBANA Wallet Funding",
         callbackUrl: `${req.protocol}://${req.get("host")}/api/wallet/verify`,
       });
       
@@ -15978,10 +15978,10 @@ export async function registerRoutes(
   });
 
   // ==========================================
-  // ZIBA AI ASSISTANT
+  // ZIBANA AI ASSISTANT
   // ==========================================
 
-  app.post("/api/admin/ziba-ai/chat", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+  app.post("/api/admin/zibana-ai/chat", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {
       const { message } = req.body;
       if (!message || typeof message !== "string") {
@@ -16057,14 +16057,14 @@ export async function registerRoutes(
         }
       } else {
         response = env === "PRE_LAUNCH"
-          ? "I'm ZIBA AI, your operational assistant. The platform is currently in PRE-LAUNCH mode. I can help you check launch readiness, review QA checklists, monitor driver/rider registrations, and prepare for go-live. What would you like to know?"
-          : "I'm ZIBA AI, your operational assistant. I can help you monitor platform operations, review metrics, check driver and rider stats, detect fraud patterns, and navigate the admin dashboard. What would you like to know?";
+          ? "I'm ZIBANA AI, your operational assistant. The platform is currently in PRE-LAUNCH mode. I can help you check launch readiness, review QA checklists, monitor driver/rider registrations, and prepare for go-live. What would you like to know?"
+          : "I'm ZIBANA AI, your operational assistant. I can help you monitor platform operations, review metrics, check driver and rider stats, detect fraud patterns, and navigate the admin dashboard. What would you like to know?";
       }
 
       return res.json({ response, environment: env, isLive });
     } catch (error) {
-      console.error("Error in ZIBA AI chat:", error);
-      return res.status(500).json({ message: "ZIBA AI encountered an error" });
+      console.error("Error in ZIBANA AI chat:", error);
+      return res.status(500).json({ message: "ZIBANA AI encountered an error" });
     }
   });
   // Get explanation mode content (for admin dashboard)
@@ -16078,7 +16078,7 @@ export async function registerRoutes(
       return res.json({
         enabled: true,
         content: {
-          title: "ZIBA Platform - Operational Summary",
+          title: "ZIBANA Platform - Operational Summary",
           sections: [
             {
               heading: "Wallet-First Payment Model",
@@ -16086,11 +16086,11 @@ export async function registerRoutes(
             },
             {
               heading: "Escrow Handling",
-              description: "When a ride starts, the fare is locked in escrow. On completion, the driver receives their payout and ZIBA collects commission. On cancellation or dispute, funds are held pending resolution."
+              description: "When a ride starts, the fare is locked in escrow. On completion, the driver receives their payout and ZIBANA collects commission. On cancellation or dispute, funds are held pending resolution."
             },
             {
               heading: "Navigation Approach",
-              description: "ZIBA does not embed map SDKs to reduce costs and complexity. Navigation is handled by opening the rider's/driver's native GPS apps (Google Maps, Apple Maps) via deep links."
+              description: "ZIBANA does not embed map SDKs to reduce costs and complexity. Navigation is handled by opening the rider's/driver's native GPS apps (Google Maps, Apple Maps) via deep links."
             },
             {
               heading: "Cost Control Decisions",
@@ -18918,7 +18918,7 @@ export async function registerRoutes(
   });
 
   // ==========================================
-  // ZIBA SUPPORT CHAT (Phase 4 - ZIBRA)
+  // ZIBANA SUPPORT CHAT (Phase 4 - ZIBRA)
   // ==========================================
 
   app.post("/api/support/chat", isAuthenticated, async (req: any, res) => {
@@ -19402,14 +19402,14 @@ export async function registerRoutes(
       const recentMessages = await storage.getConversationMessages(conversationId, 10);
 
       const transcript = recentMessages.reverse().map((m: any) => 
-        `[${m.role === "user" ? "User" : "ZIBA Support"}]: ${m.content}`
+        `[${m.role === "user" ? "User" : "ZIBANA Support"}]: ${m.content}`
       ).join("\n\n");
 
       const ticket = await storage.createSupportTicket({
         createdByUserId: userId,
         createdByRole: detectedRole as any,
-        subject: "ZIBA Support Escalation",
-        description: `Escalated from ZIBA Support conversation.\n\nRoute context: ${currentScreen || "Unknown"}\nUser role: ${detectedRole}\n\n--- Last 10 Messages ---\n${transcript}`,
+        subject: "ZIBANA Support Escalation",
+        description: `Escalated from ZIBANA Support conversation.\n\nRoute context: ${currentScreen || "Unknown"}\nUser role: ${detectedRole}\n\n--- Last 10 Messages ---\n${transcript}`,
         status: "open",
         priority: "medium",
       });
@@ -20404,7 +20404,7 @@ export async function registerRoutes(
       await storage.createDriverAutoMessage({
         driverUserId: userId,
         messageType: "WELCOME",
-        title: "Welcome to ZIBA!",
+        title: "Welcome to ZIBANA!",
         message: "Thanks for signing up as a driver. Complete your profile and upload your documents to get started.",
         countryCode: countryCode || "NG",
         stateCode,
@@ -20441,7 +20441,7 @@ export async function registerRoutes(
         DOCUMENTS: { type: "DOCS_UPLOADED", title: "Documents Received", msg: "Your documents have been uploaded. They are now under review." },
         REVIEW: { type: "UNDER_REVIEW", title: "Under Review", msg: "Your application is being reviewed. You'll be notified once approved." },
         FIRST_TRIP: { type: "APPROVED", title: "You're Approved!", msg: "Congratulations! You're now approved to drive. Complete your first trip to become fully active." },
-        ACTIVE: { type: "ACTIVATED", title: "Fully Active", msg: "You've completed your first trip and are now a fully active ZIBA driver!" },
+        ACTIVE: { type: "ACTIVATED", title: "Fully Active", msg: "You've completed your first trip and are now a fully active ZIBANA driver!" },
       };
 
       if (messageMap[stage]) {
@@ -21466,7 +21466,7 @@ export async function registerRoutes(
 
       if (format === "csv") {
         const csvLines = [
-          `ZIBA Driver Earnings Statement`,
+          `ZIBANA Driver Earnings Statement`,
           `Month,${monthNames[month - 1]} ${year}`,
           `Total Trips,${driverTrips.length}`,
           `Total Earnings,${totalEarnings.toFixed(2)}`,
@@ -21476,7 +21476,7 @@ export async function registerRoutes(
           `Generated,${new Date().toISOString()}`,
         ];
         res.setHeader("Content-Type", "text/csv");
-        res.setHeader("Content-Disposition", `attachment; filename="ziba-statement-${year}-${month}.csv"`);
+        res.setHeader("Content-Disposition", `attachment; filename="zibana-statement-${year}-${month}.csv"`);
         return res.send(csvLines.join("\n"));
       }
 
@@ -21575,13 +21575,13 @@ export async function registerRoutes(
       if (format === "csv") {
         const csv = generateTaxCSV(docData);
         res.setHeader("Content-Type", "text/csv; charset=utf-8");
-        res.setHeader("Content-Disposition", `attachment; filename="ziba-annual-tax-${year}.csv"`);
+        res.setHeader("Content-Disposition", `attachment; filename="zibana-annual-tax-${year}.csv"`);
         return res.send(csv);
       }
 
       const pdfDoc = generateTaxPDF(docData, rules.documentType, rules);
       res.setHeader("Content-Type", "application/pdf");
-      res.setHeader("Content-Disposition", `attachment; filename="ziba-annual-tax-${year}.pdf"`);
+      res.setHeader("Content-Disposition", `attachment; filename="zibana-annual-tax-${year}.pdf"`);
       pdfDoc.pipe(res);
       pdfDoc.end();
     } catch (error) {
@@ -21874,7 +21874,7 @@ export async function registerRoutes(
 
       const csv = generateBulkTaxCSV(rows);
       res.setHeader("Content-Type", "text/csv; charset=utf-8");
-      res.setHeader("Content-Disposition", `attachment; filename="ziba-tax-summaries-${year}.csv"`);
+      res.setHeader("Content-Disposition", `attachment; filename="zibana-tax-summaries-${year}.csv"`);
       return res.send(csv);
     } catch (error) {
       console.error("Error exporting tax summaries:", error);
@@ -21898,13 +21898,13 @@ export async function registerRoutes(
       if (format === "csv") {
         const csv = generateTaxCSV(docData);
         res.setHeader("Content-Type", "text/csv; charset=utf-8");
-        res.setHeader("Content-Disposition", `attachment; filename="ziba-tax-${driverId.substring(0, 8)}-${year}.csv"`);
+        res.setHeader("Content-Disposition", `attachment; filename="zibana-tax-${driverId.substring(0, 8)}-${year}.csv"`);
         return res.send(csv);
       }
 
       const pdfDoc = generateTaxPDF(docData, rules.documentType, rules);
       res.setHeader("Content-Type", "application/pdf");
-      res.setHeader("Content-Disposition", `attachment; filename="ziba-tax-${driverId.substring(0, 8)}-${year}.pdf"`);
+      res.setHeader("Content-Disposition", `attachment; filename="zibana-tax-${driverId.substring(0, 8)}-${year}.pdf"`);
       pdfDoc.pipe(res);
       pdfDoc.end();
     } catch (error) {
@@ -22352,7 +22352,7 @@ export async function registerRoutes(
       if (simCode.used && !simCode.reusable) return res.status(410).json({ message: "This simulation code has already been used" });
 
       const simUserId = `sim-${simCode.role}-${Date.now()}`;
-      const simEmail = `${simCode.role}_sim_${code}@ziba.test`;
+      const simEmail = `${simCode.role}_sim_${code}@zibana.test`;
       const roleNames: Record<string, string> = { driver: "Driver", rider: "Rider", admin: "Admin", director: "Director" };
       const simFirstName = "Simulation";
       const simLastName = roleNames[simCode.role] || "User";
@@ -23025,7 +23025,7 @@ export async function registerRoutes(
       }
 
       const userCurrency = currency || await getUserCurrency(userId);
-      const referenceCode = `ZIBA-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+      const referenceCode = `ZIBANA-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
 
       const transfer = await storage.createBankTransfer({
         userId,
@@ -23033,14 +23033,14 @@ export async function registerRoutes(
         amount: String(amount),
         currency: userCurrency,
         referenceCode,
-        bankName: "ZIBA Payment Bank",
+        bankName: "ZIBANA Payment Bank",
         accountNumber: "0123456789",
         status: "pending",
       });
 
       return res.json({
         referenceCode: transfer.referenceCode,
-        bankName: "ZIBA Payment Bank",
+        bankName: "ZIBANA Payment Bank",
         accountNumber: "0123456789",
         amount: transfer.amount,
         currency: transfer.currency,
@@ -23572,8 +23572,8 @@ export async function registerRoutes(
       if (messages.length === 0) {
         await storage.createRiderInboxMessage({
           userId,
-          title: "Welcome to ZIBA!",
-          body: "We're so happy to have you here! ZIBA connects you with safe and reliable rides whenever you need them. Enjoy your journey with us.",
+          title: "Welcome to ZIBANA!",
+          body: "We're so happy to have you here! ZIBANA connects you with safe and reliable rides whenever you need them. Enjoy your journey with us.",
           type: "system_announcement",
           read: false,
         });
@@ -24535,7 +24535,7 @@ export async function registerRoutes(
     try {
       const { identifier } = req.body;
       if (!identifier || typeof identifier !== "string" || identifier.trim().length < 3) {
-        return res.status(400).json({ error: "Please enter a valid email, phone number, or ZIBA ID" });
+        return res.status(400).json({ error: "Please enter a valid email, phone number, or ZIBANA ID" });
       }
       const trimmed = identifier.trim().toLowerCase();
       const allUsers = await db.select({
@@ -24556,7 +24556,7 @@ export async function registerRoutes(
         }
       }
       if (!found) {
-        return res.status(404).json({ error: "No ZIBA user found with that identifier" });
+        return res.status(404).json({ error: "No ZIBANA user found with that identifier" });
       }
 
       const senderUserId = req.user?.claims?.sub;
@@ -24572,7 +24572,7 @@ export async function registerRoutes(
 
       const displayName = found.firstName && found.lastName
         ? `${found.firstName} ${found.lastName}`
-        : found.email || "ZIBA User";
+        : found.email || "ZIBANA User";
       const primaryRole = (found.roles as string[])?.[0] || "rider";
 
       res.json({
@@ -24677,9 +24677,9 @@ export async function registerRoutes(
       }).returning();
 
       const senderName = sender?.firstName && sender?.lastName
-        ? `${sender.firstName} ${sender.lastName}` : sender?.email || "A ZIBA user";
+        ? `${sender.firstName} ${sender.lastName}` : sender?.email || "A ZIBANA user";
       const receiverName = receiver.firstName && receiver.lastName
-        ? `${receiver.firstName} ${receiver.lastName}` : receiver.email || "ZIBA User";
+        ? `${receiver.firstName} ${receiver.lastName}` : receiver.email || "ZIBANA User";
 
       const senderNotifRole = senderRoles.includes("driver") ? "driver" as const
         : senderRoles.includes("director") ? "director" as const : "rider" as const;
@@ -24691,7 +24691,7 @@ export async function registerRoutes(
         role: senderNotifRole,
         type: "success",
         title: "Wallet Funding Sent",
-        message: `You sent \u20A6${parseFloat(amountStr).toLocaleString()} to ${receiverName}'s ZIBA wallet.`,
+        message: `You sent \u20A6${parseFloat(amountStr).toLocaleString()} to ${receiverName}'s ZIBANA wallet.`,
       });
 
       await storage.createNotification({
@@ -24729,13 +24729,13 @@ export async function registerRoutes(
         const foundUsers = await db.select({ id: users.id, email: users.email, firstName: users.firstName, lastName: users.lastName })
           .from(users).where(inArray(users.id, allUserIds));
         for (const u of foundUsers) {
-          userNames[u.id] = u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.email || "ZIBA User";
+          userNames[u.id] = u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.email || "ZIBANA User";
         }
       }
 
       res.json({
-        sent: sent.map(t => ({ ...t, recipientName: userNames[t.receiverUserId] || "ZIBA User" })),
-        received: received.map(t => ({ ...t, senderName: userNames[t.senderUserId] || "ZIBA User" })),
+        sent: sent.map(t => ({ ...t, recipientName: userNames[t.receiverUserId] || "ZIBANA User" })),
+        received: received.map(t => ({ ...t, senderName: userNames[t.senderUserId] || "ZIBANA User" })),
       });
     } catch (error) {
       res.status(500).json({ error: "Failed to load funding history" });
@@ -24760,11 +24760,11 @@ export async function registerRoutes(
         const senders = await db.select({ id: users.id, email: users.email, firstName: users.firstName, lastName: users.lastName })
           .from(users).where(inArray(users.id, senderIds));
         for (const u of senders) {
-          senderNames[u.id] = u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.email || "ZIBA User";
+          senderNames[u.id] = u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.email || "ZIBANA User";
         }
       }
 
-      res.json(pending.map(t => ({ ...t, senderName: senderNames[t.senderUserId] || "ZIBA User" })));
+      res.json(pending.map(t => ({ ...t, senderName: senderNames[t.senderUserId] || "ZIBANA User" })));
     } catch (error) {
       res.status(500).json({ error: "Failed to load pending funding" });
     }
@@ -24893,7 +24893,7 @@ export async function registerRoutes(
         const foundUsers = await db.select({ id: users.id, email: users.email, firstName: users.firstName, lastName: users.lastName })
           .from(users).where(inArray(users.id, allUserIds));
         for (const u of foundUsers) {
-          userMap[u.id] = u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.email || "ZIBA User";
+          userMap[u.id] = u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.email || "ZIBANA User";
         }
       }
 
@@ -26270,7 +26270,7 @@ export async function registerRoutes(
           releasedAt: p.releasedAt, disputeSubmitted: p.disputeSubmitted,
         })),
         history,
-        legalDisclaimer: "Director earnings are estimates based on platform activity and subject to eligibility rules, caps, compliance reviews, and administrative approval. ZIBA does not guarantee earnings, payout timing, or amounts.",
+        legalDisclaimer: "Director earnings are estimates based on platform activity and subject to eligibility rules, caps, compliance reviews, and administrative approval. ZIBANA does not guarantee earnings, payout timing, or amounts.",
       });
     } catch (error) {
       console.error("Director earnings error:", error);

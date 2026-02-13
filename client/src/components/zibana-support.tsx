@@ -81,12 +81,12 @@ const DIRECTOR_TOPICS: QuickTopic[] = [
 ];
 
 const GREETINGS: Record<string, string> = {
-  "rider": "Hi, I'm ZIBA Support. I'm here to help. Select a topic below or type your question.",
-  "driver": "Hi, I'm ZIBA Support. I'm here to help. Select a topic below or type your question.",
-  "admin": "ZIBA Support. I can help you navigate dashboard functions, review processes, and administrative actions. Select a topic or ask a question.",
-  "super_admin": "ZIBA Support. I can assist with configuration, compliance, risk assessment, and operational oversight. Select a topic or ask a question.",
-  "director": "ZIBA Support. I can help with cell management, driver oversight, and eligibility questions. Select a topic or ask a question.",
-  "general": "Hi, I'm ZIBA Support. I'm here to help. Select a topic below or type your question.",
+  "rider": "Hi, I'm ZIBANA Support. I'm here to help. Select a topic below or type your question.",
+  "driver": "Hi, I'm ZIBANA Support. I'm here to help. Select a topic below or type your question.",
+  "admin": "ZIBANA Support. I can help you navigate dashboard functions, review processes, and administrative actions. Select a topic or ask a question.",
+  "super_admin": "ZIBANA Support. I can assist with configuration, compliance, risk assessment, and operational oversight. Select a topic or ask a question.",
+  "director": "ZIBANA Support. I can help with cell management, driver oversight, and eligibility questions. Select a topic or ask a question.",
+  "general": "Hi, I'm ZIBANA Support. I'm here to help. Select a topic below or type your question.",
 };
 
 function detectRole(pathname: string, userRoles?: string[]): UserRole {
@@ -154,12 +154,12 @@ function logSupportInteraction(userMessage: string, supportResponse: string, rol
   }).catch(() => {});
 }
 
-interface ZibaSupportProps {
+interface ZibanaSupportProps {
   onClose?: () => void;
   forceRole?: UserRole;
 }
 
-export function ZibaSupport({ onClose, forceRole }: ZibaSupportProps) {
+export function ZibanaSupport({ onClose, forceRole }: ZibanaSupportProps) {
   const { user } = useAuth();
   const [pathname] = useLocation();
   const { t, language } = useTranslation();
@@ -274,10 +274,10 @@ export function ZibaSupport({ onClose, forceRole }: ZibaSupportProps) {
   };
 
   const isPrivateMode = detectedRole === "admin" || detectedRole === "super_admin";
-  const headerLabel = isPrivateMode ? "Z-Assist" : "ZIBA Support";
+  const headerLabel = isPrivateMode ? "Z-Assist" : "ZIBANA Support";
 
   return (
-    <Card className="flex flex-col h-full" data-testid="card-ziba-support">
+    <Card className="flex flex-col h-full" data-testid="card-zibana-support">
       <CardHeader className="pb-2 flex-shrink-0">
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="text-base flex items-center gap-2">
@@ -418,7 +418,7 @@ export function ZibaSupport({ onClose, forceRole }: ZibaSupportProps) {
         <p className="text-[10px] text-muted-foreground text-center mt-2">
           {isPrivateMode
             ? "Z-Assist provides advisory guidance. Verify critical actions independently."
-            : "ZIBA Support helps connect you with information and assistance."
+            : "ZIBANA Support helps connect you with information and assistance."
           }
         </p>
       </CardContent>

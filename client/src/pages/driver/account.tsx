@@ -388,7 +388,7 @@ export default function DriverAccount() {
                 </>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  You are currently eligible for ZIBA Go. Improve your rating, upgrade your vehicle, or complete additional approvals to qualify for more ride classes.
+                  You are currently eligible for ZIBANA Go. Improve your rating, upgrade your vehicle, or complete additional approvals to qualify for more ride classes.
                 </p>
               )}
             </CardContent>

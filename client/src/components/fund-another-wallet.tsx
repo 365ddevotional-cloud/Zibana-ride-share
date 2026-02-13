@@ -194,7 +194,7 @@ export function FundAnotherWalletDialog({ open, onClose }: { open: boolean; onCl
                 Fund Another Wallet
               </DialogTitle>
               <DialogDescription>
-                Send funds to another ZIBA user. Funds can only be used within ZIBA.
+                Send funds to another ZIBANA user. Funds can only be used within ZIBANA.
               </DialogDescription>
             </DialogHeader>
 
@@ -241,7 +241,7 @@ export function FundAnotherWalletDialog({ open, onClose }: { open: boolean; onCl
               )}
 
               <div className="space-y-2">
-                <Label>Recipient (email, phone, or ZIBA ID)</Label>
+                <Label>Recipient (email, phone, or ZIBANA ID)</Label>
                 <div className="flex gap-2">
                   <Input
                     placeholder="Enter email, phone, or ID"
@@ -354,7 +354,7 @@ export function FundAnotherWalletDialog({ open, onClose }: { open: boolean; onCl
               <div className="rounded-md border border-yellow-500/30 bg-yellow-500/5 p-3 flex gap-2">
                 <AlertTriangle className="h-5 w-5 text-yellow-500 shrink-0 mt-0.5" />
                 <p className="text-sm text-muted-foreground">
-                  Funds added cannot be reversed and can only be used within ZIBA. ZIBA facilitates wallet funding between users. Funds are non-refundable and ZIBA does not guarantee services or outcomes.
+                  Funds added cannot be reversed and can only be used within ZIBANA. ZIBANA facilitates wallet funding between users. Funds are non-refundable and ZIBANA does not guarantee services or outcomes.
                 </p>
               </div>
 
@@ -366,7 +366,7 @@ export function FundAnotherWalletDialog({ open, onClose }: { open: boolean; onCl
                   data-testid="checkbox-disclaimer"
                 />
                 <label htmlFor="disclaimer" className="text-sm text-muted-foreground cursor-pointer leading-tight">
-                  I understand that this funding is voluntary, non-refundable, and can only be used within ZIBA. ZIBA is not a bank and bears no responsibility for disputes.
+                  I understand that this funding is voluntary, non-refundable, and can only be used within ZIBANA. ZIBANA is not a bank and bears no responsibility for disputes.
                 </label>
               </div>
 

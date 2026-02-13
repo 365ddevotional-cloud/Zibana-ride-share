@@ -172,7 +172,7 @@ const MODULE_CONTENT: Record<string, { icon: any; sections: { title: string; poi
       {
         title: "What is ZIBRA?",
         points: [
-          "ZIBRA is ZIBA's intelligent assistant that monitors operations and provides coaching insights.",
+          "ZIBRA is ZIBANA's intelligent assistant that monitors operations and provides coaching insights.",
           "It generates coaching prompts based on your operational patterns — not punishments.",
           "ZIBRA aims to help you succeed, not to penalize you.",
         ],

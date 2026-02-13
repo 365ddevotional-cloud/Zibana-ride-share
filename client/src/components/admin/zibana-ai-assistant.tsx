@@ -35,7 +35,7 @@ function extractRoute(text: string): string | null {
   return match ? match[0] : null;
 }
 
-export function ZibaAiAssistant() {
+export function ZibanaAiAssistant() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -51,7 +51,7 @@ export function ZibaAiAssistant() {
 
   const chatMutation = useMutation({
     mutationFn: async (message: string) => {
-      const res = await apiRequest("POST", "/api/admin/ziba-ai/chat", { message });
+      const res = await apiRequest("POST", "/api/admin/zibana-ai/chat", { message });
       return res.json() as Promise<AiResponse>;
     },
     onSuccess: (data) => {
@@ -113,21 +113,21 @@ export function ZibaAiAssistant() {
           onClick={() => setIsOpen(true)}
           className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full shadow-lg bg-blue-600 hover:bg-blue-700 text-white"
           size="icon"
-          data-testid="button-ziba-ai-open"
+          data-testid="button-zibana-ai-open"
         >
           <Sparkles className="h-6 w-6" />
         </Button>
       )}
 
       {isOpen && (
-        <div className="fixed bottom-6 right-6 z-50 w-[380px] max-w-[calc(100vw-48px)] flex flex-col shadow-2xl rounded-xl border border-slate-200 dark:border-slate-700 bg-background overflow-hidden" style={{ height: "min(600px, calc(100vh - 120px))" }} data-testid="panel-ziba-ai">
+        <div className="fixed bottom-6 right-6 z-50 w-[380px] max-w-[calc(100vw-48px)] flex flex-col shadow-2xl rounded-xl border border-slate-200 dark:border-slate-700 bg-background overflow-hidden" style={{ height: "min(600px, calc(100vh - 120px))" }} data-testid="panel-zibana-ai">
           <div className="flex items-center justify-between gap-2 px-4 py-3 bg-slate-900 dark:bg-slate-950 text-white shrink-0">
             <div className="flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600">
                 <Bot className="h-4 w-4" />
               </div>
               <div>
-                <p className="text-sm font-semibold">ZIBA AI</p>
+                <p className="text-sm font-semibold">ZIBANA AI</p>
                 <p className="text-[10px] text-slate-300">Operational Assistant</p>
               </div>
             </div>
@@ -135,7 +135,7 @@ export function ZibaAiAssistant() {
               <Badge variant="outline" className="text-[10px] border-slate-600 text-slate-300" data-testid="badge-ai-env">
                 {env}
               </Badge>
-              <Button size="icon" variant="ghost" onClick={() => setIsOpen(false)} className="h-7 w-7 text-white hover:text-white" data-testid="button-ziba-ai-close">
+              <Button size="icon" variant="ghost" onClick={() => setIsOpen(false)} className="h-7 w-7 text-white hover:text-white" data-testid="button-zibana-ai-close">
                 <X className="h-4 w-4" />
               </Button>
             </div>
@@ -143,11 +143,11 @@ export function ZibaAiAssistant() {
 
           <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
             {messages.length === 0 && !isTyping && (
-              <div className="text-center py-8" data-testid="ziba-ai-welcome">
+              <div className="text-center py-8" data-testid="zibana-ai-welcome">
                 <div className="flex h-12 w-12 mx-auto items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30 mb-3">
                   <Sparkles className="h-6 w-6 text-blue-600 dark:text-blue-400" />
                 </div>
-                <p className="text-sm font-medium">Welcome to ZIBA AI</p>
+                <p className="text-sm font-medium">Welcome to ZIBANA AI</p>
                 <p className="text-xs text-muted-foreground mt-1">
                   {env === "PRE_LAUNCH"
                     ? "Platform is in pre-launch mode. Ask me about launch readiness, QA status, or driver registrations."
@@ -206,7 +206,7 @@ export function ZibaAiAssistant() {
             ))}
 
             {isTyping && (
-              <div className="flex gap-2 justify-start" data-testid="ziba-ai-typing">
+              <div className="flex gap-2 justify-start" data-testid="zibana-ai-typing">
                 <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
                   <Bot className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
                 </div>
@@ -217,7 +217,7 @@ export function ZibaAiAssistant() {
             )}
 
             {chatMutation.isPending && !isTyping && (
-              <div className="flex gap-2 justify-start" data-testid="ziba-ai-loading">
+              <div className="flex gap-2 justify-start" data-testid="zibana-ai-loading">
                 <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
                   <Bot className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
                 </div>
@@ -237,16 +237,16 @@ export function ZibaAiAssistant() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask ZIBA AI..."
+                placeholder="Ask ZIBANA AI..."
                 className="flex-1 text-sm"
                 disabled={chatMutation.isPending || isTyping}
-                data-testid="input-ziba-ai"
+                data-testid="input-zibana-ai"
               />
               <Button
                 size="icon"
                 onClick={handleSend}
                 disabled={!input.trim() || chatMutation.isPending || isTyping}
-                data-testid="button-ziba-ai-send"
+                data-testid="button-zibana-ai-send"
               >
                 <Send className="h-4 w-4" />
               </Button>

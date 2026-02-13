@@ -160,7 +160,7 @@ import {
   riderWallets,
   riderPaymentMethods,
   driverWallets,
-  zibaWallet,
+  zibanaWallet,
   escrows,
   financialAuditLogs,
   abuseFlags,
@@ -176,7 +176,7 @@ import {
   type InsertRiderPaymentMethod,
   type DriverWallet,
   type InsertDriverWallet,
-  type ZibaWallet,
+  type ZibanaWallet,
   type Escrow,
   type InsertEscrow,
   type FinancialAuditLog,
@@ -955,7 +955,7 @@ export interface IStorage {
   getOrCreateWallet(userId: string, role: "driver" | "ziba"): Promise<Wallet>;
   getWalletById(walletId: string): Promise<Wallet | null>;
   getWalletByUserId(userId: string): Promise<Wallet | null>;
-  getZibaWallet(): Promise<Wallet>;
+  getZibanaWallet(): Promise<Wallet>;
   getAllDriverWallets(): Promise<any[]>;
   creditWallet(walletId: string, amount: string, source: string, referenceId?: string, createdByUserId?: string, description?: string): Promise<WalletTransaction>;
   debitWallet(walletId: string, amount: string, source: string, referenceId?: string, createdByUserId?: string, description?: string): Promise<WalletTransaction | null>;
@@ -3959,9 +3959,9 @@ export class DatabaseStorage implements IStorage {
     return wallet || null;
   }
 
-  async getZibaWallet(): Promise<Wallet> {
-    const ZIBA_SYSTEM_USER_ID = "ziba-system";
-    return this.getOrCreateWallet(ZIBA_SYSTEM_USER_ID, "ziba");
+  async getZibanaWallet(): Promise<Wallet> {
+    const ZIBANA_SYSTEM_USER_ID = "zibana-system";
+    return this.getOrCreateWallet(ZIBANA_SYSTEM_USER_ID, "zibana");
   }
 
   async getAllDriverWallets(): Promise<any[]> {
@@ -4318,11 +4318,11 @@ export class DatabaseStorage implements IStorage {
 
     const chargebackStats = chargebackResults[0] || { total: 0, won: 0, lost: 0, pending: 0 };
 
-    // Wallet balances (driver wallets only, exclude ZIBA platform wallet)
+    // Wallet balances (driver wallets only, exclude ZIBANA platform wallet)
     const walletResults = await db.select({
       totalBalance: sql<string>`coalesce(sum(cast(${wallets.balance} as decimal)), 0)`,
       lockedBalance: sql<string>`coalesce(sum(cast(${wallets.lockedBalance} as decimal)), 0)`
-    }).from(wallets).where(sql`${wallets.userId} != 'ziba-platform'`);
+    }).from(wallets).where(sql`${wallets.userId} != 'zibana-platform'`);
 
     const walletStats = walletResults[0] || { totalBalance: "0", lockedBalance: "0" };
     const availableBalance = (parseFloat(walletStats.totalBalance) - parseFloat(walletStats.lockedBalance)).toFixed(2);
@@ -6664,7 +6664,7 @@ export class DatabaseStorage implements IStorage {
         amount,
         currency: wallet.currency || "NGN",
         userId,
-        description: "ZIBA Auto Top-Up",
+        description: "ZIBANA Auto Top-Up",
       });
 
       if (result.success) {
@@ -6949,11 +6949,11 @@ export class DatabaseStorage implements IStorage {
       .orderBy(driverPayoutHistory.createdAt);
   }
 
-  // ZIBA Platform Wallet (Phase 25)
-  async getZibaPlatformWallet(): Promise<ZibaWallet | null> {
-    const [wallet] = await db.select().from(zibaWallet).limit(1);
+  // ZIBANA Platform Wallet (Phase 25)
+  async getZibanaPlatformWallet(): Promise<ZibanaWallet | null> {
+    const [wallet] = await db.select().from(zibanaWallet).limit(1);
     if (!wallet) {
-      const [created] = await db.insert(zibaWallet).values({}).returning();
+      const [created] = await db.insert(zibanaWallet).values({}).returning();
       return created;
     }
     return wallet;
@@ -7217,21 +7217,21 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // Credit Ziba platform wallet with 20%
-  async creditZibaCommission(amount: string, currencyCode: string): Promise<ZibaWallet | null> {
-    let [wallet] = await db.select().from(zibaWallet).limit(1);
+  // Credit Zibana platform wallet with 20%
+  async creditZibanaCommission(amount: string, currencyCode: string): Promise<ZibanaWallet | null> {
+    let [wallet] = await db.select().from(zibanaWallet).limit(1);
     
     if (!wallet) {
-      const [created] = await db.insert(zibaWallet).values({ currency: currencyCode }).returning();
+      const [created] = await db.insert(zibanaWallet).values({ currency: currencyCode }).returning();
       wallet = created;
     }
 
-    const [updated] = await db.update(zibaWallet)
+    const [updated] = await db.update(zibanaWallet)
       .set({
-        commissionBalance: sql`${zibaWallet.commissionBalance} + ${amount}`,
+        commissionBalance: sql`${zibanaWallet.commissionBalance} + ${amount}`,
         updatedAt: new Date(),
       })
-      .where(eq(zibaWallet.id, wallet.id))
+      .where(eq(zibanaWallet.id, wallet.id))
       .returning();
     
     return updated || null;
@@ -7250,12 +7250,12 @@ export class DatabaseStorage implements IStorage {
     
     const fareAmount = parseFloat(totalFare);
     const driverShare = Math.floor(fareAmount * 80) / 100;
-    const zibaShare = Math.floor(fareAmount * 20) / 100;
+    const zibanaShare = Math.floor(fareAmount * 20) / 100;
     
     await this.creditDriverEarnings(driverId, driverShare.toFixed(2), currencyCode, isTestRide);
     
     if (!isTestRide) {
-      await this.creditZibaCommission(zibaShare.toFixed(2), currencyCode);
+      await this.creditZibanaCommission(zibanaShare.toFixed(2), currencyCode);
     }
     
     const ledgerEntry = await this.createRevenueSplitLedgerEntry({
@@ -7265,9 +7265,9 @@ export class DatabaseStorage implements IStorage {
       fareAmount: totalFare,
       currencyCode,
       driverShare: driverShare.toFixed(2),
-      zibaShare: zibaShare.toFixed(2),
+      zibanaShare: zibanaShare.toFixed(2),
       driverSharePercent: 80,
-      zibaSharePercent: 20,
+      zibanaSharePercent: 20,
       isTestRide,
     });
     
@@ -7285,12 +7285,12 @@ export class DatabaseStorage implements IStorage {
     if (!isTestRide) {
       await db.insert(financialAuditLogs).values({
         rideId,
-        userId: "ZIBA_PLATFORM",
+        userId: "ZIBANA_PLATFORM",
         actorRole: "SYSTEM",
         eventType: "FEE",
-        amount: zibaShare.toFixed(2),
+        amount: zibanaShare.toFixed(2),
         currency: currencyCode,
-        description: `Platform commission (20%): ${currencyCode} ${zibaShare.toFixed(2)} from ride ${rideId}`,
+        description: `Platform commission (20%): ${currencyCode} ${zibanaShare.toFixed(2)} from ride ${rideId}`,
         metadata: JSON.stringify({ ledgerEntryId: ledgerEntry.id }),
       });
     }
@@ -10376,7 +10376,7 @@ export class DatabaseStorage implements IStorage {
         deliveryMethod: "in_app",
         mileageDisclosureEnabled: true,
         withholdingEnabled: false,
-        complianceNotes: "ZIBA does not withhold federal or state taxes. Driver is responsible for filing as an independent contractor.",
+        complianceNotes: "ZIBANA does not withhold federal or state taxes. Driver is responsible for filing as an independent contractor.",
         driverClassificationLabel: "Independent Contractor",
         reportableIncomeIncludesFees: false,
       },
@@ -10390,7 +10390,7 @@ export class DatabaseStorage implements IStorage {
         deliveryMethod: "in_app",
         mileageDisclosureEnabled: true,
         withholdingEnabled: false,
-        complianceNotes: "Statement is for personal tax filing reference. ZIBA does not act as tax agent unless configured.",
+        complianceNotes: "Statement is for personal tax filing reference. ZIBANA does not act as tax agent unless configured.",
         driverClassificationLabel: "Independent Contractor",
         reportableIncomeIncludesFees: false,
       },
@@ -10418,7 +10418,7 @@ export class DatabaseStorage implements IStorage {
         deliveryMethod: "in_app",
         mileageDisclosureEnabled: true,
         withholdingEnabled: false,
-        complianceNotes: "ZIBA provides records only. Driver responsible for tax declaration.",
+        complianceNotes: "ZIBANA provides records only. Driver responsible for tax declaration.",
         driverClassificationLabel: "Independent Contractor",
         reportableIncomeIncludesFees: false,
       },

@@ -1,11 +1,11 @@
 /**
  * Escrow Service
  * Handles fund locking, release, and dispute holds
- * ZIBA WALLET + ESCROW MODEL
+ * ZIBANA WALLET + ESCROW MODEL
  */
 
 import { db } from "./db";
-import { escrows, riderWallets, driverWallets, zibaWallet, financialAuditLogs, riderTransactionHistory, userRoles } from "@shared/schema";
+import { escrows, riderWallets, driverWallets, zibanaWallet, financialAuditLogs, riderTransactionHistory, userRoles } from "@shared/schema";
 import { eq, and, sql } from "drizzle-orm";
 
 export interface LockEscrowParams {
@@ -192,15 +192,15 @@ export const escrowService = {
         })
         .where(eq(driverWallets.userId, driverId));
       
-      const existingZibaWallet = await db.select().from(zibaWallet).limit(1);
-      if (!existingZibaWallet.length) {
-        await db.insert(zibaWallet).values({});
+      const existingZibanaWallet = await db.select().from(zibanaWallet).limit(1);
+      if (!existingZibanaWallet.length) {
+        await db.insert(zibanaWallet).values({});
       }
       
       await db
-        .update(zibaWallet)
+        .update(zibanaWallet)
         .set({
-          commissionBalance: sql`${zibaWallet.commissionBalance} + ${platformCommission}`,
+          commissionBalance: sql`${zibanaWallet.commissionBalance} + ${platformCommission}`,
           updatedAt: new Date(),
         });
       
@@ -227,7 +227,7 @@ export const escrowService = {
       
       await db.insert(financialAuditLogs).values({
         rideId: escrow.rideId,
-        userId: "ZIBA",
+        userId: "ZIBANA",
         actorRole: "SYSTEM",
         eventType: "COMMISSION",
         amount: platformCommission.toString(),

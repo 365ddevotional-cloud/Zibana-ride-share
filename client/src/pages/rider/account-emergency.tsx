@@ -36,7 +36,7 @@ export default function AccountEmergency() {
                 </div>
               </div>
               <p className="text-sm text-muted-foreground">
-                In an emergency during a ride, use the SOS button on your ride screen to alert ZIBA support and your trusted contacts immediately. Your live location will be shared automatically.
+                In an emergency during a ride, use the SOS button on your ride screen to alert ZIBANA support and your trusted contacts immediately. Your live location will be shared automatically.
               </p>
             </CardContent>
           </Card>

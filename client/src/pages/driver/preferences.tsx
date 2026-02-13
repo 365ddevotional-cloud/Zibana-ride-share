@@ -400,7 +400,7 @@ export default function DriverPreferences() {
               </>
             ) : (
               <p className="text-sm text-muted-foreground">
-                You are currently eligible for ZIBA Go only. Improve your rating or upgrade your vehicle to unlock more classes.
+                You are currently eligible for ZIBANA Go only. Improve your rating or upgrade your vehicle to unlock more classes.
               </p>
             )}
           </CardContent>

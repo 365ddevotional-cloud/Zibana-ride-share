@@ -24,7 +24,7 @@ export function BehaviorAdvisory() {
   const [dismissedTypes, setDismissedTypes] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    const stored = sessionStorage.getItem("ziba-driver-advisory-dismissed");
+    const stored = sessionStorage.getItem("zibana-driver-advisory-dismissed");
     if (stored) {
       try {
         const arr: string[] = JSON.parse(stored);
@@ -47,7 +47,7 @@ export function BehaviorAdvisory() {
     const next = new Set(dismissedTypes);
     next.add(type);
     setDismissedTypes(next);
-    sessionStorage.setItem("ziba-driver-advisory-dismissed", JSON.stringify(Array.from(next)));
+    sessionStorage.setItem("zibana-driver-advisory-dismissed", JSON.stringify(Array.from(next)));
   };
 
   const showAcceptanceWarning = behaviorData && (behaviorData.negativeSignalCount ?? 0) > 3 && !dismissedTypes.has("acceptance");

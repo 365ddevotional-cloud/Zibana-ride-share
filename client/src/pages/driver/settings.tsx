@@ -253,12 +253,12 @@ export default function DriverSettings() {
               <div className="flex items-center gap-3">
                 <Info className="h-5 w-5 text-muted-foreground" />
                 <div>
-                  <p className="text-sm font-medium">ZIBA Ride</p>
+                  <p className="text-sm font-medium">ZIBANA Ride</p>
                   <p className="text-xs text-muted-foreground">Version 1.0.0</p>
                 </div>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                ZIBA is a ride-hailing platform designed for emerging markets, connecting riders with safe and reliable drivers. We are committed to enhancing mobility and creating economic opportunities across Africa and beyond.
+                ZIBANA is a ride-hailing platform designed for emerging markets, connecting riders with safe and reliable drivers. We are committed to enhancing mobility and creating economic opportunities across Africa and beyond.
               </p>
               <button
                 className="text-xs text-primary hover:underline"

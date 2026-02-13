@@ -26,12 +26,12 @@ export default function DriverDashboard() {
   const { toast } = useToast();
   const { t } = useTranslation();
   const [, setLocation] = useLocation();
-  const isReturningDriver = typeof window !== "undefined" && localStorage.getItem("ziba-driver-lastLoginAt") !== null;
-  const welcomeShown = typeof window !== "undefined" && localStorage.getItem("ziba-driver-welcome-shown") === "true";
+  const isReturningDriver = typeof window !== "undefined" && localStorage.getItem("zibana-driver-lastLoginAt") !== null;
+  const welcomeShown = typeof window !== "undefined" && localStorage.getItem("zibana-driver-welcome-shown") === "true";
 
   useEffect(() => {
     if (user) {
-      localStorage.setItem("ziba-driver-lastLoginAt", new Date().toISOString());
+      localStorage.setItem("zibana-driver-lastLoginAt", new Date().toISOString());
     }
   }, [user]);
 
@@ -643,7 +643,7 @@ export default function DriverDashboard() {
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Lightbulb className="h-4 w-4" />
-              ZIBA Support
+              ZIBANA Support
             </CardTitle>
             <Button
               size="sm"

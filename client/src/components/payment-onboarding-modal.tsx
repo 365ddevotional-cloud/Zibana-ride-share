@@ -133,7 +133,7 @@ export function PaymentOnboardingModal() {
         {step === "intro" && (
           <>
             <div style={{ textAlign: "center" }}>
-              <h2 className="text-xl font-semibold leading-none tracking-tight">How payments work on ZIBA</h2>
+              <h2 className="text-xl font-semibold leading-none tracking-tight">How payments work on ZIBANA</h2>
               <p className="text-base text-muted-foreground" style={{ paddingTop: "0.5rem" }}>
                 You can pay for trips using a card in the app or by paying the driver in cash.
                 Choose the option that works best for you.

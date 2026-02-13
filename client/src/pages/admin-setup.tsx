@@ -76,7 +76,7 @@ export default function AdminSetupPage() {
             </div>
             <CardTitle className="text-2xl">Admin Setup</CardTitle>
             <CardDescription>
-              No admin account exists yet. Would you like to become the admin for ZIBA?
+              No admin account exists yet. Would you like to become the admin for ZIBANA?
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

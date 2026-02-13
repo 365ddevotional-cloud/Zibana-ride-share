@@ -237,7 +237,7 @@ export function TaxComplianceConfig() {
               <ShieldCheck className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
               <div className="text-xs text-muted-foreground space-y-1">
                 <p>Countries without explicit configuration will receive a generic Annual Earnings & Tax Summary.</p>
-                <p>Tax withholding is never automatically applied. ZIBA provides summaries for filing purposes only.</p>
+                <p>Tax withholding is never automatically applied. ZIBANA provides summaries for filing purposes only.</p>
               </div>
             </div>
           </div>

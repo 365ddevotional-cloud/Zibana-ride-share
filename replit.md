@@ -1,7 +1,7 @@
-# ZIBA - Ride Hailing Platform
+# ZIBANA - Ride Hailing Platform
 
 ## Overview
-ZIBA is a ride-hailing web application designed for emerging markets. Its primary purpose is to connect riders with drivers, offering a safe and reliable transportation solution. The platform supports seven distinct user roles to manage all aspects of operations, including trip coordination, financial oversight, and customer support. ZIBA aims to be a scalable and reliable system that enhances mobility, fosters economic opportunities, and aspires to become a leading mobility platform across multiple emerging economies.
+ZIBANA is a ride-hailing web application designed for emerging markets. Its primary purpose is to connect riders with drivers, offering a safe and reliable transportation solution. The platform supports seven distinct user roles to manage all aspects of operations, including trip coordination, financial oversight, and customer support. ZIBANA aims to be a scalable and reliable system that enhances mobility, fosters economic opportunities, and aspires to become a leading mobility platform across multiple emerging economies.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -15,14 +15,14 @@ The application features role-based dashboards, a public landing page, and suppo
 The frontend uses TanStack React Query for server state management and React hooks for local state. The backend is built with Node.js and Express.js, using TypeScript and ES modules, following a RESTful JSON API pattern. Authentication is handled via Replit Auth (OpenID Connect) using Passport.js, with Express sessions stored in PostgreSQL. The backend design emphasizes clean separation of concerns for routes, storage, and authentication, implementing role-based middleware for access control.
 
 ### Feature Specifications
-ZIBA includes comprehensive features such as:
+ZIBANA includes comprehensive features such as:
 - **Authentication & Authorization**: Replit Auth integration, multi-role user system with mandatory post-auth role selection, and Role-Based Access Control (RBAC). Sessions persist for 1 week.
 - **User & Trip Management**: Covers identity verification, fare calculation, driver payouts, and audit logging.
 - **Financial Operations**: Simulated payment system with virtual wallets, dynamic country-specific pricing, and cancellation fees.
 - **Notifications & Ratings**: In-app notifications and a mutual rating system with dispute resolution.
 - **Fraud Detection**: Real-time engine with configurable signals and risk scoring.
 - **Multi-Country Support**: Manages country-specific rules, taxes, and compliance.
-- **Customer Support System**: Dedicated `support_agent` role and an AI-powered ZIBA Support Assistant (ZIBRA).
+- **Customer Support System**: Dedicated `support_agent` role and an AI-powered ZIBANA Support Assistant (ZIBRA).
 - **Enterprise Contracts & Billing**: Management of contracts, SLAs, and invoicing.
 - **Safety & Incident Management**: SOS trigger, incident reporting, and a Safe Return Hub System.
 - **Legal Compliance**: Versioned legal documents and user consent tracking.

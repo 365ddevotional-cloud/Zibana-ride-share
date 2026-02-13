@@ -19,7 +19,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { sidebarSections } from "./admin-sidebar";
-import { ZibaAiAssistant } from "@/components/admin/ziba-ai-assistant";
+import { ZibanaAiAssistant } from "@/components/admin/zibana-ai-assistant";
 import { AiCommandPanel } from "@/components/admin/ai-command-panel";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -156,7 +156,7 @@ export default function AdminLayout({ children, userRole, activeTab }: AdminLayo
                 data-testid="button-ai-command"
               >
                 <Brain className="h-3.5 w-3.5 mr-1" />
-                ZIBA AI
+                ZIBANA AI
               </Button>
               <NotificationBell />
               <ThemeToggle />
@@ -173,7 +173,7 @@ export default function AdminLayout({ children, userRole, activeTab }: AdminLayo
             </div>
           </main>
         </div>
-        <ZibaAiAssistant />
+        <ZibanaAiAssistant />
         <AiCommandPanel
           open={aiPanelOpen}
           onClose={() => setAiPanelOpen(false)}

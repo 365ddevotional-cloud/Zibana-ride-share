@@ -336,7 +336,7 @@ export default function CorporateRides() {
           <div className="flex items-start gap-2 p-3 rounded-lg bg-muted">
             <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
             <p className="text-xs text-muted-foreground" data-testid="text-corporate-disclaimer">
-              ZIBA facilitates ride access. Availability and eligibility may vary.
+              ZIBANA facilitates ride access. Availability and eligibility may vary.
             </p>
           </div>
 

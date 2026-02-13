@@ -161,7 +161,7 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     (req as any).user = {
       claims: {
         sub: sessionData.simulatedUserId,
-        email: sessionData.simulatedEmail || "sim@ziba.test",
+        email: sessionData.simulatedEmail || "sim@zibana.test",
         first_name: sessionData.simulatedFirstName || "Simulation",
         last_name: sessionData.simulatedLastName || "User",
       },

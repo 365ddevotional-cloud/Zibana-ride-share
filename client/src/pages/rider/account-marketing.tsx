@@ -97,7 +97,7 @@ export default function AccountMarketing() {
                     <Label htmlFor="switch-announcements" className="text-sm cursor-pointer font-medium">
                       Announcements
                     </Label>
-                    <p className="text-xs text-muted-foreground">News and updates from ZIBA</p>
+                    <p className="text-xs text-muted-foreground">News and updates from ZIBANA</p>
                   </div>
                   <Switch
                     id="switch-announcements"

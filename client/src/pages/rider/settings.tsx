@@ -223,7 +223,7 @@ export default function RiderSettings() {
                 <div className="flex items-center gap-3">
                   <Info className="h-5 w-5 text-muted-foreground" />
                   <div>
-                    <p className="text-sm font-medium">ZIBA Ride</p>
+                    <p className="text-sm font-medium">ZIBANA Ride</p>
                     <p className="text-xs text-muted-foreground">{t("settings.version")} 1.0.0</p>
                   </div>
                 </div>

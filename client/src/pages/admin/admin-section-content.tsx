@@ -549,7 +549,7 @@ const sectionMeta: Record<string, SectionMeta> = {
   },
   "ai-audit": {
     title: "AI Audit Log",
-    description: "ZIBA AI Command Layer usage history, query audit trail, and cost tracking.",
+    description: "ZIBANA AI Command Layer usage history, query audit trail, and cost tracking.",
     kpis: [
       { label: "Total Queries", zeroValue: "0", color: "border-t-violet-500" },
       { label: "Monthly Spend", zeroValue: "$0.00", color: "border-t-blue-500" },
@@ -599,7 +599,7 @@ function EmptyTableState() {
         <Eye className="h-6 w-6 text-slate-400" />
       </div>
       <p className="text-sm font-medium text-slate-600 dark:text-slate-300">No data available</p>
-      <p className="text-xs text-slate-400 dark:text-slate-500">ZIBA operations have not started.</p>
+      <p className="text-xs text-slate-400 dark:text-slate-500">ZIBANA operations have not started.</p>
     </div>
   );
 }

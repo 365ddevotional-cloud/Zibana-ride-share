@@ -2,9 +2,9 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Headphones, X } from "lucide-react";
-import { ZibaSupport } from "@/components/ziba-support";
+import { ZibanaSupport } from "@/components/zibana-support";
 
-const STORAGE_KEY = "ziba-support-icon-pos";
+const STORAGE_KEY = "zibana-support-icon-pos";
 const ICON_SIZE = 48;
 const MARGIN = 8;
 const BOTTOM_NAV_HEIGHT = 72;
@@ -146,7 +146,7 @@ export function ZibraFloatingButton() {
             </DialogTitle>
           </DialogHeader>
           <div className="overflow-y-auto max-h-[65vh] px-2 pb-2">
-            <ZibaSupport onClose={() => setOpen(false)} forceRole="rider" />
+            <ZibanaSupport onClose={() => setOpen(false)} forceRole="rider" />
           </div>
         </DialogContent>
       </Dialog>

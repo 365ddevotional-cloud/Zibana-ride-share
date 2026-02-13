@@ -37,7 +37,7 @@ export const LANGUAGES = [
 
 export type LanguageCode = typeof LANGUAGES[number]["code"];
 
-const STORAGE_KEY = "ziba-language";
+const STORAGE_KEY = "zibana-language";
 const RTL_LANGUAGES: string[] = ["ar"];
 
 function getNestedValue(obj: unknown, path: string): string | undefined {

@@ -46,7 +46,7 @@
     "testCredits": "Créditos de teste",
     "noSavedPlaces": "Nenhum local salvo ainda",
     "locationRequired": "Acesso à localização necessário",
-    "locationDescription": "O ZIBA precisa da sua localização para encontrar motoristas próximos e calcular rotas.",
+    "locationDescription": "O ZIBANA precisa da sua localização para encontrar motoristas próximos e calcular rotas.",
     "allowLocation": "Permitir acesso à localização"
   },
   "services": {
@@ -132,7 +132,7 @@
     "ridePinDesc": "Verifique seu motorista antes de embarcar",
     "about": "Sobre",
     "version": "Versão",
-    "aboutDesc": "O ZIBA é uma plataforma de transporte por aplicativo projetada para mercados emergentes, conectando passageiros com motoristas seguros e confiáveis. Estamos comprometidos em melhorar a mobilidade e criar oportunidades econômicas em toda a África e além.",
+    "aboutDesc": "O ZIBANA é uma plataforma de transporte por aplicativo projetada para mercados emergentes, conectando passageiros com motoristas seguros e confiáveis. Estamos comprometidos em melhorar a mobilidade e criar oportunidades econômicas em toda a África e além.",
     "termsService": "Termos de serviço e política de privacidade",
     "resetLanguage": "Redefinir para inglês"
   },
@@ -151,7 +151,7 @@
     "title": "Pagamentos",
     "subtitle": "Gerencie seus métodos de pagamento e carteira",
     "walletBalance": "Saldo da carteira",
-    "zibaWallet": "Carteira ZIBA",
+    "zibanaWallet": "Carteira ZIBANA",
     "manageWallet": "Gerenciar carteira",
     "sponsoredBy": "Patrocinado por",
     "supporters": "apoiadores",
@@ -179,10 +179,10 @@
     "placeholder": "Digite uma mensagem...",
     "send": "Enviar",
     "helpReset": "Você pode redefinir o idioma em Configurações → Idioma → Inglês.",
-    "greeting": "Olá! Sou o ZIBRA, seu assistente de suporte ZIBA. Como posso ajudá-lo hoje?"
+    "greeting": "Olá! Sou o ZIBRA, seu assistente de suporte ZIBANA. Como posso ajudá-lo hoje?"
   },
   "rider": {
-    "appName": "ZIBA",
+    "appName": "ZIBANA",
     "appRole": "Passageiro"
   },
   "safety": {

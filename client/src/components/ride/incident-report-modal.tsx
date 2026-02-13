@@ -176,7 +176,7 @@ export function IncidentReportModal({
 
           <div className="rounded-md border p-3 space-y-2 bg-muted/50" data-testid="card-incident-disclaimer">
             <p className="text-xs text-muted-foreground leading-relaxed">
-              This report is for documentation and assistance only. Submitting a report does not imply fault, liability, or compensation from ZIBA. Reports are reviewed by our safety team.
+              This report is for documentation and assistance only. Submitting a report does not imply fault, liability, or compensation from ZIBANA. Reports are reviewed by our safety team.
             </p>
             <div className="flex items-start gap-2">
               <Checkbox

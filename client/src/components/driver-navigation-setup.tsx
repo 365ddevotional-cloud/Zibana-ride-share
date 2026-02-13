@@ -224,7 +224,7 @@ export function DriverNavigationSetup({ onComplete }: { onComplete?: () => void 
               <div className="flex-1">
                 <h3 className="font-medium">Location Permission</h3>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Allow ZIBA to access your GPS for navigation and ride tracking
+                  Allow ZIBANA to access your GPS for navigation and ride tracking
                 </p>
                 {!isStepComplete(1) && currentStep === 1 && (
                   <Button 

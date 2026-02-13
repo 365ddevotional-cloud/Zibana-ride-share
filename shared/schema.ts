@@ -1530,7 +1530,7 @@ export const countryPricingRules = pgTable("country_pricing_rules", {
   cancellationFeePercent: decimal("cancellation_fee_percent", { precision: 5, scale: 2 }).notNull().default("20.00"),
   cancellationFee: decimal("cancellation_fee", { precision: 10, scale: 2 }).notNull().default("500.00"),
   cancellationFeeArrivedMultiplier: decimal("cancellation_fee_arrived_multiplier", { precision: 5, scale: 2 }).notNull().default("1.50"),
-  zibaCommissionPercent: decimal("ziba_commission_percent", { precision: 5, scale: 2 }).notNull().default("20.00"),
+  zibanaCommissionPercent: decimal("ziba_commission_percent", { precision: 5, scale: 2 }).notNull().default("20.00"),
   paymentProvider: paymentProviderEnum("payment_provider").notNull().default("placeholder"),
   active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow(),
@@ -1637,8 +1637,8 @@ export const walletTopupLogs = pgTable("wallet_topup_logs", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Phase 25 - ZIBA Platform Wallet table
-export const zibaWallet = pgTable("ziba_wallet", {
+// Phase 25 - ZIBANA Platform Wallet table
+export const zibanaWallet = pgTable("ziba_wallet", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   commissionBalance: decimal("commission_balance", { precision: 12, scale: 2 }).notNull().default("0.00"),
   cancellationFees: decimal("cancellation_fees", { precision: 12, scale: 2 }).notNull().default("0.00"),
@@ -1734,9 +1734,9 @@ export const revenueSplitLedger = pgTable("revenue_split_ledger", {
   fareAmount: decimal("fare_amount", { precision: 12, scale: 2 }).notNull(),
   currencyCode: varchar("currency_code", { length: 3 }).notNull(),
   driverShare: decimal("driver_share", { precision: 12, scale: 2 }).notNull(),
-  zibaShare: decimal("ziba_share", { precision: 12, scale: 2 }).notNull(),
+  zibanaShare: decimal("ziba_share", { precision: 12, scale: 2 }).notNull(),
   driverSharePercent: integer("driver_share_percent").notNull().default(80),
-  zibaSharePercent: integer("ziba_share_percent").notNull().default(20),
+  zibanaSharePercent: integer("ziba_share_percent").notNull().default(20),
   isTestRide: boolean("is_test_ride").notNull().default(false),
   paymentSource: paymentSourceEnum("payment_source"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -2433,7 +2433,7 @@ export type RiderPaymentMethod = typeof riderPaymentMethods.$inferSelect;
 export type InsertDriverWallet = z.infer<typeof insertDriverWalletSchema>;
 export type DriverWallet = typeof driverWallets.$inferSelect;
 
-export type ZibaWallet = typeof zibaWallet.$inferSelect;
+export type ZibanaWallet = typeof zibanaWallet.$inferSelect;
 
 export type InsertEscrow = z.infer<typeof insertEscrowSchema>;
 export type Escrow = typeof escrows.$inferSelect;

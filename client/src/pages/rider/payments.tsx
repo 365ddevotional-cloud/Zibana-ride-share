@@ -153,7 +153,7 @@ export default function RiderPayments() {
                       <p className="text-2xl font-bold" data-testid="text-main-balance">
                         {formatCurrency(walletData?.mainBalance, currency)}
                       </p>
-                      <p className="text-xs text-muted-foreground">{t("payments.zibaWallet")}</p>
+                      <p className="text-xs text-muted-foreground">{t("payments.zibanaWallet")}</p>
                     </div>
                     <Button
                       variant="outline"
@@ -223,7 +223,7 @@ export default function RiderPayments() {
                           <Wallet className="h-5 w-5 text-primary" />
                         </div>
                         <div>
-                          <p className="font-medium text-sm">{t("payments.zibaWallet")}</p>
+                          <p className="font-medium text-sm">{t("payments.zibanaWallet")}</p>
                           <p className="text-xs text-muted-foreground">
                             {t("payments.paySecurely")}
                           </p>

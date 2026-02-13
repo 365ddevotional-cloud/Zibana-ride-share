@@ -7,9 +7,9 @@ export function isRoleAllowedInAppMode(role: string | null | undefined): boolean
 }
 
 export function getAppName(): string {
-  return "ZIBA Ride";
+  return "ZIBANA Ride";
 }
 
 export function getAppPackageName(): string {
-  return "com.ziba.rider";
+  return "com.zibana.rider";
 }

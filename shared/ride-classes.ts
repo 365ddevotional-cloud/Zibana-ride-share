@@ -35,7 +35,7 @@ export interface RideClassDefinition {
 export const RIDE_CLASSES: Record<RideClassId, RideClassDefinition> = {
   go: {
     id: "go",
-    name: "ZIBA Go",
+    name: "ZIBANA Go",
     displayName: "Go",
     description: "Everyday affordable rides",
     fareMultiplier: 1.0,
@@ -64,7 +64,7 @@ export const RIDE_CLASSES: Record<RideClassId, RideClassDefinition> = {
   },
   plus: {
     id: "plus",
-    name: "ZIBA Plus",
+    name: "ZIBANA Plus",
     displayName: "Plus",
     description: "Larger vehicles with 6-7 seats",
     fareMultiplier: 1.3,
@@ -93,7 +93,7 @@ export const RIDE_CLASSES: Record<RideClassId, RideClassDefinition> = {
   },
   comfort: {
     id: "comfort",
-    name: "ZIBA Comfort",
+    name: "ZIBANA Comfort",
     displayName: "Comfort",
     description: "Newer vehicles, smoother experience",
     fareMultiplier: 1.5,
@@ -122,7 +122,7 @@ export const RIDE_CLASSES: Record<RideClassId, RideClassDefinition> = {
   },
   pet_ride: {
     id: "pet_ride",
-    name: "ZIBA PetRide",
+    name: "ZIBANA PetRide",
     displayName: "PetRide",
     description: "Pet-friendly vehicles only",
     fareMultiplier: 1.5,
@@ -151,7 +151,7 @@ export const RIDE_CLASSES: Record<RideClassId, RideClassDefinition> = {
   },
   safe_teen: {
     id: "safe_teen",
-    name: "ZIBA SafeTeen",
+    name: "ZIBANA SafeTeen",
     displayName: "SafeTeen",
     description: "Safe rides with verified drivers for teens",
     fareMultiplier: 1.4,
@@ -180,7 +180,7 @@ export const RIDE_CLASSES: Record<RideClassId, RideClassDefinition> = {
   },
   elite: {
     id: "elite",
-    name: "ZIBA Elite",
+    name: "ZIBANA Elite",
     displayName: "Elite",
     description: "Premium vehicles and top-rated drivers",
     fareMultiplier: 2.0,

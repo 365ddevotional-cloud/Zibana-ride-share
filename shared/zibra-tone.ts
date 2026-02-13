@@ -23,7 +23,7 @@ const TONE_CONFIGS: Record<ToneStyle, ToneConfig> = {
     errorPrefix: "We apologize for the inconvenience. ",
     guidancePrefix: "Please follow these steps: ",
     escalationMessage: "I will escalate your request to our support team for further assistance.",
-    closingMessage: "Thank you for contacting ZIBA Support. Please do not hesitate to reach out again.",
+    closingMessage: "Thank you for contacting ZIBANA Support. Please do not hesitate to reach out again.",
     useEmoji: false,
   },
   neutral: {

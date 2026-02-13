@@ -46,7 +46,7 @@
     "testCredits": "Salio la majaribio",
     "noSavedPlaces": "Hakuna maeneo yaliyohifadhiwa bado",
     "locationRequired": "Inahitajika kupata eneo",
-    "locationDescription": "ZIBA inahitaji eneo lako kupata madereva wa karibu na kuhesabu njia.",
+    "locationDescription": "ZIBANA inahitaji eneo lako kupata madereva wa karibu na kuhesabu njia.",
     "allowLocation": "Ruhusu kupata eneo"
   },
   "services": {
@@ -132,7 +132,7 @@
     "ridePinDesc": "Thibitisha dereva wako kabla ya kupanda",
     "about": "Kuhusu",
     "version": "Toleo",
-    "aboutDesc": "ZIBA ni jukwaa la kupata safari lililobuniwa kwa masoko yanayokua, likiunganisha wasafiri na madereva salama na wa kuaminika. Tumejitolea kuboresha usafiri na kuunda fursa za kiuchumi barani Afrika na zaidi.",
+    "aboutDesc": "ZIBANA ni jukwaa la kupata safari lililobuniwa kwa masoko yanayokua, likiunganisha wasafiri na madereva salama na wa kuaminika. Tumejitolea kuboresha usafiri na kuunda fursa za kiuchumi barani Afrika na zaidi.",
     "termsService": "Masharti ya huduma na sera ya faragha",
     "resetLanguage": "Rejesha kwa Kiingereza"
   },
@@ -151,7 +151,7 @@
     "title": "Malipo",
     "subtitle": "Dhibiti njia za malipo na pochi yako",
     "walletBalance": "Salio la pochi",
-    "zibaWallet": "Pochi ya ZIBA",
+    "zibanaWallet": "Pochi ya ZIBANA",
     "manageWallet": "Dhibiti pochi",
     "sponsoredBy": "Imefadhiliwa na",
     "supporters": "wafadhili",
@@ -179,10 +179,10 @@
     "placeholder": "Andika ujumbe...",
     "send": "Tuma",
     "helpReset": "Unaweza kurejesha lugha kutoka Mipangilio → Lugha → Kiingereza.",
-    "greeting": "Hujambo! Mimi ni ZIBRA, msaidizi wako wa ZIBA. Nawezaje kukusaidia leo?"
+    "greeting": "Hujambo! Mimi ni ZIBRA, msaidizi wako wa ZIBANA. Nawezaje kukusaidia leo?"
   },
   "rider": {
-    "appName": "ZIBA",
+    "appName": "ZIBANA",
     "appRole": "Msafiri"
   },
   "safety": {

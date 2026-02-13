@@ -37,7 +37,7 @@ const rideTypes: RideType[] = [
     iconColor: "text-amber-600 dark:text-amber-400",
     available: true,
     badge: "Available",
-    detail: "Experience ZIBA in style with our premium fleet. Luxury vehicles, professional drivers, and priority service for those moments that matter most.",
+    detail: "Experience ZIBANA in style with our premium fleet. Luxury vehicles, professional drivers, and priority service for those moments that matter most.",
   },
   {
     id: "group",
@@ -141,7 +141,7 @@ export default function SpecialRides() {
             <CardContent className="p-4 space-y-4">
               <div className="flex items-center gap-2">
                 <RideClassIcon rideClass="go" size="sm" />
-                <h3 className="font-semibold" data-testid="text-ride-classes-section">ZIBA Ride Classes</h3>
+                <h3 className="font-semibold" data-testid="text-ride-classes-section">ZIBANA Ride Classes</h3>
               </div>
               <p className="text-sm text-muted-foreground">
                 Choose the ride that fits your needs. Select your class when requesting a ride from the home screen.
@@ -187,7 +187,7 @@ export default function SpecialRides() {
                     Additional Ride Options
                   </p>
                   <p className="text-sm text-amber-700 dark:text-amber-300 mt-1" data-testid="text-special-intro-description">
-                    From group trips to event coordination, ZIBA offers ride types tailored to your unique travel needs.
+                    From group trips to event coordination, ZIBANA offers ride types tailored to your unique travel needs.
                   </p>
                 </div>
               </div>
@@ -318,7 +318,7 @@ export default function SpecialRides() {
           <div className="flex items-start gap-2 p-3 rounded-lg bg-muted">
             <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
             <p className="text-xs text-muted-foreground" data-testid="text-special-disclaimer">
-              ZIBA facilitates ride access. Availability and eligibility may vary.
+              ZIBANA facilitates ride access. Availability and eligibility may vary.
             </p>
           </div>
 

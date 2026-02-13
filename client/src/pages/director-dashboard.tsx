@@ -1682,11 +1682,11 @@ export default function DirectorDashboard() {
             </Card>
           )}
 
-          <Card data-testid="card-ziba-insight">
+          <Card data-testid="card-zibana-insight">
             <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <Lightbulb className="h-4 w-4" />
-                ZIBA Support Insight
+                ZIBANA Support Insight
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -1772,7 +1772,7 @@ export default function DirectorDashboard() {
                   size="sm"
                   variant="outline"
                   className="w-full"
-                  onClick={() => { const supportButton = document.querySelector('[data-testid="ziba-support-button"]') as HTMLElement; if (supportButton) supportButton.click(); }}
+                  onClick={() => { const supportButton = document.querySelector('[data-testid="zibana-support-button"]') as HTMLElement; if (supportButton) supportButton.click(); }}
                   data-testid="button-director-contact-support"
                 >
                   <MessageCircle className="h-3.5 w-3.5 mr-1.5" />
@@ -1871,7 +1871,7 @@ export default function DirectorDashboard() {
               <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
                   <Eye className="h-4 w-4" />
-                  ZIBA Oversight
+                  ZIBANA Oversight
                 </CardTitle>
                 <Badge variant="outline" data-testid="badge-signal-count">{oversightSignals.signals.length}</Badge>
               </CardHeader>
@@ -1904,7 +1904,7 @@ export default function DirectorDashboard() {
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-xs text-muted-foreground italic" data-testid="text-compliance-disclaimer">
-                Director earnings are facilitation-based estimates subject to eligibility rules, daily caps, compliance reviews, and platform policies. ZIBA does not guarantee earnings, driver activity, or payout timelines.
+                Director earnings are facilitation-based estimates subject to eligibility rules, daily caps, compliance reviews, and platform policies. ZIBANA does not guarantee earnings, driver activity, or payout timelines.
               </p>
               <div className="text-xs text-muted-foreground space-y-1" data-testid="text-compliance-acknowledgements">
                 <p>By operating as a director, you acknowledge:</p>
@@ -2106,8 +2106,8 @@ export default function DirectorDashboard() {
                 <div className="space-y-2 text-xs text-muted-foreground p-3 rounded-md border">
                   <p><strong>Voluntary Support:</strong> Any wallet funding provided to a Driver is voluntary support and does not constitute a loan, wage, salary, advance, or repayment obligation.</p>
                   <p><strong>No Coercion:</strong> Directors may not require, imply, or enforce performance, repayment, or compliance as a condition for wallet funding.</p>
-                  <p><strong>Limitation of Liability:</strong> ZIBA facilitates wallet transfers and does not assume responsibility for agreements, expectations, or disputes arising from voluntary support.</p>
-                  <p><strong>Platform Role:</strong> ZIBA is not an employer, lender, or guarantor. Directors act independently within platform rules.</p>
+                  <p><strong>Limitation of Liability:</strong> ZIBANA facilitates wallet transfers and does not assume responsibility for agreements, expectations, or disputes arising from voluntary support.</p>
+                  <p><strong>Platform Role:</strong> ZIBANA is not an employer, lender, or guarantor. Directors act independently within platform rules.</p>
                 </div>
                 <Button onClick={() => acceptMutation.mutate()} disabled={isReadOnly || acceptMutation.isPending} data-testid="button-accept-terms">
                   {acceptMutation.isPending ? "Accepting..." : "I Accept These Terms"}
@@ -3045,7 +3045,7 @@ export default function DirectorDashboard() {
           </Card>
 
           <div className="p-3 rounded-md border bg-muted/50 text-xs text-muted-foreground" data-testid="text-disputes-disclaimer">
-            Director disputes are reviewed by administrators. Submissions are tracked and form part of your account record. ZIBA aims to resolve disputes fairly and promptly.
+            Director disputes are reviewed by administrators. Submissions are tracked and form part of your account record. ZIBANA aims to resolve disputes fairly and promptly.
           </div>
         </TabsContent>
 
@@ -3233,9 +3233,9 @@ export default function DirectorDashboard() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2 text-xs text-muted-foreground p-4 rounded-md border" data-testid="text-director-terms-content">
-                <p><strong>No Employment Guarantee:</strong> {profile?.directorType === "contract" ? "As a contract director, your engagement does not constitute employment. You operate as an independent facilitator within the ZIBA platform." : "Your director role is subject to the terms of your employment agreement and platform policies."}</p>
-                <p><strong>Commission is Conditional & Revocable:</strong> Any commission or earnings are conditional upon meeting platform eligibility criteria, compliance requirements, and activity thresholds. ZIBA reserves the right to revoke, adjust, or withhold commissions at its discretion.</p>
-                <p><strong>Platform Rules May Change:</strong> ZIBA may update, modify, or introduce new rules, policies, commission structures, or operational requirements at any time. Continued use of the platform constitutes acceptance of updated terms.</p>
+                <p><strong>No Employment Guarantee:</strong> {profile?.directorType === "contract" ? "As a contract director, your engagement does not constitute employment. You operate as an independent facilitator within the ZIBANA platform." : "Your director role is subject to the terms of your employment agreement and platform policies."}</p>
+                <p><strong>Commission is Conditional & Revocable:</strong> Any commission or earnings are conditional upon meeting platform eligibility criteria, compliance requirements, and activity thresholds. ZIBANA reserves the right to revoke, adjust, or withhold commissions at its discretion.</p>
+                <p><strong>Platform Rules May Change:</strong> ZIBANA may update, modify, or introduce new rules, policies, commission structures, or operational requirements at any time. Continued use of the platform constitutes acceptance of updated terms.</p>
                 <p><strong>Fraud Leads to Forfeiture:</strong> Any fraudulent activity, misrepresentation, or abuse of the platform will result in immediate forfeiture of all pending earnings, suspension or termination of your director account, and potential legal action.</p>
                 <p><strong>No Entitlement to Platform Revenue Data:</strong> Directors are not entitled to access, audit, or receive detailed platform revenue, financial, or operational data beyond what is provided in the director dashboard.</p>
               </div>

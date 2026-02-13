@@ -31,16 +31,16 @@ const modules: Record<string, TrainingModule> = {
     icon: BookOpen,
     accent: "text-blue-600 dark:text-blue-400",
     overview:
-      "This module covers everything a new driver needs to know to get started on the ZIBA platform. From initial registration to completing your first trip, this guide walks through the full onboarding journey.",
+      "This module covers everything a new driver needs to know to get started on the ZIBANA platform. From initial registration to completing your first trip, this guide walks through the full onboarding journey.",
     sections: [
       {
         heading: "Account Registration",
         points: [
-          "Download the ZIBA app and create your driver account using your phone number",
+          "Download the ZIBANA app and create your driver account using your phone number",
           "Complete your personal information including full legal name, address, and date of birth",
           "Upload a clear, recent passport-style photograph for your driver profile",
           "Provide your bank account details for earnings payouts (Nigerian bank accounts supported)",
-          "Agree to ZIBA\u2019s Terms of Service and Driver Partner Agreement",
+          "Agree to ZIBANA\u2019s Terms of Service and Driver Partner Agreement",
         ],
       },
       {
@@ -48,7 +48,7 @@ const modules: Record<string, TrainingModule> = {
         points: [
           "Enter your vehicle details: make, model, year, colour, and license plate number",
           "Upload clear photographs of your vehicle (front, back, interior, and both sides)",
-          "Ensure your vehicle meets ZIBA\u2019s minimum requirements (year, condition, air conditioning)",
+          "Ensure your vehicle meets ZIBANA\u2019s minimum requirements (year, condition, air conditioning)",
           "Vehicle inspection may be required before activation in your market",
           "You can manage multiple vehicles from your account settings",
         ],
@@ -70,7 +70,7 @@ const modules: Record<string, TrainingModule> = {
           "Ride requests will appear as pop-ups showing pickup location, estimated fare, and distance",
           "Accept a request to begin navigation to the rider\u2019s pickup point",
           "Confirm rider identity using the 4-digit verification code shown in the app",
-          "Complete the trip, and your earnings are automatically credited to your ZIBA wallet",
+          "Complete the trip, and your earnings are automatically credited to your ZIBANA wallet",
         ],
       },
     ],
@@ -81,13 +81,13 @@ const modules: Record<string, TrainingModule> = {
     icon: ShieldCheck,
     accent: "text-red-600 dark:text-red-400",
     overview:
-      "Safety is ZIBA\u2019s highest priority. This module covers emergency procedures, safety features built into the app, and best practices for protecting yourself and your riders during every trip.",
+      "Safety is ZIBANA\u2019s highest priority. This module covers emergency procedures, safety features built into the app, and best practices for protecting yourself and your riders during every trip.",
     sections: [
       {
         heading: "Emergency SOS System",
         points: [
           "The SOS button is always accessible on the active trip screen \u2014 tap and hold for 3 seconds to activate",
-          "Activating SOS immediately alerts ZIBA\u2019s safety team and shares your live GPS location",
+          "Activating SOS immediately alerts ZIBANA\u2019s safety team and shares your live GPS location",
           "Emergency contacts you\u2019ve registered will receive an automated SMS with your location",
           "Local emergency services can be contacted directly through the SOS panel",
           "All SOS events are logged and reviewed by the safety team within minutes",
@@ -110,7 +110,7 @@ const modules: Record<string, TrainingModule> = {
           "Never start a trip until the code matches what\u2019s displayed in your app",
           "For SafeTeen rides, additional guardian verification is required before pickup",
           "Report any riders who refuse to provide verification or behave suspiciously",
-          "ZIBA uses facial recognition checks for high-value and late-night trips",
+          "ZIBANA uses facial recognition checks for high-value and late-night trips",
         ],
       },
       {
@@ -131,7 +131,7 @@ const modules: Record<string, TrainingModule> = {
     icon: Smartphone,
     accent: "text-purple-600 dark:text-purple-400",
     overview:
-      "Learn how to navigate and use every feature of the ZIBA driver app. This module covers the dashboard, ride management, earnings tracking, settings, and troubleshooting common issues.",
+      "Learn how to navigate and use every feature of the ZIBANA driver app. This module covers the dashboard, ride management, earnings tracking, settings, and troubleshooting common issues.",
     sections: [
       {
         heading: "Driver Dashboard",
@@ -198,7 +198,7 @@ const modules: Record<string, TrainingModule> = {
         points: [
           "Stay calm and professional when a rider raises a concern during or after a trip",
           "Acknowledge the issue without being defensive \u2014 listen first, then explain",
-          "If you cannot resolve a situation, suggest the rider contact ZIBA support through the app",
+          "If you cannot resolve a situation, suggest the rider contact ZIBANA support through the app",
           "Never argue with a rider over fares \u2014 fare disputes are handled by the platform",
           "Document any issues using the post-trip reporting feature for your own protection",
         ],
@@ -231,7 +231,7 @@ const modules: Record<string, TrainingModule> = {
     icon: Wallet,
     accent: "text-amber-600 dark:text-amber-400",
     overview:
-      "Understand how you earn money on ZIBA, how fares are calculated, and how to manage your payouts. This module covers the complete financial lifecycle from fare to bank account.",
+      "Understand how you earn money on ZIBANA, how fares are calculated, and how to manage your payouts. This module covers the complete financial lifecycle from fare to bank account.",
     sections: [
       {
         heading: "Fare Breakdown",
@@ -256,7 +256,7 @@ const modules: Record<string, TrainingModule> = {
       {
         heading: "Wallet Management",
         points: [
-          "Your ZIBA wallet holds your trip earnings, bonuses, and incentive payouts",
+          "Your ZIBANA wallet holds your trip earnings, bonuses, and incentive payouts",
           "Wallet balance is updated in real time after each completed trip",
           "You can view a complete transaction history with filters for date, type, and amount",
           "Third-party funding from family or employers can be credited to your wallet",

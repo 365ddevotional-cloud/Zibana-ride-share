@@ -105,7 +105,7 @@ export default function QaMonitorPanel({ isSuperAdmin }: QaMonitorPanelProps) {
 
   const [checklist, setChecklist] = useState<Record<string, boolean>>(() => {
     try {
-      const saved = localStorage.getItem("ziba-qa-checklist");
+      const saved = localStorage.getItem("zibana-qa-checklist");
       return saved ? JSON.parse(saved) : {};
     } catch { return {}; }
   });
@@ -113,14 +113,14 @@ export default function QaMonitorPanel({ isSuperAdmin }: QaMonitorPanelProps) {
   const toggleCheck = (key: string) => {
     setChecklist(prev => {
       const next = { ...prev, [key]: !prev[key] };
-      localStorage.setItem("ziba-qa-checklist", JSON.stringify(next));
+      localStorage.setItem("zibana-qa-checklist", JSON.stringify(next));
       return next;
     });
   };
 
   const resetChecklist = () => {
     setChecklist({});
-    localStorage.removeItem("ziba-qa-checklist");
+    localStorage.removeItem("zibana-qa-checklist");
   };
 
   if (isLoading) {

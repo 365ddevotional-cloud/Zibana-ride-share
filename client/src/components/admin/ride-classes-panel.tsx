@@ -81,7 +81,7 @@ export function RideClassesPanel() {
         <div>
           <h2 className="text-lg font-semibold" data-testid="text-ride-classes-title">Ride Classification Management</h2>
           <p className="text-sm text-muted-foreground">
-            View and manage ZIBA ride classes, fare multipliers, and driver eligibility rules.
+            View and manage ZIBANA ride classes, fare multipliers, and driver eligibility rules.
           </p>
         </div>
         <Badge variant="outline" data-testid="badge-active-count">
@@ -284,7 +284,7 @@ export function RideClassesPanel() {
         <CardContent className="text-sm text-muted-foreground space-y-2">
           <p>Ride class definitions and fare multipliers apply globally. Country-specific pricing adjustments are handled through the Countries tab.</p>
           <p>Driver eligibility for each class is determined by their rating, vehicle year, and approval flags. Directors can recommend drivers for higher classes, but approval is required from admin.</p>
-          <p>ZIBA Elite and SafeTeen require additional approval flags on the driver profile before they can be matched to those ride classes.</p>
+          <p>ZIBANA Elite and SafeTeen require additional approval flags on the driver profile before they can be matched to those ride classes.</p>
         </CardContent>
       </Card>
     </div>

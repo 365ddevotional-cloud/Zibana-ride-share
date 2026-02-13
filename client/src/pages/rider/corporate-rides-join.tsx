@@ -248,7 +248,7 @@ export default function CorporateRidesJoin() {
           <div className="flex items-start gap-2 p-3 rounded-lg bg-muted">
             <Shield className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
             <p className="text-xs text-muted-foreground" data-testid="text-corporate-disclaimer">
-              Availability and approval are subject to policy. ZIBA facilitates access but does not guarantee participation.
+              Availability and approval are subject to policy. ZIBANA facilitates access but does not guarantee participation.
             </p>
           </div>
 

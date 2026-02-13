@@ -46,7 +46,7 @@
     "testCredits": "Créditos de prueba",
     "noSavedPlaces": "Aún no hay lugares guardados",
     "locationRequired": "Se necesita acceso a la ubicación",
-    "locationDescription": "ZIBA necesita tu ubicación para encontrar conductores cercanos y calcular rutas.",
+    "locationDescription": "ZIBANA necesita tu ubicación para encontrar conductores cercanos y calcular rutas.",
     "allowLocation": "Permitir acceso a la ubicación"
   },
   "services": {
@@ -132,7 +132,7 @@
     "ridePinDesc": "Verifica a tu conductor antes de subir",
     "about": "Acerca de",
     "version": "Versión",
-    "aboutDesc": "ZIBA es una plataforma de transporte diseñada para mercados emergentes, conectando pasajeros con conductores seguros y confiables. Estamos comprometidos con mejorar la movilidad y crear oportunidades económicas en toda África y más allá.",
+    "aboutDesc": "ZIBANA es una plataforma de transporte diseñada para mercados emergentes, conectando pasajeros con conductores seguros y confiables. Estamos comprometidos con mejorar la movilidad y crear oportunidades económicas en toda África y más allá.",
     "termsService": "Términos de servicio y política de privacidad",
     "resetLanguage": "Restablecer a inglés"
   },
@@ -151,7 +151,7 @@
     "title": "Pagos",
     "subtitle": "Administra tus métodos de pago y billetera",
     "walletBalance": "Saldo de billetera",
-    "zibaWallet": "Billetera ZIBA",
+    "zibanaWallet": "Billetera ZIBANA",
     "manageWallet": "Administrar billetera",
     "sponsoredBy": "Patrocinado por",
     "supporters": "patrocinadores",
@@ -179,10 +179,10 @@
     "placeholder": "Escribe un mensaje...",
     "send": "Enviar",
     "helpReset": "Puedes restablecer el idioma desde Configuración → Idioma → Inglés.",
-    "greeting": "¡Hola! Soy ZIBRA, tu asistente de soporte ZIBA. ¿Cómo puedo ayudarte hoy?"
+    "greeting": "¡Hola! Soy ZIBRA, tu asistente de soporte ZIBANA. ¿Cómo puedo ayudarte hoy?"
   },
   "rider": {
-    "appName": "ZIBA",
+    "appName": "ZIBANA",
     "appRole": "Pasajero"
   },
   "safety": {

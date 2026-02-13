@@ -48,25 +48,25 @@ export default function RiderTermsPrivacy() {
                   <section>
                     <h3 className="font-semibold mb-1">1. Acceptance of Terms</h3>
                     <p className="text-muted-foreground">
-                      By accessing or using the ZIBA platform, you agree to be bound by these Terms of Service. If you do not agree with any part of these terms, you must not use our services.
+                      By accessing or using the ZIBANA platform, you agree to be bound by these Terms of Service. If you do not agree with any part of these terms, you must not use our services.
                     </p>
                   </section>
                   <section>
                     <h3 className="font-semibold mb-1">2. Service Description</h3>
                     <p className="text-muted-foreground">
-                      ZIBA provides a ride-hailing platform that connects riders with independent drivers. ZIBA does not provide transportation services directly. Drivers are independent contractors, not employees of ZIBA.
+                      ZIBANA provides a ride-hailing platform that connects riders with independent drivers. ZIBANA does not provide transportation services directly. Drivers are independent contractors, not employees of ZIBANA.
                     </p>
                   </section>
                   <section>
                     <h3 className="font-semibold mb-1">3. User Accounts</h3>
                     <p className="text-muted-foreground">
-                      You must provide accurate information when creating an account. You are responsible for maintaining the confidentiality of your account credentials. You must be at least 18 years old to use ZIBA services.
+                      You must provide accurate information when creating an account. You are responsible for maintaining the confidentiality of your account credentials. You must be at least 18 years old to use ZIBANA services.
                     </p>
                   </section>
                   <section>
                     <h3 className="font-semibold mb-1">4. Payments & Pricing</h3>
                     <p className="text-muted-foreground">
-                      Fares are calculated based on distance, time, and local pricing rules. You agree to pay the displayed fare upon trip completion. ZIBA may charge cancellation fees for rides cancelled after driver acceptance.
+                      Fares are calculated based on distance, time, and local pricing rules. You agree to pay the displayed fare upon trip completion. ZIBANA may charge cancellation fees for rides cancelled after driver acceptance.
                     </p>
                   </section>
                   <section>
@@ -78,19 +78,19 @@ export default function RiderTermsPrivacy() {
                   <section>
                     <h3 className="font-semibold mb-1">6. Safety</h3>
                     <p className="text-muted-foreground">
-                      ZIBA provides safety features including ride PINs, trip sharing, and emergency contacts. Always verify your driver and vehicle before entering. Use the in-app emergency features if you feel unsafe.
+                      ZIBANA provides safety features including ride PINs, trip sharing, and emergency contacts. Always verify your driver and vehicle before entering. Use the in-app emergency features if you feel unsafe.
                     </p>
                   </section>
                   <section>
                     <h3 className="font-semibold mb-1">7. Limitation of Liability</h3>
                     <p className="text-muted-foreground">
-                      ZIBA acts as a technology platform connecting riders and drivers. To the maximum extent permitted by law, ZIBA is not liable for incidents during rides, as drivers are independent service providers.
+                      ZIBANA acts as a technology platform connecting riders and drivers. To the maximum extent permitted by law, ZIBANA is not liable for incidents during rides, as drivers are independent service providers.
                     </p>
                   </section>
                   <section>
                     <h3 className="font-semibold mb-1">8. Modifications</h3>
                     <p className="text-muted-foreground">
-                      ZIBA reserves the right to update these terms at any time. Continued use of the platform after changes constitutes acceptance of the updated terms.
+                      ZIBANA reserves the right to update these terms at any time. Continued use of the platform after changes constitutes acceptance of the updated terms.
                     </p>
                   </section>
                 </CardContent>
@@ -149,7 +149,7 @@ export default function RiderTermsPrivacy() {
                   <section>
                     <h3 className="font-semibold mb-1">8. Contact Us</h3>
                     <p className="text-muted-foreground">
-                      For privacy inquiries, please contact our support team through the Help Center or email us at privacy@ziba.app. We aim to respond to all privacy requests within 30 days.
+                      For privacy inquiries, please contact our support team through the Help Center or email us at privacy@zibana.app. We aim to respond to all privacy requests within 30 days.
                     </p>
                   </section>
                 </CardContent>

@@ -46,7 +46,7 @@
     "testCredits": "Ego nnwale",
     "noSavedPlaces": "Ọ nweghị ebe echekwara",
     "locationRequired": "A chọrọ ebe ị nọ",
-    "locationDescription": "ZIBA chọrọ ebe ị nọ iji chọta ndị ọkwọ ụgbọ dị nso ma gbakọọ ụzọ.",
+    "locationDescription": "ZIBANA chọrọ ebe ị nọ iji chọta ndị ọkwọ ụgbọ dị nso ma gbakọọ ụzọ.",
     "allowLocation": "Kwere ka a nweta ebe ị nọ"
   },
   "services": {
@@ -132,7 +132,7 @@
     "ridePinDesc": "Nyochaa onye ọkwọ ụgbọ gị tupu ị banyere",
     "about": "Maka",
     "version": "Ụdị",
-    "aboutDesc": "ZIBA bụ ikpo okwu nke ụgbọ nke emebere maka ahịa na-eto eto, na-ejikọ ndị njem na ndị ọkwọ ụgbọ nchekwa na ntụkwasị obi. Anyị kwadoro imeziwanye mmegharị na ịmepụta ohere akụnụba n'ofe Afrịka na gafere ya.",
+    "aboutDesc": "ZIBANA bụ ikpo okwu nke ụgbọ nke emebere maka ahịa na-eto eto, na-ejikọ ndị njem na ndị ọkwọ ụgbọ nchekwa na ntụkwasị obi. Anyị kwadoro imeziwanye mmegharị na ịmepụta ohere akụnụba n'ofe Afrịka na gafere ya.",
     "termsService": "Usoro ọrụ na iwu nzuzo",
     "resetLanguage": "Laghachi na Bekee"
   },
@@ -151,7 +151,7 @@
     "title": "Ụgwọ",
     "subtitle": "Jikwaa ụzọ ịkwụ ụgwọ na wallet gị",
     "walletBalance": "Ego fọdụrụ na wallet",
-    "zibaWallet": "Wallet ZIBA",
+    "zibanaWallet": "Wallet ZIBANA",
     "manageWallet": "Jikwaa wallet",
     "sponsoredBy": "Nkwado site n'aka",
     "supporters": "ndị na-akwado",
@@ -179,10 +179,10 @@
     "placeholder": "Dee ozi...",
     "send": "Zipu",
     "helpReset": "Ị nwere ike ịtọgharị asụsụ site na Ntọala → Asụsụ → Bekee.",
-    "greeting": "Nno! Abụ m ZIBRA, onye enyemaka ZIBA gị. Kedu ka m ga-esi nyere gị aka taa?"
+    "greeting": "Nno! Abụ m ZIBRA, onye enyemaka ZIBANA gị. Kedu ka m ga-esi nyere gị aka taa?"
   },
   "rider": {
-    "appName": "ZIBA",
+    "appName": "ZIBANA",
     "appRole": "Onye njem"
   },
   "safety": {

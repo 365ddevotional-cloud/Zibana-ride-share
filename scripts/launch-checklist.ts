@@ -552,7 +552,7 @@ function formatResult(index: number, total: number, result: CheckResult): string
 async function main() {
   console.log("");
   console.log("\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557");
-  console.log("\u2551   ZIBA GOVERNANCE READINESS CHECK     \u2551");
+  console.log("\u2551   ZIBANA GOVERNANCE READINESS CHECK     \u2551");
   console.log("\u255a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255d");
   console.log("");
 
@@ -590,10 +590,10 @@ async function main() {
   console.log("");
 
   if (failedCount === 0) {
-    console.log("\x1b[32m\u2713 ZIBA IS GOVERNANCE READY\x1b[0m");
+    console.log("\x1b[32m\u2713 ZIBANA IS GOVERNANCE READY\x1b[0m");
     process.exit(0);
   } else {
-    console.log(`\x1b[31m\u2717 ZIBA IS NOT GOVERNANCE READY - ${failedCount} issue${failedCount > 1 ? "s" : ""} must be resolved\x1b[0m`);
+    console.log(`\x1b[31m\u2717 ZIBANA IS NOT GOVERNANCE READY - ${failedCount} issue${failedCount > 1 ? "s" : ""} must be resolved\x1b[0m`);
     process.exit(1);
   }
 }

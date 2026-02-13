@@ -1,4 +1,4 @@
-// ZIBA Pricing & Commission Configuration
+// ZIBANA Pricing & Commission Configuration
 const BASE_FARE = 5.00;
 const PER_PASSENGER_FEE = 1.00;
 const DEFAULT_COMMISSION_PERCENTAGE = 20.00;

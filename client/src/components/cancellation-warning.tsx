@@ -83,7 +83,7 @@ export function CancellationWarning({ role }: { role: "rider" | "driver" }) {
   const [shownThisSession, setShownThisSession] = useState(false);
 
   useEffect(() => {
-    const key = `ziba-${role}-warning-shown`;
+    const key = `zibana-${role}-warning-shown`;
     if (sessionStorage.getItem(key) === "true") {
       setShownThisSession(true);
     }
@@ -101,7 +101,7 @@ export function CancellationWarning({ role }: { role: "rider" | "driver" }) {
 
   const handleDismiss = () => {
     setDismissed(true);
-    sessionStorage.setItem(`ziba-${role}-warning-shown`, "true");
+    sessionStorage.setItem(`zibana-${role}-warning-shown`, "true");
   };
 
   return role === "driver"

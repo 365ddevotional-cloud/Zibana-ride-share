@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { useDiscovery } from "@/hooks/use-discovery";
 import { ZibraWelcomeBubble } from "@/components/zibra-welcome-bubble";
-import { ZibaSupport } from "@/components/ziba-support";
+import { ZibanaSupport } from "@/components/zibana-support";
 
 export default function LandingPage() {
   const appName = getAppName();
@@ -57,7 +57,7 @@ export default function LandingPage() {
         title: "Valid simulation code",
         description: `Role: ${data.role}, Country: ${data.countryCode}. Sign in to begin.`,
       });
-      sessionStorage.setItem("ziba-sim-code", simCode.trim());
+      sessionStorage.setItem("zibana-sim-code", simCode.trim());
       window.location.href = `/api/login`;
     } catch {
       setSimError("Failed to validate code");
@@ -339,7 +339,7 @@ export default function LandingPage() {
         <div className="fixed inset-0 z-50 flex items-end justify-end p-4 sm:p-6">
           <div className="fixed inset-0 bg-black/20 backdrop-blur-sm" onClick={() => setSupportOpen(false)} />
           <div className="relative w-full max-w-md max-h-[80vh] overflow-auto rounded-lg border bg-background shadow-lg">
-            <ZibaSupport onClose={() => setSupportOpen(false)} forceRole="general" />
+            <ZibanaSupport onClose={() => setSupportOpen(false)} forceRole="general" />
           </div>
         </div>
       )}

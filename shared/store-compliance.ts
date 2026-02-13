@@ -11,17 +11,17 @@ export const storeComplianceChecklist: ComplianceItem[] = [
   {
     id: "auto-1",
     category: "automation_disclosure",
-    title: "ZIBA Support Described as Automated",
-    description: "ZIBA Support (in-app assistance) is clearly described as automated assistance throughout the platform",
-    requirement: "All references to ZIBA Support must use terms like 'automated assistance' or 'automated support system'",
+    title: "ZIBANA Support Described as Automated",
+    description: "ZIBANA Support (in-app assistance) is clearly described as automated assistance throughout the platform",
+    requirement: "All references to ZIBANA Support must use terms like 'automated assistance' or 'automated support system'",
     status: "pass"
   },
   {
     id: "auto-2",
     category: "automation_disclosure",
     title: "No AI Deception Claims",
-    description: "The platform does not claim ZIBA Support is a human agent or misrepresent its nature",
-    requirement: "No language suggesting human interaction when communicating with ZIBA Support",
+    description: "The platform does not claim ZIBANA Support is a human agent or misrepresent its nature",
+    requirement: "No language suggesting human interaction when communicating with ZIBANA Support",
     status: "pass"
   },
   {
@@ -59,9 +59,9 @@ export const storeComplianceChecklist: ComplianceItem[] = [
   {
     id: "safe-1",
     category: "safety_language",
-    title: "ZIBA as Facilitator",
-    description: "ZIBA is described as a ride-hailing facilitator, not a transportation provider",
-    requirement: "Platform language clearly states ZIBA connects riders with independent drivers",
+    title: "ZIBANA as Facilitator",
+    description: "ZIBANA is described as a ride-hailing facilitator, not a transportation provider",
+    requirement: "Platform language clearly states ZIBANA connects riders with independent drivers",
     status: "pass"
   },
   {
@@ -76,7 +76,7 @@ export const storeComplianceChecklist: ComplianceItem[] = [
     id: "safe-3",
     category: "safety_language",
     title: "Responsibility Boundaries",
-    description: "Clear delineation of responsibility between ZIBA, drivers, and riders",
+    description: "Clear delineation of responsibility between ZIBANA, drivers, and riders",
     requirement: "Legal documents and in-app notices establish responsibility boundaries",
     status: "pass"
   },

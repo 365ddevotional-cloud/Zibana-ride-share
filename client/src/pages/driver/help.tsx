@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
-import { ZibaSupport } from "@/components/ziba-support";
+import { ZibanaSupport } from "@/components/zibana-support";
 import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
 import {
   Rocket,
@@ -61,15 +61,15 @@ const CATEGORIES: DriverHelpCategory[] = [
 
 const ARTICLES: DriverHelpArticle[] = [
   {
-    id: "gs-1", categoryId: "getting-started", title: "How do I start driving with ZIBA?",
+    id: "gs-1", categoryId: "getting-started", title: "How do I start driving with ZIBANA?",
     summary: "Everything you need to know to get on the road",
-    content: "Welcome to ZIBA! Getting started is straightforward:\n\n1. Create your account and complete your profile with accurate information.\n2. Submit your required documents (driver's license, vehicle registration, and valid ID).\n3. Wait for our team to verify your documents. We'll notify you once approved.\n4. Once approved, go online and start accepting trip requests.\n\nOur team is here to support you every step of the way. If you have questions during setup, visit the Safety & Support section.",
+    content: "Welcome to ZIBANA! Getting started is straightforward:\n\n1. Create your account and complete your profile with accurate information.\n2. Submit your required documents (driver's license, vehicle registration, and valid ID).\n3. Wait for our team to verify your documents. We'll notify you once approved.\n4. Once approved, go online and start accepting trip requests.\n\nOur team is here to support you every step of the way. If you have questions during setup, visit the Safety & Support section.",
     keywords: ["start", "begin", "new", "driver", "join", "register", "signup", "how"],
   },
   {
     id: "gs-2", categoryId: "getting-started", title: "What do I need to complete registration?",
     summary: "Required documents and information",
-    content: "To complete your ZIBA driver registration, you'll need:\n\n\u2022 A valid driver's license.\n\u2022 Vehicle registration documents.\n\u2022 A government-issued photo ID (e.g., national ID, passport).\n\u2022 A clear profile photo.\n\u2022 Your vehicle details (make, model, year, license plate).\n\nMake sure all documents are clear, legible, and not expired. Blurry or incomplete documents may delay your approval.",
+    content: "To complete your ZIBANA driver registration, you'll need:\n\n\u2022 A valid driver's license.\n\u2022 Vehicle registration documents.\n\u2022 A government-issued photo ID (e.g., national ID, passport).\n\u2022 A clear profile photo.\n\u2022 Your vehicle details (make, model, year, license plate).\n\nMake sure all documents are clear, legible, and not expired. Blurry or incomplete documents may delay your approval.",
     keywords: ["registration", "documents", "license", "id", "vehicle", "requirements", "need", "complete"],
   },
   {
@@ -81,7 +81,7 @@ const ARTICLES: DriverHelpArticle[] = [
   {
     id: "gs-4", categoryId: "getting-started", title: "Can I drive in multiple cities?",
     summary: "Driving in different locations",
-    content: "Currently, your ZIBA driver account is set up for your primary operating city. If you'd like to drive in a different city, your account may need to be updated to comply with local requirements.\n\nContact our support team if you're planning to drive in a new area and we'll help you get set up.",
+    content: "Currently, your ZIBANA driver account is set up for your primary operating city. If you'd like to drive in a different city, your account may need to be updated to comply with local requirements.\n\nContact our support team if you're planning to drive in a new area and we'll help you get set up.",
     keywords: ["city", "cities", "multiple", "different", "area", "location", "region", "travel"],
   },
   {
@@ -99,7 +99,7 @@ const ARTICLES: DriverHelpArticle[] = [
   {
     id: "av-3", categoryId: "account-verification", title: "What documents are required?",
     summary: "Complete list of required documents",
-    content: "ZIBA requires the following documents to verify your driver account:\n\n\u2022 Valid driver's license (not expired).\n\u2022 Vehicle registration certificate.\n\u2022 Government-issued photo ID.\n\u2022 Proof of insurance (where applicable).\n\u2022 A clear, recent profile photo.\n\nAll documents must be clearly readable. Please ensure photos are well-lit and not blurry. Expired documents will not be accepted.",
+    content: "ZIBANA requires the following documents to verify your driver account:\n\n\u2022 Valid driver's license (not expired).\n\u2022 Vehicle registration certificate.\n\u2022 Government-issued photo ID.\n\u2022 Proof of insurance (where applicable).\n\u2022 A clear, recent profile photo.\n\nAll documents must be clearly readable. Please ensure photos are well-lit and not blurry. Expired documents will not be accepted.",
     keywords: ["documents", "required", "need", "what", "license", "id", "registration", "insurance"],
   },
   {
@@ -111,7 +111,7 @@ const ARTICLES: DriverHelpArticle[] = [
   {
     id: "go-1", categoryId: "going-online", title: "How do I go online?",
     summary: "Start receiving trip requests",
-    content: "To go online and start receiving trip requests:\n\n1. Open the ZIBA Driver app.\n2. From the Home tab, tap the Online/Offline toggle.\n3. Make sure your GPS/location services are enabled.\n4. Once online, you'll start receiving trip requests from nearby riders.\n\nYou can go offline at any time by tapping the toggle again. Remember to only go online when you're ready to accept rides.",
+    content: "To go online and start receiving trip requests:\n\n1. Open the ZIBANA Driver app.\n2. From the Home tab, tap the Online/Offline toggle.\n3. Make sure your GPS/location services are enabled.\n4. Once online, you'll start receiving trip requests from nearby riders.\n\nYou can go offline at any time by tapping the toggle again. Remember to only go online when you're ready to accept rides.",
     keywords: ["online", "start", "go", "toggle", "begin", "active", "available", "turn on"],
   },
   {
@@ -135,13 +135,13 @@ const ARTICLES: DriverHelpArticle[] = [
   {
     id: "nav-1", categoryId: "navigation", title: "How does navigation work?",
     summary: "Using the in-app navigation",
-    content: "ZIBA provides distance and estimated duration for each trip. For turn-by-turn directions, you can use your preferred map app (Google Maps, Waze, Apple Maps, etc.).\n\nWhen you accept a trip, the app shows the pickup location and destination. Tap the navigation button to open directions in your preferred maps app.\n\nMake sure your GPS is enabled and accurate for the best navigation experience.",
+    content: "ZIBANA provides distance and estimated duration for each trip. For turn-by-turn directions, you can use your preferred map app (Google Maps, Waze, Apple Maps, etc.).\n\nWhen you accept a trip, the app shows the pickup location and destination. Tap the navigation button to open directions in your preferred maps app.\n\nMake sure your GPS is enabled and accurate for the best navigation experience.",
     keywords: ["navigation", "maps", "directions", "route", "gps", "how", "navigate", "turn"],
   },
   {
     id: "nav-2", categoryId: "navigation", title: "Can I use my own map app?",
     summary: "Using Google Maps, Waze, or other navigation apps",
-    content: "Yes! ZIBA is designed to work with your preferred navigation app. When you need directions to a pickup or drop-off location, the app can open the route in Google Maps, Waze, Apple Maps, or another navigation app installed on your device.\n\nUsing a familiar navigation app helps you drive confidently and find the best routes.",
+    content: "Yes! ZIBANA is designed to work with your preferred navigation app. When you need directions to a pickup or drop-off location, the app can open the route in Google Maps, Waze, Apple Maps, or another navigation app installed on your device.\n\nUsing a familiar navigation app helps you drive confidently and find the best routes.",
     keywords: ["map", "app", "google", "waze", "apple", "own", "preferred", "use", "external"],
   },
   {
@@ -159,7 +159,7 @@ const ARTICLES: DriverHelpArticle[] = [
   {
     id: "pe-1", categoryId: "payments-earnings", title: "How do I receive payments?",
     summary: "Understanding how you get paid",
-    content: "Your earnings are tracked in your ZIBA wallet. Here's how payments work:\n\n\u2022 For wallet/card trips: Your earnings are added to your wallet balance after each trip.\n\u2022 For cash trips: You collect the fare directly from the rider.\n\nYou can request a payout from your wallet to your bank account or mobile money account at any time. Set up your payout details in the Wallet tab.",
+    content: "Your earnings are tracked in your ZIBANA wallet. Here's how payments work:\n\n\u2022 For wallet/card trips: Your earnings are added to your wallet balance after each trip.\n\u2022 For cash trips: You collect the fare directly from the rider.\n\nYou can request a payout from your wallet to your bank account or mobile money account at any time. Set up your payout details in the Wallet tab.",
     keywords: ["payment", "receive", "paid", "earnings", "how", "money", "payout", "get"],
   },
   {
@@ -237,7 +237,7 @@ const ARTICLES: DriverHelpArticle[] = [
   {
     id: "rt-2", categoryId: "ratings", title: "Can I rate riders?",
     summary: "Rating your passengers",
-    content: "Yes! After completing a trip, you have the opportunity to rate your rider. Your feedback helps maintain a respectful and safe community for everyone.\n\nRider ratings help the platform identify riders who may need guidance on appropriate behavior. Your honest feedback makes ZIBA better for all drivers.",
+    content: "Yes! After completing a trip, you have the opportunity to rate your rider. Your feedback helps maintain a respectful and safe community for everyone.\n\nRider ratings help the platform identify riders who may need guidance on appropriate behavior. Your honest feedback makes ZIBANA better for all drivers.",
     keywords: ["rate", "rider", "passenger", "feedback", "review", "can", "yes"],
   },
   {
@@ -279,13 +279,13 @@ const ARTICLES: DriverHelpArticle[] = [
   {
     id: "ti-1", categoryId: "technical", title: "App is not loading",
     summary: "Fixing app loading issues",
-    content: "If the ZIBA driver app isn't loading properly:\n\n1. Check your internet connection (Wi-Fi or mobile data).\n2. Close the app completely and reopen it.\n3. Clear your browser cache if using the web version.\n4. Try restarting your device.\n5. Make sure you're using the latest version of the app.\n\nIf the problem persists after these steps, contact our support team with details about what you're experiencing.",
+    content: "If the ZIBANA driver app isn't loading properly:\n\n1. Check your internet connection (Wi-Fi or mobile data).\n2. Close the app completely and reopen it.\n3. Clear your browser cache if using the web version.\n4. Try restarting your device.\n5. Make sure you're using the latest version of the app.\n\nIf the problem persists after these steps, contact our support team with details about what you're experiencing.",
     keywords: ["not loading", "app", "broken", "stuck", "blank", "white screen", "crash", "loading"],
   },
   {
     id: "ti-2", categoryId: "technical", title: "GPS not working",
     summary: "Troubleshooting location services",
-    content: "If your GPS isn't working:\n\n1. Make sure location services are turned on in your device settings.\n2. Grant the ZIBA app permission to access your location.\n3. Set location accuracy to \"High\" in your device settings.\n4. Try restarting the app.\n5. Move to an open area for a better satellite signal.\n\nGPS issues can be caused by being indoors, in tunnels, or near tall buildings. If problems continue, restart your device and try again.",
+    content: "If your GPS isn't working:\n\n1. Make sure location services are turned on in your device settings.\n2. Grant the ZIBANA app permission to access your location.\n3. Set location accuracy to \"High\" in your device settings.\n4. Try restarting the app.\n5. Move to an open area for a better satellite signal.\n\nGPS issues can be caused by being indoors, in tunnels, or near tall buildings. If problems continue, restart your device and try again.",
     keywords: ["gps", "not working", "location", "broken", "off", "disabled", "fix"],
   },
   {
@@ -524,15 +524,15 @@ export default function DriverHelpPage() {
           </Card>
         </div>
         {supportOpen && (
-          <div className="fixed bottom-20 right-4 w-[360px] max-w-[calc(100vw-2rem)] h-[500px] max-h-[calc(100vh-6rem)] z-50 shadow-lg rounded-lg overflow-hidden" data-testid="panel-ziba-support-driver">
-            <ZibaSupport onClose={() => setSupportOpen(false)} />
+          <div className="fixed bottom-20 right-4 w-[360px] max-w-[calc(100vw-2rem)] h-[500px] max-h-[calc(100vh-6rem)] z-50 shadow-lg rounded-lg overflow-hidden" data-testid="panel-zibana-support-driver">
+            <ZibanaSupport onClose={() => setSupportOpen(false)} />
           </div>
         )}
         <Button
           className="fixed bottom-4 right-4 z-50 rounded-full shadow-lg h-12 w-12"
           size="icon"
           onClick={() => setSupportOpen(!supportOpen)}
-          data-testid="button-ziba-support-toggle-driver"
+          data-testid="button-zibana-support-toggle-driver"
         >
           <Headphones className="h-5 w-5" />
         </Button>
@@ -592,15 +592,15 @@ export default function DriverHelpPage() {
           </div>
         </div>
         {supportOpen && (
-          <div className="fixed bottom-20 right-4 w-[360px] max-w-[calc(100vw-2rem)] h-[500px] max-h-[calc(100vh-6rem)] z-50 shadow-lg rounded-lg overflow-hidden" data-testid="panel-ziba-support-driver">
-            <ZibaSupport onClose={() => setSupportOpen(false)} />
+          <div className="fixed bottom-20 right-4 w-[360px] max-w-[calc(100vw-2rem)] h-[500px] max-h-[calc(100vh-6rem)] z-50 shadow-lg rounded-lg overflow-hidden" data-testid="panel-zibana-support-driver">
+            <ZibanaSupport onClose={() => setSupportOpen(false)} />
           </div>
         )}
         <Button
           className="fixed bottom-4 right-4 z-50 rounded-full shadow-lg h-12 w-12"
           size="icon"
           onClick={() => setSupportOpen(!supportOpen)}
-          data-testid="button-ziba-support-toggle-driver"
+          data-testid="button-zibana-support-toggle-driver"
         >
           <Headphones className="h-5 w-5" />
         </Button>
@@ -771,15 +771,15 @@ export default function DriverHelpPage() {
         )}
       </div>
       {supportOpen && (
-        <div className="fixed bottom-20 right-4 w-[360px] max-w-[calc(100vw-2rem)] h-[500px] max-h-[calc(100vh-6rem)] z-50 shadow-lg rounded-lg overflow-hidden" data-testid="panel-ziba-support-driver">
-          <ZibaSupport onClose={() => setSupportOpen(false)} />
+        <div className="fixed bottom-20 right-4 w-[360px] max-w-[calc(100vw-2rem)] h-[500px] max-h-[calc(100vh-6rem)] z-50 shadow-lg rounded-lg overflow-hidden" data-testid="panel-zibana-support-driver">
+          <ZibanaSupport onClose={() => setSupportOpen(false)} />
         </div>
       )}
       <Button
         className="fixed bottom-4 right-4 z-50 rounded-full shadow-lg h-12 w-12"
         size="icon"
         onClick={() => setSupportOpen(!supportOpen)}
-        data-testid="button-ziba-support-toggle-driver"
+        data-testid="button-zibana-support-toggle-driver"
       >
         <Headphones className="h-5 w-5" />
       </Button>

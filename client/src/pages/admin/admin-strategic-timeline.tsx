@@ -34,7 +34,7 @@ interface FounderReminder {
 
 const CHECKLIST_ITEMS = [
   { key: "revocable_trust", label: "Create Revocable Living Trust" },
-  { key: "transfer_shares", label: "Transfer Ziba Global Inc shares into trust" },
+  { key: "transfer_shares", label: "Transfer Zibana Global Inc shares into trust" },
   { key: "estate_documents", label: "Review estate documents" },
   { key: "beneficiary_structure", label: "Confirm beneficiary structure" },
   { key: "corporate_compliance", label: "Review corporate compliance" },
@@ -62,7 +62,7 @@ export default function AdminStrategicTimeline() {
   useEffect(() => {
     if (!reminder) return;
     if (reminder.reminderTriggered && reminder.founderModeEnabled) {
-      const dismissed = localStorage.getItem("ziba-founder-alert-dismissed");
+      const dismissed = localStorage.getItem("zibana-founder-alert-dismissed");
       if (!dismissed) {
         setShowFullAlert(true);
       }
@@ -97,7 +97,7 @@ export default function AdminStrategicTimeline() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/founder/strategic-reminder"] });
-      localStorage.removeItem("ziba-founder-alert-dismissed");
+      localStorage.removeItem("zibana-founder-alert-dismissed");
       toast({ title: "Reminder reset successfully" });
     },
     onError: () => {
@@ -123,7 +123,7 @@ export default function AdminStrategicTimeline() {
 
   const dismissFullAlert = () => {
     setShowFullAlert(false);
-    localStorage.setItem("ziba-founder-alert-dismissed", "true");
+    localStorage.setItem("zibana-founder-alert-dismissed", "true");
   };
 
   if (isLoading) {

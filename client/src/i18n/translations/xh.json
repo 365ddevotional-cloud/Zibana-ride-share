@@ -46,7 +46,7 @@
     "testCredits": "Imali yovavanyo",
     "noSavedPlaces": "Azikho iindawo ezigciniweyo okwangoku",
     "locationRequired": "Kufuneka ufikelelo kwindawo",
-    "locationDescription": "I-ZIBA ifuna indawo yakho ukufumana abaqhubi abasondeleyo nokubalwa kweendlela.",
+    "locationDescription": "I-ZIBANA ifuna indawo yakho ukufumana abaqhubi abasondeleyo nokubalwa kweendlela.",
     "allowLocation": "Vumela ufikelelo kwindawo"
   },
   "services": {
@@ -132,7 +132,7 @@
     "ridePinDesc": "Qinisekisa umqhubi wakho ngaphambi kokukhwela",
     "about": "Malunga",
     "version": "Inguqulelo",
-    "aboutDesc": "I-ZIBA liqonga lokucela uhambo elenzelwe imarike ezisakhulayo, lidibanisa abakhweli nabaqhubi abakhuselekileyo nabathembekileyo. Sizibophelele ekuphuculeni ukuhamba nasekudaleni amathuba ezoqoqosho kulo lonke iAfrika nangaphaya.",
+    "aboutDesc": "I-ZIBANA liqonga lokucela uhambo elenzelwe imarike ezisakhulayo, lidibanisa abakhweli nabaqhubi abakhuselekileyo nabathembekileyo. Sizibophelele ekuphuculeni ukuhamba nasekudaleni amathuba ezoqoqosho kulo lonke iAfrika nangaphaya.",
     "termsService": "Imimmiselo yeenkonzo nomthetho wobumfihlo",
     "resetLanguage": "Buyisela kwisiNgesi"
   },
@@ -151,7 +151,7 @@
     "title": "Iintlawulo",
     "subtitle": "Lawula iindlela zokuhlawula nesikhwama sakho",
     "walletBalance": "Ibhalansi yesikhwama",
-    "zibaWallet": "Isikhwama se-ZIBA",
+    "zibanaWallet": "Isikhwama se-ZIBANA",
     "manageWallet": "Lawula isikhwama",
     "sponsoredBy": "Ixhaswe ngu",
     "supporters": "abaxhasi",
@@ -179,10 +179,10 @@
     "placeholder": "Bhala umyalezo...",
     "send": "Thumela",
     "helpReset": "Ungabuyisela ulwimi ukusuka kwiiSethingi → Ulwimi → IsiNgesi.",
-    "greeting": "Molo! NdinguZIBRA, umncedisi wakho we-ZIBA. Ndingakunceda njani namhlanje?"
+    "greeting": "Molo! NdinguZIBRA, umncedisi wakho we-ZIBANA. Ndingakunceda njani namhlanje?"
   },
   "rider": {
-    "appName": "ZIBA",
+    "appName": "ZIBANA",
     "appRole": "Umkhweli"
   },
   "safety": {

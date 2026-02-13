@@ -12,38 +12,38 @@ const INTENT_MAP: Record<string, string> = {
 
 const CTA_MAP: Record<string, string> = {
   "safety-first": "Ride with verified drivers",
-  "safety-aware": "Track rides safely with ZIBA",
-  "cost-aware": "Pay flexibly with ZIBA",
-  "speed-aware": "Get picked up fast with ZIBA",
-  "convenience": "Book your ride with ZIBA",
+  "safety-aware": "Track rides safely with ZIBANA",
+  "cost-aware": "Pay flexibly with ZIBANA",
+  "speed-aware": "Get picked up fast with ZIBANA",
+  "convenience": "Book your ride with ZIBANA",
   "quality-aware": "Ride with top-rated drivers",
 };
 
 function getSessionId(): string {
-  let id = sessionStorage.getItem("ziba-anon-session");
+  let id = sessionStorage.getItem("zibana-anon-session");
   if (!id) {
     id = crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    sessionStorage.setItem("ziba-anon-session", id);
+    sessionStorage.setItem("zibana-anon-session", id);
   }
   return id;
 }
 
 function getInteractionCount(): number {
-  return parseInt(sessionStorage.getItem("ziba-interaction-count") || "0", 10);
+  return parseInt(sessionStorage.getItem("zibana-interaction-count") || "0", 10);
 }
 
 function incrementInteractionCount(): number {
   const count = getInteractionCount() + 1;
-  sessionStorage.setItem("ziba-interaction-count", String(count));
+  sessionStorage.setItem("zibana-interaction-count", String(count));
   return count;
 }
 
 function getStoredIntent(): string | null {
-  return sessionStorage.getItem("ziba-user-intent");
+  return sessionStorage.getItem("zibana-user-intent");
 }
 
 function setStoredIntent(intent: string) {
-  sessionStorage.setItem("ziba-user-intent", intent);
+  sessionStorage.setItem("zibana-user-intent", intent);
 }
 
 async function trackEvent(eventType: string, eventTarget?: string, intent?: string) {
@@ -73,7 +73,7 @@ export function useDiscovery() {
   }, []);
 
   useEffect(() => {
-    if (interactionCount >= 2 && !sessionStorage.getItem("ziba-zibra-dismissed")) {
+    if (interactionCount >= 2 && !sessionStorage.getItem("zibana-zibra-dismissed")) {
       const timer = setTimeout(() => setShowZibra(true), 1500);
       return () => clearTimeout(timer);
     }
@@ -102,7 +102,7 @@ export function useDiscovery() {
 
   const dismissZibra = useCallback(() => {
     setShowZibra(false);
-    sessionStorage.setItem("ziba-zibra-dismissed", "true");
+    sessionStorage.setItem("zibana-zibra-dismissed", "true");
   }, []);
 
   const getAdaptiveCta = useCallback(() => {

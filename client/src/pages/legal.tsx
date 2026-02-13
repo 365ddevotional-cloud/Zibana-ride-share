@@ -57,41 +57,41 @@ export default function LegalPage() {
                     <section>
                       <h3 className="font-semibold text-lg mb-2">1. Introduction</h3>
                       <p className="text-muted-foreground">
-                        Welcome to ZIBA ("Platform"). These Terms of Service ("Terms") govern your access to and use of our ride-hailing platform, which connects riders with independent driver-partners for transportation services.
+                        Welcome to ZIBANA ("Platform"). These Terms of Service ("Terms") govern your access to and use of our ride-hailing platform, which connects riders with independent driver-partners for transportation services.
                       </p>
                     </section>
 
                     <section>
                       <h3 className="font-semibold text-lg mb-2">1a. Assumption of Risk</h3>
                       <p className="text-muted-foreground mb-2">
-                        By using ZIBA, all users expressly acknowledge and agree that:
+                        By using ZIBANA, all users expressly acknowledge and agree that:
                       </p>
                       <ul className="list-disc pl-6 text-muted-foreground space-y-1">
-                        <li>ZIBA is a digital technology marketplace, not a transportation provider</li>
-                        <li>ZIBA does not own vehicles, employ drivers, or control trip outcomes</li>
+                        <li>ZIBANA is a digital technology marketplace, not a transportation provider</li>
+                        <li>ZIBANA does not own vehicles, employ drivers, or control trip outcomes</li>
                         <li>All trips are undertaken at the user's own risk</li>
-                        <li>ZIBA does not guarantee the safety, reliability, or conduct of any driver or rider</li>
+                        <li>ZIBANA does not guarantee the safety, reliability, or conduct of any driver or rider</li>
                         <li>Users are responsible for their own personal safety decisions</li>
-                        <li>ZIBA is not liable for accidents, injuries, assault, robbery, or property damage occurring during or in connection with trips</li>
+                        <li>ZIBANA is not liable for accidents, injuries, assault, robbery, or property damage occurring during or in connection with trips</li>
                       </ul>
                     </section>
 
                     <section>
                       <h3 className="font-semibold text-lg mb-2">2. Platform Nature</h3>
                       <p className="text-muted-foreground">
-                        ZIBA operates as a digital marketplace that facilitates connections between riders seeking transportation and independent driver-partners who provide transportation services. ZIBA does not provide transportation services directly, is not a transportation carrier, does not employ drivers, and does not supervise individual trips. ZIBA's role is limited to providing the technology platform and associated support services.
+                        ZIBANA operates as a digital marketplace that facilitates connections between riders seeking transportation and independent driver-partners who provide transportation services. ZIBANA does not provide transportation services directly, is not a transportation carrier, does not employ drivers, and does not supervise individual trips. ZIBANA's role is limited to providing the technology platform and associated support services.
                       </p>
                     </section>
 
                     <section>
                       <h3 className="font-semibold text-lg mb-2">3. Wallet System</h3>
                       <p className="text-muted-foreground mb-2">
-                        ZIBA uses a wallet-based payment system for all transactions:
+                        ZIBANA uses a wallet-based payment system for all transactions:
                       </p>
                       <ul className="list-disc pl-6 text-muted-foreground space-y-1">
                         <li>Wallet balances represent service credits, not stored monetary value</li>
                         <li>Credits are used to pay for rides within the platform</li>
-                        <li>ZIBA is not a bank or financial institution</li>
+                        <li>ZIBANA is not a bank or financial institution</li>
                         <li>Wallet credits are non-transferable and non-refundable except as stated in our Refund Policy</li>
                         <li>All wallet transactions are final once a ride is completed</li>
                       </ul>
@@ -111,21 +111,21 @@ export default function LegalPage() {
                     <section>
                       <h3 className="font-semibold text-lg mb-2">5. Limitation of Liability</h3>
                       <p className="text-muted-foreground">
-                        ZIBA is not liable for any direct, indirect, incidental, or consequential damages arising from the use of transportation services arranged through the platform. Riders and drivers use the platform at their own risk.
+                        ZIBANA is not liable for any direct, indirect, incidental, or consequential damages arising from the use of transportation services arranged through the platform. Riders and drivers use the platform at their own risk.
                       </p>
                     </section>
 
                     <section>
                       <h3 className="font-semibold text-lg mb-2">6. Account Termination</h3>
                       <p className="text-muted-foreground">
-                        ZIBA reserves the right to suspend or terminate accounts that violate these Terms, engage in fraudulent activity, or pose safety risks to the community.
+                        ZIBANA reserves the right to suspend or terminate accounts that violate these Terms, engage in fraudulent activity, or pose safety risks to the community.
                       </p>
                     </section>
 
                     <section>
                       <h3 className="font-semibold text-lg mb-2">7. Modifications</h3>
                       <p className="text-muted-foreground">
-                        ZIBA may modify these Terms at any time. Continued use of the platform after changes constitutes acceptance of the modified Terms.
+                        ZIBANA may modify these Terms at any time. Continued use of the platform after changes constitutes acceptance of the modified Terms.
                       </p>
                     </section>
 
@@ -207,7 +207,7 @@ export default function LegalPage() {
                     <section>
                       <h3 className="font-semibold text-lg mb-2">6. AI-Powered Features</h3>
                       <p className="text-muted-foreground mb-2">
-                        ZIBA uses automated support tools. See the "AI" tab for full disclosure on data handling and limitations.
+                        ZIBANA uses automated support tools. See the "AI" tab for full disclosure on data handling and limitations.
                       </p>
                     </section>
 
@@ -241,7 +241,7 @@ export default function LegalPage() {
                     <section>
                       <h3 className="font-semibold text-lg mb-2">1. Independent Contractor Status</h3>
                       <p className="text-muted-foreground">
-                        By registering as a driver on ZIBA, you acknowledge that you are an independent contractor, not an employee of ZIBA. You control your own schedule, routes, and conduct. ZIBA does not supervise individual trips. You are responsible for your own taxes, insurance, business expenses, and personal safety decisions.
+                        By registering as a driver on ZIBANA, you acknowledge that you are an independent contractor, not an employee of ZIBANA. You control your own schedule, routes, and conduct. ZIBANA does not supervise individual trips. You are responsible for your own taxes, insurance, business expenses, and personal safety decisions.
                       </p>
                     </section>
 
@@ -259,12 +259,12 @@ export default function LegalPage() {
                     <section>
                       <h3 className="font-semibold text-lg mb-2">3. Wallet Earnings</h3>
                       <p className="text-muted-foreground mb-2">
-                        Driver earnings are tracked through the ZIBA wallet system:
+                        Driver earnings are tracked through the ZIBANA wallet system:
                       </p>
                       <ul className="list-disc pl-6 text-muted-foreground space-y-1">
                         <li>Wallet balances represent service credits for completed trips</li>
                         <li>Credits accumulate as you complete rides</li>
-                        <li>ZIBA deducts a platform commission from each fare</li>
+                        <li>ZIBANA deducts a platform commission from each fare</li>
                         <li>Wallet credits are not cash until a payout is processed</li>
                         <li>Earnings are subject to platform fees and applicable taxes</li>
                       </ul>
@@ -279,7 +279,7 @@ export default function LegalPage() {
                         <li>Minimum payout threshold applies</li>
                         <li>Payouts are processed to your registered bank or mobile money account</li>
                         <li>Processing times vary by payment method and region</li>
-                        <li>ZIBA reserves the right to hold payouts pending dispute resolution</li>
+                        <li>ZIBANA reserves the right to hold payouts pending dispute resolution</li>
                         <li>Fraudulent activity may result in payout suspension</li>
                       </ul>
                     </section>
@@ -397,7 +397,7 @@ export default function LegalPage() {
                     <section>
                       <h3 className="font-semibold text-lg mb-2">7. Contact Support</h3>
                       <p className="text-muted-foreground">
-                        For refund requests or cancellation inquiries, contact our support team through the app or at support@ziba.com
+                        For refund requests or cancellation inquiries, contact our support team through the app or at support@zibana.com
                       </p>
                     </section>
 
@@ -424,10 +424,10 @@ export default function LegalPage() {
                     <section>
                       <h3 className="font-semibold text-lg mb-2">1. Lost & Found Policy</h3>
                       <p className="text-muted-foreground mb-2">
-                        ZIBA provides a Lost & Found system to help recover items left in vehicles. Please note:
+                        ZIBANA provides a Lost & Found system to help recover items left in vehicles. Please note:
                       </p>
                       <ul className="list-disc pl-6 text-muted-foreground space-y-1">
-                        <li>ZIBA is not responsible for items left in vehicles and does not guarantee recovery</li>
+                        <li>ZIBANA is not responsible for items left in vehicles and does not guarantee recovery</li>
                         <li>Riders should report lost items promptly through the app</li>
                         <li>Drivers are encouraged to check vehicles after each trip</li>
                         <li>Communication between rider and driver is facilitated through in-app chat once the driver confirms the item is found</li>
@@ -438,17 +438,17 @@ export default function LegalPage() {
                     <section>
                       <h3 className="font-semibold text-lg mb-2">2. Safe Return Hubs</h3>
                       <p className="text-muted-foreground mb-2">
-                        ZIBA facilitates Safe Return Hubs as an optional method for item returns. Hubs are operated by independent partners:
+                        ZIBANA facilitates Safe Return Hubs as an optional method for item returns. Hubs are operated by independent partners:
                       </p>
                       <ul className="list-disc pl-6 text-muted-foreground space-y-1">
                         <li>Safe Return Hubs are designated partner locations (stores, fuel stations, service centers) where drivers can drop off found items</li>
                         <li>Using hubs is optional but recommended for safety and convenience</li>
                         <li>Drivers may receive a bonus reward for using Safe Return Hubs</li>
                         <li>Hub service fees may apply and are disclosed before drop-off</li>
-                        <li>ZIBA does not guarantee the security of items at hub locations</li>
-                        <li>Safe Return Hubs are independent partner entities, not owned or operated by ZIBA</li>
-                        <li>ZIBA does not take custody of, inspect, or verify items at any hub location</li>
-                        <li>ZIBA is not liable for loss, damage, theft, or mishandling of items at hub locations</li>
+                        <li>ZIBANA does not guarantee the security of items at hub locations</li>
+                        <li>Safe Return Hubs are independent partner entities, not owned or operated by ZIBANA</li>
+                        <li>ZIBANA does not take custody of, inspect, or verify items at any hub location</li>
+                        <li>ZIBANA is not liable for loss, damage, theft, or mishandling of items at hub locations</li>
                         <li>Hub operating hours and availability are managed by the hub partner and may change without notice</li>
                       </ul>
                     </section>
@@ -456,7 +456,7 @@ export default function LegalPage() {
                     <section>
                       <h3 className="font-semibold text-lg mb-2">3. Return Fees & Rewards</h3>
                       <ul className="list-disc pl-6 text-muted-foreground space-y-1">
-                        <li>Return fees are country-specific and set by ZIBA</li>
+                        <li>Return fees are country-specific and set by ZIBANA</li>
                         <li>Fees are split between driver compensation and platform costs</li>
                         <li>Driver rewards and bonuses are discretionary and may change</li>
                         <li>Tipping drivers for item returns is optional and appreciated</li>
@@ -466,7 +466,7 @@ export default function LegalPage() {
                     <section>
                       <h3 className="font-semibold text-lg mb-2">4. Fraud & Abuse</h3>
                       <p className="text-muted-foreground mb-2">
-                        ZIBA employs automated fraud detection for the Lost & Found system:
+                        ZIBANA employs automated fraud detection for the Lost & Found system:
                       </p>
                       <ul className="list-disc pl-6 text-muted-foreground space-y-1">
                         <li>Repeated false claims may result in account suspension</li>
@@ -479,20 +479,20 @@ export default function LegalPage() {
                     <section>
                       <h3 className="font-semibold text-lg mb-2">5. Unclaimed Items</h3>
                       <p className="text-muted-foreground">
-                        Items that remain unclaimed for 30 days may be disposed of or donated at ZIBA's discretion. ZIBA is not liable for unclaimed items after this period.
+                        Items that remain unclaimed for 30 days may be disposed of or donated at ZIBANA's discretion. ZIBANA is not liable for unclaimed items after this period.
                       </p>
                     </section>
 
                     <section>
                       <h3 className="font-semibold text-lg mb-2">6. Accident Reporting</h3>
                       <p className="text-muted-foreground mb-2">
-                        In the event of an accident during a ZIBA trip:
+                        In the event of an accident during a ZIBANA trip:
                       </p>
                       <ul className="list-disc pl-6 text-muted-foreground space-y-1">
                         <li>Both riders and drivers should report the accident through the app immediately</li>
                         <li>Provide photos, descriptions, and injury information</li>
                         <li>Trip payouts may be frozen pending investigation</li>
-                        <li>ZIBA will coordinate with relevant authorities as needed</li>
+                        <li>ZIBANA will coordinate with relevant authorities as needed</li>
                         <li>Emergency services should be contacted directly for serious incidents</li>
                         <li>Reports are for documentation and assistance only and do not imply fault, liability, or compensation</li>
                       </ul>
@@ -501,11 +501,11 @@ export default function LegalPage() {
                     <section>
                       <h3 className="font-semibold text-lg mb-2">7. Driver Accident Relief Fund</h3>
                       <p className="text-muted-foreground mb-2">
-                        ZIBA maintains a Driver Accident Relief Fund to support drivers:
+                        ZIBANA maintains a Driver Accident Relief Fund to support drivers:
                       </p>
                       <ul className="list-disc pl-6 text-muted-foreground space-y-1">
                         <li>The fund provides financial assistance for verified accidents</li>
-                        <li>Claims are reviewed by ZIBA administrators</li>
+                        <li>Claims are reviewed by ZIBANA administrators</li>
                         <li>Payouts are based on fault determination and accident severity</li>
                         <li>A minimum trust score may be required for eligibility</li>
                         <li>Abuse of the relief fund will result in account termination</li>
@@ -516,7 +516,7 @@ export default function LegalPage() {
                     <section>
                       <h3 className="font-semibold text-lg mb-2">8. Liability Limitation</h3>
                       <p className="text-muted-foreground">
-                        ZIBA acts as a technology platform connecting riders and drivers. ZIBA is not liable for personal injuries, property damage, or lost items arising from the use of transportation services. All users are encouraged to maintain appropriate personal insurance.
+                        ZIBANA acts as a technology platform connecting riders and drivers. ZIBANA is not liable for personal injuries, property damage, or lost items arising from the use of transportation services. All users are encouraged to maintain appropriate personal insurance.
                       </p>
                     </section>
 
@@ -540,15 +540,15 @@ export default function LegalPage() {
                 <ScrollArea className="h-[500px] pr-4">
                   <div className="space-y-6 text-sm text-foreground" data-testid="content-ai-disclosure">
                     <section>
-                      <h3 className="font-semibold text-lg mb-2">1. AI-Powered Support (ZIBA Support)</h3>
+                      <h3 className="font-semibold text-lg mb-2">1. AI-Powered Support (ZIBANA Support)</h3>
                       <p className="text-muted-foreground mb-2">
-                        ZIBA uses an AI-powered support system ("ZIBA Support") to provide automated assistance to users. This system uses pattern-matching and structured templates to respond to common questions and issues.
+                        ZIBANA uses an AI-powered support system ("ZIBANA Support") to provide automated assistance to users. This system uses pattern-matching and structured templates to respond to common questions and issues.
                       </p>
                       <ul className="list-disc pl-6 text-muted-foreground space-y-1">
-                        <li>ZIBA Support is not a human agent. It uses pre-defined templates to assist users.</li>
+                        <li>ZIBANA Support is not a human agent. It uses pre-defined templates to assist users.</li>
                         <li>Responses are generated based on your question, your role on the platform, and your current screen context.</li>
-                        <li>ZIBA Support does not use generative AI, large language models, or deep learning to produce responses.</li>
-                        <li>No user conversations with ZIBA Support are used to train AI models.</li>
+                        <li>ZIBANA Support does not use generative AI, large language models, or deep learning to produce responses.</li>
+                        <li>No user conversations with ZIBANA Support are used to train AI models.</li>
                         <li>You may escalate any conversation to a human support agent at any time.</li>
                       </ul>
                     </section>
@@ -556,7 +556,7 @@ export default function LegalPage() {
                     <section>
                       <h3 className="font-semibold text-lg mb-2">2. Data Collected by AI Support</h3>
                       <ul className="list-disc pl-6 text-muted-foreground space-y-1">
-                        <li>Your messages to ZIBA Support are logged for quality assurance and improvement purposes.</li>
+                        <li>Your messages to ZIBANA Support are logged for quality assurance and improvement purposes.</li>
                         <li>Conversation metadata (role, screen context, timestamp) is recorded.</li>
                         <li>Escalated conversations are forwarded to human agents along with the conversation transcript.</li>
                         <li>Support interaction logs may be reviewed by authorized administrators.</li>
@@ -567,17 +567,17 @@ export default function LegalPage() {
                     <section>
                       <h3 className="font-semibold text-lg mb-2">3. Limitations of AI Support</h3>
                       <ul className="list-disc pl-6 text-muted-foreground space-y-1">
-                        <li>ZIBA Support provides informational guidance only and does not make binding commitments.</li>
+                        <li>ZIBANA Support provides informational guidance only and does not make binding commitments.</li>
                         <li>Responses may not cover every situation. For complex issues, escalate to a human agent.</li>
-                        <li>ZIBA Support cannot process payments, modify accounts, or take actions on your behalf.</li>
-                        <li>Information provided by ZIBA Support is advisory and should not be relied upon as legal, financial, or safety advice.</li>
+                        <li>ZIBANA Support cannot process payments, modify accounts, or take actions on your behalf.</li>
+                        <li>Information provided by ZIBANA Support is advisory and should not be relied upon as legal, financial, or safety advice.</li>
                       </ul>
                     </section>
 
                     <section>
                       <h3 className="font-semibold text-lg mb-2">4. Governance & Safety</h3>
                       <p className="text-muted-foreground mb-2">
-                        ZIBA maintains governance controls over the AI support system:
+                        ZIBANA maintains governance controls over the AI support system:
                       </p>
                       <ul className="list-disc pl-6 text-muted-foreground space-y-1">
                         <li>Authorized administrators can enable or disable AI support globally or per user role.</li>
@@ -591,7 +591,7 @@ export default function LegalPage() {
                     <section>
                       <h3 className="font-semibold text-lg mb-2">5. Your Consent</h3>
                       <p className="text-muted-foreground">
-                        By using ZIBA Support, you acknowledge that you are interacting with an automated system. You may choose not to use ZIBA Support and instead contact our human support team directly through the Help Center. Your continued use of ZIBA Support constitutes acceptance of this disclosure.
+                        By using ZIBANA Support, you acknowledge that you are interacting with an automated system. You may choose not to use ZIBANA Support and instead contact our human support team directly through the Help Center. Your continued use of ZIBANA Support constitutes acceptance of this disclosure.
                       </p>
                     </section>
 

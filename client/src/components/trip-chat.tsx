@@ -107,7 +107,7 @@ export function TripChat({ tripId, tripStatus, currentUserId, completedAt, cance
           <div className="flex items-start gap-2">
             <Shield className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
             <p className="text-[11px] text-muted-foreground leading-tight" data-testid="text-privacy-banner">
-              For your privacy and security, please communicate through the ZIBA app.
+              For your privacy and security, please communicate through the ZIBANA app.
               If you choose to share your phone number, you do so at your own discretion.
             </p>
           </div>

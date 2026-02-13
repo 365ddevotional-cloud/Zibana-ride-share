@@ -1,0 +1,152 @@
+We are performing a full global brand rename across the entire ZIBA project.
+
+CRITICAL RULES:
+- DO NOT modify ride logic
+- DO NOT modify wallet logic
+- DO NOT modify payment flow
+- DO NOT modify rating logic
+- DO NOT delete database tables
+- DO NOT change database schema unless table name literally contains “Ziba”
+- DO NOT change Stripe keys or environment secrets
+- DO NOT refactor unrelated routes
+- Maintain full backward compatibility
+- Preserve all functionality
+
+GOAL:
+Rename all branding references from “Ziba” to “Zibana” safely across frontend, backend, configs, and assets.
+
+==================================================
+STEP 1 — GLOBAL SAFE BRAND REPLACEMENT
+==================================================
+
+Perform a case-sensitive global search and replace:
+
+Replace:
+"Ziba" → "Zibana"
+"ZIBA" → "ZIBANA"
+"ziba" → "zibana"
+
+ONLY replace in:
+- UI display text
+- App titles
+- Headings
+- Button labels
+- Toast messages
+- Email templates
+- Push notification titles
+- README files
+- Public text constants
+- Console branding logs
+- Page metadata
+- index.html title
+- manifest.json
+- package.json display name
+- PWA name and short_name
+- Email sender display name
+- Admin dashboard headers
+- Rider and Driver visible text
+- Super Admin visible text
+
+DO NOT replace inside:
+- Database IDs
+- Primary keys
+- Migration files unless branding only
+- Stripe secret keys
+- External API URLs
+- Payment provider identifiers
+- Wallet internal enums
+- Rating engine identifiers
+- Historical transaction records
+
+==================================================
+STEP 2 — ROUTE REVIEW
+==================================================
+
+If routes contain "/ziba" as branding route:
+Rename to "/zibana"
+
+Only change branding routes.
+Do NOT modify API logic routes unless safe.
+
+==================================================
+STEP 3 — DATABASE CHECK
+==================================================
+
+If any table or model is named:
+ZibaSomething
+
+Rename carefully to:
+ZibanaSomething
+
+If renamed:
+- Generate safe migration
+- Preserve data
+- Do NOT delete existing records
+- Ensure production compatibility
+
+If no such table exists, skip.
+
+==================================================
+STEP 4 — LOGO & STATIC ASSETS
+==================================================
+
+If files named:
+ziba-logo.png
+ziba-icon.png
+ziba.svg
+
+Rename to:
+zibana-logo.png
+zibana-icon.png
+zibana.svg
+
+Update all import references accordingly.
+
+==================================================
+STEP 5 — CONFIG & ENV REVIEW
+==================================================
+
+Update branding inside:
+- index.html
+- manifest.json
+- package.json name field (if branding)
+- email templates
+- notification templates
+- admin dashboard header
+- rider app header
+- driver app header
+
+Do NOT modify:
+- .env secrets
+- Stripe keys
+- Payment public/private keys
+
+==================================================
+STEP 6 — FULL BUILD VALIDATION
+==================================================
+
+After renaming:
+- Run full backend build
+- Run frontend build
+- Fix broken imports
+- Fix path errors
+- Ensure Rider app works
+- Ensure Driver app works
+- Ensure Admin dashboard works
+- Ensure authentication works
+- Ensure wallet works
+- Ensure payments work
+- Ensure ratings still work
+- Ensure in-app messaging still works
+
+==================================================
+STEP 7 — SUMMARY REPORT
+==================================================
+
+Provide:
+- List of all changed files
+- Any migrations created
+- Any routes modified
+- Confirmation build successful
+
+Do NOT finalize until build passes successfully.

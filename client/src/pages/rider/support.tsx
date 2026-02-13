@@ -275,7 +275,7 @@ export default function RiderSupport() {
           </Card>
 
           <p className="text-xs text-center text-muted-foreground px-4">
-            ZIBA Rider v1.0 | Need immediate help? Tap Safety Center above.
+            ZIBANA Rider v1.0 | Need immediate help? Tap Safety Center above.
           </p>
         </div>
         <ZibraFloatingButton />

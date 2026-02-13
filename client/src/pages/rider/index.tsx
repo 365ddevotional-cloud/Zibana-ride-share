@@ -790,7 +790,7 @@ export default function RiderDashboard() {
                     Your Trust Score
                   </CardTitle>
                   <CardDescription>
-                    Your overall standing on ZIBA
+                    Your overall standing on ZIBANA
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -970,12 +970,12 @@ export default function RiderDashboard() {
                   )}
                   {trustScore?.tier === "platinum" && (
                     <p className="text-sm" data-testid="text-tip-platinum">
-                      Top-tier rider! Thank you for being part of ZIBA
+                      Top-tier rider! Thank you for being part of ZIBANA
                     </p>
                   )}
                   {!trustScore?.tier && (
                     <p className="text-sm" data-testid="text-tip-default">
-                      Start riding with ZIBA and build your trust score
+                      Start riding with ZIBANA and build your trust score
                     </p>
                   )}
                   <Separator />

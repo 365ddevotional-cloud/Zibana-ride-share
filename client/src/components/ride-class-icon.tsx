@@ -135,12 +135,12 @@ function getDefaultBg(rideClass: string): string {
 
 export function getRideClassLabel(rideClass: string): string {
   const map: Record<string, string> = {
-    go: "ZIBA Go",
-    plus: "ZIBA Plus",
-    comfort: "ZIBA Comfort",
-    pet_ride: "ZIBA PetRide",
-    safe_teen: "ZIBA SafeTeen",
-    elite: "ZIBA Elite",
+    go: "ZIBANA Go",
+    plus: "ZIBANA Plus",
+    comfort: "ZIBANA Comfort",
+    pet_ride: "ZIBANA PetRide",
+    safe_teen: "ZIBANA SafeTeen",
+    elite: "ZIBANA Elite",
   };
-  return map[rideClass] || "ZIBA Go";
+  return map[rideClass] || "ZIBANA Go";
 }

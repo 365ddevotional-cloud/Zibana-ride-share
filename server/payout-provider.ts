@@ -1,6 +1,6 @@
 /**
  * Payout Provider Abstraction Layer
- * ZIBA uses provider abstraction for driver payouts
+ * ZIBANA uses provider abstraction for driver payouts
  * 
  * Supported Providers:
  * - Paystack (Nigeria - Default)
@@ -147,7 +147,7 @@ class PaystackPayoutProvider implements PayoutProvider {
           source: "balance",
           amount: Math.round(params.amountNGN * 100), // Convert to kobo
           recipient: recipientCode,
-          reason: params.narration || `ZIBA Payout - ${params.reference}`,
+          reason: params.narration || `ZIBANA Payout - ${params.reference}`,
           reference: params.reference,
         }),
       });
@@ -295,7 +295,7 @@ class FlutterwavePayoutProvider implements PayoutProvider {
           account_bank: params.bankCode,
           account_number: params.accountNumber,
           amount: params.amountNGN,
-          narration: params.narration || `ZIBA Payout - ${params.reference}`,
+          narration: params.narration || `ZIBANA Payout - ${params.reference}`,
           currency: "NGN",
           reference: params.reference,
           beneficiary_name: params.accountName,
@@ -453,7 +453,7 @@ export function getPayoutProviderForCountry(countryCode: string): PayoutProvider
 }
 
 export function generatePayoutReference(): string {
-  return `ZIBA_PAYOUT_${Date.now()}_${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
+  return `ZIBANA_PAYOUT_${Date.now()}_${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
 }
 
 // Webhook signature validation

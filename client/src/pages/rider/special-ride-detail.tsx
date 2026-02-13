@@ -34,7 +34,7 @@ const rideTypeData: Record<string, RideTypeInfo> = {
     available: true,
     whatIs: "Group Rides let you book a larger vehicle for multiple passengers traveling together. Whether it's friends heading to a weekend outing, family going to an event, or colleagues commuting together — one booking covers everyone.",
     whenAvailable: "Group Rides are available in supported cities during regular operating hours. Vehicle availability depends on demand in your area.",
-    safety: "All Group Ride drivers are vetted and rated. Vehicle capacity is never exceeded. All passengers are covered by ZIBA's safety policies, including trip tracking and emergency support.",
+    safety: "All Group Ride drivers are vetted and rated. Vehicle capacity is never exceeded. All passengers are covered by ZIBANA's safety policies, including trip tracking and emergency support.",
     eligibility: "Any verified rider can request a Group Ride. Larger groups may require advance booking to ensure vehicle availability.",
   },
   event: {
@@ -46,7 +46,7 @@ const rideTypeData: Record<string, RideTypeInfo> = {
     available: true,
     whatIs: "Event Transportation coordinates multiple rides for your guests. Whether you're organizing a wedding, conference, party, or corporate gathering, you can arrange pickups and drop-offs for all attendees from one place.",
     whenAvailable: "Event Transportation is available in supported cities. We recommend booking at least 48 hours in advance for large events to ensure sufficient driver availability.",
-    safety: "Event Rides follow all standard ZIBA safety protocols. Drivers assigned to events undergo additional availability confirmation. Guests receive trip details and tracking links.",
+    safety: "Event Rides follow all standard ZIBANA safety protocols. Drivers assigned to events undergo additional availability confirmation. Guests receive trip details and tracking links.",
     eligibility: "Any verified rider can request Event Transportation. For large events (20+ guests), availability may need to be confirmed by our operations team.",
   },
   premium: {
@@ -58,7 +58,7 @@ const rideTypeData: Record<string, RideTypeInfo> = {
     available: false,
     whatIs: "Premium Rides offer luxury vehicles with our highest-rated, most experienced drivers. Designed for special occasions, business meetings, or when you simply want to travel in comfort and style.",
     whenAvailable: "Premium Rides are being prepared for launch. We're curating a fleet of luxury vehicles and training select drivers to deliver a premium experience. Check back for updates.",
-    safety: "Premium drivers will undergo enhanced background checks and additional training. Vehicles will meet strict quality and comfort standards set by ZIBA.",
+    safety: "Premium drivers will undergo enhanced background checks and additional training. Vehicles will meet strict quality and comfort standards set by ZIBANA.",
     eligibility: "Premium Rides will be available to all verified riders once launched. Pricing will reflect the enhanced service level.",
   },
   longdistance: {
@@ -276,7 +276,7 @@ export default function SpecialRideDetail() {
           <div className="flex items-start gap-2 p-3 rounded-lg bg-muted">
             <Shield className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
             <p className="text-xs text-muted-foreground" data-testid="text-special-disclaimer">
-              Availability and pricing may vary. ZIBA does not guarantee service availability.
+              Availability and pricing may vary. ZIBANA does not guarantee service availability.
             </p>
           </div>
 

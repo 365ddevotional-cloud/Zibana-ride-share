@@ -90,7 +90,7 @@ export default function CorporateRides() {
                 <p className="font-medium text-sm" data-testid="text-corporate-billing-title">How billing works</p>
               </div>
               <p className="text-sm text-muted-foreground" data-testid="text-corporate-billing-desc">
-                Monthly invoicing is handled by ZIBA directly with your company. You ride, and your company pays. You cannot see company financials. ZIBA acts as a facilitator, not an employer.
+                Monthly invoicing is handled by ZIBANA directly with your company. You ride, and your company pays. You cannot see company financials. ZIBANA acts as a facilitator, not an employer.
               </p>
             </CardContent>
           </Card>

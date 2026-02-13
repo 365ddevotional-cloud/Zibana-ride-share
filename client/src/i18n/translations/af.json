@@ -46,7 +46,7 @@
     "testCredits": "Toetskrediet",
     "noSavedPlaces": "Nog geen gestoorde plekke nie",
     "locationRequired": "Liggingstoegang benodig",
-    "locationDescription": "ZIBA benodig jou ligging om nabye bestuurders te vind en roetes te bereken.",
+    "locationDescription": "ZIBANA benodig jou ligging om nabye bestuurders te vind en roetes te bereken.",
     "allowLocation": "Laat liggingstoegang toe"
   },
   "services": {
@@ -132,7 +132,7 @@
     "ridePinDesc": "Verifieer jou bestuurder voor jy ry",
     "about": "Oor",
     "version": "Weergawe",
-    "aboutDesc": "ZIBA is 'n ritaanvraag-platform ontwerp vir opkomende markte, wat passasiers verbind met veilige en betroubare bestuurders. Ons is verbind tot die verbetering van mobiliteit en die skep van ekonomiese geleenthede regoor Afrika en verder.",
+    "aboutDesc": "ZIBANA is 'n ritaanvraag-platform ontwerp vir opkomende markte, wat passasiers verbind met veilige en betroubare bestuurders. Ons is verbind tot die verbetering van mobiliteit en die skep van ekonomiese geleenthede regoor Afrika en verder.",
     "termsService": "Diensvoorwaardes en privaatheidsbeleid",
     "resetLanguage": "Herstel na Engels"
   },
@@ -151,7 +151,7 @@
     "title": "Betalings",
     "subtitle": "Bestuur jou betaalmetodes en beursie",
     "walletBalance": "Beursie-balans",
-    "zibaWallet": "ZIBA Beursie",
+    "zibanaWallet": "ZIBANA Beursie",
     "manageWallet": "Bestuur beursie",
     "sponsoredBy": "Geborg deur",
     "supporters": "ondersteuners",
@@ -179,10 +179,10 @@
     "placeholder": "Tik 'n boodskap...",
     "send": "Stuur",
     "helpReset": "Jy kan die taal herstel vanaf Instellings → Taal → Engels.",
-    "greeting": "Hallo! Ek is ZIBRA, jou ZIBA-ondersteuningsassistent. Hoe kan ek jou vandag help?"
+    "greeting": "Hallo! Ek is ZIBRA, jou ZIBANA-ondersteuningsassistent. Hoe kan ek jou vandag help?"
   },
   "rider": {
-    "appName": "ZIBA",
+    "appName": "ZIBANA",
     "appRole": "Passasier"
   },
   "safety": {

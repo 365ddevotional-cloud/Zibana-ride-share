@@ -57,7 +57,7 @@ export default function FundUser() {
       } else {
         toast({
           title: "User not found",
-          description: "We couldn't find a ZIBA user with that email or phone number. Please double-check and try again.",
+          description: "We couldn't find a ZIBANA user with that email or phone number. Please double-check and try again.",
           variant: "destructive",
         });
       }
@@ -144,7 +144,7 @@ export default function FundUser() {
                 Fund Another User
               </h1>
               <p className="text-sm text-muted-foreground">
-                Send funds to someone's ZIBA wallet
+                Send funds to someone's ZIBANA wallet
               </p>
             </div>
           </div>
@@ -162,7 +162,7 @@ export default function FundUser() {
                         Support someone's rides
                       </p>
                       <p className="text-sm text-green-700 dark:text-green-300 mt-1">
-                        You can fund a family member, friend, spouse, or colleague's wallet so they can ride with ZIBA.
+                        You can fund a family member, friend, spouse, or colleague's wallet so they can ride with ZIBANA.
                       </p>
                     </div>
                   </div>
@@ -200,7 +200,7 @@ export default function FundUser() {
                   <div className="flex items-start gap-2 p-3 rounded-lg bg-muted">
                     <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                     <p className="text-xs text-muted-foreground">
-                      The recipient must be a registered ZIBA user. Enter their email address or phone number to find them.
+                      The recipient must be a registered ZIBANA user. Enter their email address or phone number to find them.
                     </p>
                   </div>
                 </CardContent>
@@ -302,7 +302,7 @@ export default function FundUser() {
                       data-testid="checkbox-funding-terms"
                     />
                     <label htmlFor="funding-terms" className="text-xs text-muted-foreground leading-relaxed cursor-pointer">
-                      I understand that wallet transfers are voluntary. ZIBA facilitates transfers but is not responsible for agreements between users. Funds are non-refundable once transferred.
+                      I understand that wallet transfers are voluntary. ZIBANA facilitates transfers but is not responsible for agreements between users. Funds are non-refundable once transferred.
                     </label>
                   </div>
 
@@ -389,7 +389,7 @@ export default function FundUser() {
           <div className="flex items-start gap-2 p-3 rounded-lg bg-muted">
             <Shield className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
             <p className="text-xs text-muted-foreground" data-testid="text-fund-disclaimer">
-              Wallet transfers are voluntary. ZIBA facilitates transfers but is not responsible for agreements between users.
+              Wallet transfers are voluntary. ZIBANA facilitates transfers but is not responsible for agreements between users.
             </p>
           </div>
 

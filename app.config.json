@@ -1,13 +1,13 @@
 {
   "app": {
-    "name": "ZIBA",
-    "displayName": "ZIBA - Ride Hailing",
+    "name": "ZIBANA",
+    "displayName": "ZIBANA - Ride Hailing",
     "description": "Safe and reliable ride-hailing for emerging markets. Connect with trusted drivers for affordable transportation.",
     "version": "1.0.0",
     "buildNumber": 1
   },
   "android": {
-    "packageName": "com.ziba.ridehailing",
+    "packageName": "com.zibana.ridehailing",
     "versionCode": 1,
     "minSdkVersion": 24,
     "targetSdkVersion": 34,
@@ -46,14 +46,14 @@
     }
   },
   "ios": {
-    "bundleIdentifier": "com.ziba.ridehailing",
+    "bundleIdentifier": "com.zibana.ridehailing",
     "buildNumber": "1",
     "supportsTablet": true,
     "requiresFullScreen": false,
     "infoPlist": {
-      "NSLocationWhenInUseUsageDescription": "ZIBA needs your location to show nearby drivers and set your pickup point.",
-      "NSLocationAlwaysAndWhenInUseUsageDescription": "ZIBA uses your location to track your trip and provide real-time updates to your driver.",
-      "NSLocationAlwaysUsageDescription": "ZIBA uses your location in the background to provide accurate ETAs and driver tracking during active trips."
+      "NSLocationWhenInUseUsageDescription": "ZIBANA needs your location to show nearby drivers and set your pickup point.",
+      "NSLocationAlwaysAndWhenInUseUsageDescription": "ZIBANA uses your location to track your trip and provide real-time updates to your driver.",
+      "NSLocationAlwaysUsageDescription": "ZIBANA uses your location in the background to provide accurate ETAs and driver tracking during active trips."
     },
     "icons": {
       "ios": "assets/icons/ios/AppIcon.appiconset"
@@ -98,7 +98,7 @@
   },
   "storeMetadata": {
     "shortDescription": "Book safe, reliable rides in emerging markets",
-    "fullDescription": "ZIBA connects you with trusted, verified drivers for safe and affordable transportation. Whether you're a rider looking for reliable transport or a driver seeking earning opportunities, ZIBA provides a seamless platform for everyone.\n\nKey Features:\n- Quick and easy ride booking\n- Real-time driver tracking\n- Transparent pricing with no hidden fees\n- Multiple passenger support\n- In-app messaging with your driver\n- Secure payment processing\n- Rate and review your trips\n- 24/7 customer support\n\nFor Drivers:\n- Flexible earning opportunities\n- Easy trip acceptance\n- Instant payout system\n- Performance bonuses and incentives\n- Dedicated driver support\n\nFor Organizations:\n- Trip coordinator accounts for booking rides for beneficiaries\n- Organization billing and reporting\n- Dedicated account management\n\nZIBA is committed to safe, reliable transportation for emerging markets. Download now and experience the difference!",
+    "fullDescription": "ZIBANA connects you with trusted, verified drivers for safe and affordable transportation. Whether you're a rider looking for reliable transport or a driver seeking earning opportunities, ZIBANA provides a seamless platform for everyone.\n\nKey Features:\n- Quick and easy ride booking\n- Real-time driver tracking\n- Transparent pricing with no hidden fees\n- Multiple passenger support\n- In-app messaging with your driver\n- Secure payment processing\n- Rate and review your trips\n- 24/7 customer support\n\nFor Drivers:\n- Flexible earning opportunities\n- Easy trip acceptance\n- Instant payout system\n- Performance bonuses and incentives\n- Dedicated driver support\n\nFor Organizations:\n- Trip coordinator accounts for booking rides for beneficiaries\n- Organization billing and reporting\n- Dedicated account management\n\nZIBANA is committed to safe, reliable transportation for emerging markets. Download now and experience the difference!",
     "keywords": [
       "ride hailing",
       "taxi",
@@ -113,9 +113,9 @@
     ],
     "category": "Travel",
     "contentRating": "Everyone",
-    "privacyPolicyUrl": "https://ziba.app/privacy",
-    "termsOfServiceUrl": "https://ziba.app/terms",
-    "supportEmail": "support@ziba.app",
-    "website": "https://ziba.app"
+    "privacyPolicyUrl": "https://zibana.app/privacy",
+    "termsOfServiceUrl": "https://zibana.app/terms",
+    "supportEmail": "support@zibana.app",
+    "website": "https://zibana.app"
   }
 }

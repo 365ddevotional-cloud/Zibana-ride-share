@@ -31,7 +31,7 @@ const TRAINING_CATEGORIES = [
   {
     id: "app-navigation",
     title: "App Navigation",
-    description: "How to use the ZIBA driver app. Covers ride acceptance, navigation integration, earnings tracking, and settings.",
+    description: "How to use the ZIBANA driver app. Covers ride acceptance, navigation integration, earnings tracking, and settings.",
     category: "Technical",
     icon: Smartphone,
     accent: "text-purple-600 dark:text-purple-400",

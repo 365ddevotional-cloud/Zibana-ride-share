@@ -46,7 +46,7 @@
     "testCredits": "Ẹ̀yà ìdánwò",
     "noSavedPlaces": "Kò sí ibi tí a fi pamọ́",
     "locationRequired": "A nílò ibi tí o wà",
-    "locationDescription": "ZIBA nílò ibi tí o wà láti wá àwọn awakọ̀ tó wà nítòsí àti láti ṣirò ọ̀nà.",
+    "locationDescription": "ZIBANA nílò ibi tí o wà láti wá àwọn awakọ̀ tó wà nítòsí àti láti ṣirò ọ̀nà.",
     "allowLocation": "Gba ibi tí o wà láyè"
   },
   "services": {
@@ -132,7 +132,7 @@
     "ridePinDesc": "Ṣàyẹ̀wò awakọ̀ rẹ kí o tó gun",
     "about": "Nípa",
     "version": "Àtẹ̀jáde",
-    "aboutDesc": "ZIBA jẹ́ pẹpẹ ìbéèrè gigun tí a ṣe fún àwọn ọjà tó ń dàgbà, tó ń so àwọn arinrin-àjò pọ̀ pẹ̀lú àwọn awakọ̀ tó ní ààbò àti ìgbẹ́kẹ̀lé. A pinnu láti mú ìrìnàjò dára sí àti ṣẹ̀dá àwọn àǹfààní ètò-ọrọ̀ ajé káàkiri Áfíríkà àti ní ikọjá rẹ̀.",
+    "aboutDesc": "ZIBANA jẹ́ pẹpẹ ìbéèrè gigun tí a ṣe fún àwọn ọjà tó ń dàgbà, tó ń so àwọn arinrin-àjò pọ̀ pẹ̀lú àwọn awakọ̀ tó ní ààbò àti ìgbẹ́kẹ̀lé. A pinnu láti mú ìrìnàjò dára sí àti ṣẹ̀dá àwọn àǹfààní ètò-ọrọ̀ ajé káàkiri Áfíríkà àti ní ikọjá rẹ̀.",
     "termsService": "Àwọn ofin iṣẹ́ àti ìlànà àṣírí",
     "resetLanguage": "Tun padà sí Gẹ̀ẹ́sì"
   },
@@ -151,7 +151,7 @@
     "title": "Ìsanwó",
     "subtitle": "Ṣàkóso àwọn ọ̀nà ìsanwó àti wọ́lẹ́ẹ̀tì rẹ",
     "walletBalance": "Ìyókù wọ́lẹ́ẹ̀tì",
-    "zibaWallet": "Wọ́lẹ́ẹ̀tì ZIBA",
+    "zibanaWallet": "Wọ́lẹ́ẹ̀tì ZIBANA",
     "manageWallet": "Ṣàkóso wọ́lẹ́ẹ̀tì",
     "sponsoredBy": "Àtìlẹ́yìn láti ọwọ́",
     "supporters": "àwọn olùṣèrànwọ́",
@@ -179,10 +179,10 @@
     "placeholder": "Tẹ ifiranṣẹ́...",
     "send": "Firanṣẹ́",
     "helpReset": "O lè tun èdè padà láti Ètò → Èdè → Gẹ̀ẹ́sì.",
-    "greeting": "Pẹ̀lẹ́ o! Mo jẹ́ ZIBRA, olùrànlọ́wọ́ ZIBA rẹ. Báwo ni mo ṣe lè ràn ọ́ lọ́wọ́ lónìí?"
+    "greeting": "Pẹ̀lẹ́ o! Mo jẹ́ ZIBRA, olùrànlọ́wọ́ ZIBANA rẹ. Báwo ni mo ṣe lè ràn ọ́ lọ́wọ́ lónìí?"
   },
   "rider": {
-    "appName": "ZIBA",
+    "appName": "ZIBANA",
     "appRole": "Arinrin-àjò"
   },
   "safety": {

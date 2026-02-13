@@ -41,7 +41,7 @@ function resolveTheme(theme: Theme): "light" | "dark" {
 export function ThemeProvider({
   children,
   defaultTheme = "system",
-  storageKey = "ziba-ui-theme",
+  storageKey = "zibana-ui-theme",
   ...props
 }: ThemeProviderProps) {
   const queryClient = useQueryClient();

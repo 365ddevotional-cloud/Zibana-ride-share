@@ -49,12 +49,12 @@ export default function AccountDataUsage() {
                   <Eye className="h-5 w-5 text-muted-foreground" />
                 </div>
                 <div>
-                  <p className="font-medium text-sm">How ZIBA Uses Your Data</p>
+                  <p className="font-medium text-sm">How ZIBANA Uses Your Data</p>
                   <p className="text-xs text-muted-foreground">Transparency about your information</p>
                 </div>
               </div>
               <p className="text-sm text-muted-foreground">
-                ZIBA is committed to protecting your privacy. Below is a summary of how we collect and use your data to provide our services.
+                ZIBANA is committed to protecting your privacy. Below is a summary of how we collect and use your data to provide our services.
               </p>
             </CardContent>
           </Card>

@@ -53,7 +53,7 @@ function estimateCost(inputTokens: number, outputTokens: number): number {
   return (inputTokens * 0.00000015) + (outputTokens * 0.0000006);
 }
 
-const SYSTEM_PROMPT = `You are ZIBA AI Command Intelligence.
+const SYSTEM_PROMPT = `You are ZIBANA AI Command Intelligence.
 You analyze structured operational data for a ride-hailing platform operating in emerging markets.
 CRITICAL RULES:
 - Do NOT invent, fabricate, or estimate numbers. Only use data explicitly provided to you.
@@ -174,8 +174,8 @@ export function registerAiCommandRoutes(
     if (!isAiEnabled()) {
       const status = budgetDisabled ? "AI_BUDGET_LIMIT_REACHED" : "AI_DISABLED";
       const message = budgetDisabled
-        ? "ZIBA AI monthly budget limit reached. AI is temporarily disabled."
-        : "ZIBA AI Command Layer is currently offline.";
+        ? "ZIBANA AI monthly budget limit reached. AI is temporarily disabled."
+        : "ZIBANA AI Command Layer is currently offline.";
 
       console.log(`[AI COMMAND] AI disabled: skipping OpenAI call (reason: ${status})`);
 
@@ -208,7 +208,7 @@ export function registerAiCommandRoutes(
       });
       return res.json({
         status: "AI_BUDGET_LIMIT_REACHED",
-        message: "ZIBA AI monthly budget limit reached. AI is temporarily disabled.",
+        message: "ZIBANA AI monthly budget limit reached. AI is temporarily disabled.",
       });
     }
 
@@ -223,7 +223,7 @@ export function registerAiCommandRoutes(
       });
       return res.json({
         status: "AI_TEMPORARILY_UNAVAILABLE",
-        message: "ZIBA AI is temporarily unavailable. The AI service is not configured.",
+        message: "ZIBANA AI is temporarily unavailable. The AI service is not configured.",
       });
     }
 
@@ -286,7 +286,7 @@ export function registerAiCommandRoutes(
 
       return res.json({
         status: "AI_TEMPORARILY_UNAVAILABLE",
-        message: "ZIBA AI is temporarily unavailable. Please try again later.",
+        message: "ZIBANA AI is temporarily unavailable. Please try again later.",
       });
     }
   });

@@ -31,7 +31,7 @@ export function Logo({ className, showText = true, size = "md", linkToHome = tru
       </div>
       {showText && (
         <span className={cn("font-bold tracking-tight", sizeClasses[size].text)}>
-          ZIBA
+          ZIBANA
         </span>
       )}
     </div>

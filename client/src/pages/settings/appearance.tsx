@@ -51,7 +51,7 @@ export default function AppearancePage() {
         <Card>
           <CardHeader>
             <CardTitle>Theme</CardTitle>
-            <CardDescription>Choose how ZIBA looks on your device</CardDescription>
+            <CardDescription>Choose how ZIBANA looks on your device</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {themes.map(({ id, name, icon: Icon, description }) => (

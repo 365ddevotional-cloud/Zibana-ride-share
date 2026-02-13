@@ -46,7 +46,7 @@
     "testCredits": "Test credits",
     "noSavedPlaces": "No saved places yet",
     "locationRequired": "Location access needed",
-    "locationDescription": "ZIBA needs your location to find nearby drivers and calculate routes.",
+    "locationDescription": "ZIBANA needs your location to find nearby drivers and calculate routes.",
     "allowLocation": "Allow Location Access"
   },
   "services": {
@@ -132,7 +132,7 @@
     "ridePinDesc": "Verify your driver before riding",
     "about": "About",
     "version": "Version",
-    "aboutDesc": "ZIBA is a ride-hailing platform designed for emerging markets, connecting riders with safe and reliable drivers. We are committed to enhancing mobility and creating economic opportunities across Africa and beyond.",
+    "aboutDesc": "ZIBANA is a ride-hailing platform designed for emerging markets, connecting riders with safe and reliable drivers. We are committed to enhancing mobility and creating economic opportunities across Africa and beyond.",
     "termsService": "Terms of Service & Privacy Policy",
     "resetLanguage": "Reset to English"
   },
@@ -151,7 +151,7 @@
     "title": "Payments",
     "subtitle": "Manage your payment methods and wallet",
     "walletBalance": "Wallet Balance",
-    "zibaWallet": "ZIBA Wallet",
+    "zibanaWallet": "ZIBANA Wallet",
     "manageWallet": "Manage Wallet",
     "sponsoredBy": "Sponsored by",
     "supporters": "supporters",
@@ -179,14 +179,14 @@
     "placeholder": "Type a message...",
     "send": "Send",
     "helpReset": "You can reset language from Settings → Language → English.",
-    "greeting": "Hi! I'm ZIBRA, your ZIBA support assistant. How can I help you today?"
+    "greeting": "Hi! I'm ZIBRA, your ZIBANA support assistant. How can I help you today?"
   },
   "rider": {
-    "appName": "ZIBA",
+    "appName": "ZIBANA",
     "appRole": "Rider"
   },
   "driver": {
-    "appName": "ZIBA",
+    "appName": "ZIBANA",
     "appRole": "Driver",
     "dashboard": "Dashboard",
     "online": "Go Online",
@@ -305,15 +305,15 @@
     "viewDetails": "View Details"
   },
   "onboarding": {
-    "welcomeHeadline": "Welcome to ZIBA!",
+    "welcomeHeadline": "Welcome to ZIBANA!",
     "welcomeSubtext": "Your reliable ride is just a tap away. We are here to get you where you need to go, safely and affordably.",
     "safetyReassurance": "Your safety matters to us. Every driver is verified, and our support team is available around the clock.",
-    "paymentExplanation": "Pay easily with your ZIBA wallet. Add funds and ride without worrying about cash.",
-    "supportReassurance": "Got questions? Our ZIBA Support team is always ready to help.",
+    "paymentExplanation": "Pay easily with your ZIBANA wallet. Add funds and ride without worrying about cash.",
+    "supportReassurance": "Got questions? Our ZIBANA Support team is always ready to help.",
     "ctaText": "Let's Go!",
     "ctaSubtext": "Find a nearby driver",
-    "driverWelcome": "Drive with ZIBA!",
-    "driverSubtext": "Earn money on your own schedule. Join thousands of drivers making a living with ZIBA.",
+    "driverWelcome": "Drive with ZIBANA!",
+    "driverSubtext": "Earn money on your own schedule. Join thousands of drivers making a living with ZIBANA.",
     "driverSafety": "We care about your safety too. Emergency support and incident reporting are always available.",
     "driverPayment": "Keep 80% of every fare. Your earnings go straight to your wallet.",
     "driverSupport": "Need help on the road? Our driver support team is always just a tap away.",
@@ -326,7 +326,7 @@
     "support247": "24/7 support available",
     "getStartedMinutes": "Get started in minutes",
     "signIn": "Sign In",
-    "newToZiba": "New to ZIBA? Sign in to create your account",
+    "newToZibana": "New to ZIBANA? Sign in to create your account",
     "agreeTerms": "By signing in, you agree to our Terms of Service and Privacy Policy",
     "requestRide": "REQUEST A RIDE",
     "welcomeBack": "Welcome back",

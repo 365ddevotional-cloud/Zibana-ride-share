@@ -54,7 +54,7 @@ import { InboxViewerPanel } from "@/components/admin/inbox-viewer-panel";
 import { ZibraInsightsPanel } from "@/components/admin/zibra-insights-panel";
 import { WelcomeInsightsPanel } from "@/components/welcome-insights-panel";
 import { ZibraGovernancePanel } from "@/components/zibra-governance-panel";
-import { ZibaSupport } from "@/components/ziba-support";
+import { ZibanaSupport } from "@/components/zibana-support";
 import { TrainingCenter } from "@/components/training-center";
 import { HealthAlertsPanel } from "@/components/admin/health-alerts-panel";
 import { WalletFundingPanel } from "@/components/admin/wallet-funding-panel";
@@ -260,7 +260,7 @@ type ChargebackWithDetails = {
 type WalletWithDetails = {
   id: string;
   userId: string;
-  role: "driver" | "ziba";
+  role: "driver" | "zibana";
   balance: string;
   lockedBalance: string;
   currency: string;
@@ -1014,7 +1014,7 @@ function TerminationWindDownPanel({ directorUserId, directorLifecycle, isSuperAd
                 </div>
                 <div className="p-3 rounded-md bg-muted text-xs text-muted-foreground space-y-1" data-testid="text-termination-warnings">
                   <p className="font-medium">This will terminate the director, disable funding, revoke staff access, hold pending payouts, and reassign/unassign drivers.</p>
-                  <p>Director appointments are facilitation roles subject to review, suspension, or termination at ZIBA's discretion.</p>
+                  <p>Director appointments are facilitation roles subject to review, suspension, or termination at ZIBANA's discretion.</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button
@@ -3594,7 +3594,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                 </div>
                 <div className="flex-1">
                   <p className="text-2xl font-bold">${stats?.totalCommission || "0.00"}</p>
-                  <p className="text-sm text-muted-foreground">ZIBA Commission (20%)</p>
+                  <p className="text-sm text-muted-foreground">ZIBANA Commission (20%)</p>
                 </div>
                 <ChevronRight className="h-5 w-5 text-muted-foreground" />
               </CardContent>
@@ -7053,7 +7053,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                           
                           <Card>
                             <CardHeader className="pb-2">
-                              <CardDescription>ZIBA Commission</CardDescription>
+                              <CardDescription>ZIBANA Commission</CardDescription>
                               <CardTitle className="text-2xl text-primary" data-testid="text-analytics-commission">
                                 ${analyticsOverview.revenue.commission}
                               </CardTitle>
@@ -10426,7 +10426,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
             <TabsContent value="third-party-funding">
               <div className="space-y-6" data-testid="panel-third-party-funding">
                 <div className="rounded-md border p-3 bg-muted/50 text-sm text-muted-foreground" data-testid="text-funding-legal-notice">
-                  Third-party wallet funding is a voluntary convenience feature. ZIBA does not act as a lender, escrow, or financial intermediary.
+                  Third-party wallet funding is a voluntary convenience feature. ZIBANA does not act as a lender, escrow, or financial intermediary.
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -10879,7 +10879,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
       </main>
       {zAssistOpen && (
         <div className="fixed bottom-20 right-4 w-[380px] max-w-[calc(100vw-2rem)] h-[520px] max-h-[calc(100vh-6rem)] z-50 shadow-lg rounded-lg overflow-hidden" data-testid="panel-z-assist">
-          <ZibaSupport onClose={() => setZAssistOpen(false)} />
+          <ZibanaSupport onClose={() => setZAssistOpen(false)} />
         </div>
       )}
       <Button

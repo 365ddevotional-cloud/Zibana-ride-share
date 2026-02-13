@@ -1,6 +1,6 @@
 /**
  * Payment Provider Abstraction Layer
- * ZIBA uses WALLET + ESCROW model
+ * ZIBANA uses WALLET + ESCROW model
  * 
  * ==============================
  * COUNTRY-SPECIFIC PAYMENT MODE
@@ -82,7 +82,7 @@ class PaystackAdapter implements PaymentProviderAdapter {
           email: request.email,
           amount: Math.round(request.amount * 100), // Convert to kobo
           currency: request.currency || "NGN",
-          reference: `ZIBA_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+          reference: `ZIBANA_${Date.now()}_${Math.random().toString(36).substring(7)}`,
           callback_url: request.callbackUrl,
           metadata: {
             userId: request.userId,

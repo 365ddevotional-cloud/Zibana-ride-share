@@ -116,11 +116,11 @@ export type AuditCategory = typeof AUDIT_CATEGORIES[number];
 
 // STORE METADATA
 export const STORE_METADATA = {
-  APP_NAME: "ZIBA",
+  APP_NAME: "ZIBANA",
   TAGLINE: "Safe and Reliable Rides",
   CATEGORY: "Transportation",
   CONTENT_RATING: "Everyone",
-  DESCRIPTION: `ZIBA connects riders with verified drivers for safe, reliable transportation in emerging markets. 
+  DESCRIPTION: `ZIBANA connects riders with verified drivers for safe, reliable transportation in emerging markets. 
 
 Key Features:
 - Real-time ride tracking
@@ -130,7 +130,7 @@ Key Features:
 - Multiple payment options
 - 24/7 customer support
 
-ZIBA prioritizes your safety with background checks on all drivers, real-time trip monitoring, and a dedicated support team.
+ZIBANA prioritizes your safety with background checks on all drivers, real-time trip monitoring, and a dedicated support team.
 
 Fares are calculated based on distance, time, and local conditions. Commission rates and fee structures are clearly disclosed before each ride.`,
   SAFETY_SECTION: `Your safety is our priority:
@@ -142,7 +142,7 @@ Fares are calculated based on distance, time, and local conditions. Commission r
 - Community ratings and reviews`,
   DISCLAIMERS: [
     "Earnings for drivers vary based on demand, location, and availability.",
-    "ZIBA is a technology platform connecting riders and drivers.",
+    "ZIBANA is a technology platform connecting riders and drivers.",
     "Standard fares may vary based on traffic, weather, and surge pricing.",
     "Background checks are conducted according to local regulations.",
   ],

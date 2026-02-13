@@ -35,7 +35,7 @@ interface AiCommandPanelProps {
 type TabKey = "ask" | "risk" | "report" | "founder" | "promo";
 
 const TABS: { key: TabKey; label: string; icon: typeof Brain }[] = [
-  { key: "ask", label: "Ask ZIBA", icon: Brain },
+  { key: "ask", label: "Ask ZIBANA", icon: Brain },
   { key: "risk", label: "Risk Alerts", icon: AlertTriangle },
   { key: "report", label: "Weekly Report", icon: FileText },
   { key: "founder", label: "Founder Mode", icon: Lightbulb },
@@ -175,7 +175,7 @@ export function AiCommandPanel({ open, onClose, isSuperAdmin }: AiCommandPanelPr
               <Brain className="h-4 w-4" />
             </div>
             <div>
-              <h2 className="text-sm font-semibold tracking-tight" data-testid="text-ai-panel-title">ZIBA AI</h2>
+              <h2 className="text-sm font-semibold tracking-tight" data-testid="text-ai-panel-title">ZIBANA AI</h2>
               <p className="text-xs text-muted-foreground">Command Mode</p>
             </div>
           </div>
@@ -250,7 +250,7 @@ export function AiCommandPanel({ open, onClose, isSuperAdmin }: AiCommandPanelPr
                 <div className="flex h-12 w-12 mx-auto items-center justify-center rounded-full bg-muted">
                   <Brain className="h-6 w-6 text-muted-foreground" />
                 </div>
-                <p className="text-sm font-medium" data-testid="text-ai-offline-message">ZIBA AI is currently offline.</p>
+                <p className="text-sm font-medium" data-testid="text-ai-offline-message">ZIBANA AI is currently offline.</p>
                 <p className="text-xs text-muted-foreground">
                   {isSuperAdmin
                     ? "Use the toggle above to enable the AI Command Layer."
@@ -268,7 +268,7 @@ export function AiCommandPanel({ open, onClose, isSuperAdmin }: AiCommandPanelPr
                 </div>
                 <p className="text-sm font-medium" data-testid="text-ai-budget-message">Monthly budget limit reached.</p>
                 <p className="text-xs text-muted-foreground">
-                  ZIBA AI has been automatically disabled to protect your credits. It will reset at the start of next month.
+                  ZIBANA AI has been automatically disabled to protect your credits. It will reset at the start of next month.
                 </p>
               </CardContent>
             </Card>
@@ -363,7 +363,7 @@ export function AiCommandPanel({ open, onClose, isSuperAdmin }: AiCommandPanelPr
                 <Textarea
                   value={question}
                   onChange={(e) => setQuestion(e.target.value)}
-                  placeholder="Ask ZIBA AI anything about operations..."
+                  placeholder="Ask ZIBANA AI anything about operations..."
                   className="resize-none text-sm min-h-[40px] max-h-[100px]"
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {

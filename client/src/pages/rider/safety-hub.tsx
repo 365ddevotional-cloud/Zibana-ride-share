@@ -501,7 +501,7 @@ export default function SafetyHubPage() {
                                   <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">Item returned successfully</p>
                                 </div>
                                 <p className="text-xs text-muted-foreground">
-                                  Thank you for using ZIBA. Your item has been safely returned.
+                                  Thank you for using ZIBANA. Your item has been safely returned.
                                 </p>
                               </div>
                             )}
@@ -671,7 +671,7 @@ export default function SafetyHubPage() {
 
                 <div className="rounded-md border p-3 space-y-2 bg-muted/50" data-testid="card-lost-item-disclaimer">
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    ZIBA helps facilitate communication but does not guarantee recovery of lost items. Drivers are not obligated to return items. ZIBA is not responsible for loss, damage, or recovery outcomes.
+                    ZIBANA helps facilitate communication but does not guarantee recovery of lost items. Drivers are not obligated to return items. ZIBANA is not responsible for loss, damage, or recovery outcomes.
                   </p>
                   <div className="flex items-start gap-2">
                     <Checkbox
@@ -821,7 +821,7 @@ export default function SafetyHubPage() {
 
                 <div className="rounded-md border p-3 space-y-2 bg-muted/50" data-testid="card-accident-disclaimer">
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    Accident and incident reporting is for documentation and assistance only. Reports do not imply fault, liability, or compensation from ZIBA. Any relief funds are discretionary and conditional. ZIBA does not guarantee rider or driver safety.
+                    Accident and incident reporting is for documentation and assistance only. Reports do not imply fault, liability, or compensation from ZIBANA. Any relief funds are discretionary and conditional. ZIBANA does not guarantee rider or driver safety.
                   </p>
                   <div className="flex items-start gap-2">
                     <Checkbox

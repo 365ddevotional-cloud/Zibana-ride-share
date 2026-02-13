@@ -27,7 +27,7 @@ export default function DriverRegister() {
       }).catch(() => {});
       queryClient.invalidateQueries({ queryKey: ["/api/user/role"] });
       toast({
-        title: "Welcome to ZIBA Driver!",
+        title: "Welcome to ZIBANA Driver!",
         description: "Your driver account has been created.",
       });
       setLocation("/driver/dashboard");
@@ -50,12 +50,12 @@ export default function DriverRegister() {
       <div className="max-w-lg mx-auto px-4 py-12">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-6">
-            <span className="text-4xl font-bold tracking-tight">ZIBA</span>
+            <span className="text-4xl font-bold tracking-tight">ZIBANA</span>
             <span className="text-lg font-medium opacity-80">Driver</span>
           </div>
-          <h1 className="text-2xl font-bold mb-3">Become a ZIBA Driver</h1>
+          <h1 className="text-2xl font-bold mb-3">Become a ZIBANA Driver</h1>
           <p className="text-emerald-100">
-            Start earning money by driving with ZIBA. Join thousands of drivers across our network.
+            Start earning money by driving with ZIBANA. Join thousands of drivers across our network.
           </p>
         </div>
 
@@ -121,7 +121,7 @@ export default function DriverRegister() {
             </ul>
             <div className="rounded-md border border-emerald-200 p-3 space-y-2 bg-emerald-50/50 dark:bg-emerald-900/10 dark:border-emerald-800" data-testid="card-terms-acceptance">
               <p className="text-xs text-muted-foreground leading-relaxed">
-                By registering, you acknowledge that you are an independent contractor. ZIBA is a technology platform that connects riders with drivers. ZIBA does not employ drivers, control trip outcomes, or provide transportation services. All trips are undertaken at your own risk.
+                By registering, you acknowledge that you are an independent contractor. ZIBANA is a technology platform that connects riders with drivers. ZIBANA does not employ drivers, control trip outcomes, or provide transportation services. All trips are undertaken at your own risk.
               </p>
               <div className="flex items-start gap-2">
                 <Checkbox

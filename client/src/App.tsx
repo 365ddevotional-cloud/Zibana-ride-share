@@ -132,7 +132,7 @@ function RoleSelectRoute({ authLoading, user }: { authLoading: boolean; user: an
   useEffect(() => {
     if (!invalidated.current) {
       invalidated.current = true;
-      localStorage.removeItem("ziba-active-role");
+      localStorage.removeItem("zibana-active-role");
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       queryClient.invalidateQueries({ queryKey: ["/api/user/role"] });
     }
@@ -162,7 +162,7 @@ function AccessDeniedPage() {
         </div>
         <h1 className="text-2xl font-bold mb-2">Access Restricted</h1>
         <p className="text-muted-foreground mb-6">
-          ZIBA Ride is exclusively for riders. If you're a driver, please download the ZIBA Driver app.
+          ZIBANA Ride is exclusively for riders. If you're a driver, please download the ZIBANA Driver app.
         </p>
         <button 
           onClick={() => logout?.()} 
@@ -212,7 +212,7 @@ function AdminLoginRequired() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
           </svg>
         </div>
-        <h1 className="text-2xl font-bold mb-2">ZIBA Admin Dashboard</h1>
+        <h1 className="text-2xl font-bold mb-2">ZIBANA Admin Dashboard</h1>
         <p className="text-muted-foreground mb-6">
           Please sign in with your admin account to access the dashboard.
         </p>
@@ -241,7 +241,7 @@ function DriverAccessDenied() {
         </div>
         <h1 className="text-2xl font-bold mb-2">Driver Access Required</h1>
         <p className="text-muted-foreground mb-6">
-          ZIBA Driver is exclusively for registered drivers. If you're a rider, please use the ZIBA Rider app.
+          ZIBANA Driver is exclusively for registered drivers. If you're a rider, please use the ZIBANA Rider app.
         </p>
         <button 
           onClick={() => logout?.()} 
@@ -274,7 +274,7 @@ function DriverRouter() {
       const hasDriverRole = roles.includes("driver");
       if (hasDriverRole && userRole.role !== "driver" && !activatingRole.current) {
         activatingRole.current = true;
-        localStorage.setItem("ziba-active-role", "driver");
+        localStorage.setItem("zibana-active-role", "driver");
         fetch("/api/user/active-role", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -329,7 +329,7 @@ function DriverRouter() {
     return <DriverAccessDenied />;
   }
 
-  const welcomeShown = typeof window !== "undefined" && localStorage.getItem("ziba-driver-welcome-shown") === "true";
+  const welcomeShown = typeof window !== "undefined" && localStorage.getItem("zibana-driver-welcome-shown") === "true";
 
   return (
     <Switch>
@@ -753,7 +753,7 @@ function AuthenticatedRoutes() {
     return <RoleSelectionPage />;
   }
 
-  const selectedRole = typeof window !== "undefined" ? localStorage.getItem("ziba-active-role") : null;
+  const selectedRole = typeof window !== "undefined" ? localStorage.getItem("zibana-active-role") : null;
 
   if (!selectedRole) {
     return <RoleSelectionPage />;
@@ -772,7 +772,7 @@ function AuthenticatedRoutes() {
   }
   
   if (selectedRole === "rider") {
-    const riderWelcomeShown = typeof window !== "undefined" && localStorage.getItem("ziba-rider-welcome-shown") === "true";
+    const riderWelcomeShown = typeof window !== "undefined" && localStorage.getItem("zibana-rider-welcome-shown") === "true";
     if (!riderWelcomeShown) {
       return <Redirect to="/rider/welcome-back" />;
     }
@@ -1155,7 +1155,7 @@ function MainRouter() {
         return <FullPageLoading text="Loading your dashboard..." />;
       }
       
-      const selectedRole = typeof window !== "undefined" ? localStorage.getItem("ziba-active-role") : null;
+      const selectedRole = typeof window !== "undefined" ? localStorage.getItem("zibana-active-role") : null;
 
       if (!selectedRole || !userRole?.role) {
         return <Redirect to="/role-select" />;
@@ -1210,7 +1210,7 @@ function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <ThemeProvider defaultTheme="light" storageKey="ziba-ui-theme">
+        <ThemeProvider defaultTheme="light" storageKey="zibana-ui-theme">
           <LanguageProvider>
             <TooltipProvider>
               <AppModeProvider>

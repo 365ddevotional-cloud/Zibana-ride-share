@@ -39,7 +39,7 @@ export function DriverLayout({ children }: DriverLayoutProps) {
       <header className="sticky top-0 z-50 bg-emerald-600 text-white px-4 py-3 shadow-sm">
         <div className="flex items-center justify-between max-w-lg mx-auto">
           <Link href="/driver/dashboard">
-            <div className="flex items-center gap-1.5 cursor-pointer" data-testid="logo-ziba-driver">
+            <div className="flex items-center gap-1.5 cursor-pointer" data-testid="logo-zibana-driver">
               <span className="text-xl font-bold tracking-tight">{t("driver.appName")}</span>
               <span className="text-xs font-medium opacity-80">{t("driver.appRole")}</span>
             </div>

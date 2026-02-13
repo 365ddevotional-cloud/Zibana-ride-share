@@ -210,7 +210,7 @@ function ContractStepContent({
           <div className="rounded-md bg-muted p-3 space-y-2">
             <p className="text-sm text-muted-foreground" data-testid="text-role-overview">
               <Briefcase className="inline h-4 w-4 mr-1" />
-              You are an independent contractor — not an employee — unless explicitly designated otherwise. Your relationship with ZIBA is governed by the terms you will accept during this onboarding.
+              You are an independent contractor — not an employee — unless explicitly designated otherwise. Your relationship with ZIBANA is governed by the terms you will accept during this onboarding.
             </p>
           </div>
           {referralCodeId && (
@@ -341,7 +341,7 @@ function ContractStepContent({
             </li>
             <li className="flex items-start gap-2" data-testid="text-conduct-revoke">
               <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-              <span>ZIBA reserves the right to suspend or terminate your directorship at its discretion for policy violations or misconduct.</span>
+              <span>ZIBANA reserves the right to suspend or terminate your directorship at its discretion for policy violations or misconduct.</span>
             </li>
             <li className="flex items-start gap-2" data-testid="text-conduct-dispute">
               <FileText className="h-4 w-4 mt-0.5 shrink-0" />
@@ -356,14 +356,14 @@ function ContractStepContent({
         <div className="space-y-4" data-testid="contract-step-terms">
           <h3 className="text-lg font-semibold" data-testid="text-terms-title">Terms & Conditions</h3>
           <div className="space-y-3 text-sm text-muted-foreground max-h-[200px] overflow-y-auto border rounded-md p-3">
-            <p className="font-medium text-foreground">ZIBA Director Agreement — Version 1.0</p>
+            <p className="font-medium text-foreground">ZIBANA Director Agreement — Version 1.0</p>
             <p>By accepting these terms, you acknowledge and agree to the following:</p>
             <ol className="list-decimal pl-5 space-y-2">
               <li>You are an independent contractor, not an employee, unless explicitly designated as an employed director.</li>
               <li>You do not control pricing, fare calculations, or driver payouts.</li>
-              <li>Commission is earned only from ZIBA platform earnings — not from driver income — and is not guaranteed.</li>
-              <li>Your appointment is revocable at the discretion of ZIBA administration.</li>
-              <li>ZIBA may suspend or terminate your directorship at any time for policy violations, misconduct, or operational reasons.</li>
+              <li>Commission is earned only from ZIBANA platform earnings — not from driver income — and is not guaranteed.</li>
+              <li>Your appointment is revocable at the discretion of ZIBANA administration.</li>
+              <li>ZIBANA may suspend or terminate your directorship at any time for policy violations, misconduct, or operational reasons.</li>
               <li>There is no guarantee of earnings. Commission eligibility depends on daily calculations, driver activity, and compliance.</li>
               <li>You are fully responsible for the actions of any staff operating under your authority.</li>
               <li>A formal dispute resolution process is available. Appeals are limited and subject to final review.</li>
@@ -420,12 +420,12 @@ function EmployedStepContent({
         <div className="space-y-4" data-testid="employed-step-welcome">
           <h3 className="text-lg font-semibold" data-testid="text-welcome-title">Welcome to the Director Team</h3>
           <p className="text-sm text-muted-foreground" data-testid="text-intro-desc">
-            As an Employed Director, you are part of the ZIBA operations team. Your role is to oversee assigned driver operations, monitor performance, and ensure compliance with platform standards.
+            As an Employed Director, you are part of the ZIBANA operations team. Your role is to oversee assigned driver operations, monitor performance, and ensure compliance with platform standards.
           </p>
           <div className="rounded-md bg-muted p-3">
             <p className="text-sm text-muted-foreground" data-testid="text-employed-note">
               <Briefcase className="inline h-4 w-4 mr-1" />
-              As an employed director, your employment terms are governed by your employment agreement with ZIBA.
+              As an employed director, your employment terms are governed by your employment agreement with ZIBANA.
             </p>
           </div>
         </div>
@@ -541,13 +541,13 @@ function EmployedStepContent({
         <div className="space-y-4" data-testid="employed-step-terms">
           <h3 className="text-lg font-semibold" data-testid="text-terms-title">Terms & Conditions</h3>
           <div className="space-y-3 text-sm text-muted-foreground max-h-[200px] overflow-y-auto border rounded-md p-3">
-            <p className="font-medium text-foreground">ZIBA Employed Director Agreement — Version 1.0</p>
+            <p className="font-medium text-foreground">ZIBANA Employed Director Agreement — Version 1.0</p>
             <p>By accepting these terms, you acknowledge and agree to the following:</p>
             <ol className="list-decimal pl-5 space-y-2">
-              <li>Your role as an employed director is governed by your employment agreement with ZIBA.</li>
+              <li>Your role as an employed director is governed by your employment agreement with ZIBANA.</li>
               <li>You do not control pricing, fare calculations, or driver payouts.</li>
               <li>Your authority is limited to the scope defined by administration.</li>
-              <li>ZIBA may modify your duties, assignments, or authority at any time.</li>
+              <li>ZIBANA may modify your duties, assignments, or authority at any time.</li>
               <li>You are expected to comply with all platform policies and organizational standards.</li>
               <li>All actions are logged and form part of your performance record.</li>
               <li>A formal dispute resolution process is available.</li>

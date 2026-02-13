@@ -8,7 +8,7 @@ export default function RiderWelcomeBack() {
   const navigated = useRef(false);
 
   useEffect(() => {
-    const shown = localStorage.getItem("ziba-rider-welcome-shown");
+    const shown = localStorage.getItem("zibana-rider-welcome-shown");
     if (shown === "true") {
       setLocation("/rider/home");
       return;
@@ -21,7 +21,7 @@ export default function RiderWelcomeBack() {
   useEffect(() => {
     if (phase !== "visible") return;
 
-    localStorage.setItem("ziba-rider-welcome-shown", "true");
+    localStorage.setItem("zibana-rider-welcome-shown", "true");
 
     const exitTimer = setTimeout(() => setPhase("exit"), 2200);
     return () => clearTimeout(exitTimer);

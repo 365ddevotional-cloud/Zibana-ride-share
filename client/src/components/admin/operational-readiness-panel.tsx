@@ -476,9 +476,9 @@ export function OperationalReadinessPanel() {
                   <FileText className="mr-1.5 h-4 w-4" />
                   View Appeal Queue
                 </Button>
-                <Button variant="outline" data-testid="button-ziba-support-logs">
+                <Button variant="outline" data-testid="button-zibana-support-logs">
                   <FileText className="mr-1.5 h-4 w-4" />
-                  ZIBA Support Logs
+                  ZIBANA Support Logs
                 </Button>
               </div>
             </CardContent>

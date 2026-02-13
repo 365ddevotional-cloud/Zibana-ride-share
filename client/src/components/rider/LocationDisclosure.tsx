@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { MapPin, Shield, Navigation } from "lucide-react";
 
-const LOCATION_DISCLOSURE_KEY = "ziba_rider_location_disclosure_shown";
+const LOCATION_DISCLOSURE_KEY = "zibana_rider_location_disclosure_shown";
 
 interface LocationDisclosureProps {
   onAccept: () => void;
@@ -20,7 +20,7 @@ export function LocationDisclosure({ onAccept }: LocationDisclosureProps) {
             </div>
             <h2 className="text-xl font-bold mb-2">Location Access</h2>
             <p className="text-muted-foreground">
-              ZIBA Rider needs your location to provide you with the best experience
+              ZIBANA Rider needs your location to provide you with the best experience
             </p>
           </div>
 

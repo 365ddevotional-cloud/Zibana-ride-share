@@ -59,11 +59,11 @@ const TRAINING_MODULES: TrainingModule[] = [
     sections: [
       {
         title: "Immediate Steps After an Accident",
-        content: "Ensure everyone's safety first. Call emergency services if anyone is injured. Take photos of the scene, vehicles, and any damage. Report the accident through the ZIBA app as soon as it is safe to do so.",
+        content: "Ensure everyone's safety first. Call emergency services if anyone is injured. Take photos of the scene, vehicles, and any damage. Report the accident through the ZIBANA app as soon as it is safe to do so.",
       },
       {
         title: "Using the Relief Fund",
-        content: "ZIBA maintains a Driver Accident Relief Fund for verified accidents. After reporting, an admin will review your case. Payouts depend on fault determination and severity. A minimum trust score is required for eligibility.",
+        content: "ZIBANA maintains a Driver Accident Relief Fund for verified accidents. After reporting, an admin will review your case. Payouts depend on fault determination and severity. A minimum trust score is required for eligibility.",
       },
       {
         title: "What to Avoid",
@@ -118,7 +118,7 @@ export default function DriverTraining() {
               <div>
                 <p className="font-medium text-sm">Safety First</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Review these training modules to understand best practices for handling lost items, accidents, and maintaining your trust score on ZIBA.
+                  Review these training modules to understand best practices for handling lost items, accidents, and maintaining your trust score on ZIBANA.
                 </p>
               </div>
             </div>

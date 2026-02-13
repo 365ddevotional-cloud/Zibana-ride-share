@@ -18,7 +18,7 @@ import {
   Wrench,
   Headphones,
 } from "lucide-react";
-import { ZibaSupport } from "@/components/ziba-support";
+import { ZibanaSupport } from "@/components/zibana-support";
 
 interface HelpArticle {
   id: string;
@@ -37,7 +37,7 @@ interface HelpCategory {
 }
 
 const CATEGORIES: HelpCategory[] = [
-  { id: "getting-started", name: "Getting Started", description: "New to ZIBA? Start here", icon: "rocket" },
+  { id: "getting-started", name: "Getting Started", description: "New to ZIBANA? Start here", icon: "rocket" },
   { id: "booking", name: "Booking a Ride", description: "How to request and manage rides", icon: "car" },
   { id: "payments", name: "Payments & Wallet", description: "Payment methods and wallet info", icon: "wallet" },
   { id: "cash", name: "Cash Trips", description: "Paying your driver with cash", icon: "banknote" },
@@ -49,27 +49,27 @@ const CATEGORIES: HelpCategory[] = [
 
 const ARTICLES: HelpArticle[] = [
   {
-    id: "gs-1", categoryId: "getting-started", title: "What is ZIBA?",
-    summary: "Learn about the ZIBA ride-hailing platform",
-    content: "ZIBA is a ride-hailing platform designed for emerging markets. We connect riders with trusted, verified drivers so you can get where you need to go safely and reliably. Whether you're commuting to work, running errands, or heading out for the evening, ZIBA makes it easy to request a ride from your phone.",
-    keywords: ["what", "ziba", "about", "platform", "app", "service"],
+    id: "gs-1", categoryId: "getting-started", title: "What is ZIBANA?",
+    summary: "Learn about the ZIBANA ride-hailing platform",
+    content: "ZIBANA is a ride-hailing platform designed for emerging markets. We connect riders with trusted, verified drivers so you can get where you need to go safely and reliably. Whether you're commuting to work, running errands, or heading out for the evening, ZIBANA makes it easy to request a ride from your phone.",
+    keywords: ["what", "zibana", "about", "platform", "app", "service"],
   },
   {
     id: "gs-2", categoryId: "getting-started", title: "How do I book my first ride?",
     summary: "Step-by-step guide to your first trip",
-    content: "Booking your first ride is simple:\n\n1. Open the ZIBA app and you'll see the \"Where are you going?\" screen.\n2. Enter your pickup location in the first field.\n3. Enter your destination in the second field.\n4. Choose your payment method (cash or wallet).\n5. Tap \"Request Ride\" and a nearby driver will be matched with you.\n\nYou'll be able to see your driver's details and track their arrival in real time.",
+    content: "Booking your first ride is simple:\n\n1. Open the ZIBANA app and you'll see the \"Where are you going?\" screen.\n2. Enter your pickup location in the first field.\n3. Enter your destination in the second field.\n4. Choose your payment method (cash or wallet).\n5. Tap \"Request Ride\" and a nearby driver will be matched with you.\n\nYou'll be able to see your driver's details and track their arrival in real time.",
     keywords: ["first", "ride", "book", "start", "begin", "new", "how"],
   },
   {
-    id: "gs-3", categoryId: "getting-started", title: "Is ZIBA available in my city?",
-    summary: "Check where ZIBA operates",
-    content: "ZIBA is currently expanding across several countries in Africa and other emerging markets. We operate in major cities across Nigeria and are actively launching in new regions. Check the app for availability in your area — if ZIBA is available, you'll be able to see nearby drivers and request rides.",
+    id: "gs-3", categoryId: "getting-started", title: "Is ZIBANA available in my city?",
+    summary: "Check where ZIBANA operates",
+    content: "ZIBANA is currently expanding across several countries in Africa and other emerging markets. We operate in major cities across Nigeria and are actively launching in new regions. Check the app for availability in your area — if ZIBANA is available, you'll be able to see nearby drivers and request rides.",
     keywords: ["city", "available", "location", "area", "country", "where", "operate", "nigeria"],
   },
   {
     id: "gs-4", categoryId: "getting-started", title: "How do I create an account?",
-    summary: "Setting up your ZIBA account",
-    content: "Creating your ZIBA account takes just a moment:\n\n1. Open the ZIBA app or visit our website.\n2. Tap \"Sign In\" to create your account.\n3. You'll be guided through a quick setup process.\n4. Once signed in, you can start requesting rides right away.\n\nYour account gives you access to ride history, saved places, wallet features, and more.",
+    summary: "Setting up your ZIBANA account",
+    content: "Creating your ZIBANA account takes just a moment:\n\n1. Open the ZIBANA app or visit our website.\n2. Tap \"Sign In\" to create your account.\n3. You'll be guided through a quick setup process.\n4. Once signed in, you can start requesting rides right away.\n\nYour account gives you access to ride history, saved places, wallet features, and more.",
     keywords: ["create", "account", "sign", "register", "setup", "new"],
   },
   {
@@ -87,7 +87,7 @@ const ARTICLES: HelpArticle[] = [
   {
     id: "bk-3", categoryId: "booking", title: "Can I schedule a ride?",
     summary: "Book rides in advance",
-    content: "Yes! ZIBA allows you to schedule rides in advance. On the home screen, look for the \"Schedule a Ride\" option. You can set your pickup time and location ahead of time, and we'll match you with a driver when your ride time arrives.\n\nScheduled rides are a great option for airport trips, early morning commutes, or any time you want to plan ahead.",
+    content: "Yes! ZIBANA allows you to schedule rides in advance. On the home screen, look for the \"Schedule a Ride\" option. You can set your pickup time and location ahead of time, and we'll match you with a driver when your ride time arrives.\n\nScheduled rides are a great option for airport trips, early morning commutes, or any time you want to plan ahead.",
     keywords: ["schedule", "advance", "book", "plan", "future", "reserve", "ahead", "later", "tomorrow"],
   },
   {
@@ -99,7 +99,7 @@ const ARTICLES: HelpArticle[] = [
   {
     id: "pw-1", categoryId: "payments", title: "What payment methods are supported?",
     summary: "Available ways to pay for rides",
-    content: "ZIBA supports two ways to pay for rides:\n\n\u2022 Cash: Pay your driver directly at the end of the trip.\n\u2022 Wallet: Use your ZIBA wallet balance to pay for rides seamlessly in the app.\n\nYou can add money to your wallet using a debit or credit card through our secure payment partner. Cards are used to fund your wallet — trip payments are made from your wallet balance or with cash.\n\nYou can switch between payment methods at any time from the Payments screen before requesting a ride.",
+    content: "ZIBANA supports two ways to pay for rides:\n\n\u2022 Cash: Pay your driver directly at the end of the trip.\n\u2022 Wallet: Use your ZIBANA wallet balance to pay for rides seamlessly in the app.\n\nYou can add money to your wallet using a debit or credit card through our secure payment partner. Cards are used to fund your wallet — trip payments are made from your wallet balance or with cash.\n\nYou can switch between payment methods at any time from the Payments screen before requesting a ride.",
     keywords: ["payment", "method", "pay", "options", "supported", "types", "card", "cash", "wallet", "money"],
   },
   {
@@ -117,13 +117,13 @@ const ARTICLES: HelpArticle[] = [
   {
     id: "pw-4", categoryId: "payments", title: "How do I add money to my wallet?",
     summary: "Fund your wallet with a card",
-    content: "Adding money to your ZIBA wallet is quick and easy:\n\n1. Go to the Payments screen from the bottom navigation.\n2. Tap \"Fund Wallet\".\n3. Enter the amount you'd like to add, or tap a quick-amount button.\n4. Complete the payment through our secure payment partner.\n\nYour wallet balance will be updated once the payment is confirmed. Cards are used only to fund your wallet — they are not charged directly for trips.",
+    content: "Adding money to your ZIBANA wallet is quick and easy:\n\n1. Go to the Payments screen from the bottom navigation.\n2. Tap \"Fund Wallet\".\n3. Enter the amount you'd like to add, or tap a quick-amount button.\n4. Complete the payment through our secure payment partner.\n\nYour wallet balance will be updated once the payment is confirmed. Cards are used only to fund your wallet — they are not charged directly for trips.",
     keywords: ["add", "fund", "wallet", "money", "card", "top", "up", "topup", "credit", "debit", "deposit"],
   },
   {
     id: "pw-5", categoryId: "payments", title: "Is my card information secure?",
     summary: "Card and payment security",
-    content: "Yes. All card transactions are processed through our trusted, encrypted payment partner. Your card details are never stored on ZIBA's servers. All payment data is handled according to industry-standard security practices.\n\nCards are used only to fund your wallet balance — no card details are used during individual trips.",
+    content: "Yes. All card transactions are processed through our trusted, encrypted payment partner. Your card details are never stored on ZIBANA's servers. All payment data is handled according to industry-standard security practices.\n\nCards are used only to fund your wallet balance — no card details are used during individual trips.",
     keywords: ["card", "secure", "security", "safe", "encrypted", "payment", "credit", "debit"],
   },
   {
@@ -153,7 +153,7 @@ const ARTICLES: HelpArticle[] = [
   {
     id: "cs-3", categoryId: "cash", title: "What if I don't have exact cash?",
     summary: "Handling change during cash trips",
-    content: "If you don't have the exact fare amount, your driver may be able to provide change, but this isn't guaranteed. We recommend:\n\n\u2022 Having the approximate fare amount ready in smaller bills.\n\u2022 Checking the estimated fare before requesting a ride so you can prepare.\n\u2022 Considering using your ZIBA wallet as an alternative payment method.\n\nIf there are any issues with payment, you can contact our support team for help.",
+    content: "If you don't have the exact fare amount, your driver may be able to provide change, but this isn't guaranteed. We recommend:\n\n\u2022 Having the approximate fare amount ready in smaller bills.\n\u2022 Checking the estimated fare before requesting a ride so you can prepare.\n\u2022 Considering using your ZIBANA wallet as an alternative payment method.\n\nIf there are any issues with payment, you can contact our support team for help.",
     keywords: ["exact", "change", "cash", "bills", "small", "money", "denomination"],
   },
   {
@@ -187,33 +187,33 @@ const ARTICLES: HelpArticle[] = [
     keywords: ["driver", "arrive", "late", "missing", "no show", "waiting", "long", "time"],
   },
   {
-    id: "sf-1", categoryId: "safety", title: "How does ZIBA keep riders safe?",
+    id: "sf-1", categoryId: "safety", title: "How does ZIBANA keep riders safe?",
     summary: "Our safety measures for riders",
-    content: "ZIBA provides several safety tools to help protect you:\n\n\u2022 All drivers go through a verification process before being approved.\n\u2022 You can see your driver's details and vehicle information before the trip.\n\u2022 Real-time trip tracking lets you and your trusted contacts follow your ride.\n\u2022 An in-app SOS button is available during trips for emergencies.\n\u2022 Our rating system helps maintain high standards for driver behavior.\n\u2022 Our support team is available to help with any safety concerns.\n\nPlease note: ZIBA is a technology platform that connects riders with independent drivers. While we provide safety tools, all users are responsible for their own personal safety decisions during trips.",
+    content: "ZIBANA provides several safety tools to help protect you:\n\n\u2022 All drivers go through a verification process before being approved.\n\u2022 You can see your driver's details and vehicle information before the trip.\n\u2022 Real-time trip tracking lets you and your trusted contacts follow your ride.\n\u2022 An in-app SOS button is available during trips for emergencies.\n\u2022 Our rating system helps maintain high standards for driver behavior.\n\u2022 Our support team is available to help with any safety concerns.\n\nPlease note: ZIBANA is a technology platform that connects riders with independent drivers. While we provide safety tools, all users are responsible for their own personal safety decisions during trips.",
     keywords: ["safe", "safety", "protect", "security", "trust", "secure", "verification"],
   },
   {
     id: "sf-2", categoryId: "safety", title: "Can I share my trip?",
     summary: "Sharing your trip details with others",
-    content: "Yes! ZIBA allows you to share your trip details with trusted contacts. During an active trip, you can share your real-time location and trip information so someone you trust can follow your journey.\n\nThis is a great feature to use, especially for late-night rides or trips to unfamiliar areas. We recommend always letting someone know when you're traveling.",
+    content: "Yes! ZIBANA allows you to share your trip details with trusted contacts. During an active trip, you can share your real-time location and trip information so someone you trust can follow your journey.\n\nThis is a great feature to use, especially for late-night rides or trips to unfamiliar areas. We recommend always letting someone know when you're traveling.",
     keywords: ["share", "trip", "contact", "track", "location", "family", "friend"],
   },
   {
     id: "sf-3", categoryId: "safety", title: "What should I do in an emergency?",
     summary: "Emergency steps during a ride",
-    content: "If you're in an emergency during a ride:\n\n1. Use the SOS button in the app to alert our safety team immediately.\n2. If you're in immediate danger, call your local emergency services (e.g., 112 or 911).\n3. If possible, share your trip with a trusted contact.\n\nOur safety team monitors SOS alerts and will respond as quickly as possible. Please note: Incident and accident reports are for documentation and assistance purposes only. They do not imply fault, liability, or compensation from ZIBA.",
+    content: "If you're in an emergency during a ride:\n\n1. Use the SOS button in the app to alert our safety team immediately.\n2. If you're in immediate danger, call your local emergency services (e.g., 112 or 911).\n3. If possible, share your trip with a trusted contact.\n\nOur safety team monitors SOS alerts and will respond as quickly as possible. Please note: Incident and accident reports are for documentation and assistance purposes only. They do not imply fault, liability, or compensation from ZIBANA.",
     keywords: ["emergency", "sos", "danger", "help", "urgent", "police", "911", "112", "accident"],
   },
   {
     id: "sf-4", categoryId: "safety", title: "How are drivers verified?",
     summary: "Our driver verification process",
-    content: "All ZIBA drivers go through a thorough verification process that includes:\n\n\u2022 Identity verification with valid government-issued ID.\n\u2022 Vehicle documentation check.\n\u2022 Driver's license verification.\n\u2022 Profile photo verification.\n\nDrivers must be approved before they can accept ride requests. We continuously monitor driver performance through ratings and feedback. Please note: Drivers are independent contractors and ZIBA does not supervise individual trips.",
+    content: "All ZIBANA drivers go through a thorough verification process that includes:\n\n\u2022 Identity verification with valid government-issued ID.\n\u2022 Vehicle documentation check.\n\u2022 Driver's license verification.\n\u2022 Profile photo verification.\n\nDrivers must be approved before they can accept ride requests. We continuously monitor driver performance through ratings and feedback. Please note: Drivers are independent contractors and ZIBANA does not supervise individual trips.",
     keywords: ["driver", "verified", "verification", "check", "background", "approved", "license", "id"],
   },
   {
     id: "sf-5", categoryId: "safety", title: "Lost item during a trip",
     summary: "What to do if you leave something behind",
-    content: "If you've lost an item during a trip:\n\n1. Go to the Safety Hub from Activity or your Account.\n2. Tap 'Report Lost Item' and select the trip.\n3. Describe the item and submit your report.\n4. If the driver finds the item, you'll be connected via in-app chat.\n\nDrivers may use a Safe Return Hub to securely drop off your item for pickup. Please note: ZIBA helps facilitate communication but does not guarantee recovery of lost items. Drivers assist voluntarily, and ZIBA is not responsible for lost, damaged, or stolen personal property.",
+    content: "If you've lost an item during a trip:\n\n1. Go to the Safety Hub from Activity or your Account.\n2. Tap 'Report Lost Item' and select the trip.\n3. Describe the item and submit your report.\n4. If the driver finds the item, you'll be connected via in-app chat.\n\nDrivers may use a Safe Return Hub to securely drop off your item for pickup. Please note: ZIBANA helps facilitate communication but does not guarantee recovery of lost items. Drivers assist voluntarily, and ZIBANA is not responsible for lost, damaged, or stolen personal property.",
     keywords: ["lost", "item", "found", "left", "forgot", "belong", "missing", "property", "hub", "return"],
   },
   {
@@ -231,13 +231,13 @@ const ARTICLES: HelpArticle[] = [
   {
     id: "ac-3", categoryId: "account", title: "How do I log out?",
     summary: "Signing out of your account",
-    content: "To log out of your ZIBA account:\n\n1. Go to the Profile tab.\n2. Scroll down to find the \"Log Out\" or \"Sign Out\" option.\n3. Tap it to sign out.\n\nYou can log back in at any time using your account credentials. Your ride history and wallet balance will be saved.",
+    content: "To log out of your ZIBANA account:\n\n1. Go to the Profile tab.\n2. Scroll down to find the \"Log Out\" or \"Sign Out\" option.\n3. Tap it to sign out.\n\nYou can log back in at any time using your account credentials. Your ride history and wallet balance will be saved.",
     keywords: ["log", "out", "sign", "logout", "signout", "exit"],
   },
   {
     id: "ac-4", categoryId: "account", title: "I forgot my password",
     summary: "Recovering your account access",
-    content: "ZIBA uses a secure sign-in system that doesn't require a traditional password. If you're having trouble signing into your account:\n\n1. Try signing in again from the login screen.\n2. Make sure you're using the same sign-in method you originally used.\n3. If you're still having trouble, contact our support team for assistance.\n\nWe'll help you get back into your account as quickly as possible.",
+    content: "ZIBANA uses a secure sign-in system that doesn't require a traditional password. If you're having trouble signing into your account:\n\n1. Try signing in again from the login screen.\n2. Make sure you're using the same sign-in method you originally used.\n3. If you're still having trouble, contact our support team for assistance.\n\nWe'll help you get back into your account as quickly as possible.",
     keywords: ["forgot", "password", "reset", "login", "sign", "access", "locked", "cant"],
   },
   {
@@ -255,13 +255,13 @@ const ARTICLES: HelpArticle[] = [
   {
     id: "ps-3", categoryId: "problems", title: "My app is not working",
     summary: "Troubleshooting app issues",
-    content: "If the ZIBA app isn't working properly, try these steps:\n\n1. Make sure you have a stable internet connection (Wi-Fi or mobile data).\n2. Close the app completely and reopen it.\n3. Clear your browser cache if using the web version.\n4. Make sure your browser or device is up to date.\n5. Try signing out and signing back in.\n\nIf the problem continues after trying these steps, please contact our support team with details about the issue.",
+    content: "If the ZIBANA app isn't working properly, try these steps:\n\n1. Make sure you have a stable internet connection (Wi-Fi or mobile data).\n2. Close the app completely and reopen it.\n3. Clear your browser cache if using the web version.\n4. Make sure your browser or device is up to date.\n5. Try signing out and signing back in.\n\nIf the problem continues after trying these steps, please contact our support team with details about the issue.",
     keywords: ["app", "not working", "broken", "crash", "error", "bug", "problem", "issue", "freeze", "slow"],
   },
   {
     id: "ps-4", categoryId: "problems", title: "How do I contact support?",
     summary: "Reaching our customer support team",
-    content: "You can reach ZIBA's support team in several ways:\n\n\u2022 Through the Help Center in the app (you're here now!).\n\u2022 Via the Support page accessible from the Rider menu.\n\u2022 By describing your issue in detail so our team can assist you quickly.\n\nOur support team aims to respond as quickly as possible. When contacting us, please include relevant trip details to help us resolve your issue faster.",
+    content: "You can reach ZIBANA's support team in several ways:\n\n\u2022 Through the Help Center in the app (you're here now!).\n\u2022 Via the Support page accessible from the Rider menu.\n\u2022 By describing your issue in detail so our team can assist you quickly.\n\nOur support team aims to respond as quickly as possible. When contacting us, please include relevant trip details to help us resolve your issue faster.",
     keywords: ["contact", "support", "help", "reach", "team", "customer", "service", "chat", "email", "call"],
   },
 ];
@@ -665,15 +665,15 @@ export default function HelpCenterPage({
       )}
 
       {supportOpen && (
-        <div className="fixed bottom-20 right-4 w-[360px] max-w-[calc(100vw-2rem)] h-[500px] max-h-[calc(100vh-6rem)] z-50 shadow-lg rounded-lg overflow-hidden" data-testid="panel-ziba-support">
-          <ZibaSupport onClose={() => setSupportOpen(false)} />
+        <div className="fixed bottom-20 right-4 w-[360px] max-w-[calc(100vw-2rem)] h-[500px] max-h-[calc(100vh-6rem)] z-50 shadow-lg rounded-lg overflow-hidden" data-testid="panel-zibana-support">
+          <ZibanaSupport onClose={() => setSupportOpen(false)} />
         </div>
       )}
       <Button
         className="fixed bottom-4 right-4 z-50 rounded-full shadow-lg h-12 w-12"
         size="icon"
         onClick={() => setSupportOpen(!supportOpen)}
-        data-testid="button-ziba-support-toggle"
+        data-testid="button-zibana-support-toggle"
       >
         <Headphones className="h-5 w-5" />
       </Button>

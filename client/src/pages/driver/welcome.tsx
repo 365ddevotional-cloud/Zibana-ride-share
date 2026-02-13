@@ -11,7 +11,7 @@ export default function DriverWelcome() {
       <div className="max-w-lg mx-auto px-4 py-12">
         <div className="text-center mb-12">
           <div className="flex items-center justify-center gap-2 mb-6">
-            <span className="text-4xl font-bold tracking-tight">ZIBA</span>
+            <span className="text-4xl font-bold tracking-tight">ZIBANA</span>
             <span className="text-lg font-medium opacity-80">Driver</span>
           </div>
           <h1 className="text-2xl font-bold mb-3">{t("onboarding.driverWelcome")}</h1>
@@ -54,7 +54,7 @@ export default function DriverWelcome() {
             </Button>
           </a>
           <p className="text-center text-sm text-emerald-200">
-            {t("onboarding.newToZiba")}
+            {t("onboarding.newToZibana")}
           </p>
         </div>
 

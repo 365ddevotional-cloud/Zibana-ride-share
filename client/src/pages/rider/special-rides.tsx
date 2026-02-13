@@ -85,7 +85,7 @@ export default function SpecialRides() {
                     Explore Special Ride Options
                   </p>
                   <p className="text-sm text-amber-700 dark:text-amber-300 mt-1" data-testid="text-special-intro-description">
-                    From group trips to event coordination, ZIBA offers ride types tailored to your unique travel needs.
+                    From group trips to event coordination, ZIBANA offers ride types tailored to your unique travel needs.
                   </p>
                 </div>
               </div>
@@ -137,7 +137,7 @@ export default function SpecialRides() {
           <div className="flex items-start gap-2 p-3 rounded-lg bg-muted">
             <Shield className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
             <p className="text-xs text-muted-foreground" data-testid="text-special-disclaimer">
-              Availability and pricing may vary. ZIBA does not guarantee service availability.
+              Availability and pricing may vary. ZIBANA does not guarantee service availability.
             </p>
           </div>
 
