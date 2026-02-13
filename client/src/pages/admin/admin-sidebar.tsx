@@ -54,6 +54,8 @@ import {
   Settings,
   MessageCircle,
   Brain,
+  Landmark,
+  Eye,
 } from "lucide-react";
 
 const sidebarSections = [
@@ -155,6 +157,12 @@ const sidebarSections = [
       { value: "director-settings", label: "Director Settings", icon: Settings2, route: "/admin/growth/director-settings" },
       { value: "director-performance", label: "Director Performance", icon: Award, route: "/admin/growth/director-performance" },
       { value: "ai-audit", label: "AI Audit Log", icon: Brain, route: "/admin/growth/ai-audit" },
+    ],
+  },
+  {
+    label: "Founder Intelligence",
+    items: [
+      { value: "strategic-timeline", label: "Strategic Timeline", icon: Landmark, route: "/admin/founder/strategic-timeline" },
     ],
   },
 ];

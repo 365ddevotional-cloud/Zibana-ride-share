@@ -5999,3 +5999,21 @@ export const aiUsageLogs = pgTable("ai_usage_logs", {
 });
 
 export type AiUsageLog = typeof aiUsageLogs.$inferSelect;
+
+// ==========================================
+// FOUNDER STRATEGIC REMINDER SYSTEM
+// ==========================================
+export const founderStrategicReminders = pgTable("founder_strategic_reminders", {
+  id: serial("id").primaryKey(),
+  launchDate: timestamp("launch_date"),
+  firstRevenueDate: timestamp("first_revenue_date"),
+  reminderMonthsAfterRevenue: integer("reminder_months_after_revenue").notNull().default(4),
+  reminderTriggered: boolean("reminder_triggered").notNull().default(false),
+  reminderLog: text("reminder_log"),
+  founderModeEnabled: boolean("founder_mode_enabled").notNull().default(false),
+  checklistState: text("checklist_state"),
+  lastBannerShown: timestamp("last_banner_shown"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type FounderStrategicReminder = typeof founderStrategicReminders.$inferSelect;

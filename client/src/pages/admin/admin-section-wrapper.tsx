@@ -114,6 +114,7 @@ const routeToTabMap: Record<string, string> = {
   "/admin/growth/zibra-governance": "zibra-governance",
   "/admin/growth/director-settings": "director-settings",
   "/admin/growth/director-performance": "director-performance",
+  "/admin/founder/strategic-timeline": "strategic-timeline",
 };
 
 export function useActiveTabFromRoute(): string {

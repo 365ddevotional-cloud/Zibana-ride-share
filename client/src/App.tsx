@@ -528,6 +528,7 @@ function AdminRouter() {
   const supportItems = sidebarSections.find(s => s.label === "Ratings & Support")?.items || [];
   const safetyItems = sidebarSections.find(s => s.label === "Safety & Compliance")?.items || [];
   const growthItems = sidebarSections.find(s => s.label === "Growth & Intelligence")?.items || [];
+  const founderItems = sidebarSections.find(s => s.label === "Founder Intelligence")?.items || [];
 
   return (
     <Switch>
@@ -688,6 +689,20 @@ function AdminRouter() {
                 groupLabel="Growth & Intelligence"
                 groupRoute="/admin/growth/reports"
                 items={growthItems}
+              />
+            </AdminLayout>
+          </LazyComponent>
+        )}
+      </Route>
+      <Route path="/admin/founder/:section">
+        {(params: { section: string }) => (
+          <LazyComponent>
+            <AdminLayout userRole={role || "admin"} activeTab={params.section}>
+              <AdminGroupLayout
+                section={params.section}
+                groupLabel="Founder Intelligence"
+                groupRoute="/admin/founder/strategic-timeline"
+                items={founderItems}
               />
             </AdminLayout>
           </LazyComponent>

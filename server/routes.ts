@@ -5,7 +5,7 @@ import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integra
 import { storage } from "./storage";
 import { db } from "./db";
 import { eq, and, count, sql, gte, lt, lte, isNotNull, inArray, desc, or, ilike } from "drizzle-orm";
-import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, driverInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages, walletFundingTransactions, walletFundingSettings, driverWallets, directorFundingTransactions, directorFundingSettings, directorFundingAcceptance, directorFundingSuspensions, directorProfiles, directorDriverAssignments, directorActionLogs, driverCoachingLogs, directorCells, directorCommissionSettings, directorPayoutSummaries, referralCodes, directorFraudSignals, directorDisputes, directorDisputeMessages, directorWindDowns, welcomeAnalytics, directorPerformanceScores, directorPerformanceWeights, directorIncentives, directorRestrictions, directorPerformanceLogs, directorSuccessions, directorTerminationTimeline, directorStaff, riderTrustScores, riderTrustWeights, riderLoyaltyIncentives, riderTrustLogs, fundingRelationships, fundingAbuseFlags, thirdPartyFundingConfig, fundingAuditLogs, sponsoredBalances, directorCoachingLogs, directorTrainingModules, directorTermsAcceptance, directorTrustScores, platformSettings, qaChecklistItems, qaSimulationLogs, tripMessages, insertTripMessageSchema, qaSessionLogs, qaActivityLogs } from "@shared/schema";
+import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, driverInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages, walletFundingTransactions, walletFundingSettings, driverWallets, directorFundingTransactions, directorFundingSettings, directorFundingAcceptance, directorFundingSuspensions, directorProfiles, directorDriverAssignments, directorActionLogs, driverCoachingLogs, directorCells, directorCommissionSettings, directorPayoutSummaries, referralCodes, directorFraudSignals, directorDisputes, directorDisputeMessages, directorWindDowns, welcomeAnalytics, directorPerformanceScores, directorPerformanceWeights, directorIncentives, directorRestrictions, directorPerformanceLogs, directorSuccessions, directorTerminationTimeline, directorStaff, riderTrustScores, riderTrustWeights, riderLoyaltyIncentives, riderTrustLogs, fundingRelationships, fundingAbuseFlags, thirdPartyFundingConfig, fundingAuditLogs, sponsoredBalances, directorCoachingLogs, directorTrainingModules, directorTermsAcceptance, directorTrustScores, platformSettings, qaChecklistItems, qaSimulationLogs, tripMessages, insertTripMessageSchema, qaSessionLogs, qaActivityLogs, founderStrategicReminders } from "@shared/schema";
 import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, evaluateAllDrivers, evaluateBehaviorAndWarnings, calculateDriverMatchingScore, getDriverIncentiveProgress, assignFirstRidePromo, assignReturnRiderPromo, applyPromoToTrip, voidPromosOnCancellation } from "./incentives";
 import { notificationService } from "./notification-service";
 import { registerAiCommandRoutes } from "./ai-command";
@@ -15733,6 +15733,140 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error getting system stability:", error);
       return res.status(500).json({ message: "Failed to get system stability" });
+    }
+  });
+
+  // ==========================================
+  // FOUNDER STRATEGIC REMINDER SYSTEM
+  // ==========================================
+
+  app.get("/api/admin/founder/strategic-reminder", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const [reminder] = await db.select().from(founderStrategicReminders).limit(1);
+      if (!reminder) {
+        const [created] = await db.insert(founderStrategicReminders).values({}).returning();
+        return res.json(created);
+      }
+
+      const now = new Date();
+      if (
+        reminder.firstRevenueDate &&
+        !reminder.reminderTriggered
+      ) {
+        const triggerDate = new Date(reminder.firstRevenueDate);
+        triggerDate.setMonth(triggerDate.getMonth() + (reminder.reminderMonthsAfterRevenue || 4));
+        if (now >= triggerDate) {
+          const logEntry = `[${now.toISOString()}] Reminder auto-triggered (${reminder.reminderMonthsAfterRevenue} months after first revenue)`;
+          const existingLog = reminder.reminderLog || "";
+          const [updated] = await db.update(founderStrategicReminders)
+            .set({
+              reminderTriggered: true,
+              reminderLog: existingLog ? `${existingLog}\n${logEntry}` : logEntry,
+              updatedAt: now,
+            })
+            .where(eq(founderStrategicReminders.id, reminder.id))
+            .returning();
+          return res.json(updated);
+        }
+      }
+
+      return res.json(reminder);
+    } catch (error) {
+      console.error("Error getting founder strategic reminder:", error);
+      return res.status(500).json({ message: "Failed to get strategic reminder", code: "FOUNDER_REMINDER_ERROR" });
+    }
+  });
+
+  app.patch("/api/admin/founder/strategic-reminder", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const updates = req.body;
+      const [existing] = await db.select().from(founderStrategicReminders).limit(1);
+
+      if (!existing) {
+        const [created] = await db.insert(founderStrategicReminders).values({
+          ...updates,
+          updatedAt: new Date(),
+        }).returning();
+        return res.json(created);
+      }
+
+      const now = new Date();
+      let logEntry = "";
+
+      if (updates.launchDate !== undefined && updates.launchDate !== existing.launchDate) {
+        logEntry += `[${now.toISOString()}] Launch date updated\n`;
+      }
+      if (updates.firstRevenueDate !== undefined && updates.firstRevenueDate !== existing.firstRevenueDate) {
+        logEntry += `[${now.toISOString()}] First revenue date updated\n`;
+      }
+      if (updates.founderModeEnabled !== undefined && updates.founderModeEnabled !== existing.founderModeEnabled) {
+        logEntry += `[${now.toISOString()}] Founder Strategic Mode ${updates.founderModeEnabled ? "enabled" : "disabled"}\n`;
+      }
+
+      const newLog = logEntry
+        ? (existing.reminderLog ? `${existing.reminderLog}\n${logEntry.trim()}` : logEntry.trim())
+        : existing.reminderLog;
+
+      const [updated] = await db.update(founderStrategicReminders)
+        .set({
+          ...updates,
+          reminderLog: newLog,
+          updatedAt: now,
+        })
+        .where(eq(founderStrategicReminders.id, existing.id))
+        .returning();
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error updating founder strategic reminder:", error);
+      return res.status(500).json({ message: "Failed to update strategic reminder", code: "FOUNDER_REMINDER_UPDATE_ERROR" });
+    }
+  });
+
+  app.post("/api/admin/founder/strategic-reminder/reset", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const [existing] = await db.select().from(founderStrategicReminders).limit(1);
+      if (!existing) {
+        return res.status(404).json({ message: "No reminder record found", code: "NOT_FOUND" });
+      }
+
+      const now = new Date();
+      const logEntry = `[${now.toISOString()}] Reminder manually reset by Super Admin`;
+      const newLog = existing.reminderLog ? `${existing.reminderLog}\n${logEntry}` : logEntry;
+
+      const [updated] = await db.update(founderStrategicReminders)
+        .set({
+          reminderTriggered: false,
+          lastBannerShown: null,
+          reminderLog: newLog,
+          updatedAt: now,
+        })
+        .where(eq(founderStrategicReminders.id, existing.id))
+        .returning();
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error resetting founder reminder:", error);
+      return res.status(500).json({ message: "Failed to reset reminder", code: "FOUNDER_REMINDER_RESET_ERROR" });
+    }
+  });
+
+  app.post("/api/admin/founder/strategic-reminder/dismiss-banner", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const [existing] = await db.select().from(founderStrategicReminders).limit(1);
+      if (!existing) {
+        return res.status(404).json({ message: "No reminder record found", code: "NOT_FOUND" });
+      }
+
+      const [updated] = await db.update(founderStrategicReminders)
+        .set({ lastBannerShown: new Date(), updatedAt: new Date() })
+        .where(eq(founderStrategicReminders.id, existing.id))
+        .returning();
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error dismissing banner:", error);
+      return res.status(500).json({ message: "Failed to dismiss banner", code: "BANNER_DISMISS_ERROR" });
     }
   });
 
