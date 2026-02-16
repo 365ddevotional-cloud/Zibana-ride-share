@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { useRef, useCallback } from "react";
+import { useParams } from "wouter";
 import {
   MapPin,
   Download,
@@ -34,10 +35,12 @@ interface ReceiptData {
 }
 
 interface TripReceiptProps {
-  tripId: string;
+  tripId?: string;
 }
 
-export default function TripReceipt({ tripId }: TripReceiptProps) {
+export default function TripReceipt({ tripId: propTripId }: TripReceiptProps = {}) {
+  const params = useParams<{ tripId: string }>();
+  const tripId = propTripId || params.tripId || "";
   const { toast } = useToast();
   const receiptRef = useRef<HTMLDivElement>(null);
 
