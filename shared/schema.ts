@@ -1031,6 +1031,13 @@ export const trips = pgTable("trips", {
   reservationStatus: reservationStatusEnum("reservation_status"),
   cancellationFeeApplied: decimal("cancellation_fee_applied", { precision: 10, scale: 2 }),
   cancellationFeeDeducted: boolean("cancellation_fee_deducted").default(false),
+  transactionRef: varchar("transaction_ref", { length: 50 }).unique(),
+  bookingFee: decimal("booking_fee", { precision: 10, scale: 2 }),
+  governmentLevy: decimal("government_levy", { precision: 10, scale: 2 }),
+  vatAmount: decimal("vat_amount", { precision: 10, scale: 2 }),
+  tollAmount: decimal("toll_amount", { precision: 10, scale: 2 }),
+  subtotal: decimal("subtotal", { precision: 10, scale: 2 }),
+  totalPaid: decimal("total_paid", { precision: 10, scale: 2 }),
 });
 
 // Phase 22 - Enhanced Rides table with full Uber/Lyft-style lifecycle
@@ -5896,6 +5903,10 @@ export const platformSettings = pgTable("platform_settings", {
   launchedBy: varchar("launched_by"),
   modeChangedBy: varchar("mode_changed_by"),
   modeChangedAt: timestamp("mode_changed_at"),
+  bookingFee: decimal("booking_fee", { precision: 10, scale: 2 }).notNull().default("0"),
+  governmentLevy: decimal("government_levy", { precision: 10, scale: 2 }).notNull().default("0"),
+  vatPercentage: decimal("vat_percentage", { precision: 5, scale: 2 }).notNull().default("7.50"),
+  vatEnabled: boolean("vat_enabled").notNull().default(false),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 

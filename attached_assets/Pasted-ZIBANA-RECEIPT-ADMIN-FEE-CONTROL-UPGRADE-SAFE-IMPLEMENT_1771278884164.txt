@@ -1,0 +1,186 @@
+ZIBANA RECEIPT + ADMIN FEE CONTROL UPGRADE
+SAFE IMPLEMENTATION MODE – DO NOT BREAK SYSTEM
+
+CRITICAL INSTRUCTIONS:
+- DO NOT refactor ride logic.
+- DO NOT modify wallet logic.
+- DO NOT modify commission logic.
+- DO NOT rename existing models.
+- DO NOT delete routes.
+- DO NOT change authentication.
+- DO NOT touch unrelated files.
+- Only add controlled configuration layer + receipt system.
+
+==================================================
+OBJECTIVE
+==================================================
+
+1) Implement secure timestamp-based transaction reference
+2) Generate professional rider receipt
+3) Allow SUPER ADMIN to dynamically adjust:
+   - Booking Fee
+   - Government Levy
+   - VAT (optional toggle)
+4) Do NOT expose commission percentage anywhere
+5) Do NOT hardcode financial values
+
+==================================================
+STEP 1 – CREATE PLATFORM SETTINGS TABLE (SAFE)
+==================================================
+
+Create new model:
+
+model PlatformSettings {
+  id                 String   @id @default(cuid())
+  bookingFee         Float    @default(0)
+  governmentLevy     Float    @default(0)
+  vatPercentage      Float    @default(7.5)
+  updatedAt          DateTime @updatedAt
+}
+
+Only ONE row should exist.
+
+DO NOT remove any existing models.
+
+Run safe non-destructive migration.
+
+==================================================
+STEP 2 – SUPER ADMIN CONTROL PANEL
+==================================================
+
+In Admin Dashboard:
+
+Create section: "Platform Financial Settings"
+
+Super Admin can:
+- Edit Booking Fee (₦)
+- Edit Government Levy (₦)
+- Edit VAT %
+
+Only Super Admin role can access.
+
+Changes update PlatformSettings row.
+
+DO NOT allow regular admin to edit.
+
+==================================================
+STEP 3 – TRANSACTION REFERENCE GENERATOR
+==================================================
+
+Create:
+
+utils/generateTransactionRef.ts
+
+export function generateTransactionRef() {
+  const now = new Date();
+
+  const day = String(now.getDate()).padStart(2, '0');
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const year = String(now.getFullYear()).slice(-2);
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+
+  const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+
+  return `ZB-${day}${month}${year}-${hours}${minutes}-${random}`;
+}
+
+==================================================
+STEP 4 – EXTEND RIDE MODEL (SAFE)
+==================================================
+
+Add optional field:
+
+transactionRef String? @unique
+
+DO NOT remove any fields.
+
+==================================================
+STEP 5 – APPLY FEES DYNAMICALLY (SAFE)
+==================================================
+
+When ride is completed:
+
+1) Fetch PlatformSettings
+2) Apply:
+   - bookingFee
+   - governmentLevy
+   - vatPercentage
+3) Calculate subtotal and total
+4) DO NOT modify driver commission logic
+5) DO NOT reveal platform commission in receipt
+
+If transactionRef is null:
+   assign generateTransactionRef()
+
+==================================================
+STEP 6 – PROFESSIONAL RECEIPT FORMAT
+==================================================
+
+Receipt must show:
+
+-----------------------------------------
+ZIBANA
+Smart Ride. Transparent Fare.
+-----------------------------------------
+
+Transaction Ref
+Date & Time
+Rider Name
+Driver Name
+Pickup
+Dropoff
+
+Fare Breakdown:
+Trip Fare
+Booking Fee
+Government Levy
+Toll (if applicable)
+Subtotal
+VAT
+Total Paid
+
+Payment Method
+
+-----------------------------------------
+Thank you for riding with ZIBANA
+-----------------------------------------
+
+DO NOT show:
+- Platform commission %
+- Internal ride ID
+- Sequential numbering
+
+==================================================
+STEP 7 – CLEAN UI DESIGN
+==================================================
+
+Make receipt:
+- Clean white background
+- Professional spacing
+- Proper alignment
+- Mobile responsive
+- Download as image option
+- Share option
+
+NO PDF YET.
+NO QR YET.
+
+==================================================
+STEP 8 – PROTECTION RULE
+==================================================
+
+Do NOT restructure app.
+Do NOT refactor unrelated files.
+Do NOT change rating logic.
+Do NOT modify pairing system.
+Do NOT affect wallet balances.
+
+Only implement:
+
+PlatformSettings
+Admin controls
+TransactionRef
+Receipt formatting layer
+
+END IMPLEMENTATION

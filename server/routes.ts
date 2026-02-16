@@ -13,6 +13,7 @@ import { getCurrencyFromCountry, getCountryConfig, FINANCIAL_ENGINE_LOCKED } fro
 import { getPayoutProviderForCountry, generatePayoutReference, validatePaystackWebhook, validateFlutterwaveWebhook, type TransferStatus } from "./payout-provider";
 import { generateTaxPDF, generateTaxCSV, generateBulkTaxCSV, type TaxDocumentData, type CountryTaxRules } from "./tax-document-generator";
 import { validateRideRequest, assertFinancialEngineLocked } from "./financial-guards";
+import { generateTransactionRef } from "./utils/generateTransactionRef";
 import { getSimulationConfig, assertSimulationEnabled, logSimulationStatus, SimulationDisabledError } from "./simulation-config";
 import { 
   IDENTITY_ENGINE_LOCKED, 
@@ -2329,6 +2330,32 @@ export async function registerRoutes(
         });
       } else if (status === "completed") {
         await logQaActivity("trip_completed", userId, tripId, "Trip completed");
+
+        // Apply platform fees dynamically
+        try {
+          const [feeSettings] = await db.select().from(platformSettings).limit(1);
+          const fareNum = parseFloat(String(trip.fareAmount || "0")) / 100;
+          const bFee = parseFloat(String(feeSettings?.bookingFee || "0"));
+          const gLevy = parseFloat(String(feeSettings?.governmentLevy || "0"));
+          const vatPct = feeSettings?.vatEnabled ? parseFloat(String(feeSettings?.vatPercentage || "0")) : 0;
+          const sub = fareNum + bFee + gLevy;
+          const vatAmt = vatPct > 0 ? (sub * vatPct / 100) : 0;
+          const total = sub + vatAmt;
+          
+          const txRef = generateTransactionRef();
+          
+          await db.update(trips).set({
+            transactionRef: txRef,
+            bookingFee: String(bFee),
+            governmentLevy: String(gLevy),
+            vatAmount: String(vatAmt.toFixed(2)),
+            subtotal: String(sub.toFixed(2)),
+            totalPaid: String(total.toFixed(2)),
+          }).where(eq(trips.id, tripId));
+        } catch (feeError) {
+          console.error("Error applying platform fees:", feeError);
+        }
+
         // Format fare in NGN
         const fareInNaira = (parseFloat(String(trip.fareAmount)) / 100).toFixed(2);
         const commissionInNaira = (parseFloat(String(trip.commissionAmount || 0)) / 100).toFixed(2);
@@ -15867,6 +15894,131 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error dismissing banner:", error);
       return res.status(500).json({ message: "Failed to dismiss banner", code: "BANNER_DISMISS_ERROR" });
+    }
+  });
+
+  // ==========================================
+  // PLATFORM FINANCIAL SETTINGS (Super Admin only)
+  // ==========================================
+
+  app.get("/api/admin/platform-fee-settings", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const [settings] = await db.select().from(platformSettings).limit(1);
+      if (!settings) {
+        return res.json({
+          bookingFee: "0",
+          governmentLevy: "0",
+          vatPercentage: "7.50",
+          vatEnabled: false,
+        });
+      }
+      return res.json({
+        bookingFee: settings.bookingFee,
+        governmentLevy: settings.governmentLevy,
+        vatPercentage: settings.vatPercentage,
+        vatEnabled: settings.vatEnabled,
+      });
+    } catch (error) {
+      console.error("Error getting platform fee settings:", error);
+      return res.status(500).json({ message: "Failed to get fee settings", code: "FEE_SETTINGS_ERROR" });
+    }
+  });
+
+  app.patch("/api/admin/platform-fee-settings", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
+    try {
+      const { bookingFee, governmentLevy, vatPercentage, vatEnabled } = req.body;
+      const [existing] = await db.select().from(platformSettings).limit(1);
+      
+      const updates: any = { updatedAt: new Date() };
+      if (bookingFee !== undefined) updates.bookingFee = String(bookingFee);
+      if (governmentLevy !== undefined) updates.governmentLevy = String(governmentLevy);
+      if (vatPercentage !== undefined) updates.vatPercentage = String(vatPercentage);
+      if (vatEnabled !== undefined) updates.vatEnabled = vatEnabled;
+
+      if (!existing) {
+        const [created] = await db.insert(platformSettings).values(updates).returning();
+        return res.json({ success: true, message: "Fee settings created", data: created });
+      }
+
+      const [updated] = await db.update(platformSettings)
+        .set(updates)
+        .where(eq(platformSettings.id, existing.id))
+        .returning();
+      
+      return res.json({ success: true, message: "Fee settings updated", data: updated });
+    } catch (error) {
+      console.error("Error updating platform fee settings:", error);
+      return res.status(500).json({ message: "Failed to update fee settings", code: "FEE_SETTINGS_UPDATE_ERROR" });
+    }
+  });
+
+  // ==========================================
+  // TRIP RECEIPT
+  // ==========================================
+
+  app.get("/api/trips/:tripId/receipt", isAuthenticated, async (req: any, res) => {
+    try {
+      const { tripId } = req.params;
+      const userId = req.user?.claims?.sub || req.user?.id;
+      
+      const [trip] = await db.select().from(trips).where(eq(trips.id, tripId));
+      if (!trip) {
+        return res.status(404).json({ message: "Trip not found" });
+      }
+
+      if (trip.status !== "completed") {
+        return res.status(400).json({ message: "Receipt only available for completed trips" });
+      }
+
+      let riderName = "Rider";
+      let driverName = "Driver";
+      try {
+        const [rider] = await db.select().from(users).where(eq(users.id, trip.riderId));
+        if (rider) riderName = rider.firstName || rider.username || "Rider";
+        if (trip.driverId) {
+          const [driver] = await db.select().from(users).where(eq(users.id, trip.driverId));
+          if (driver) driverName = driver.firstName || driver.username || "Driver";
+        }
+      } catch {}
+
+      let txRef = trip.transactionRef;
+      if (!txRef) {
+        txRef = generateTransactionRef();
+        await db.update(trips)
+          .set({ transactionRef: txRef })
+          .where(eq(trips.id, tripId));
+      }
+
+      const fareAmount = parseFloat(String(trip.fareAmount || "0")) / 100;
+      const bookingFee = parseFloat(String(trip.bookingFee || "0"));
+      const govLevy = parseFloat(String(trip.governmentLevy || "0"));
+      const tollAmount = parseFloat(String(trip.tollAmount || "0"));
+      const vatAmount = parseFloat(String(trip.vatAmount || "0"));
+      const subtotal = parseFloat(String(trip.subtotal || "0"));
+      const totalPaid = parseFloat(String(trip.totalPaid || "0"));
+
+      const receiptTotal = totalPaid > 0 ? totalPaid : fareAmount;
+
+      return res.json({
+        transactionRef: txRef,
+        dateTime: trip.completedAt || trip.createdAt,
+        riderName,
+        driverName,
+        pickup: trip.pickupLocation,
+        dropoff: trip.dropoffLocation,
+        tripFare: fareAmount,
+        bookingFee,
+        governmentLevy: govLevy,
+        tollAmount,
+        subtotal: subtotal > 0 ? subtotal : fareAmount + bookingFee + govLevy + tollAmount,
+        vatAmount,
+        totalPaid: receiptTotal,
+        paymentMethod: trip.paymentSource || "MAIN_WALLET",
+        currencyCode: trip.currencyCode || "NGN",
+      });
+    } catch (error) {
+      console.error("Error generating receipt:", error);
+      return res.status(500).json({ message: "Failed to generate receipt", code: "RECEIPT_ERROR" });
     }
   });
 

@@ -9,10 +9,12 @@ import { ArrowLeft, Search, Download, Eye, Filter, Info, Loader2 } from "lucide-
 
 const ChatLogsPanel = lazy(() => import("@/components/admin/chat-logs-panel"));
 const AdminStrategicTimeline = lazy(() => import("./admin-strategic-timeline"));
+const AdminFeeSettings = lazy(() => import("./admin-fee-settings"));
 
 const customPanelSections: Record<string, React.LazyExoticComponent<any>> = {
   "chat-logs": ChatLogsPanel,
   "strategic-timeline": AdminStrategicTimeline,
+  "fee-settings": AdminFeeSettings,
 };
 
 interface SectionMeta {
