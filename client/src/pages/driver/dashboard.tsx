@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { DriverLayout } from "@/components/driver/DriverLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Power, TrendingUp, Clock, Navigation, Check, MapPin, Settings, User, Bell, Shield, Star, Lightbulb, RefreshCw, X, MessageCircle } from "lucide-react";
+import { Power, TrendingUp, Clock, Navigation, Check, MapPin, Settings, User, Bell, Shield, Star, Lightbulb, RefreshCw, X, MessageCircle, ExternalLink } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { FullPageLoading } from "@/components/loading-spinner";
@@ -19,13 +19,22 @@ import { useLocation } from "wouter";
 import { useTranslation } from "@/i18n";
 import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
 import { TripChat } from "@/components/trip-chat";
+import { RideRequestOverlay } from "@/components/driver/RideRequestOverlay";
 import type { DriverProfile, Trip } from "@shared/schema";
+
+function openGoogleMapsNavigation(address: string) {
+  const encoded = encodeURIComponent(address);
+  const url = `https://www.google.com/maps/dir/?api=1&destination=${encoded}&travelmode=driving`;
+  window.open(url, "_blank", "noopener,noreferrer");
+}
 
 export default function DriverDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
   const { t } = useTranslation();
   const [, setLocation] = useLocation();
+  const [declinedRideIds, setDeclinedRideIds] = useState<Set<string>>(new Set());
+  const [overlayRide, setOverlayRide] = useState<Trip | null>(null);
   const isReturningDriver = typeof window !== "undefined" && localStorage.getItem("zibana-driver-lastLoginAt") !== null;
   const welcomeShown = typeof window !== "undefined" && localStorage.getItem("zibana-driver-welcome-shown") === "true";
 
@@ -200,6 +209,30 @@ export default function DriverDashboard() {
   const todayTips = 0;
 
   const activeDriverCoaching = coachingAlerts?.filter(c => !c.isDismissed) ?? [];
+
+  const handleDeclineRide = useCallback((tripId: string) => {
+    setDeclinedRideIds(prev => new Set(prev).add(tripId));
+    setOverlayRide(null);
+  }, []);
+
+  const handleAcceptFromOverlay = useCallback((tripId: string) => {
+    acceptRideMutation.mutate(tripId);
+    setOverlayRide(null);
+  }, [acceptRideMutation]);
+
+  useEffect(() => {
+    if (!availableRides || availableRides.length === 0 || currentTrip) {
+      if (!currentTrip) setOverlayRide(null);
+      return;
+    }
+    const showableRides = availableRides.filter(r => !declinedRideIds.has(r.id));
+    if (showableRides.length > 0 && !overlayRide) {
+      setOverlayRide(showableRides[0]);
+    } else if (overlayRide && !showableRides.find(r => r.id === overlayRide.id)) {
+      const next = showableRides[0] || null;
+      setOverlayRide(next);
+    }
+  }, [availableRides, declinedRideIds, currentTrip]);
 
   if (profileLoading) {
     return <FullPageLoading text="Loading dashboard..." />;
@@ -510,32 +543,54 @@ export default function DriverDashboard() {
                   </div>
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2">
                 {currentTrip.status === "accepted" && (
-                  <Button 
-                    className="flex-1 bg-emerald-600"
-                    onClick={() => updateTripStatusMutation.mutate({ 
-                      tripId: currentTrip.id, 
-                      status: "in_progress" 
-                    })}
-                    disabled={updateTripStatusMutation.isPending}
-                    data-testid="button-start-trip"
-                  >
-                    Start Trip
-                  </Button>
+                  <>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => openGoogleMapsNavigation(currentTrip.pickupLocation)}
+                      data-testid="button-navigate-pickup"
+                    >
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Navigate to Pickup
+                    </Button>
+                    <Button 
+                      className="w-full bg-emerald-600"
+                      onClick={() => updateTripStatusMutation.mutate({ 
+                        tripId: currentTrip.id, 
+                        status: "in_progress" 
+                      })}
+                      disabled={updateTripStatusMutation.isPending}
+                      data-testid="button-start-trip"
+                    >
+                      Start Trip
+                    </Button>
+                  </>
                 )}
                 {currentTrip.status === "in_progress" && (
-                  <Button 
-                    className="flex-1 bg-emerald-600"
-                    onClick={() => updateTripStatusMutation.mutate({ 
-                      tripId: currentTrip.id, 
-                      status: "completed" 
-                    })}
-                    disabled={updateTripStatusMutation.isPending}
-                    data-testid="button-complete-trip"
-                  >
-                    Complete Trip
-                  </Button>
+                  <>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => openGoogleMapsNavigation(currentTrip.dropoffLocation)}
+                      data-testid="button-navigate-dropoff"
+                    >
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Navigate to Dropoff
+                    </Button>
+                    <Button 
+                      className="w-full bg-emerald-600"
+                      onClick={() => updateTripStatusMutation.mutate({ 
+                        tripId: currentTrip.id, 
+                        status: "completed" 
+                      })}
+                      disabled={updateTripStatusMutation.isPending}
+                      data-testid="button-complete-trip"
+                    >
+                      Complete Trip
+                    </Button>
+                  </>
                 )}
               </div>
             </CardContent>
@@ -702,6 +757,14 @@ export default function DriverDashboard() {
         />
       )}
       <ZibraFloatingButton />
+      {overlayRide && isOnline && !currentTrip && (
+        <RideRequestOverlay
+          ride={overlayRide}
+          onAccept={handleAcceptFromOverlay}
+          onDecline={handleDeclineRide}
+          isAccepting={acceptRideMutation.isPending}
+        />
+      )}
     </DriverLayout>
   );
 }

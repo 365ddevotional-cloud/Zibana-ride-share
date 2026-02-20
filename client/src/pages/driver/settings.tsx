@@ -14,9 +14,10 @@ import { useLocation } from "wouter";
 import { useTranslation, LANGUAGES } from "@/i18n";
 import {
   ArrowLeft, Bell, Sun, Moon, Monitor, Globe, Eye, Shield,
-  Info, ChevronRight, Lock, FileText, LogOut, Trash2, AlertTriangle, Phone,
+  Info, ChevronRight, Lock, FileText, LogOut, Trash2, AlertTriangle, Phone, Car,
 } from "lucide-react";
 import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
+import type { DriverProfile } from "@shared/schema";
 
 export default function DriverSettings() {
   const { logout } = useAuth();
@@ -26,6 +27,23 @@ export default function DriverSettings() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const { t, language } = useTranslation();
   const currentLang = LANGUAGES.find((l) => l.code === language);
+
+  const { data: profile } = useQuery<DriverProfile>({
+    queryKey: ["/api/driver/profile"],
+  });
+
+  const updateRidePreferencesMutation = useMutation({
+    mutationFn: async (prefs: Record<string, boolean>) => {
+      await apiRequest("PUT", "/api/driver/ride-preferences", prefs);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/driver/profile"] });
+      toast({ title: "Preference saved" });
+    },
+    onError: () => {
+      toast({ title: "Could not save preference", variant: "destructive" });
+    },
+  });
 
   const { data: notifPrefs } = useQuery<{
     rideUpdates: boolean;
@@ -136,6 +154,27 @@ export default function DriverSettings() {
                   />
                 </div>
               ))}
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1 mb-2">
+            Ride Preferences
+          </p>
+          <Card>
+            <CardContent className="p-4 space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <Label className="text-sm font-medium">Accept rides while on a trip</Label>
+                  <p className="text-xs text-muted-foreground">Get new ride requests before finishing your current trip</p>
+                </div>
+                <Switch
+                  checked={(profile as any)?.acceptWhileOnTrip ?? false}
+                  onCheckedChange={(val) => updateRidePreferencesMutation.mutate({ acceptWhileOnTrip: val })}
+                  data-testid="switch-accept-while-on-trip"
+                />
+              </div>
             </CardContent>
           </Card>
         </div>
