@@ -1,0 +1,63 @@
+You are fixing ZIBANA publishing. Goal: make production deploy succeed by resolving “Migrations failed validation” / “schema changes conflict with existing production data”.
+
+NON-NEGOTIABLES:
+- Do NOT delete any existing tables.
+- Do NOT reset/replace production data unless I explicitly confirm inside this chat.
+- Prefer safe, backwards-compatible migrations.
+- Make the fix idempotent (safe to run twice).
+
+STEP 0 — Collect the truth
+1) Open the deploy logs and identify the EXACT failing migration file and the EXACT failing SQL statement(s). Paste them into the Agent output.
+2) Identify DB engine (Postgres/SQLite/etc) and Prisma migration names involved.
+
+STEP 1 — Diagnose conflict (most likely type/constraint issue)
+Based on the screenshot, the failure mentions:
+ALTER TABLE "rider_profiles" ... ALTER COLUMN "average_rating" ...
+So:
+- Inspect current production schema for rider_profiles.average_rating (type, nullability, default).
+- Inspect current production data patterns (nulls, non-numeric strings, out-of-range values).
+- Do the same for driver_profiles if it exists.
+
+STEP 2 — Fix with a safe migration (no destructive changes)
+Implement a NEW Prisma migration (do not edit already-applied migrations) that safely reconciles the column.
+
+If production column is TEXT/NUMERIC/INT and needs DOUBLE:
+- Use a USING cast that won’t crash on bad data.
+- If bad/NULL values exist, normalize them before enforcing type/constraints.
+
+Example approach for Postgres (adapt as needed):
+A) Add a temporary numeric column:
+  ALTER TABLE "rider_profiles" ADD COLUMN IF NOT EXISTS "average_rating_tmp" DOUBLE PRECISION;
+B) Populate it safely:
+  UPDATE "rider_profiles"
+  SET "average_rating_tmp" =
+    CASE
+      WHEN "average_rating" IS NULL THEN 5.0
+      WHEN "average_rating"::text ~ '^[0-9]+(\.[0-9]+)?$' THEN LEAST(GREATEST(("average_rating"::double precision), 0), 5)
+      ELSE 5.0
+    END;
+C) If the existing column is needed by app code, swap safely:
+  - If "average_rating" exists: rename it to "average_rating_old" (keep it for safety), then rename tmp to "average_rating".
+  - Ensure default 5.0 and not null only if the app expects it:
+      ALTER TABLE "rider_profiles" ALTER COLUMN "average_rating" SET DEFAULT 5.0;
+      UPDATE "rider_profiles" SET "average_rating" = 5.0 WHERE "average_rating" IS NULL;
+      ALTER TABLE "rider_profiles" ALTER COLUMN "average_rating" SET NOT NULL;
+D) Keep "average_rating_old" for now (do not drop), to avoid “delete columns” risk.
+
+Repeat the same pattern for driver_profiles.average_rating if applicable.
+
+STEP 3 — Prisma alignment
+- Ensure schema.prisma matches the final production type (Float?) and default.
+- Run locally in workspace:
+  - prisma migrate dev (or migrate deploy depending on setup) without errors
+  - prisma generate
+  - run the app, confirm rider+driver pages load
+- Re-run publish. Confirm “Generated migrations to apply” and “Applied” succeed.
+
+STEP 4 — Verification output
+After fix:
+- Show a short summary: what was wrong, what migration you added, what SQL ran, and why it’s safe.
+- Confirm publish works and app loads in public URL.
+
+IMPORTANT:
+If you determine production data is empty / disposable, DO NOT automatically “Copy dev database schema & data to production”. Instead, report that as an option and wait for my explicit approval.
