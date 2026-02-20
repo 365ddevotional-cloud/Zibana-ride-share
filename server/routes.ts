@@ -1673,6 +1673,27 @@ export async function registerRoutes(
     }
   });
 
+  app.put("/api/driver/ride-preferences", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const profile = await storage.getDriverProfile(userId);
+      if (!profile) {
+        return res.status(404).json({ message: "Driver profile not found" });
+      }
+
+      const { acceptWhileOnTrip, receivingRequests } = req.body;
+      const updateData: any = {};
+      if (typeof acceptWhileOnTrip === "boolean") updateData.acceptWhileOnTrip = acceptWhileOnTrip;
+      if (typeof receivingRequests === "boolean") updateData.receivingRequests = receivingRequests;
+
+      await storage.updateDriverProfile(userId, updateData);
+      return res.json({ success: true });
+    } catch (error) {
+      console.error("Error updating ride preferences:", error);
+      return res.status(500).json({ message: "Failed to update ride preferences" });
+    }
+  });
+
   // UPDATE driver preferences (with server-side enforcement)
   app.put("/api/driver/preferences", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
     try {
