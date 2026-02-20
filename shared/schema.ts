@@ -469,6 +469,8 @@ export const driverProfiles = pgTable("driver_profiles", {
   preferenceWarnings: integer("preference_warnings").notNull().default(0),
   preferenceRestricted: boolean("preference_restricted").notNull().default(false),
   preferenceRestrictedUntil: timestamp("preference_restricted_until"),
+  acceptWhileOnTrip: boolean("accept_while_on_trip").notNull().default(false),
+  receivingRequests: boolean("receiving_requests").notNull().default(true),
   isTraining: boolean("is_training").notNull().default(false),
   trainingCredits: integer("training_credits").notNull().default(0),
   trainingStartedAt: timestamp("training_started_at"),

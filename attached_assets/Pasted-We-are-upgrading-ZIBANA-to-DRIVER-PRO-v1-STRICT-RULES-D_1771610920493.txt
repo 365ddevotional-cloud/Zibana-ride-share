@@ -1,0 +1,118 @@
+We are upgrading ZIBANA to DRIVER PRO v1.
+
+STRICT RULES:
+- DO NOT delete any existing tables.
+- DO NOT modify wallet logic.
+- DO NOT modify ride matching logic structure.
+- DO NOT change existing schema fields.
+- DO NOT generate destructive migrations.
+- DO NOT alter production data.
+- This is a backward-compatible upgrade only.
+
+GOAL:
+Implement Driver Pro v1 features without breaking current architecture.
+
+========================================
+PHASE 1 — DRIVER REQUEST OVERLAY
+========================================
+
+Create a full-screen ride request overlay component for /driver.
+
+Features:
+- Show rider first name only.
+- Show rider rating (⭐).
+- Show pickup address (shortened).
+- Show drop-off area (approximate).
+- Show estimated fare.
+- Show distance to pickup.
+- Show estimated trip duration.
+
+Add:
+- Large 12-second animated countdown bar.
+- Bar shrinks smoothly left-to-right.
+- Gradient color: green → yellow → red.
+- Accept button.
+- Decline button.
+- Auto-decline at 12 seconds.
+
+DO NOT change ride database.
+Only enhance display + timeout logic.
+
+========================================
+PHASE 2 — SAFE RIDE LOCKING
+========================================
+
+When driver presses ACCEPT:
+
+Server must:
+- Check ride is still unassigned.
+- Lock ride to first driver.
+- Reject others safely.
+- No schema change required.
+
+========================================
+PHASE 3 — NAVIGATION DEEP LINK
+========================================
+
+After ACCEPT:
+Show:
+"Navigate to Pickup" button.
+
+On click:
+Open Google Maps with coordinates using:
+
+https://www.google.com/maps/dir/?api=1&destination=LAT,LNG&travelmode=driving
+
+No manual address input.
+Coordinates auto-filled.
+
+After driver taps "Start Trip":
+Switch navigation target to drop-off coordinates.
+
+Ensure this works for:
+- Browser
+- Android PWA
+- iOS PWA
+
+========================================
+PHASE 4 — DRIVER PREFERENCE (SAFE)
+========================================
+
+Add OPTIONAL boolean column to driver profile:
+
+acceptWhileOnTrip Boolean @default(false)
+
+This must be:
+- Non-destructive migration.
+- Safe to apply in production.
+
+Add toggle in driver settings:
+"Accept rides while on trip"
+
+Add in main screen:
+Toggle:
+"Receiving Requests" ON/OFF
+
+Logic:
+If driver is ON_TRIP and acceptWhileOnTrip = false:
+Do not send new ride events.
+
+If true:
+Allow next ride popup.
+
+========================================
+PHASE 5 — SAFE DEPLOY STRATEGY
+========================================
+
+- Use non-destructive migration only.
+- Verify prisma migrate dev works.
+- Verify prisma generate works.
+- Run app.
+- Confirm no schema drift.
+- Confirm no data loss.
+- Ensure publish will not fail.
+
+Report:
+- Exactly what was added.
+- Confirm no existing tables altered.
+- Confirm publish-safe.
