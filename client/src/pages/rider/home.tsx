@@ -12,6 +12,7 @@ import { StarRating } from "@/components/ui/StarRating";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import { CancellationWarning } from "@/components/cancellation-warning";
 import { ContextualHelpSuggestion } from "@/components/contextual-help";
 import { PaymentOnboardingModal } from "@/components/payment-onboarding-modal";
@@ -21,6 +22,8 @@ import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
 import { RideClassSelector } from "@/components/rider/RideClassSelector";
 import type { RideClassId } from "@shared/ride-classes";
 import { getRideClass } from "@shared/ride-classes";
+
+const SUPER_ADMIN_EMAIL = "365ddevotional@gmail.com";
 
 interface WalletInfo {
   mainBalance: string;
@@ -32,6 +35,7 @@ interface WalletInfo {
 
 export default function RiderHome() {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [, setLocation] = useLocation();
   const [destination, setDestination] = useState("");
   const [pickup, setPickup] = useState("");
@@ -40,6 +44,12 @@ export default function RiderHome() {
   const { toast } = useToast();
   const { showDisclosure, acceptDisclosure } = useLocationDisclosure();
 
+  const { data: userRole } = useQuery<{ role: string; roles?: string[] } | null>({
+    queryKey: ["/api/user/role"],
+    enabled: !!user,
+    staleTime: 60000,
+  });
+
   const { data: walletInfo } = useQuery<WalletInfo>({
     queryKey: ["/api/rider/wallet-info"],
   });
@@ -47,6 +57,10 @@ export default function RiderHome() {
   const { data: riderProfile } = useQuery<{ averageRating: string | null; totalRatings: number }>({
     queryKey: ["/api/rider/profile"],
   });
+
+  const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;
+  const isAdmin = userRole?.roles?.includes("admin") || userRole?.roles?.includes("super_admin") || false;
+  const showRiderSimulation = import.meta.env.DEV && (isSuperAdmin || isAdmin);
 
   interface SavedPlace {
     id: string;
@@ -120,7 +134,7 @@ export default function RiderHome() {
       <RiderLayout>
         <CancellationWarning role="rider" />
         <div className="p-4 space-y-6">
-          <RiderSimulationControls />
+          {showRiderSimulation && <RiderSimulationControls />}
           <MarketingTipBanner />
           <div className="pt-4 pb-3">
             <div className="flex items-center justify-between">

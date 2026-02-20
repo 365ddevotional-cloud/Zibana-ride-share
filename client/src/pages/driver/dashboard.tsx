@@ -23,6 +23,7 @@ import { RideRequestOverlay } from "@/components/driver/RideRequestOverlay";
 import type { DriverProfile, Trip } from "@shared/schema";
 
 const isDev = import.meta.env.DEV;
+const SUPER_ADMIN_EMAIL = "365ddevotional@gmail.com";
 
 function openGoogleMapsNavigation(address: string) {
   const encoded = encodeURIComponent(address);
@@ -83,6 +84,13 @@ export default function DriverDashboard() {
   const [isOnlineLocal, setIsOnlineLocal] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [simTrip, setSimTrip] = useState<(Trip & { _sim?: boolean }) | null>(null);
+
+  const { data: userRole } = useQuery<{ role: string; roles?: string[] } | null>({
+    queryKey: ["/api/user/role"],
+    enabled: !!user,
+    staleTime: 60000,
+  });
+
   const isReturningDriver = typeof window !== "undefined" && localStorage.getItem("zibana-driver-lastLoginAt") !== null;
   const welcomeShown = typeof window !== "undefined" && localStorage.getItem("zibana-driver-welcome-shown") === "true";
 
@@ -353,6 +361,11 @@ export default function DriverDashboard() {
   const isSuspended = profile?.status === "suspended";
   const isTraining = profile?.isTraining ?? false;
   const canGoOnline = isApproved || isTraining;
+
+  const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;
+  const isAdmin = userRole?.roles?.includes("admin") || userRole?.roles?.includes("super_admin") || false;
+  const isDriverTrainee = isTraining;
+  const showDriverSimulation = isDev && (isSuperAdmin || isAdmin || isDriverTrainee);
   const trustScore = trustProfile?.trustScore ?? 75;
   const trustScoreLevel = trustProfile?.trustScoreLevel ?? "medium";
   const recentNotifications = notifications.slice(0, 3);
@@ -379,7 +392,7 @@ export default function DriverDashboard() {
       <div className="p-4 space-y-6">
         <DriverSimulationControls />
 
-        {isDev && (
+        {showDriverSimulation && (
           <Card className="border-dashed border-amber-400 dark:border-amber-600" data-testid="card-dev-simulation">
             <CardContent className="pt-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -726,7 +739,7 @@ export default function DriverDashboard() {
           </Card>
         )}
 
-        {isDev && simTrip && !currentTrip && (
+        {showDriverSimulation && simTrip && !currentTrip && (
           <Card className="border-amber-400 border-2" data-testid="card-sim-trip">
             <CardHeader className="pb-2">
               <CardTitle className="text-lg flex items-center gap-2">
