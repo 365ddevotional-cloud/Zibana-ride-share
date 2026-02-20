@@ -75,8 +75,8 @@ export function RiderLayout({ children }: RiderLayoutProps) {
         </div>
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-card border-t z-50">
-        <div className="max-w-lg mx-auto flex items-center justify-around py-2">
+      <nav className="fixed bottom-0 left-0 right-0 bg-card border-t z-50 shadow-[0_-2px_10px_rgba(0,0,0,0.06)]">
+        <div className="max-w-lg mx-auto flex items-center justify-around py-2.5">
           {navItems.map((item) => {
             const isActive = location === item.path || 
               (item.path === "/rider/home" && location === "/rider") ||
@@ -89,7 +89,7 @@ export function RiderLayout({ children }: RiderLayoutProps) {
               <Link key={item.path} href={item.path}>
                 <button
                   className={cn(
-                    "flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-colors min-w-[56px] relative",
+                    "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-colors min-w-[60px] relative",
                     isActive 
                       ? "text-primary" 
                       : "text-muted-foreground hover:text-foreground"
@@ -97,7 +97,10 @@ export function RiderLayout({ children }: RiderLayoutProps) {
                   data-testid={`nav-${item.label.toLowerCase()}`}
                 >
                   <div className="relative">
-                    <Icon className={cn("h-5 w-5", isActive && "stroke-[2.5px]")} />
+                    <Icon className={cn(
+                      "h-[26px] w-[26px]",
+                      isActive && "stroke-[2.5px]"
+                    )} />
                     {showBadge && (
                       <span
                         className="absolute -top-1.5 -right-2.5 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1"
@@ -108,8 +111,8 @@ export function RiderLayout({ children }: RiderLayoutProps) {
                     )}
                   </div>
                   <span className={cn(
-                    "text-[11px]",
-                    isActive && "font-medium"
+                    "text-[13px] font-semibold tracking-[0.2px]",
+                    isActive && "font-bold"
                   )}>
                     {navLabels[item.label] || item.label}
                   </span>
