@@ -141,6 +141,13 @@ export default function LandingPage() {
                   <span>Verified drivers</span>
                 </Link>
               </div>
+
+              <p className="mt-4 text-xs text-muted-foreground" data-testid="text-landing-legal">
+                By signing in, you agree to our{" "}
+                <Link href="/terms" className="font-semibold hover:underline text-foreground/80 transition-colors" data-testid="link-landing-terms">Terms of Service</Link>
+                {" "}and{" "}
+                <Link href="/privacy" className="font-semibold hover:underline text-foreground/80 transition-colors" data-testid="link-landing-privacy">Privacy Policy</Link>
+              </p>
             </div>
           </div>
         </section>
@@ -303,6 +310,8 @@ export default function LandingPage() {
                 <Link href="/about" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="footer-about">About</Link>
                 <Link href="/how-it-works" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="footer-how-it-works">How It Works</Link>
                 <Link href="/safety" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="footer-safety">Safety</Link>
+                <Link href="/terms" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="footer-terms">Terms of Service</Link>
+                <Link href="/privacy" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="footer-privacy">Privacy Policy</Link>
                 <Link href="/legal" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="footer-legal">Legal</Link>
               </div>
               <div className="flex items-center gap-4">

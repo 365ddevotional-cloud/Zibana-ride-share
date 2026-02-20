@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Car, Shield, Wallet, Clock, CheckCircle } from "lucide-react";
@@ -101,7 +101,10 @@ export default function DriverRegister() {
             </div>
             <CardTitle>Create Driver Account</CardTitle>
             <CardDescription>
-              By registering, you agree to our Terms of Service and Driver Agreement
+              By registering, you agree to our{" "}
+              <Link href="/terms" className="font-semibold hover:underline text-foreground/80 transition-colors" data-testid="link-driver-terms">Terms of Service</Link>
+              {" "}and{" "}
+              <Link href="/privacy" className="font-semibold hover:underline text-foreground/80 transition-colors" data-testid="link-driver-privacy">Privacy Policy</Link>
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -132,7 +135,10 @@ export default function DriverRegister() {
                   className="border-emerald-400 data-[state=checked]:bg-emerald-600"
                 />
                 <label htmlFor="terms-acceptance" className="text-xs font-medium cursor-pointer leading-tight">
-                  I accept the Terms of Service and Driver Agreement
+                  I accept the{" "}
+                  <Link href="/terms" className="font-semibold hover:underline text-foreground/80 transition-colors" data-testid="link-driver-checkbox-terms">Terms of Service</Link>
+                  {" "}and{" "}
+                  <Link href="/privacy" className="font-semibold hover:underline text-foreground/80 transition-colors" data-testid="link-driver-checkbox-privacy">Privacy Policy</Link>
                 </label>
               </div>
             </div>

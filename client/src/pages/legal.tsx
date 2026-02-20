@@ -4,8 +4,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { FileText, Shield, Users, RefreshCw, AlertTriangle, Bot } from "lucide-react";
 
+function getInitialTab(): string {
+  const path = window.location.pathname;
+  if (path === "/privacy") return "privacy";
+  return "terms";
+}
+
 export default function LegalPage() {
-  const [activeTab, setActiveTab] = useState("terms");
+  const [activeTab, setActiveTab] = useState(getInitialTab);
 
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
