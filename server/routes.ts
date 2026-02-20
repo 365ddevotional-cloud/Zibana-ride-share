@@ -21338,11 +21338,12 @@ export async function registerRoutes(
       await logQaActivity("training_toggle", adminId, userId, "Training mode toggled");
       
       await storage.createAuditLog({
-        userId: adminId,
         action: "TRAINING_MODE_UPDATE",
-        resourceType: "driver_profile",
-        resourceId: userId,
-        details: JSON.stringify({ isTraining, trainingCredits, previousTraining: profile.isTraining }),
+        entityType: "driver",
+        entityId: userId,
+        performedByUserId: adminId,
+        performedByRole: "admin",
+        metadata: JSON.stringify({ isTraining, trainingCredits, previousTraining: profile.isTraining }),
       });
       
       return res.json({ success: true, message: "Training status updated", profile: updated });
