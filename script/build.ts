@@ -33,7 +33,30 @@ const allowlist = [
   "zod-validation-error",
 ];
 
+async function prepareDatabase() {
+  if (!process.env.DATABASE_URL) {
+    console.warn("DATABASE_URL not set, skipping database preparation.");
+    return;
+  }
+
+  const { default: pg } = await import("pg");
+  const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+
+  try {
+    console.log("backfilling NULL average_rating values before schema push...");
+    await pool.query(`UPDATE rider_profiles SET average_rating = 5.00 WHERE average_rating IS NULL`);
+    await pool.query(`UPDATE driver_profiles SET average_rating = 5.00 WHERE average_rating IS NULL`);
+    console.log("backfill complete.");
+  } catch (err) {
+    console.warn("backfill warning (non-fatal):", (err as Error).message);
+  } finally {
+    await pool.end();
+  }
+}
+
 async function buildAll() {
+  await prepareDatabase();
+
   console.log("pushing database schema...");
   try {
     execSync("npx drizzle-kit push --force", { stdio: "inherit" });
