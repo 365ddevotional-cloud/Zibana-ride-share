@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { DriverLayout } from "@/components/driver/DriverLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,8 +33,11 @@ export default function DriverDashboard() {
   const { toast } = useToast();
   const { t } = useTranslation();
   const [, setLocation] = useLocation();
-  const [declinedRideIds, setDeclinedRideIds] = useState<Set<string>>(new Set());
+  const declinedRideIdsRef = useRef<Set<string>>(new Set());
   const [overlayRide, setOverlayRide] = useState<Trip | null>(null);
+  const overlayRideIdRef = useRef<string | null>(null);
+  const [isOnlineLocal, setIsOnlineLocal] = useState(false);
+  const [profileLoaded, setProfileLoaded] = useState(false);
   const isReturningDriver = typeof window !== "undefined" && localStorage.getItem("zibana-driver-lastLoginAt") !== null;
   const welcomeShown = typeof window !== "undefined" && localStorage.getItem("zibana-driver-welcome-shown") === "true";
 
@@ -42,18 +45,25 @@ export default function DriverDashboard() {
     if (user) {
       localStorage.setItem("zibana-driver-lastLoginAt", new Date().toISOString());
     }
-  }, [user]);
+  }, [user?.id]);
 
   const { data: profile, isLoading: profileLoading } = useQuery<DriverProfile>({
     queryKey: ["/api/driver/profile"],
     enabled: !!user,
-    refetchInterval: 5000,
+    refetchInterval: 10000,
   });
+
+  useEffect(() => {
+    if (profile && !profileLoaded) {
+      setIsOnlineLocal(profile.isOnline);
+      setProfileLoaded(true);
+    }
+  }, [profile, profileLoaded]);
 
   const { data: availableRides, refetch: refetchRides } = useQuery<Trip[]>({
     queryKey: ["/api/driver/available-rides"],
-    enabled: !!user && profile?.isOnline,
-    refetchInterval: profile?.isOnline ? 3000 : false,
+    enabled: !!user && isOnlineLocal,
+    refetchInterval: isOnlineLocal ? 3000 : false,
   });
 
   const { data: currentTrip } = useQuery<Trip | null>({
@@ -108,12 +118,15 @@ export default function DriverDashboard() {
     },
   });
 
+  const acceptRideMutationRef = useRef<any>(null);
+
   const toggleOnlineMutation = useMutation({
-    mutationFn: async (isOnline: boolean) => {
-      const response = await apiRequest("POST", "/api/driver/toggle-online", { isOnline });
+    mutationFn: async (newOnlineState: boolean) => {
+      const response = await apiRequest("POST", "/api/driver/toggle-online", { isOnline: newOnlineState });
       return response.json();
     },
     onSuccess: (data) => {
+      setIsOnlineLocal(data.isOnline);
       queryClient.invalidateQueries({ queryKey: ["/api/driver/profile"] });
       toast({
         title: data.isOnline ? "You're online!" : "You're offline",
@@ -161,6 +174,7 @@ export default function DriverDashboard() {
       refetchRides();
     },
   });
+  acceptRideMutationRef.current = acceptRideMutation;
 
   const updateTripStatusMutation = useMutation({
     mutationFn: async ({ tripId, status }: { tripId: string; status: string }) => {
@@ -188,11 +202,9 @@ export default function DriverDashboard() {
     },
   });
 
-  const toggleOnlineStatus = () => {
-    if (profile) {
-      toggleOnlineMutation.mutate(!profile.isOnline);
-    }
-  };
+  const toggleOnlineStatus = useCallback(() => {
+    toggleOnlineMutation.mutate(!isOnlineLocal);
+  }, [isOnlineLocal, toggleOnlineMutation]);
 
   const todayTrips = tripHistory?.filter(trip => {
     if (!trip.createdAt) return false;
@@ -211,34 +223,57 @@ export default function DriverDashboard() {
   const activeDriverCoaching = coachingAlerts?.filter(c => !c.isDismissed) ?? [];
 
   const handleDeclineRide = useCallback((tripId: string) => {
-    setDeclinedRideIds(prev => new Set(prev).add(tripId));
+    declinedRideIdsRef.current.add(tripId);
     setOverlayRide(null);
+    overlayRideIdRef.current = null;
   }, []);
 
   const handleAcceptFromOverlay = useCallback((tripId: string) => {
-    acceptRideMutation.mutate(tripId);
+    acceptRideMutationRef.current?.mutate(tripId);
     setOverlayRide(null);
-  }, [acceptRideMutation]);
+    overlayRideIdRef.current = null;
+  }, []);
 
   useEffect(() => {
-    if (!availableRides || availableRides.length === 0 || currentTrip) {
-      if (!currentTrip) setOverlayRide(null);
+    if (currentTrip) {
+      if (overlayRideIdRef.current) {
+        setOverlayRide(null);
+        overlayRideIdRef.current = null;
+      }
       return;
     }
-    const showableRides = availableRides.filter(r => !declinedRideIds.has(r.id));
-    if (showableRides.length > 0 && !overlayRide) {
-      setOverlayRide(showableRides[0]);
-    } else if (overlayRide && !showableRides.find(r => r.id === overlayRide.id)) {
-      const next = showableRides[0] || null;
-      setOverlayRide(next);
+    if (!availableRides || availableRides.length === 0) {
+      if (overlayRideIdRef.current) {
+        setOverlayRide(null);
+        overlayRideIdRef.current = null;
+      }
+      return;
     }
-  }, [availableRides, declinedRideIds, currentTrip]);
+    const declined = declinedRideIdsRef.current;
+    const showable = availableRides.filter(r => !declined.has(r.id));
 
-  if (profileLoading) {
+    if (showable.length === 0) {
+      if (overlayRideIdRef.current) {
+        setOverlayRide(null);
+        overlayRideIdRef.current = null;
+      }
+      return;
+    }
+
+    if (!overlayRideIdRef.current) {
+      overlayRideIdRef.current = showable[0].id;
+      setOverlayRide(showable[0]);
+    } else if (!showable.find(r => r.id === overlayRideIdRef.current)) {
+      overlayRideIdRef.current = showable[0].id;
+      setOverlayRide(showable[0]);
+    }
+  }, [availableRides, currentTrip]);
+
+  if (profileLoading && !profileLoaded) {
     return <FullPageLoading text="Loading dashboard..." />;
   }
 
-  const isOnline = profile?.isOnline ?? false;
+  const isOnline = isOnlineLocal;
   const isApproved = profile?.status === "approved";
   const isRejected = profile?.status === "rejected";
   const isPending = profile?.status === "pending";

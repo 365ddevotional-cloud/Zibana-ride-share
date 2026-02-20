@@ -1,0 +1,93 @@
+We have a driver dashboard reload loop issue after Driver Pro v1 update.
+
+STRICT RULES:
+- DO NOT modify database schema.
+- DO NOT modify ride matching logic.
+- DO NOT remove Driver Pro features.
+- DO NOT delete existing functionality.
+- This is a frontend state stabilization fix only.
+
+ISSUE:
+Driver dashboard keeps switching between:
+"Go Online" → "Loading dashboard..." → back to "Go Online"
+Infinite refresh loop.
+
+GOAL:
+Stabilize driver dashboard and remove re-render loop.
+
+========================================
+STEP 1 — FIX DRIVER FETCH EFFECT
+========================================
+
+Locate driver dashboard useEffect hooks.
+
+If any useEffect depends on:
+- driver
+- driverProfile
+- online state
+- preferences state
+
+Change it so that:
+
+Initial fetch runs ONLY ON MOUNT:
+
+useEffect(() => {
+  fetchDriverData()
+}, [])
+
+Do NOT include driver object in dependency array.
+
+========================================
+STEP 2 — FIX ONLINE TOGGLE STATE
+========================================
+
+Ensure online state is managed like this:
+
+const [isOnline, setIsOnline] = useState(driver?.isOnline ?? false)
+
+When toggling online:
+- Update backend once.
+- Then set local state.
+- DO NOT refetch entire dashboard.
+
+========================================
+STEP 3 — FIX OVERLAY STATE
+========================================
+
+Ensure RideRequestOverlay visibility uses:
+
+const [incomingRide, setIncomingRide] = useState(null)
+
+Do NOT trigger dashboard re-fetch when overlay opens or closes.
+
+Overlay state must be isolated.
+
+========================================
+STEP 4 — FIX POLLING / SOCKET CLEANUP
+========================================
+
+If polling exists:
+
+useEffect(() => {
+  const interval = setInterval(fetchTrips, 5000)
+  return () => clearInterval(interval)
+}, [])
+
+Ensure no polling depends on driver state.
+
+========================================
+STEP 5 — VERIFY
+========================================
+
+After changes:
+- Dashboard loads once.
+- Online toggle stable.
+- No flickering.
+- No infinite loading.
+- Driver Pro overlay still works.
+- Navigation buttons still work.
+
+Report:
+- What caused the loop.
+- Confirm dashboard stable.
+- Confirm no backend schema touched.
