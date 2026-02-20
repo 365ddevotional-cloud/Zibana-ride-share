@@ -1,0 +1,99 @@
+We are implementing safe rating initialization logic.
+
+STRICT RULES:
+- Do NOT modify ride logic
+- Do NOT modify wallet logic
+- Do NOT modify payment logic
+- Do NOT delete any tables
+- Do NOT reset database
+- Do NOT refactor unrelated files
+- Maintain backward compatibility
+
+GOAL:
+Ensure every new Rider and Driver starts with a 5.0 rating (100%) upon approval.
+
+========================================
+STEP 1: DATABASE SAFE EXTENSION
+========================================
+
+If rating fields do NOT exist in User model, safely add:
+
+rating            Float   @default(5.0)
+ratingScore       Int     @default(100)
+totalRatings      Int     @default(0)
+
+For drivers (if separate model exists):
+stars             Int     @default(5)
+
+IMPORTANT:
+- Do NOT drop existing columns
+- Only add if missing
+- Use migration safely
+
+========================================
+STEP 2: APPROVAL LOGIC PATCH
+========================================
+
+When a user status changes to APPROVED:
+
+If rating is null OR undefined:
+    set rating = 5.0
+    set ratingScore = 100
+    set totalRatings = 0
+
+For drivers:
+    set stars = 5
+
+This must happen server-side only.
+
+========================================
+STEP 3: UI DISPLAY PATCH
+========================================
+
+On Rider and Driver profile pages:
+
+Display:
+
+⭐ 5.0 (New User)
+
+If totalRatings = 0:
+Show badge: "New"
+
+If totalRatings > 0:
+Show rating normally.
+
+Do NOT hardcode 5.0 in UI.
+It must come from database.
+
+========================================
+STEP 4: MATCHING SAFETY
+========================================
+
+Ensure:
+Users with rating < 3.0 cannot be auto-matched again.
+
+If driver rates rider < 3:
+Block future matching between them.
+
+Do NOT break existing matching logic.
+
+========================================
+STEP 5: BACKWARD COMPATIBILITY
+========================================
+
+For existing users with NULL rating:
+Run safe update:
+
+UPDATE users
+SET rating = 5.0,
+    ratingScore = 100,
+    totalRatings = 0
+WHERE rating IS NULL;
+
+Do NOT overwrite users who already have ratings.
+
+========================================
+
+Verify build.
+Do not restructure project.
+Return summary of changes only.
