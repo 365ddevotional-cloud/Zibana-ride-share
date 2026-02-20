@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Car, Shield, Wallet, Clock } from "lucide-react";
 import { useTranslation } from "@/i18n";
+import { Link } from "wouter";
 
 export default function DriverWelcome() {
   const { t } = useTranslation();
@@ -59,7 +60,12 @@ export default function DriverWelcome() {
         </div>
 
         <div className="mt-12 text-center text-xs text-emerald-200">
-          <p>{t("onboarding.agreeTerms")}</p>
+          <p>
+            By signing in, you agree to our{" "}
+            <Link href="/terms" className="font-semibold hover:underline text-white/90 transition-colors" data-testid="link-driver-welcome-terms">Terms of Service</Link>
+            {" "}and{" "}
+            <Link href="/privacy" className="font-semibold hover:underline text-white/90 transition-colors" data-testid="link-driver-welcome-privacy">Privacy Policy</Link>
+          </p>
         </div>
       </div>
     </div>
