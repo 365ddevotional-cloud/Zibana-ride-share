@@ -22,11 +22,55 @@ import { TripChat } from "@/components/trip-chat";
 import { RideRequestOverlay } from "@/components/driver/RideRequestOverlay";
 import type { DriverProfile, Trip } from "@shared/schema";
 
+const isDev = import.meta.env.DEV;
+
 function openGoogleMapsNavigation(address: string) {
   const encoded = encodeURIComponent(address);
   const url = `https://www.google.com/maps/dir/?api=1&destination=${encoded}&travelmode=driving`;
   window.open(url, "_blank", "noopener,noreferrer");
 }
+
+const MOCK_RIDE: Trip = {
+  id: "dev-ride-1",
+  riderId: "dev-rider-1",
+  driverId: null,
+  pickupLocation: "123 Main Street, Houston TX",
+  dropoffLocation: "456 Market Ave, Houston TX",
+  passengerCount: 1,
+  status: "requested",
+  fareAmount: "18.50",
+  currencyCode: "₦",
+  paymentMethod: "WALLET",
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  completedAt: null,
+  cancelledAt: null,
+  cancelledBy: null,
+  cancellationReason: null,
+  pickupLat: "29.7604",
+  pickupLng: "-95.3698",
+  dropoffLat: "29.7700",
+  dropoffLng: "-95.3600",
+  driverPayout: null,
+  platformFee: null,
+  tipAmount: null,
+  riderRating: null,
+  driverRating: null,
+  riderFeedback: null,
+  driverFeedback: null,
+  countryCode: "NG",
+  matchingExpiresAt: null,
+  scheduledPickupTime: null,
+  isScheduled: false,
+  cancellationFeeAmount: null,
+  cancellationFeeApplied: false,
+  cancellationFeeWaived: false,
+  rideClass: "go",
+  receiptId: null,
+  adminFeePercent: null,
+  adminFeeAmount: null,
+  totalPaid: null,
+} as unknown as Trip;
 
 export default function DriverDashboard() {
   const { user } = useAuth();
@@ -38,6 +82,7 @@ export default function DriverDashboard() {
   const overlayRideIdRef = useRef<string | null>(null);
   const [isOnlineLocal, setIsOnlineLocal] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
+  const [simTrip, setSimTrip] = useState<(Trip & { _sim?: boolean }) | null>(null);
   const isReturningDriver = typeof window !== "undefined" && localStorage.getItem("zibana-driver-lastLoginAt") !== null;
   const welcomeShown = typeof window !== "undefined" && localStorage.getItem("zibana-driver-welcome-shown") === "true";
 
@@ -223,16 +268,44 @@ export default function DriverDashboard() {
   const activeDriverCoaching = coachingAlerts?.filter(c => !c.isDismissed) ?? [];
 
   const handleDeclineRide = useCallback((tripId: string) => {
+    if (tripId.startsWith("dev-")) {
+      setOverlayRide(null);
+      overlayRideIdRef.current = null;
+      return;
+    }
     declinedRideIdsRef.current.add(tripId);
     setOverlayRide(null);
     overlayRideIdRef.current = null;
   }, []);
 
   const handleAcceptFromOverlay = useCallback((tripId: string) => {
+    if (tripId.startsWith("dev-")) {
+      setOverlayRide(null);
+      overlayRideIdRef.current = null;
+      setSimTrip({ ...MOCK_RIDE, status: "accepted", _sim: true });
+      toast({ title: "[DEV] Ride accepted!", description: "Simulated trip is now active" });
+      return;
+    }
     acceptRideMutationRef.current?.mutate(tripId);
     setOverlayRide(null);
     overlayRideIdRef.current = null;
+  }, [toast]);
+
+  const handleSimulateRide = useCallback(() => {
+    setSimTrip(null);
+    setOverlayRide({ ...MOCK_RIDE, id: `dev-ride-${Date.now()}` });
   }, []);
+
+  const handleSimTripStatus = useCallback((newStatus: string) => {
+    if (!simTrip) return;
+    if (newStatus === "in_progress") {
+      setSimTrip({ ...simTrip, status: "in_progress" });
+      toast({ title: "[DEV] Trip started", description: "Navigate to dropoff location" });
+    } else if (newStatus === "completed") {
+      setSimTrip(null);
+      toast({ title: "[DEV] Trip completed!", description: "Simulation finished" });
+    }
+  }, [simTrip, toast]);
 
   useEffect(() => {
     if (currentTrip) {
@@ -305,6 +378,27 @@ export default function DriverDashboard() {
       <CancellationWarning role="driver" />
       <div className="p-4 space-y-6">
         <DriverSimulationControls />
+
+        {isDev && (
+          <Card className="border-dashed border-amber-400 dark:border-amber-600" data-testid="card-dev-simulation">
+            <CardContent className="pt-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="border-amber-400 text-amber-600 text-xs">DEV</Badge>
+                <span className="text-sm font-medium">Driver Pro Simulation</span>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-amber-400 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+                onClick={handleSimulateRide}
+                disabled={!!simTrip}
+                data-testid="button-simulate-ride"
+              >
+                Simulate Ride Request
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {isPending && (
           <Card className="border-yellow-300 dark:border-yellow-800" data-testid="card-status-pending">
@@ -632,6 +726,87 @@ export default function DriverDashboard() {
           </Card>
         )}
 
+        {isDev && simTrip && !currentTrip && (
+          <Card className="border-amber-400 border-2" data-testid="card-sim-trip">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Navigation className="h-5 w-5 text-amber-600" />
+                <span>Simulated Trip</span>
+                <Badge variant="outline" className="border-amber-400 text-amber-600 text-xs ml-auto">DEV</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex items-start gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 mt-2" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Pickup</p>
+                    <p className="font-medium">{simTrip.pickupLocation}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <div className="w-2 h-2 rounded-full bg-primary mt-2" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Dropoff</p>
+                    <p className="font-medium">{simTrip.dropoffLocation}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2">
+                {simTrip.status === "accepted" && (
+                  <>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => openGoogleMapsNavigation(simTrip.pickupLocation)}
+                      data-testid="button-sim-navigate-pickup"
+                    >
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Navigate to Pickup
+                    </Button>
+                    <Button
+                      className="w-full bg-emerald-600"
+                      onClick={() => handleSimTripStatus("in_progress")}
+                      data-testid="button-sim-start-trip"
+                    >
+                      Start Trip
+                    </Button>
+                  </>
+                )}
+                {simTrip.status === "in_progress" && (
+                  <>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => openGoogleMapsNavigation(simTrip.dropoffLocation)}
+                      data-testid="button-sim-navigate-dropoff"
+                    >
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Navigate to Dropoff
+                    </Button>
+                    <Button
+                      className="w-full bg-emerald-600"
+                      onClick={() => handleSimTripStatus("completed")}
+                      data-testid="button-sim-complete-trip"
+                    >
+                      Complete Trip
+                    </Button>
+                  </>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground"
+                  onClick={() => setSimTrip(null)}
+                  data-testid="button-sim-cancel"
+                >
+                  Cancel Simulation
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {isOnline && !currentTrip && availableRides && availableRides.length > 0 && (
           <div className="space-y-4">
             <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -792,12 +967,14 @@ export default function DriverDashboard() {
         />
       )}
       <ZibraFloatingButton />
-      {overlayRide && isOnline && !currentTrip && (
+      {overlayRide && !currentTrip && (isOnline || overlayRide.id.startsWith("dev-")) && (
         <RideRequestOverlay
           ride={overlayRide}
           onAccept={handleAcceptFromOverlay}
           onDecline={handleDeclineRide}
           isAccepting={acceptRideMutation.isPending}
+          riderName={overlayRide.id.startsWith("dev-") ? "John" : undefined}
+          riderRating={overlayRide.id.startsWith("dev-") ? "4.8" : undefined}
         />
       )}
     </DriverLayout>
