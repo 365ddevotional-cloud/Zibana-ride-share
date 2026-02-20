@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
-import { Car, XCircle, AlertTriangle, Clock, MapPin, ChevronRight } from "lucide-react";
+import { Car, XCircle, AlertTriangle, Clock, MapPin, ChevronRight, Navigation } from "lucide-react";
+import { useLocation } from "wouter";
 import { formatDistanceToNow } from "date-fns";
 import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
 import { RideClassIcon, getRideClassLabel } from "@/components/ride-class-icon";
@@ -52,6 +53,7 @@ const getStatusColor = (status: string) => {
 
 export default function RiderActivity() {
   const { t } = useTranslation();
+  const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState<"history" | "cancelled" | "penalties">("history");
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
 
@@ -139,16 +141,26 @@ export default function RiderActivity() {
     </Card>
   );
 
-  const renderEmptyState = (icon: React.ReactNode, title: string, subtitle: string) => (
+  const renderEmptyState = (icon: React.ReactNode, title: string, subtitle: string, showBookRide: boolean = false) => (
     <Card>
-      <CardContent className="p-6 text-center">
-        <div className="flex justify-center mb-3">{icon}</div>
-        <p className="font-medium text-foreground" data-testid={`text-empty-title-${title.toLowerCase().replace(/\s/g, "-")}`}>
+      <CardContent className="p-8 text-center">
+        <div className="flex justify-center mb-4">{icon}</div>
+        <p className="font-semibold text-foreground" data-testid={`text-empty-title-${title.toLowerCase().replace(/\s/g, "-")}`}>
           {title}
         </p>
-        <p className="text-sm text-muted-foreground mt-1" data-testid={`text-empty-subtitle-${title.toLowerCase().replace(/\s/g, "-")}`}>
+        <p className="text-sm text-muted-foreground mt-1.5" data-testid={`text-empty-subtitle-${title.toLowerCase().replace(/\s/g, "-")}`}>
           {subtitle}
         </p>
+        {showBookRide && (
+          <Button
+            className="mt-4 gap-2"
+            onClick={() => setLocation("/rider/home")}
+            data-testid="button-book-ride-empty"
+          >
+            <Navigation className="h-4 w-4" />
+            Book a ride
+          </Button>
+        )}
       </CardContent>
     </Card>
   );
@@ -164,12 +176,12 @@ export default function RiderActivity() {
   return (
     <RiderRouteGuard>
       <RiderLayout>
-        <div className="p-4 space-y-4">
-          <div>
-            <h1 className="text-2xl font-bold" data-testid="text-activity-title">
+        <div className="p-4 space-y-5">
+          <div className="pt-4 pb-1">
+            <h1 className="text-2xl font-bold tracking-tight" data-testid="text-activity-title">
               {t("activity.title")}
             </h1>
-            <p className="text-sm text-muted-foreground" data-testid="text-activity-subtitle">
+            <p className="text-sm text-muted-foreground mt-1" data-testid="text-activity-subtitle">
               Your ride history and account activity
             </p>
           </div>
@@ -216,7 +228,8 @@ export default function RiderActivity() {
                   renderEmptyState(
                     <Car className="h-12 w-12 text-muted-foreground mx-auto" />,
                     "No completed rides yet",
-                    "Your completed trips will appear here"
+                    "Your trips will appear here.",
+                    true
                   )
                 ) : (
                   historyTrips.map((trip) => renderTripCard(trip))

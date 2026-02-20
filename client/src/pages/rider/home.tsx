@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Navigation, Calendar, ChevronRight, Wallet, Beaker, AlertCircle, BookOpen, Banknote, Home as HomeIcon, Briefcase } from "lucide-react";
+import { MapPin, Navigation, Calendar, ChevronRight, Wallet, Beaker, AlertCircle, BookOpen, Banknote, Home as HomeIcon, Briefcase, Shield, Star, Users } from "lucide-react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -117,17 +117,17 @@ export default function RiderHome() {
         <div className="p-4 space-y-6">
           <RiderSimulationControls />
           <MarketingTipBanner />
-          <div className="pt-4 pb-2">
-            <h1 className="text-2xl font-bold" data-testid="text-greeting">
+          <div className="pt-4 pb-3">
+            <h1 className="text-2xl font-bold tracking-tight" data-testid="text-greeting">
               {t("home.greeting")}
             </h1>
-            <p className="text-muted-foreground mt-1">
+            <p className="text-muted-foreground mt-1 text-sm">
               Request a safe and reliable ride
             </p>
           </div>
 
-          <Card className="shadow-sm">
-            <CardContent className="p-4 space-y-4">
+          <Card className="shadow-md border-0 bg-card">
+            <CardContent className="p-5 space-y-5">
               <div className="relative">
                 <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-primary" />
                 <Input
@@ -217,8 +217,29 @@ export default function RiderHome() {
                 show={hasLowBalance && paymentMethod !== "CASH"}
               />
 
+              <div className="flex items-center gap-2 px-1 py-1">
+                <div className="flex items-center gap-1 text-muted-foreground">
+                  <Shield className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
+                  <span className="text-[11px]">Fair matching</span>
+                </div>
+                <span className="text-muted-foreground text-[11px]">·</span>
+                <div className="flex items-center gap-1 text-muted-foreground">
+                  <Star className="h-3.5 w-3.5 text-yellow-500" />
+                  <span className="text-[11px]">Rating-based</span>
+                </div>
+                <span className="text-muted-foreground text-[11px]">·</span>
+                <div className="flex items-center gap-1 text-muted-foreground">
+                  <Users className="h-3.5 w-3.5 text-blue-500" />
+                  <span className="text-[11px]">Safety first</span>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-muted-foreground px-1" data-testid="text-matching-note">
+                Drivers are matched based on fairness and rating.
+              </p>
+
               <Button 
-                className="w-full h-12 text-base font-medium"
+                className="w-full h-14 text-base font-semibold shadow-lg"
                 onClick={handleRequestRide}
                 disabled={!destination.trim()}
                 data-testid="button-request-ride"
@@ -228,19 +249,19 @@ export default function RiderHome() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-sm hover-elevate cursor-pointer" onClick={() => setLocation("/rider/schedule")} data-testid="card-schedule-ride">
+          <Card className="shadow-sm hover-elevate cursor-pointer border" onClick={() => setLocation("/rider/schedule")} data-testid="card-schedule-ride">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <div className="h-11 w-11 rounded-full bg-primary/10 flex items-center justify-center">
                     <Calendar className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <p className="font-medium" data-testid="text-schedule-ride">{t("home.scheduleRide")}</p>
-                    <p className="text-sm text-muted-foreground">Book in advance</p>
+                    <p className="font-medium text-sm" data-testid="text-schedule-ride">{t("home.scheduleRide")}</p>
+                    <p className="text-xs text-muted-foreground">Book in advance for a guaranteed ride</p>
                   </div>
                 </div>
-                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
               </div>
             </CardContent>
           </Card>

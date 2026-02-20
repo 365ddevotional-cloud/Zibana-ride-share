@@ -152,8 +152,8 @@ export default function RiderAccount() {
   return (
     <RiderRouteGuard>
       <RiderLayout>
-        <div className="p-4 space-y-5 max-w-lg mx-auto">
-          <Card>
+        <div className="p-4 space-y-4 max-w-lg mx-auto">
+          <Card className="shadow-sm">
             <CardContent className="p-5">
               <div className="flex items-center gap-4">
                 <div className="relative">
@@ -356,26 +356,26 @@ export default function RiderAccount() {
 
           <div className="space-y-1">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1 mb-2">
-              Safety
+              Safety & Security
             </p>
-            <Card>
+            <Card className="border-green-200 dark:border-green-900/40">
               <CardContent className="p-0 divide-y">
                 <AccountRow
-                  icon={<Users className="h-5 w-5" />}
+                  icon={<Users className="h-5 w-5 text-green-600 dark:text-green-400" />}
                   label="Trusted Contacts"
                   sublabel="People who can track your rides"
                   onClick={() => setLocation("/rider/trusted-contacts")}
                   testId="button-trusted-contacts"
                 />
                 <AccountRow
-                  icon={<Lock className="h-5 w-5" />}
+                  icon={<Lock className="h-5 w-5 text-blue-600 dark:text-blue-400" />}
                   label="Ride PIN"
                   sublabel="Verify your driver before riding"
                   onClick={() => setLocation("/rider/account-ride-pin")}
                   testId="button-ride-pin"
                 />
                 <AccountRow
-                  icon={<Shield className="h-5 w-5" />}
+                  icon={<Shield className="h-5 w-5 text-red-600 dark:text-red-400" />}
                   label="Emergency"
                   sublabel="Emergency contacts and SOS settings"
                   onClick={() => setLocation("/rider/account-emergency")}
@@ -383,6 +383,11 @@ export default function RiderAccount() {
                 />
               </CardContent>
             </Card>
+            <div className="px-1 pt-1.5">
+              <p className="text-[11px] text-muted-foreground" data-testid="text-safety-reassurance">
+                Low-rated users are not re-matched. Your safety is our priority.
+              </p>
+            </div>
           </div>
 
           <div className="space-y-1">

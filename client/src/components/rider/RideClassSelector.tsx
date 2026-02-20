@@ -98,16 +98,17 @@ export function RideClassSelector({ selectedClass, onClassChange, currencySymbol
               key={rc.id}
               onClick={() => isAvailable && onClassChange(rc.id as RideClassId, rc.fareMultiplier)}
               disabled={!isAvailable}
-              className={`w-full flex items-center gap-3 p-3 rounded-md text-left transition-all duration-150 ${
+              className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-200 ${
                 !isAvailable
                   ? "opacity-50 cursor-not-allowed"
                   : isSelected
-                  ? "ring-2 shadow-sm"
-                  : "hover-elevate"
+                  ? "ring-2 shadow-md scale-[1.01]"
+                  : "hover-elevate border border-transparent"
               }`}
               style={isSelected && isAvailable ? {
-                boxShadow: `0 0 0 2px ${rc.color}40`,
-                backgroundColor: `${rc.color}08`,
+                boxShadow: `0 0 0 2px ${rc.color}50, 0 4px 12px ${rc.color}15`,
+                backgroundColor: `${rc.color}0C`,
+                borderColor: `${rc.color}30`,
               } : undefined}
               data-testid={`button-ride-class-${rc.id}`}
             >
