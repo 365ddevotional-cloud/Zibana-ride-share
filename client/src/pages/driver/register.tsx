@@ -69,8 +69,8 @@ export default function DriverRegister() {
                 <Wallet className="h-5 w-5" />
               </div>
               <div>
-                <p className="font-medium">Keep 80% of every fare</p>
-                <p className="text-sm text-emerald-200">Industry-leading commission rates</p>
+                <p className="font-medium">High Driver Earnings</p>
+                <p className="text-sm text-emerald-200">Drive more. Keep more.</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
