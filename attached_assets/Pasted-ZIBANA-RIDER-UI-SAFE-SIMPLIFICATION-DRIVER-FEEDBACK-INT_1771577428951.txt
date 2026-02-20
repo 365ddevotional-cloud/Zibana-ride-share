@@ -1,0 +1,200 @@
+ZIBANA RIDER UI SAFE SIMPLIFICATION + DRIVER FEEDBACK INTEGRATION
+STRICT NON-DESTRUCTIVE MODE
+
+THIS IS A UI POLISH ONLY.
+THIS IS NOT A REDESIGN.
+THIS IS NOT A REBUILD.
+THIS IS NOT A REFACTOR.
+
+ABSOLUTE LOCKED RULES (DO NOT BREAK THESE):
+- DO NOT delete any existing sections
+- DO NOT remove any features currently visible in Rider
+- DO NOT hide existing features
+- DO NOT rename routes
+- DO NOT rename files
+- DO NOT modify backend logic
+- DO NOT modify ride request logic
+- DO NOT modify matching logic
+- DO NOT modify wallet logic
+- DO NOT modify payment logic
+- DO NOT modify rating/star system
+- DO NOT modify driver blocking logic
+- DO NOT modify Prisma schema
+- DO NOT modify API routes
+- DO NOT introduce new dependencies
+- DO NOT increase hosting costs
+- DO NOT restructure project architecture
+
+If any change risks breaking something, DO NOT apply it.
+
+--------------------------------------------
+GOAL
+--------------------------------------------
+
+We are SIMPLIFYING and CLEANING the Rider UI.
+We are keeping 100% of existing functionality.
+
+We are rearranging layout and improving clarity only.
+
+Everything currently in:
+- Home
+- Services
+- Activity
+- Inbox
+- Account
+Must remain.
+
+Nothing removed.
+
+--------------------------------------------
+CLICKABILITY REQUIREMENT (MANDATORY)
+--------------------------------------------
+
+Every:
+- Button
+- Card
+- List item
+- Menu row
+- CTA
+- Icon with interaction
+Must be clickable and must route to a real existing page or function.
+
+No dead buttons.
+No placeholder links.
+No non-functional UI.
+
+Every navigated page must:
+- Have a clear back path
+- Not trap the user
+- Maintain navigation bar consistency
+
+After implementation, perform a FULL Rider click-through audit.
+
+--------------------------------------------
+HOME SCREEN (DO NOT REMOVE ANY RIDE TYPES)
+--------------------------------------------
+
+Keep:
+- All ride classes (Go, Plus, Comfort, PetRide, SafeTeen, Elite)
+- Payment selector
+- Schedule Ride
+- Saved Places
+- Bottom navigation
+
+Only improve:
+- Spacing
+- Hierarchy
+- Visual clarity
+- Make selected ride more visually distinct
+- Improve primary "Request Ride" button prominence
+
+Do NOT remove any ride category.
+
+--------------------------------------------
+SERVICES TAB
+--------------------------------------------
+
+Keep:
+- Schedule a Ride
+- Corporate Rides
+- Special Rides
+
+Improve clarity and spacing only.
+
+Ensure every service card routes correctly.
+
+--------------------------------------------
+ACTIVITY TAB
+--------------------------------------------
+
+Keep:
+- History
+- Cancelled
+- Penalties
+
+Improve empty state to:
+"No completed rides yet. Your trips will appear here."
+Add clear button: "Book a ride"
+That routes to Home.
+
+--------------------------------------------
+INBOX
+--------------------------------------------
+
+Keep existing announcements.
+Ensure tapping message opens full message view.
+Ensure settings icon routes properly.
+
+--------------------------------------------
+ACCOUNT PAGE (PRESERVE ALL SECTIONS)
+--------------------------------------------
+
+Keep:
+- Profile
+- Payment Methods
+- Saved Places
+- Trips
+- Inbox
+- Settings
+- Notifications
+- Marketing
+- Data Usage
+- Trusted Contacts
+- Ride PIN
+- Emergency
+- Help Center
+- Terms & Privacy
+- Log Out
+- Delete Account
+
+Do NOT remove or hide anything.
+
+Only:
+- Improve grouping spacing
+- Improve visual hierarchy
+- Ensure each row routes properly
+
+--------------------------------------------
+INTEGRATE DRIVER FEEDBACK (FROM NIGERIA SURVEY)
+--------------------------------------------
+
+Without backend logic changes:
+
+1) Add subtle UI badges that show:
+   - Fair matching
+   - Safety priority
+   - Star-based accountability
+
+2) In ride selection area, add small note:
+   "Drivers are matched based on fairness and rating."
+
+3) In Activity or Account → Safety:
+   Add visible reassurance text:
+   "Low-rated users are not re-matched."
+
+4) Improve visibility of:
+   - Ride PIN
+   - Emergency
+   - Trusted Contacts
+
+This shows we are listening to drivers and riders.
+
+No backend changes required.
+
+--------------------------------------------
+FINAL VALIDATION
+--------------------------------------------
+
+After changes:
+- Test every tab.
+- Tap every visible UI element.
+- Confirm it navigates correctly.
+- Confirm no UI elements disappeared.
+- Confirm no logic was modified.
+
+Return summary of:
+- Files modified
+- Screens affected
+- Navigation verification results
+
+Proceed carefully and conservatively.
