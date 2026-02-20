@@ -438,9 +438,15 @@ export default function DriverDashboard() {
                           <span className="font-medium" data-testid="text-average-rating">
                             {parseFloat(profile.averageRating).toFixed(1)}
                           </span>
-                          <span className="text-muted-foreground text-xs">
-                            ({profile.totalRatings} {profile.totalRatings === 1 ? "rating" : "ratings"})
-                          </span>
+                          {profile.totalRatings === 0 ? (
+                            <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded-full" data-testid="badge-new-driver">
+                              New
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">
+                              ({profile.totalRatings} {profile.totalRatings === 1 ? "rating" : "ratings"})
+                            </span>
+                          )}
                         </>
                       ) : (
                         <span className="text-muted-foreground">No ratings yet</span>

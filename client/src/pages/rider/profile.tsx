@@ -19,7 +19,8 @@ import { ArrowLeft, Camera, Save, X } from "lucide-react";
 import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
 
 interface RiderProfile {
-  rating: number | null;
+  averageRating: string | null;
+  totalRatings: number;
   totalTrips: number;
   phone: string | null;
   profilePhoto: string | null;
@@ -304,8 +305,12 @@ export default function RiderProfile() {
                   <InfoRow label="Email" value={user?.email || "Not set"} testId="text-profile-email" />
                   <InfoRow label="Phone" value={profile?.phone || "Not set"} testId="text-profile-phone" />
                   <InfoRow label="Total Trips" value={String(profile?.totalTrips ?? 0)} testId="text-profile-trips" />
-                  {profile?.rating && (
-                    <InfoRow label="Rating" value={profile.rating.toFixed(1)} testId="text-profile-rating" />
+                  {profile?.averageRating != null && (
+                    <InfoRow 
+                      label="Rating" 
+                      value={profile.totalRatings === 0 ? "5.0 (New User)" : Number(profile.averageRating).toFixed(1)} 
+                      testId="text-profile-rating" 
+                    />
                   )}
                 </>
               )}

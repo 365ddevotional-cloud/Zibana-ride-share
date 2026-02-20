@@ -2090,6 +2090,8 @@ export class DatabaseStorage implements IStorage {
       updateFields.rejectionReason = null;
       updateFields.rejectedAt = null;
       updateFields.rejectedBy = null;
+      updateFields.averageRating = "5.00";
+      updateFields.totalRatings = 0;
     } else if (status === "rejected" || status === "suspended") {
       updateFields.rejectionReason = options?.reason || null;
       updateFields.rejectedAt = new Date();

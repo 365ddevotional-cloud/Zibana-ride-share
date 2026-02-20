@@ -230,11 +230,15 @@ export default function DriverAccount() {
                       <span className="text-sm font-medium" data-testid="text-account-rating">
                         {Number(profile.averageRating).toFixed(1)}
                       </span>
-                      {profile.totalRatings != null && (
+                      {profile.totalRatings != null && profile.totalRatings === 0 ? (
+                        <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded-full" data-testid="badge-new-driver">
+                          New
+                        </span>
+                      ) : profile.totalRatings != null ? (
                         <span className="text-xs text-muted-foreground">
                           ({profile.totalRatings} ratings)
                         </span>
-                      )}
+                      ) : null}
                     </div>
                   )}
                   {statusLabel && (

@@ -30,7 +30,8 @@ import {
 import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
 
 interface RiderProfile {
-  rating: number | null;
+  averageRating: string | null;
+  totalRatings: number;
   totalTrips: number;
   profilePhoto: string | null;
   phone: string | null;
@@ -195,15 +196,21 @@ export default function RiderAccount() {
                   <p className="text-sm text-muted-foreground truncate" data-testid="text-account-email">
                     {user?.email}
                   </p>
-                  {profile?.rating && (
+                  {profile?.averageRating != null && (
                     <div className="flex items-center gap-1 mt-1">
                       <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
                       <span className="text-sm font-medium" data-testid="text-account-rating">
-                        {profile.rating.toFixed(1)}
+                        {Number(profile.averageRating).toFixed(1)}
                       </span>
-                      <span className="text-xs text-muted-foreground">
-                        ({profile.totalTrips} trips)
-                      </span>
+                      {profile.totalRatings === 0 ? (
+                        <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded-full" data-testid="badge-new-user">
+                          New
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">
+                          ({profile.totalTrips} trips)
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>
