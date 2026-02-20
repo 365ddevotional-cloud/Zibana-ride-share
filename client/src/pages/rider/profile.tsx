@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { ArrowLeft, Camera, Save, X } from "lucide-react";
 import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
+import { StarRating } from "@/components/ui/StarRating";
 
 interface RiderProfile {
   averageRating: string | null;
@@ -306,11 +307,17 @@ export default function RiderProfile() {
                   <InfoRow label="Phone" value={profile?.phone || "Not set"} testId="text-profile-phone" />
                   <InfoRow label="Total Trips" value={String(profile?.totalTrips ?? 0)} testId="text-profile-trips" />
                   {profile?.averageRating != null && (
-                    <InfoRow 
-                      label="Rating" 
-                      value={profile.totalRatings === 0 ? "5.0 (New User)" : Number(profile.averageRating).toFixed(1)} 
-                      testId="text-profile-rating" 
-                    />
+                    <div className="flex items-center justify-between py-3 border-b">
+                      <span className="text-sm text-muted-foreground">Rating</span>
+                      <div className="flex items-center gap-2" data-testid="text-profile-rating">
+                        <StarRating rating={Number(profile.averageRating)} size="sm" />
+                        {profile.totalRatings === 0 && (
+                          <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded-full">
+                            New
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   )}
                 </>
               )}

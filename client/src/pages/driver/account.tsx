@@ -20,6 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { useTranslation } from "@/i18n";
 import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
+import { StarRating } from "@/components/ui/StarRating";
 import { Switch } from "@/components/ui/switch";
 import {
   User, Star, ChevronRight, LogOut, Trash2,
@@ -226,10 +227,7 @@ export default function DriverAccount() {
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
                   {profile?.averageRating != null && (
                     <div className="flex items-center gap-1">
-                      <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
-                      <span className="text-sm font-medium" data-testid="text-account-rating">
-                        {Number(profile.averageRating).toFixed(1)}
-                      </span>
+                      <StarRating rating={Number(profile.averageRating)} size="sm" />
                       {profile.totalRatings != null && profile.totalRatings === 0 ? (
                         <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded-full" data-testid="badge-new-driver">
                           New

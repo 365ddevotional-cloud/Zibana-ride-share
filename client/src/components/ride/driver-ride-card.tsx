@@ -6,6 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { CountdownTimer } from "./countdown-timer";
 import { MapPin, Users, Clock, Navigation } from "lucide-react";
 import { RideClassIcon, getRideClassLabel } from "@/components/ride-class-icon";
+import { StarRating } from "@/components/ui/StarRating";
 import type { RideWithDetails } from "@/hooks/use-ride-lifecycle";
 
 interface DriverRideCardProps {
@@ -86,6 +87,9 @@ export function DriverRideCard({
             <div className="flex items-center gap-2 text-sm">
               <Users className="h-4 w-4 text-muted-foreground" />
               <span className="font-medium">{ride.riderName}</span>
+              {(ride as any).riderRating && (
+                <StarRating rating={parseFloat((ride as any).riderRating)} size="sm" />
+              )}
             </div>
           )}
           

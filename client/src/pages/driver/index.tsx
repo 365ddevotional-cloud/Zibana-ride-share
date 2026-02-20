@@ -47,6 +47,7 @@ import { DriverRideActions } from "@/components/ride/driver-ride-actions";
 import { RideOfferCountdown } from "@/components/ride/ride-offer-countdown";
 import { VerificationPhotoSubmit } from "@/components/verification/verification-photo-submit";
 import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
+import { StarRating } from "@/components/ui/StarRating";
 import { SafetyCheckModal } from "@/components/ride/safety-check-modal";
 import { DriverReservedTrips } from "@/components/ride/driver-reserved-trips";
 import { DriverScheduledTripsSection } from "@/components/driver/scheduled-trips-section";
@@ -434,10 +435,7 @@ export default function DriverDashboard() {
                     <div className="flex items-center gap-1">
                       {profile.averageRating ? (
                         <>
-                          <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                          <span className="font-medium" data-testid="text-average-rating">
-                            {parseFloat(profile.averageRating).toFixed(1)}
-                          </span>
+                          <StarRating rating={parseFloat(profile.averageRating)} size="sm" />
                           {profile.totalRatings === 0 ? (
                             <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded-full" data-testid="badge-new-driver">
                               New

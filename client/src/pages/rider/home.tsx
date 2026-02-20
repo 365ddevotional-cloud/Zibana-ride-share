@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Navigation, Calendar, ChevronRight, Wallet, Beaker, AlertCircle, BookOpen, Banknote, Home as HomeIcon, Briefcase, Shield, Star, Users } from "lucide-react";
+import { StarRating } from "@/components/ui/StarRating";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -41,6 +42,10 @@ export default function RiderHome() {
 
   const { data: walletInfo } = useQuery<WalletInfo>({
     queryKey: ["/api/rider/wallet-info"],
+  });
+
+  const { data: riderProfile } = useQuery<{ averageRating: string | null; totalRatings: number }>({
+    queryKey: ["/api/rider/profile"],
   });
 
   interface SavedPlace {
@@ -118,12 +123,24 @@ export default function RiderHome() {
           <RiderSimulationControls />
           <MarketingTipBanner />
           <div className="pt-4 pb-3">
-            <h1 className="text-2xl font-bold tracking-tight" data-testid="text-greeting">
-              {t("home.greeting")}
-            </h1>
-            <p className="text-muted-foreground mt-1 text-sm">
-              Request a safe and reliable ride
-            </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight" data-testid="text-greeting">
+                  {t("home.greeting")}
+                </h1>
+                <p className="text-muted-foreground mt-1 text-sm">
+                  Request a safe and reliable ride
+                </p>
+              </div>
+              {riderProfile?.averageRating != null && (
+                <div className="flex flex-col items-end gap-0.5" data-testid="home-rating">
+                  <StarRating rating={Number(riderProfile.averageRating)} size="sm" showNumber={false} />
+                  <span className="text-xs text-muted-foreground">
+                    {Number(riderProfile.averageRating).toFixed(1)} rating
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
 
           <Card className="shadow-md border-0 bg-card">
