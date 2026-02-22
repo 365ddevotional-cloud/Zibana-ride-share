@@ -9,10 +9,9 @@ import { sql, eq, gte, and, count, avg, desc, sum } from "drizzle-orm";
 
 let openaiClient: OpenAI | null = null;
 try {
-  if (process.env.AI_INTEGRATIONS_OPENAI_API_KEY) {
+  if (process.env.OPENAI_API_KEY) {
     openaiClient = new OpenAI({
-      apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-      baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      apiKey: process.env.OPENAI_API_KEY,
     });
   }
 } catch (e) {
