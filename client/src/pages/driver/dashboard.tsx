@@ -23,6 +23,13 @@ import { RideRequestOverlay } from "@/components/driver/RideRequestOverlay";
 import type { DriverProfile, Trip } from "@shared/schema";
 import { useDriverTracking } from "@/hooks/useDriverTracking";
 import { startMockTracking, stopMockTracking, isMockMode } from "@/lib/trackingEngine";
+import {
+  startDriverService,
+  stopDriverService,
+  triggerIncomingRide,
+  onRideActionResponse,
+  isAndroidNative,
+} from "@/lib/driverServiceBridge";
 
 const isDev = import.meta.env.DEV;
 const SUPER_ADMIN_EMAIL = "365ddevotional@gmail.com";
@@ -115,6 +122,7 @@ export default function DriverDashboard() {
       setProfileLoaded(true);
       if (profile.isOnline && trackingState === "idle") {
         startTracking();
+        startDriverService();
       }
     }
   }, [profile, profileLoaded]);
@@ -200,8 +208,10 @@ export default function DriverDashboard() {
       queryClient.invalidateQueries({ queryKey: ["/api/driver/profile"] });
       if (data.isOnline) {
         startTracking();
+        startDriverService();
       } else {
         stopTracking();
+        stopDriverService();
       }
       toast({
         title: data.isOnline ? "You're online!" : "You're offline",
@@ -250,6 +260,33 @@ export default function DriverDashboard() {
     },
   });
   acceptRideMutationRef.current = acceptRideMutation;
+
+  const triggerNativeRideAlert = useCallback((ride: Trip) => {
+    triggerIncomingRide({
+      rideId: ride.id,
+      pickup: ride.pickupLocation || "Pickup location",
+      dropoff: ride.dropoffLocation || "Dropoff location",
+      fare: parseFloat(ride.fareAmount || "0").toLocaleString(),
+      currency: ride.currencyCode || "₦",
+      riderName: "Rider",
+      riderRating: "5.0",
+      distance: (ride as any).estimatedDistance || "",
+      duration: (ride as any).estimatedDuration || "",
+    });
+  }, []);
+
+  useEffect(() => {
+    const cleanup = onRideActionResponse(({ rideId, accepted }) => {
+      if (accepted) {
+        acceptRideMutationRef.current?.mutate(rideId);
+      } else {
+        declinedRideIdsRef.current.add(rideId);
+        setOverlayRide(null);
+        overlayRideIdRef.current = null;
+      }
+    });
+    return () => { cleanup?.(); };
+  }, []);
 
   const updateTripStatusMutation = useMutation({
     mutationFn: async ({ tripId, status }: { tripId: string; status: string }) => {
@@ -366,9 +403,15 @@ export default function DriverDashboard() {
     if (!overlayRideIdRef.current) {
       overlayRideIdRef.current = showable[0].id;
       setOverlayRide(showable[0]);
+      if (isAndroidNative()) {
+        triggerNativeRideAlert(showable[0]);
+      }
     } else if (!showable.find(r => r.id === overlayRideIdRef.current)) {
       overlayRideIdRef.current = showable[0].id;
       setOverlayRide(showable[0]);
+      if (isAndroidNative()) {
+        triggerNativeRideAlert(showable[0]);
+      }
     }
   }, [availableRides, currentTrip]);
 

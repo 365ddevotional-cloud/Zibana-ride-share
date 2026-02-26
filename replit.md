@@ -101,3 +101,13 @@ The data storage layer uses PostgreSQL as the database, with Drizzle ORM and Zod
 - "Track on Map" button added to rider ride status card (visible when driver assigned)
 - Auto trip context tracking: driver dashboard automatically sets `setTripContext(tripId)` when trip is in_progress
 - `socket.io` added to `script/build.ts` allowlist for production bundling
+
+### Android Foreground Service & High Priority Ride Alerts
+- `DriverForegroundService.kt`: Sticky foreground service with IMPORTANCE_LOW notification channel, shows "Zibana Online – Waiting for rides" when driver is online
+- `RideIncomingActivity.kt`: Full-screen intent activity for incoming ride alerts with loud sound, vibration pattern, screen wake, 12s countdown, Accept/Decline buttons
+- `DriverServicePlugin.kt`: Capacitor plugin bridging JS ↔ native with `startService()`, `stopService()`, `triggerIncomingRide(data)` methods and `rideActionResponse` event listener
+- `client/src/lib/driverServiceBridge.ts`: TypeScript bridge wrapping the Capacitor plugin, auto-detects Android native vs web (graceful no-op on web/iOS)
+- AndroidManifest permissions: FOREGROUND_SERVICE, FOREGROUND_SERVICE_LOCATION, WAKE_LOCK, USE_FULL_SCREEN_INTENT, VIBRATE, POST_NOTIFICATIONS
+- Driver dashboard integration: foreground service starts/stops with online toggle, native ride alert triggers on new available ride, native Accept/Decline actions bridge back to existing mutation handlers
+- Android layout: `activity_ride_incoming.xml` with dark theme (#1A1A2E), progress bar, rider info, pickup/dropoff, fare, and action buttons
+- iOS build is NOT affected — bridge checks `Capacitor.getPlatform() === "android"` before any native calls
