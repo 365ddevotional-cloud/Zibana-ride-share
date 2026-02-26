@@ -61,6 +61,7 @@ import { SOSButton } from "@/components/ride/sos-button";
 import { ShareTripButton } from "@/components/ride/share-trip-button";
 import { IncidentReportModal } from "@/components/ride/incident-report-modal";
 import { ShareableMomentBanner } from "@/components/shareable-moment-banner";
+import { API_BASE } from "@/lib/apiBase";
 
 type TripWithRider = Trip & { riderName?: string };
 
@@ -210,7 +211,7 @@ export default function DriverDashboard() {
   const { data: incentiveEarnings = [], isLoading: incentivesLoading } = useQuery<IncentiveEarning[]>({
     queryKey: ["/api/incentives/earnings/mine"],
     queryFn: async () => {
-      const res = await fetch("/api/incentives/earnings/mine", { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/incentives/earnings/mine`, { credentials: "include" });
       if (!res.ok) return [];
       return res.json();
     },
@@ -227,7 +228,7 @@ export default function DriverDashboard() {
   const { data: incentiveProgress = [] } = useQuery<IncentiveProgress[]>({
     queryKey: ["/api/incentives/progress"],
     queryFn: async () => {
-      const res = await fetch("/api/incentives/progress", { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/incentives/progress`, { credentials: "include" });
       if (!res.ok) return [];
       return res.json();
     },

@@ -13,6 +13,7 @@ import { Link } from "wouter";
 import { useDiscovery } from "@/hooks/use-discovery";
 import { ZibraWelcomeBubble } from "@/components/zibra-welcome-bubble";
 import { ZibanaSupport } from "@/components/zibana-support";
+import { API_BASE } from "@/lib/apiBase";
 
 export default function LandingPage() {
   const appName = getAppName();
@@ -43,7 +44,7 @@ export default function LandingPage() {
     setSimLoading(true);
     setSimError("");
     try {
-      const res = await fetch("/api/simulation/validate", {
+      const res = await fetch(`${API_BASE}/api/simulation/validate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code: simCode.trim() }),

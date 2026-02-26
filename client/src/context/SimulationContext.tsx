@@ -4,6 +4,7 @@ import { queryClient } from "@/lib/queryClient";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle } from "lucide-react";
+import { API_BASE } from "@/lib/apiBase";
 
 interface SimulationStatusResponse {
   active: boolean;
@@ -60,7 +61,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
 
   const exitMutation = useMutation({
     mutationFn: async () => {
-      await fetch("/api/simulation/exit", {
+      await fetch(`${API_BASE}/api/simulation/exit`, {
         method: "POST",
         credentials: "include",
       });

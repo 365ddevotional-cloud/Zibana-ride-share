@@ -24,6 +24,7 @@ import {
   FileDown,
   FileSpreadsheet,
 } from "lucide-react";
+import { API_BASE } from "@/lib/apiBase";
 
 type TaxDriverEntry = {
   driverId: string;
@@ -101,18 +102,18 @@ export function TaxDocumentsPanel() {
 
   const { data: drivers = [], isLoading: driversLoading } = useQuery<TaxDriverEntry[]>({
     queryKey: ["/api/admin/tax/drivers", year],
-    queryFn: () => fetch(`/api/admin/tax/drivers/${year}`, { credentials: "include" }).then(r => r.json()),
+    queryFn: () => fetch(`${API_BASE}/api/admin/tax/drivers/${year}`, { credentials: "include" }).then(r => r.json()),
   });
 
   const { data: driverDetail, isLoading: detailLoading } = useQuery<TaxSummaryDetail>({
     queryKey: ["/api/admin/tax/summary", selectedDriver, year],
-    queryFn: () => fetch(`/api/admin/tax/summary/${selectedDriver}/${year}`, { credentials: "include" }).then(r => r.json()),
+    queryFn: () => fetch(`${API_BASE}/api/admin/tax/summary/${selectedDriver}/${year}`, { credentials: "include" }).then(r => r.json()),
     enabled: !!selectedDriver,
   });
 
   const { data: validation } = useQuery<TaxValidation>({
     queryKey: ["/api/admin/tax/validate", selectedDriver, year],
-    queryFn: () => fetch(`/api/admin/tax/validate/${selectedDriver}/${year}`, { credentials: "include" }).then(r => r.json()),
+    queryFn: () => fetch(`${API_BASE}/api/admin/tax/validate/${selectedDriver}/${year}`, { credentials: "include" }).then(r => r.json()),
     enabled: !!selectedDriver,
   });
 

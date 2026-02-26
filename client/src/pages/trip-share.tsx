@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/status-badge";
 import { FullPageLoading } from "@/components/loading-spinner";
 import { MapPin, Clock, Shield, AlertTriangle } from "lucide-react";
+import { API_BASE } from "@/lib/apiBase";
 
 type SharedTripData = {
   trip: {
@@ -27,7 +28,7 @@ export default function TripSharePage() {
   useEffect(() => {
     if (!params?.token) return;
     
-    fetch(`/api/trip-share/${params.token}`)
+    fetch(`${API_BASE}/api/trip-share/${params.token}`)
       .then(async (res) => {
         if (!res.ok) {
           const data = await res.json();

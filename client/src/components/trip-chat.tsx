@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { MessageCircle, Send, X, Shield, Loader2 } from "lucide-react";
 import type { TripMessage } from "@shared/schema";
+import { API_BASE } from "@/lib/apiBase";
 
 interface TripChatProps {
   tripId: string;
@@ -35,7 +36,7 @@ export function TripChat({ tripId, tripStatus, currentUserId, completedAt, cance
 
   const { data: messages = [], isLoading } = useQuery<TripMessage[]>({
     queryKey: ["/api/trips", tripId, "messages"],
-    queryFn: () => fetch(`/api/trips/${tripId}/messages`, { credentials: "include" }).then(r => r.json()),
+    queryFn: () => fetch(`${API_BASE}/api/trips/${tripId}/messages`, { credentials: "include" }).then(r => r.json()),
     enabled: isOpen && canView,
     refetchInterval: isOpen && canView ? 5000 : false,
   });

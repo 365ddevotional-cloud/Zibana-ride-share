@@ -17,6 +17,7 @@ import {
   Clock,
   CheckCircle
 } from "lucide-react";
+import { API_BASE } from "@/lib/apiBase";
 
 type SupportTicket = {
   id: string;
@@ -70,7 +71,7 @@ export function SupportSection({ userTrips = [] }: SupportSectionProps) {
   const { data: myTickets = [], isLoading } = useQuery<SupportTicket[]>({
     queryKey: ["/api/support/tickets/my"],
     queryFn: async () => {
-      const res = await fetch("/api/support/tickets/my", { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/support/tickets/my`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch tickets");
       return res.json();
     },
@@ -79,7 +80,7 @@ export function SupportSection({ userTrips = [] }: SupportSectionProps) {
   const { data: ticketDetails } = useQuery<{ ticket: SupportTicket; messages: SupportMessage[] }>({
     queryKey: ["/api/support/tickets", selectedTicket?.id],
     queryFn: async () => {
-      const res = await fetch(`/api/support/tickets/${selectedTicket!.id}`, { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/support/tickets/${selectedTicket!.id}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch ticket details");
       return res.json();
     },

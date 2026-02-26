@@ -27,6 +27,7 @@ import {
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ProfileDropdown } from "@/components/profile-dropdown";
+import { API_BASE } from "@/lib/apiBase";
 
 type SupportTicket = {
   id: string;
@@ -92,7 +93,7 @@ export default function SupportDashboard() {
   const { data: stats } = useQuery<SupportStats>({
     queryKey: ["/api/support/stats"],
     queryFn: async () => {
-      const res = await fetch("/api/support/stats", { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/support/stats`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch stats");
       return res.json();
     },
@@ -104,7 +105,7 @@ export default function SupportDashboard() {
       const params = new URLSearchParams();
       if (statusFilter) params.set("status", statusFilter);
       if (priorityFilter) params.set("priority", priorityFilter);
-      const res = await fetch(`/api/support/tickets/queue?${params}`, { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/support/tickets/queue?${params}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch queue");
       return res.json();
     },
@@ -114,7 +115,7 @@ export default function SupportDashboard() {
   const { data: assignedTickets = [], isLoading: assignedLoading } = useQuery<SupportTicket[]>({
     queryKey: ["/api/support/tickets/assigned"],
     queryFn: async () => {
-      const res = await fetch("/api/support/tickets/assigned", { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/support/tickets/assigned`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch assigned tickets");
       return res.json();
     },
@@ -124,7 +125,7 @@ export default function SupportDashboard() {
   const { data: ticketDetails } = useQuery<{ ticket: SupportTicket; messages: SupportMessage[] }>({
     queryKey: ["/api/support/tickets", selectedTicket?.id],
     queryFn: async () => {
-      const res = await fetch(`/api/support/tickets/${selectedTicket!.id}`, { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/support/tickets/${selectedTicket!.id}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch ticket details");
       return res.json();
     },

@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Headphones, Search } from "lucide-react";
+import { API_BASE } from "@/lib/apiBase";
 
 const ROLE_OPTIONS = [
   { value: "all", label: "All Roles" },
@@ -45,7 +46,7 @@ export function SupportLogsPanel() {
   const { data: logs, isLoading } = useQuery<SupportInteraction[]>({
     queryKey: ["/api/admin/support-interactions", filterRole, searchUserId],
     queryFn: async () => {
-      const res = await fetch(`/api/admin/support-interactions${queryString ? `?${queryString}` : ""}`);
+      const res = await fetch(`${API_BASE}/api/admin/support-interactions${queryString ? `?${queryString}` : ""}`);
       if (!res.ok) throw new Error("Failed to fetch");
       return res.json();
     },

@@ -45,6 +45,7 @@ import {
   BarChart3,
   Settings2,
 } from "lucide-react";
+import { API_BASE } from "@/lib/apiBase";
 
 type KillSwitchStatus = {
   id: string;
@@ -206,7 +207,7 @@ export function LaunchReadinessPanel() {
   const { data: countries } = useQuery<CountryData[]>({
     queryKey: ["/api/admin/launch/countries"],
     queryFn: async () => {
-      const res = await fetch("/api/admin/launch/countries", { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/admin/launch/countries`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch countries");
       return res.json();
     },
@@ -215,7 +216,7 @@ export function LaunchReadinessPanel() {
   const { data: readiness, isLoading } = useQuery<ReadinessData>({
     queryKey: ["/api/admin/launch/readiness", selectedCountry],
     queryFn: async () => {
-      const res = await fetch(`/api/admin/launch/readiness?countryCode=${selectedCountry}`, { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/admin/launch/readiness?countryCode=${selectedCountry}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch readiness data");
       return res.json();
     },
@@ -224,7 +225,7 @@ export function LaunchReadinessPanel() {
   const { data: rolloutDashboard, isLoading: rolloutLoading } = useQuery<RolloutDashboard>({
     queryKey: ["/api/admin/rollout/dashboard", selectedCountry],
     queryFn: async () => {
-      const res = await fetch(`/api/admin/rollout/dashboard?countryCode=${selectedCountry}`, { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/admin/rollout/dashboard?countryCode=${selectedCountry}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch rollout data");
       return res.json();
     },

@@ -30,6 +30,7 @@ import {
   Car,
   CalendarDays,
 } from "lucide-react";
+import { API_BASE } from "@/lib/apiBase";
 
 type DriverWithUser = DriverProfile & { email?: string };
 
@@ -54,7 +55,7 @@ export default function AdminDriverDetail({ userId }: { userId: string }) {
   const { data: documents = [] } = useQuery<DriverDocument[]>({
     queryKey: ["/api/admin/driver", userId, "documents"],
     queryFn: async () => {
-      const res = await fetch(`/api/admin/driver/${userId}/documents`, { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/admin/driver/${userId}/documents`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to load documents");
       return res.json();
     },

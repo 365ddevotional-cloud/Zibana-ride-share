@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Shield, Search } from "lucide-react";
+import { API_BASE } from "@/lib/apiBase";
 
 const ACKNOWLEDGEMENT_TYPES = [
   { value: "all", label: "All Types" },
@@ -49,7 +50,7 @@ export function ComplianceLogPanel() {
   const { data: logs, isLoading } = useQuery<LegalAcknowledgement[]>({
     queryKey: ["/api/admin/legal-acknowledgements", filterType, searchUserId],
     queryFn: async () => {
-      const res = await fetch(`/api/admin/legal-acknowledgements${queryString ? `?${queryString}` : ""}`);
+      const res = await fetch(`${API_BASE}/api/admin/legal-acknowledgements${queryString ? `?${queryString}` : ""}`);
       if (!res.ok) throw new Error("Failed to fetch");
       return res.json();
     },

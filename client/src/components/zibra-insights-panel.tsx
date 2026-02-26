@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BarChart3, Download, Users, MessageSquare, AlertTriangle, CheckCircle, ArrowUpRight, Shield } from "lucide-react";
+import { API_BASE } from "@/lib/apiBase";
 
 interface ZibraAnalytics {
   totalConversations: number;
@@ -32,7 +33,7 @@ export function ZibraInsightsPanel() {
   const { data: analytics, isLoading } = useQuery<ZibraAnalytics>({
     queryKey: ["/api/admin/zibra/analytics", startDate, endDate, roleFilter],
     queryFn: async () => {
-      const res = await fetch(`/api/admin/zibra/analytics?${queryParams.toString()}`, { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/admin/zibra/analytics?${queryParams.toString()}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch analytics");
       return res.json();
     },
@@ -40,7 +41,7 @@ export function ZibraInsightsPanel() {
 
   const handleExport = async () => {
     try {
-      const res = await fetch(`/api/admin/zibra/analytics/export?${queryParams.toString()}`, { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/admin/zibra/analytics/export?${queryParams.toString()}`, { credentials: "include" });
       if (!res.ok) throw new Error("Export failed");
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);

@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Star } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { API_BASE } from "@/lib/apiBase";
 
 interface RatingFormProps {
   tripId: string;
@@ -22,7 +23,7 @@ export function RatingForm({ tripId, targetName, targetRole }: RatingFormProps) 
 
   const { data: ratingCheck, isLoading: checkLoading } = useQuery({
     queryKey: ["/api/ratings/check", tripId],
-    queryFn: () => fetch(`/api/ratings/check/${tripId}`).then(r => r.json()),
+    queryFn: () => fetch(`${API_BASE}/api/ratings/check/${tripId}`).then(r => r.json()),
   });
 
   const submitRating = useMutation({

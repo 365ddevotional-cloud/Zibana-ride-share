@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { ArrowLeft, Info, ShieldCheck, CreditCard, MapPin, Fingerprint, Upload, RefreshCw, AlertTriangle, Loader2 } from "lucide-react";
 import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
+import { API_BASE } from "@/lib/apiBase";
 
 const ALLOWED_TYPES = [
   "image/jpeg",
@@ -72,7 +73,7 @@ export default function DriverDocuments() {
 
   const uploadMutation = useMutation({
     mutationFn: async ({ documentType, fileData }: { documentType: string; fileData: string }) => {
-      const res = await fetch("/api/driver/document/upload", {
+      const res = await fetch(`${API_BASE}/api/driver/document/upload`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ documentType, fileData }),

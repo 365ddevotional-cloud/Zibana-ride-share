@@ -22,6 +22,7 @@ import NotFound from "@/pages/not-found";
 import LandingPage from "@/pages/landing";
 import RoleSelectionPage from "@/pages/role-selection";
 import { sidebarSections } from "@/pages/admin/admin-sidebar";
+import { API_BASE } from "@/lib/apiBase";
 
 const RiderHomePage = lazy(() => import("@/pages/rider/home"));
 const RiderTripsPage = lazy(() => import("@/pages/rider/trips"));
@@ -276,7 +277,7 @@ function DriverRouter() {
       if (hasDriverRole && userRole.role !== "driver" && !activatingRole.current) {
         activatingRole.current = true;
         localStorage.setItem("zibana-active-role", "driver");
-        fetch("/api/user/active-role", {
+        fetch(`${API_BASE}/api/user/active-role`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",

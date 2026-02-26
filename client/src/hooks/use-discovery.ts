@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+import { API_BASE } from "@/lib/apiBase";
 
 const INTENT_MAP: Record<string, string> = {
   "verified-drivers": "safety-first",
@@ -48,7 +49,7 @@ function setStoredIntent(intent: string) {
 
 async function trackEvent(eventType: string, eventTarget?: string, intent?: string) {
   try {
-    await fetch("/api/welcome/event", {
+    await fetch(`${API_BASE}/api/welcome/event`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

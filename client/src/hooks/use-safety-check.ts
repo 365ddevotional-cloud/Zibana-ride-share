@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useNotificationSound } from "@/hooks/use-notification-sound";
 import { useToast } from "@/hooks/use-toast";
+import { API_BASE } from "@/lib/apiBase";
 
 interface SafetyCheckNotification {
   id: string;
@@ -26,7 +27,7 @@ export function useSafetyCheck({ role, currentRideId }: UseSafetyCheckOptions) {
   const { data: notifications = [] } = useQuery<SafetyCheckNotification[]>({
     queryKey: ["/api/notifications", "safety"],
     queryFn: async () => {
-      const res = await fetch("/api/notifications?limit=5", { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/notifications?limit=5`, { credentials: "include" });
       if (!res.ok) return [];
       const all = await res.json();
       return all.filter((n: any) => 

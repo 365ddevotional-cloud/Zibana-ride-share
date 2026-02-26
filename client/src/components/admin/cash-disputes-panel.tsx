@@ -20,6 +20,7 @@ import {
   UserX,
   Scale
 } from "lucide-react";
+import { API_BASE } from "@/lib/apiBase";
 
 interface CashDispute {
   id: string;
@@ -51,7 +52,7 @@ export function CashDisputesPanel() {
   const { data: disputes = [], isLoading } = useQuery<CashDispute[]>({
     queryKey: ["/api/admin/cash-disputes", statusFilter],
     queryFn: async () => {
-      const res = await fetch(`/api/admin/cash-disputes?status=${statusFilter}`);
+      const res = await fetch(`${API_BASE}/api/admin/cash-disputes?status=${statusFilter}`);
       if (!res.ok) throw new Error("Failed to fetch");
       return res.json();
     },

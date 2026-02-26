@@ -28,6 +28,7 @@ import {
   UserCheck,
   Ban,
 } from "lucide-react";
+import { API_BASE } from "@/lib/apiBase";
 
 type AdminOverride = {
   id: string;
@@ -115,7 +116,7 @@ export function AdminOverridePanel() {
     queryKey: ["/api/admin/overrides/user", userSearchId],
     queryFn: async () => {
       if (!userSearchId) return [];
-      const res = await fetch(`/api/admin/overrides/user/${userSearchId}`, { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/admin/overrides/user/${userSearchId}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch user overrides");
       return res.json();
     },

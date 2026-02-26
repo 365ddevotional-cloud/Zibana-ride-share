@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Shield, Loader2, CheckCircle } from "lucide-react";
+import { API_BASE } from "@/lib/apiBase";
 
 interface SystemStatus {
   enabled: boolean;
@@ -32,7 +33,7 @@ export default function SimulationEntryPage() {
 
   const enterMutation = useMutation({
     mutationFn: async (simulationCode: string) => {
-      const res = await fetch("/api/simulation/enter-direct", {
+      const res = await fetch(`${API_BASE}/api/simulation/enter-direct`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

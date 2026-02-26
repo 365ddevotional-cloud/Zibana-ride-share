@@ -24,6 +24,7 @@ import {
   ArrowLeft, Shield, Package, AlertTriangle, FileText, Users,
   ChevronRight, Clock, Phone, MapPin, ShieldCheck, ExternalLink, MessageCircle, CheckCircle,
 } from "lucide-react";
+import { API_BASE } from "@/lib/apiBase";
 
 interface Trip {
   id: number;
@@ -160,7 +161,7 @@ export default function SafetyHubPage() {
   const { data: trips = [], isLoading: tripsLoading } = useQuery<Trip[]>({
     queryKey: ["/api/trips", "role=rider"],
     queryFn: async () => {
-      const res = await fetch("/api/trips?role=rider", { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/trips?role=rider`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to load trips");
       return res.json();
     },

@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { ArrowLeft, UserCheck, XCircle, Car, Users, Clock, GraduationCap, Filter, Eye, FileText, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { API_BASE } from "@/lib/apiBase";
 
 interface PendingDriver {
   id: string;
@@ -116,7 +117,7 @@ export default function ApprovalsPage() {
   const { data: allDrivers = [], isLoading: driversLoading } = useQuery<PendingDriver[]>({
     queryKey: ["/api/admin/approvals", "drivers", statusFilter],
     queryFn: async () => {
-      const res = await fetch(`/api/admin/approvals?type=driver&status=${statusFilter}`, {
+      const res = await fetch(`${API_BASE}/api/admin/approvals?type=driver&status=${statusFilter}`, {
         credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to fetch drivers");
@@ -131,7 +132,7 @@ export default function ApprovalsPage() {
   const { data: driverDocs } = useQuery<{ documents: DriverDocument[] }>({
     queryKey: ["/api/admin/driver", selectedDriver?.userId, "documents"],
     queryFn: async () => {
-      const res = await fetch(`/api/admin/driver/${selectedDriver!.userId}/documents`, {
+      const res = await fetch(`${API_BASE}/api/admin/driver/${selectedDriver!.userId}/documents`, {
         credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to fetch documents");
@@ -230,7 +231,7 @@ export default function ApprovalsPage() {
     setDocLoading(true);
     setViewingDocType(docType);
     try {
-      const res = await fetch(`/api/admin/driver/${userId}/document/${docType}`, {
+      const res = await fetch(`${API_BASE}/api/admin/driver/${userId}/document/${docType}`, {
         credentials: "include",
       });
       if (!res.ok) {

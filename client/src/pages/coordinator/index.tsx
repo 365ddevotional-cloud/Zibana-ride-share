@@ -46,6 +46,7 @@ import {
 } from "lucide-react";
 import type { Trip, TripCoordinatorProfile, Dispute } from "@shared/schema";
 import { SupportSection } from "@/components/support-section";
+import { API_BASE } from "@/lib/apiBase";
 
 const profileSchema = z.object({
   organizationName: z.string().min(2, "Organization name is required"),
@@ -148,7 +149,7 @@ export default function CoordinatorDashboard() {
     queryKey: ["/api/contracts", contract?.id, "invoices"],
     queryFn: async () => {
       if (!contract?.id) return [];
-      const res = await fetch(`/api/contracts/${contract.id}/invoices`, { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/contracts/${contract.id}/invoices`, { credentials: "include" });
       if (!res.ok) return [];
       return res.json();
     },

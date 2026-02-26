@@ -23,6 +23,7 @@ import {
   CreditCard,
   AlertTriangle,
 } from "lucide-react";
+import { API_BASE } from "@/lib/apiBase";
 
 type TripDetail = {
   id: string;
@@ -145,7 +146,7 @@ export default function AdminTripDetail({ tripId }: { tripId: string }) {
   const { data: trip, isLoading } = useQuery<TripDetail>({
     queryKey: ["/api/trips", tripId],
     queryFn: async () => {
-      const res = await fetch(`/api/trips/${tripId}`, { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/trips/${tripId}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to load trip");
       return res.json();
     },

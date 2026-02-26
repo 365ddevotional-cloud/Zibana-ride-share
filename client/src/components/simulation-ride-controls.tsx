@@ -15,6 +15,7 @@ import {
   ArrowRight,
   RotateCcw,
 } from "lucide-react";
+import { API_BASE } from "@/lib/apiBase";
 
 interface SimulatedRide {
   id: string;
@@ -65,7 +66,7 @@ export function DriverSimulationControls() {
   const generateRide = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/simulation/generate-ride", {
+      const res = await fetch(`${API_BASE}/api/simulation/generate-ride`, {
         method: "POST",
         credentials: "include",
       });
@@ -86,7 +87,7 @@ export function DriverSimulationControls() {
     if (!currentRide) return;
     setLoading(true);
     try {
-      const res = await fetch("/api/simulation/progress-ride", {
+      const res = await fetch(`${API_BASE}/api/simulation/progress-ride`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -192,7 +193,7 @@ export function RiderSimulationControls() {
   const requestRide = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/simulation/rider-request", {
+      const res = await fetch(`${API_BASE}/api/simulation/rider-request`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -219,7 +220,7 @@ export function RiderSimulationControls() {
     if (!currentRide) return;
     setLoading(true);
     try {
-      const res = await fetch("/api/simulation/progress-ride", {
+      const res = await fetch(`${API_BASE}/api/simulation/progress-ride`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

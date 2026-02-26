@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Copy, Share2, TrendingUp, Users } from "lucide-react";
+import { API_BASE } from "@/lib/apiBase";
 
 type ReferralCode = {
   id: string;
@@ -38,7 +39,7 @@ export function ReferralSection() {
   const { data: stats = { totalReferrals: 0, conversions: 0 }, isLoading: isStatsLoading } = useQuery<ReferralStats>({
     queryKey: ["/api/referrals/stats"],
     queryFn: async () => {
-      const res = await fetch("/api/referrals/stats", { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/referrals/stats`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch referral stats");
       return res.json();
     },

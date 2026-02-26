@@ -13,6 +13,7 @@ import xh from "./translations/xh.json";
 import af from "./translations/af.json";
 import pt from "./translations/pt.json";
 import es from "./translations/es.json";
+import { API_BASE } from "@/lib/apiBase";
 
 type TranslationData = Record<string, Record<string, string>>;
 
@@ -84,7 +85,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   }, [language]);
 
   useEffect(() => {
-    fetch("/api/user/language", { credentials: "include" })
+    fetch(`${API_BASE}/api/user/language`, { credentials: "include" })
       .then((res) => {
         if (res.ok) return res.json();
         return null;
@@ -106,7 +107,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     try {
       localStorage.setItem(STORAGE_KEY, code);
     } catch {}
-    fetch("/api/user/language", {
+    fetch(`${API_BASE}/api/user/language`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",

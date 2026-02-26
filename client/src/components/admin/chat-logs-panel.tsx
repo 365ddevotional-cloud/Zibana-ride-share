@@ -16,6 +16,7 @@ import {
   Car,
   Calendar,
 } from "lucide-react";
+import { API_BASE } from "@/lib/apiBase";
 
 interface ChatLogEntry {
   id: number;
@@ -43,7 +44,7 @@ export default function ChatLogsPanel() {
 
   const { data: logs = [], isLoading } = useQuery<ChatLogEntry[]>({
     queryKey: ["/api/admin/chat-logs", appliedTripId, appliedKeyword],
-    queryFn: () => fetch(`/api/admin/chat-logs?${queryParams.toString()}`, { credentials: "include" }).then(r => r.json()),
+    queryFn: () => fetch(`${API_BASE}/api/admin/chat-logs?${queryParams.toString()}`, { credentials: "include" }).then(r => r.json()),
   });
 
   const cleanupMutation = useMutation({

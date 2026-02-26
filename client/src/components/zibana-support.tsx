@@ -10,6 +10,7 @@ import { useTranslation } from "@/i18n";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { getTemplateResponse, type ZibraRole, ZIBRA_LANGUAGE_CONFIG } from "@shared/zibra-templates";
+import { API_BASE } from "@/lib/apiBase";
 
 type UserRole = ZibraRole;
 
@@ -141,7 +142,7 @@ function getContextHint(screen: string, role: UserRole): string | null {
 }
 
 function logSupportInteraction(userMessage: string, supportResponse: string, role: UserRole, screen: string) {
-  fetch("/api/support/log-interaction", {
+  fetch(`${API_BASE}/api/support/log-interaction`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -236,7 +237,7 @@ export function ZibanaSupport({ onClose, forceRole }: ZibanaSupportProps) {
     }
 
     try {
-      const res = await fetch("/api/support/chat", {
+      const res = await fetch(`${API_BASE}/api/support/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -383,7 +384,7 @@ export function ZibanaSupport({ onClose, forceRole }: ZibanaSupportProps) {
               }
               setEscalating(true);
               try {
-                const res = await fetch("/api/support/escalate", {
+                const res = await fetch(`${API_BASE}/api/support/escalate`, {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   credentials: "include",

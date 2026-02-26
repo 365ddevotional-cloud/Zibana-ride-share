@@ -25,6 +25,7 @@ import {
   Activity,
   XCircle,
 } from "lucide-react";
+import { API_BASE } from "@/lib/apiBase";
 
 type AcquisitionAnalytics = {
   totalAcquired: number;
@@ -124,12 +125,12 @@ export function AcquisitionPanel() {
 
   const { data: analytics, isLoading: analyticsLoading } = useQuery<AcquisitionAnalytics>({
     queryKey: ["/api/admin/acquisition/analytics", countryFilter],
-    queryFn: () => fetch(`/api/admin/acquisition/analytics${countryParam}`, { credentials: "include" }).then(r => r.json()),
+    queryFn: () => fetch(`${API_BASE}/api/admin/acquisition/analytics${countryParam}`, { credentials: "include" }).then(r => r.json()),
   });
 
   const { data: pipeline } = useQuery<PipelineStage[]>({
     queryKey: ["/api/admin/acquisition/pipeline", countryFilter],
-    queryFn: () => fetch(`/api/admin/acquisition/pipeline${countryParam}`, { credentials: "include" }).then(r => r.json()),
+    queryFn: () => fetch(`${API_BASE}/api/admin/acquisition/pipeline${countryParam}`, { credentials: "include" }).then(r => r.json()),
   });
 
   const driverParam = (() => {
@@ -141,7 +142,7 @@ export function AcquisitionPanel() {
 
   const { data: drivers, isLoading: driversLoading } = useQuery<DriverAcquisition[]>({
     queryKey: ["/api/admin/acquisition/drivers", countryFilter, channelFilter],
-    queryFn: () => fetch(`/api/admin/acquisition/drivers${driverParam}`, { credentials: "include" }).then(r => r.json()),
+    queryFn: () => fetch(`${API_BASE}/api/admin/acquisition/drivers${driverParam}`, { credentials: "include" }).then(r => r.json()),
   });
 
   const { data: fleetOwners, isLoading: fleetsLoading } = useQuery<FleetOwner[]>({
@@ -150,7 +151,7 @@ export function AcquisitionPanel() {
 
   const { data: supplyAlerts } = useQuery<SupplyAlert[]>({
     queryKey: ["/api/admin/supply-alerts", countryFilter],
-    queryFn: () => fetch(`/api/admin/supply-alerts${countryParam}`, { credentials: "include" }).then(r => r.json()),
+    queryFn: () => fetch(`${API_BASE}/api/admin/supply-alerts${countryParam}`, { credentials: "include" }).then(r => r.json()),
   });
 
   const createFleetMutation = useMutation({

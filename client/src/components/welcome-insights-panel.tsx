@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Eye, MousePointerClick, UserPlus, TrendingUp, Headphones, BarChart3 } from "lucide-react";
+import { API_BASE } from "@/lib/apiBase";
 
 interface WelcomeInsightsData {
   totalEvents: number;
@@ -46,7 +47,7 @@ export function WelcomeInsightsPanel() {
   const { data: insights, isLoading } = useQuery<WelcomeInsightsData>({
     queryKey: ["/api/admin/welcome-insights", range],
     queryFn: async () => {
-      const res = await fetch(`/api/admin/welcome-insights?range=${range}`, { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/admin/welcome-insights?range=${range}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch");
       return res.json();
     },

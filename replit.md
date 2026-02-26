@@ -63,3 +63,11 @@ The data storage layer uses PostgreSQL as the database, with Drizzle ORM and Zod
 - `@tanstack/react-query`: Frontend data fetching and state management.
 - `shadcn/ui`: UI component library.
 - `zod`: Runtime schema validation.
+
+### Configurable API Base URL (Capacitor-Ready)
+- All frontend API calls use `API_BASE` from `client/src/lib/apiBase.ts`
+- `API_BASE` reads from `VITE_API_BASE_URL` env var (empty string = same-origin, i.e. web behavior unchanged)
+- Central calls go through `queryClient.ts` (`apiRequest` for mutations, `getQueryFn` for default queries)
+- All direct `fetch('/api/...')` calls across components also use `API_BASE`
+- For Capacitor/mobile: set `VITE_API_BASE_URL=https://your-deployed-backend.com` at build time
+- See `.env.example` for reference

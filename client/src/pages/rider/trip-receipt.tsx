@@ -15,6 +15,7 @@ import {
   Car,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { API_BASE } from "@/lib/apiBase";
 
 interface ReceiptData {
   transactionRef: string;
@@ -47,7 +48,7 @@ export default function TripReceipt({ tripId: propTripId }: TripReceiptProps = {
   const { data: receipt, isLoading, error } = useQuery<ReceiptData>({
     queryKey: ["/api/trips", tripId, "receipt"],
     queryFn: async () => {
-      const res = await fetch(`/api/trips/${tripId}/receipt`, { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/trips/${tripId}/receipt`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to load receipt");
       return res.json();
     },

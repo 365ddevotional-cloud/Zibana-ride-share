@@ -14,6 +14,7 @@ import {
   Globe,
   Activity,
 } from "lucide-react";
+import { API_BASE } from "@/lib/apiBase";
 
 interface ZibraInsightsData {
   totalConversations: number;
@@ -40,7 +41,7 @@ export function ZibraInsightsPanel() {
   const { data: metrics, isLoading: metricsLoading } = useQuery<ZibraInsightsData>({
     queryKey: ["/api/admin/zibra/insights", period],
     queryFn: async () => {
-      const res = await fetch(`/api/admin/zibra/insights?period=${period}`, { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/admin/zibra/insights?period=${period}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch");
       return res.json();
     },

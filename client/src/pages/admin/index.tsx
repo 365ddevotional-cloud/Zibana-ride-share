@@ -124,6 +124,7 @@ import {
 } from "lucide-react";
 import type { DriverProfile, Trip, User } from "@shared/schema";
 import { NotificationBell } from "@/components/notification-bell";
+import { API_BASE } from "@/lib/apiBase";
 
 const DirectorOnboarding = lazy(() => import("@/components/director-onboarding"));
 
@@ -520,7 +521,7 @@ function CancellationFeeSettings() {
     currency: string;
   }>({
     queryKey: ["/api/admin/cancellation-fee-settings", countryCode],
-    queryFn: () => fetch(`/api/admin/cancellation-fee-settings?countryCode=${countryCode}`, { credentials: "include" }).then(r => r.json()),
+    queryFn: () => fetch(`${API_BASE}/api/admin/cancellation-fee-settings?countryCode=${countryCode}`, { credentials: "include" }).then(r => r.json()),
   });
 
   useEffect(() => {
@@ -648,7 +649,7 @@ function FraudSignalPanel({ directorUserId, isSuperAdmin }: { directorUserId: st
   const { data: existingSignals = [], refetch: refetchSignals } = useQuery<any[]>({
     queryKey: ["/api/admin/directors/fraud-signals", directorUserId],
     queryFn: async () => {
-      const res = await fetch(`/api/admin/directors/fraud-signals?directorId=${directorUserId}`, { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/admin/directors/fraud-signals?directorId=${directorUserId}`, { credentials: "include" });
       if (!res.ok) return [];
       return res.json();
     },
@@ -658,7 +659,7 @@ function FraudSignalPanel({ directorUserId, isSuperAdmin }: { directorUserId: st
   const handleFraudScan = async () => {
     setScanning(true);
     try {
-      const res = await fetch(`/api/admin/directors/${directorUserId}/fraud-scan`, { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/admin/directors/${directorUserId}/fraud-scan`, { credentials: "include" });
       if (!res.ok) throw new Error("Scan failed");
       const data = await res.json();
       setScanResults(data.signals || []);
@@ -878,7 +879,7 @@ function TerminationWindDownPanel({ directorUserId, directorLifecycle, isSuperAd
   const { data: windDownHistory = [] } = useQuery<any[]>({
     queryKey: ["/api/admin/directors", directorUserId, "wind-down"],
     queryFn: async () => {
-      const res = await fetch(`/api/admin/directors/${directorUserId}/wind-down`, { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/admin/directors/${directorUserId}/wind-down`, { credentials: "include" });
       if (!res.ok) return [];
       return res.json();
     },
@@ -1046,7 +1047,7 @@ function SuccessionTimelineItem({ successionId }: { successionId: string }) {
   const { data: timelineSteps = [] } = useQuery<any[]>({
     queryKey: ["/api/admin/directors/succession", successionId, "timeline"],
     queryFn: async () => {
-      const res = await fetch(`/api/admin/directors/succession/${successionId}/timeline`, { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/admin/directors/succession/${successionId}/timeline`, { credentials: "include" });
       if (!res.ok) return [];
       return res.json();
     },
@@ -1095,7 +1096,7 @@ function SuccessionPlanningPanel({ directorUserId, isSuperAdmin }: { directorUse
   const { data: successionRecords = [], refetch: refetchSuccession } = useQuery<any[]>({
     queryKey: ["/api/admin/directors", directorUserId, "succession"],
     queryFn: async () => {
-      const res = await fetch(`/api/admin/directors/${directorUserId}/succession`, { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/admin/directors/${directorUserId}/succession`, { credentials: "include" });
       if (!res.ok) return [];
       return res.json();
     },
@@ -1405,7 +1406,7 @@ function DirectorDisputesPanel() {
   const { data: directorDisputes = [], isLoading: disputesLoading, refetch: refetchDisputes } = useQuery<any[]>({
     queryKey: ["/api/admin/directors/disputes"],
     queryFn: async () => {
-      const res = await fetch("/api/admin/directors/disputes", { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/admin/directors/disputes`, { credentials: "include" });
       if (!res.ok) return [];
       return res.json();
     },
@@ -1414,7 +1415,7 @@ function DirectorDisputesPanel() {
   const { data: disputeDetail } = useQuery<any>({
     queryKey: ["/api/director/disputes", selectedDisputeId],
     queryFn: async () => {
-      const res = await fetch(`/api/director/disputes/${selectedDisputeId}`, { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/director/disputes/${selectedDisputeId}`, { credentials: "include" });
       if (!res.ok) return null;
       return res.json();
     },
@@ -2033,7 +2034,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
   const { data: availableUsers } = useQuery<any[]>({
     queryKey: ["/api/admin/directors/available-users", userSearch],
     queryFn: async () => {
-      const res = await fetch(`/api/admin/directors/available-users?search=${encodeURIComponent(userSearch)}`, { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/admin/directors/available-users?search=${encodeURIComponent(userSearch)}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
@@ -2043,7 +2044,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
   const { data: directorLifecycle, isLoading: lifecycleLoading } = useQuery<any>({
     queryKey: ["/api/admin/directors", selectedDirectorId, "lifecycle"],
     queryFn: async () => {
-      const res = await fetch(`/api/admin/directors/${selectedDirectorId}/lifecycle`, { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/admin/directors/${selectedDirectorId}/lifecycle`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to load");
       return res.json();
     },
@@ -2054,7 +2055,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
     queryKey: ["/api/admin/directors", selectedDirectorId, "earnings"],
     queryFn: async () => {
       if (!selectedDirectorId) return null;
-      const res = await fetch(`/api/admin/directors/${selectedDirectorId}/earnings`, { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/admin/directors/${selectedDirectorId}/earnings`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
@@ -2086,7 +2087,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
   const { data: analyticsOverview, isLoading: analyticsLoading } = useQuery<AnalyticsOverview>({
     queryKey: ["/api/analytics/overview", analyticsRange],
     queryFn: async () => {
-      const res = await fetch(`/api/analytics/overview?range=${analyticsRange}`, { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/analytics/overview?range=${analyticsRange}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch analytics");
       return res.json();
     },
@@ -2096,7 +2097,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
   const { data: revenueData = [] } = useQuery<RevenueDataPoint[]>({
     queryKey: ["/api/analytics/revenue", analyticsRange],
     queryFn: async () => {
-      const res = await fetch(`/api/analytics/revenue?range=${analyticsRange}`, { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/analytics/revenue?range=${analyticsRange}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch revenue analytics");
       return res.json();
     },
@@ -2105,7 +2106,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
 
   const handleExportCSV = async (type: string) => {
     try {
-      const res = await fetch(`/api/reports/export?type=${type}&range=${analyticsRange}&format=csv`, { 
+      const res = await fetch(`${API_BASE}/api/reports/export?type=${type}&range=${analyticsRange}&format=csv`, { 
         credentials: "include" 
       });
       if (!res.ok) throw new Error("Export failed");
@@ -2128,7 +2129,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
   const { data: fraudOverview } = useQuery<FraudOverview>({
     queryKey: ["/api/fraud/overview"],
     queryFn: async () => {
-      const res = await fetch("/api/fraud/overview", { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/fraud/overview`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch fraud overview");
       return res.json();
     },
@@ -2151,7 +2152,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
   const { data: fraudEvents = [] } = useQuery<FraudEventWithDetails[]>({
     queryKey: ["/api/fraud/events"],
     queryFn: async () => {
-      const res = await fetch("/api/fraud/events?unresolved=true", { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/fraud/events?unresolved=true`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch fraud events");
       return res.json();
     },
@@ -2196,7 +2197,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
   const { data: incentiveStats } = useQuery<IncentiveStats>({
     queryKey: ["/api/incentives/stats"],
     queryFn: async () => {
-      const res = await fetch("/api/incentives/stats", { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/incentives/stats`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch incentive stats");
       return res.json();
     },
@@ -2206,7 +2207,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
   const { data: incentivePrograms = [], isLoading: programsLoading } = useQuery<IncentiveProgramWithDetails[]>({
     queryKey: ["/api/incentives/programs"],
     queryFn: async () => {
-      const res = await fetch("/api/incentives/programs", { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/incentives/programs`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch incentive programs");
       return res.json();
     },
@@ -2216,7 +2217,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
   const { data: incentiveEarnings = [], isLoading: earningsLoading } = useQuery<IncentiveEarningWithDetails[]>({
     queryKey: ["/api/incentives/earnings"],
     queryFn: async () => {
-      const res = await fetch("/api/incentives/earnings", { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/incentives/earnings`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch incentive earnings");
       return res.json();
     },
@@ -2269,7 +2270,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
   const { data: countriesData = [], isLoading: countriesLoading } = useQuery<CountryWithDetails[]>({
     queryKey: ["/api/countries"],
     queryFn: async () => {
-      const res = await fetch("/api/countries", { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/countries`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch countries");
       return res.json();
     },
@@ -2279,7 +2280,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
   const { data: taxRulesData = [], isLoading: taxRulesLoading } = useQuery<TaxRuleWithDetails[]>({
     queryKey: ["/api/tax-rules"],
     queryFn: async () => {
-      const res = await fetch("/api/tax-rules", { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/tax-rules`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch tax rules");
       return res.json();
     },
@@ -2289,7 +2290,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
   const { data: exchangeRatesData = [] } = useQuery<ExchangeRateType[]>({
     queryKey: ["/api/exchange-rates"],
     queryFn: async () => {
-      const res = await fetch("/api/exchange-rates", { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/exchange-rates`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch exchange rates");
       return res.json();
     },
@@ -2299,7 +2300,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
   const { data: complianceOverview } = useQuery<ComplianceOverviewType>({
     queryKey: ["/api/compliance/overview"],
     queryFn: async () => {
-      const res = await fetch("/api/compliance/overview", { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/compliance/overview`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch compliance overview");
       return res.json();
     },
@@ -2651,7 +2652,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
   const { data: growthStats } = useQuery<GrowthStats>({
     queryKey: ["/api/growth/stats"],
     queryFn: async () => {
-      const res = await fetch("/api/growth/stats", { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/growth/stats`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch growth stats");
       return res.json();
     },
@@ -2661,7 +2662,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
   const { data: referralCodes = [], isLoading: referralCodesLoading } = useQuery<ReferralCodeWithDetails[]>({
     queryKey: ["/api/referrals"],
     queryFn: async () => {
-      const res = await fetch("/api/referrals", { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/referrals`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch referral codes");
       return res.json();
     },
@@ -2671,7 +2672,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
   const { data: campaigns = [], isLoading: campaignsLoading } = useQuery<CampaignWithDetails[]>({
     queryKey: ["/api/campaigns"],
     queryFn: async () => {
-      const res = await fetch("/api/campaigns", { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/campaigns`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch campaigns");
       return res.json();
     },
@@ -2681,7 +2682,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
   const { data: partnerLeads = [], isLoading: partnerLeadsLoading } = useQuery<PartnerLeadWithDetails[]>({
     queryKey: ["/api/partners/leads"],
     queryFn: async () => {
-      const res = await fetch("/api/partners/leads", { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/partners/leads`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch partner leads");
       return res.json();
     },
@@ -2760,7 +2761,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
   const { data: enhancedCampaigns = [], isLoading: enhancedCampaignsLoading } = useQuery<EnhancedCampaignWithDetails[]>({
     queryKey: ["/api/campaigns/with-details"],
     queryFn: async () => {
-      const res = await fetch("/api/campaigns/with-details", { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/campaigns/with-details`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch enhanced campaigns");
       return res.json();
     },
@@ -2770,7 +2771,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
   const { data: reactivationRules = [], isLoading: reactivationRulesLoading } = useQuery<ReactivationRule[]>({
     queryKey: ["/api/reactivation-rules"],
     queryFn: async () => {
-      const res = await fetch("/api/reactivation-rules", { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/reactivation-rules`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch reactivation rules");
       return res.json();
     },
@@ -2780,7 +2781,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
   const { data: attributionStats = [] } = useQuery<AttributionStat[]>({
     queryKey: ["/api/attribution/stats"],
     queryFn: async () => {
-      const res = await fetch("/api/attribution/stats", { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/attribution/stats`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch attribution stats");
       return res.json();
     },
@@ -2790,7 +2791,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
   const { data: growthSafetyData } = useQuery<GrowthSafetyStatus>({
     queryKey: ["/api/growth-safety"],
     queryFn: async () => {
-      const res = await fetch("/api/growth-safety", { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/growth-safety`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch growth safety");
       return res.json();
     },
@@ -3008,7 +3009,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
     queryKey: ["/api/refunds", refundStatusFilter],
     queryFn: async () => {
       const params = refundStatusFilter ? `?status=${refundStatusFilter}` : "";
-      const res = await fetch(`/api/refunds${params}`, { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/refunds${params}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch refunds");
       return res.json();
     },
@@ -3019,7 +3020,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
 
   const fetchRefundAudit = async (refundId: string) => {
     try {
-      const res = await fetch(`/api/refunds/${refundId}/audit`, { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/refunds/${refundId}/audit`, { credentials: "include" });
       if (res.ok) {
         const logs = await res.json();
         setRefundAuditLogs(logs);
@@ -3119,7 +3120,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
     queryKey: ["/api/chargebacks", chargebackStatusFilter],
     queryFn: async () => {
       const params = chargebackStatusFilter ? `?status=${chargebackStatusFilter}` : "";
-      const res = await fetch(`/api/chargebacks${params}`, { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/chargebacks${params}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch chargebacks");
       return res.json();
     },
@@ -3130,7 +3131,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
     queryKey: ["/api/reconciliation", reconciliationStatusFilter],
     queryFn: async () => {
       const params = reconciliationStatusFilter ? `?status=${reconciliationStatusFilter}` : "";
-      const res = await fetch(`/api/reconciliation${params}`, { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/reconciliation${params}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch reconciliations");
       return res.json();
     },
@@ -3160,7 +3161,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
 
   const fetchChargebackAudit = async (chargebackId: string) => {
     try {
-      const res = await fetch(`/api/chargebacks/${chargebackId}/audit`, { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/chargebacks/${chargebackId}/audit`, { credentials: "include" });
       if (res.ok) {
         const logs = await res.json();
         setChargebackAuditLogs(logs);

@@ -57,6 +57,7 @@ import {
   GraduationCap,
   ShieldCheck,
 } from "lucide-react";
+import { API_BASE } from "@/lib/apiBase";
 
 type DriverWithUser = DriverProfile & { email?: string };
 
@@ -83,7 +84,7 @@ export default function AdminDriversOverview() {
     queryKey: ["/api/admin/driver", docsDialogDriver?.userId, "documents"],
     queryFn: async () => {
       if (!docsDialogDriver) return [];
-      const res = await fetch(`/api/admin/driver/${docsDialogDriver.userId}/documents`, { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/admin/driver/${docsDialogDriver.userId}/documents`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to load documents");
       return res.json();
     },

@@ -8,6 +8,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { TrainingModule } from "@shared/training-content";
 import type { TrainingAcknowledgement } from "@shared/schema";
+import { API_BASE } from "@/lib/apiBase";
 
 interface TrainingCenterProps {
   role: "contract_director" | "employed_director" | "driver";
@@ -20,7 +21,7 @@ export function TrainingCenter({ role }: TrainingCenterProps) {
   const { data: modules = [], isLoading: modulesLoading } = useQuery<TrainingModule[]>({
     queryKey: ["/api/training/modules", role],
     queryFn: async () => {
-      const res = await fetch(`/api/training/modules/${role}`, { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/training/modules/${role}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch modules");
       return res.json();
     },
