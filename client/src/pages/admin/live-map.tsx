@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { MapPin, Search, Wifi, WifiOff } from "lucide-react";
 import { API_BASE } from "@/lib/apiBase";
+import { joinDriver, leaveDriver, onDriverLocation, type LocationUpdate } from "@/lib/socket";
 import "leaflet/dist/leaflet.css";
 
 interface DriverLocationData {
@@ -26,9 +27,11 @@ export default function LiveDriverMap() {
   const [location, setLocation] = useState<DriverLocationData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isStale, setIsStale] = useState(false);
+  const [pathPoints, setPathPoints] = useState<[number, number][]>([]);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
+  const polylineRef = useRef<any>(null);
   const leafletRef = useRef<any>(null);
 
   const initMap = useCallback(async () => {
@@ -41,17 +44,13 @@ export default function LiveDriverMap() {
       iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
       iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
       shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-      iconSize: [25, 41],
-      iconAnchor: [12, 41],
-      popupAnchor: [1, -34],
-      shadowSize: [41, 41],
+      iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41],
     });
     L.Marker.prototype.options.icon = defaultIcon;
 
     const map = L.map(mapContainerRef.current).setView([29.4241, -98.4936], 14);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: '&copy; OpenStreetMap contributors',
-      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors', maxZoom: 19,
     }).addTo(map);
 
     mapRef.current = map;
@@ -60,10 +59,7 @@ export default function LiveDriverMap() {
   useEffect(() => {
     initMap();
     return () => {
-      if (mapRef.current) {
-        mapRef.current.remove();
-        mapRef.current = null;
-      }
+      if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
     };
   }, [initMap]);
 
@@ -71,6 +67,32 @@ export default function LiveDriverMap() {
     if (!activeDriverId) return;
 
     let cancelled = false;
+
+    joinDriver(activeDriverId);
+
+    const unsub = onDriverLocation((data: LocationUpdate) => {
+      if (data.driverId !== activeDriverId) return;
+      const locData: DriverLocationData = {
+        id: 0,
+        driverId: data.driverId,
+        lat: String(data.lat),
+        lng: String(data.lng),
+        heading: data.heading != null ? String(data.heading) : null,
+        speed: data.speed != null ? String(data.speed) : null,
+        accuracy: data.accuracy != null ? String(data.accuracy) : null,
+        battery: data.battery != null ? String(data.battery) : null,
+        isMoving: data.isMoving,
+        updatedAt: data.updatedAt,
+      };
+      setLocation(locData);
+      setError(null);
+      setIsStale(false);
+
+      setPathPoints(prev => {
+        const next = [...prev, [data.lat, data.lng] as [number, number]];
+        return next.length > 500 ? next.slice(-500) : next;
+      });
+    });
 
     const fetchLocation = async () => {
       try {
@@ -93,57 +115,10 @@ export default function LiveDriverMap() {
         const data: DriverLocationData = await res.json();
         setLocation(data);
         setError(null);
-
         const updatedAt = new Date(data.updatedAt).getTime();
-        const now = Date.now();
-        setIsStale(now - updatedAt > 10000);
-
-        const lat = parseFloat(data.lat);
-        const lng = parseFloat(data.lng);
-        const L = leafletRef.current;
-        const map = mapRef.current;
-
-        if (!L || !map) return;
-
-        if (markerRef.current) {
-          const currentLatLng = markerRef.current.getLatLng();
-          const steps = 10;
-          const dLat = (lat - currentLatLng.lat) / steps;
-          const dLng = (lng - currentLatLng.lng) / steps;
-          let step = 0;
-          const animate = () => {
-            if (step >= steps || cancelled) return;
-            step++;
-            markerRef.current.setLatLng([
-              currentLatLng.lat + dLat * step,
-              currentLatLng.lng + dLng * step,
-            ]);
-            requestAnimationFrame(animate);
-          };
-          animate();
-        } else {
-          markerRef.current = L.marker([lat, lng]).addTo(map);
-          map.setView([lat, lng], 15);
-        }
-
-        const speed = data.speed ? `${parseFloat(data.speed).toFixed(1)} m/s` : "—";
-        const battery = data.battery ? `${data.battery}%` : "—";
-        const time = new Date(data.updatedAt).toLocaleTimeString();
-
-        markerRef.current.bindPopup(
-          `<div style="font-size:12px;line-height:1.6">
-            <b>Driver: ${data.driverId.slice(0, 8)}...</b><br/>
-            Lat: ${lat.toFixed(6)}<br/>
-            Lng: ${lng.toFixed(6)}<br/>
-            Speed: ${speed}<br/>
-            Battery: ${battery}<br/>
-            Updated: ${time}
-          </div>`
-        );
+        setIsStale(Date.now() - updatedAt > 10000);
       } catch (err: any) {
-        if (!cancelled) {
-          setError(err.message || "Network error");
-        }
+        if (!cancelled) setError(err.message || "Network error");
       }
     };
 
@@ -152,19 +127,71 @@ export default function LiveDriverMap() {
 
     return () => {
       cancelled = true;
+      unsub();
+      leaveDriver(activeDriverId);
       clearInterval(interval);
       if (markerRef.current && mapRef.current) {
         mapRef.current.removeLayer(markerRef.current);
         markerRef.current = null;
       }
+      if (polylineRef.current && mapRef.current) {
+        mapRef.current.removeLayer(polylineRef.current);
+        polylineRef.current = null;
+      }
+      setPathPoints([]);
     };
   }, [activeDriverId]);
+
+  useEffect(() => {
+    if (!location || !mapRef.current || !leafletRef.current) return;
+    const L = leafletRef.current;
+    const map = mapRef.current;
+    const lat = parseFloat(location.lat);
+    const lng = parseFloat(location.lng);
+
+    if (markerRef.current) {
+      const cur = markerRef.current.getLatLng();
+      const steps = 10;
+      const dLat = (lat - cur.lat) / steps;
+      const dLng = (lng - cur.lng) / steps;
+      let step = 0;
+      const animate = () => {
+        if (step >= steps) return;
+        step++;
+        markerRef.current.setLatLng([cur.lat + dLat * step, cur.lng + dLng * step]);
+        requestAnimationFrame(animate);
+      };
+      animate();
+    } else {
+      markerRef.current = L.marker([lat, lng]).addTo(map);
+      map.setView([lat, lng], 15);
+    }
+
+    if (polylineRef.current) {
+      polylineRef.current.setLatLngs(pathPoints);
+    } else if (pathPoints.length > 1) {
+      polylineRef.current = L.polyline(pathPoints, { color: "#2563eb", weight: 3, opacity: 0.7 }).addTo(map);
+    }
+
+    const speed = location.speed ? `${parseFloat(location.speed).toFixed(1)} m/s` : "—";
+    const battery = location.battery ? `${location.battery}%` : "—";
+    const time = new Date(location.updatedAt).toLocaleTimeString();
+
+    markerRef.current.bindPopup(
+      `<div style="font-size:12px;line-height:1.6">
+        <b>Driver: ${location.driverId.slice(0, 8)}...</b><br/>
+        Lat: ${lat.toFixed(6)}<br/>Lng: ${lng.toFixed(6)}<br/>
+        Speed: ${speed}<br/>Battery: ${battery}<br/>Updated: ${time}
+      </div>`
+    );
+  }, [location, pathPoints]);
 
   const handleTrack = () => {
     if (driverId.trim()) {
       setActiveDriverId(driverId.trim());
       setLocation(null);
       setError(null);
+      setPathPoints([]);
     }
   };
 

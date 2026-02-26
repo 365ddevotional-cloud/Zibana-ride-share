@@ -99,6 +99,8 @@ const RiderAccountMarketingPage = lazy(() => import("@/pages/rider/account-marke
 const RiderAccountDataUsagePage = lazy(() => import("@/pages/rider/account-data-usage"));
 const RiderAccountRidePinPage = lazy(() => import("@/pages/rider/account-ride-pin"));
 const RiderAccountEmergencyPage = lazy(() => import("@/pages/rider/account-emergency"));
+const RiderLiveMapPage = lazy(() => import("@/pages/rider/live-map"));
+const PublicTrackPage = lazy(() => import("@/pages/public/track"));
 const RiderSettingsPage = lazy(() => import("@/pages/rider/settings"));
 const RiderLanguagePage = lazy(() => import("@/pages/rider/language"));
 const RiderTermsPrivacyPage = lazy(() => import("@/pages/rider/terms-privacy"));
@@ -838,6 +840,12 @@ function RiderRouter() {
       
       <Route path="/welcome" component={LandingPage} />
       
+      <Route path="/track/:token">
+        {(params: { token: string }) => (
+          <LazyComponent><PublicTrackPage token={params.token} /></LazyComponent>
+        )}
+      </Route>
+
       <Route path="/about">
         <LazyComponent><AboutPage /></LazyComponent>
       </Route>
@@ -902,6 +910,11 @@ function RiderRouter() {
         </ProtectedRoute>
       </Route>
       
+      <Route path="/rider/live-map">
+        <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["rider"]}>
+          <LazyComponent><RiderLiveMapPage /></LazyComponent>
+        </ProtectedRoute>
+      </Route>
       <Route path="/rider/home">
         <ProtectedRoute user={user} userRole={userRole} isLoading={isLoading} allowedRoles={["rider"]}>
           <LazyComponent><RiderHomePage /></LazyComponent>

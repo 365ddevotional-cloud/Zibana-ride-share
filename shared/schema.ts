@@ -6047,3 +6047,32 @@ export const driverLocations = pgTable("driver_locations", {
 export const insertDriverLocationSchema = createInsertSchema(driverLocations).omit({ id: true });
 export type InsertDriverLocation = z.infer<typeof insertDriverLocationSchema>;
 export type DriverLocation = typeof driverLocations.$inferSelect;
+
+export const driverLocationPoints = pgTable("driver_location_points", {
+  id: serial("id").primaryKey(),
+  driverId: varchar("driver_id").notNull(),
+  tripId: varchar("trip_id"),
+  lat: decimal("lat", { precision: 10, scale: 7 }).notNull(),
+  lng: decimal("lng", { precision: 10, scale: 7 }).notNull(),
+  heading: decimal("heading", { precision: 6, scale: 2 }),
+  speed: decimal("speed", { precision: 8, scale: 2 }),
+  accuracy: decimal("accuracy", { precision: 8, scale: 2 }),
+  battery: decimal("battery", { precision: 5, scale: 2 }),
+  isMoving: boolean("is_moving"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type DriverLocationPoint = typeof driverLocationPoints.$inferSelect;
+
+export const emergencyTrackingLinks = pgTable("emergency_tracking_links", {
+  id: serial("id").primaryKey(),
+  token: varchar("token").notNull().unique(),
+  tripId: varchar("trip_id"),
+  driverId: varchar("driver_id").notNull(),
+  riderId: varchar("rider_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+  expiresAt: timestamp("expires_at").notNull(),
+  revokedAt: timestamp("revoked_at"),
+});
+
+export type EmergencyTrackingLink = typeof emergencyTrackingLinks.$inferSelect;

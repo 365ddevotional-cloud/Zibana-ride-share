@@ -89,3 +89,15 @@ The data storage layer uses PostgreSQL as the database, with Drizzle ORM and Zod
 - Backend: `POST /api/driver/location` (upsert), `GET /api/driver/location/latest?driverId=` (read)
 - DB table: `driver_locations` (unique per driverId, latest position only)
 - Dev-only debug panel shows coords, last POST time, and errors on driver dashboard
+
+### WebSocket & Real-Time Features
+- Socket.IO server on `/ws` path with room-based events: `driver:${driverId}`, `trip:${tripId}`, `token:${token}`
+- Client library: `client/src/lib/socket.ts` wraps Socket.IO with `connectSocket()`, `disconnectSocket()`, `getSocket()`
+- `driver_location_points` table stores trip polyline history (lat, lng, timestamp per driver per trip)
+- `emergency_tracking_links` table for public tracking: token-based (32-byte hex), expirable, revocable
+- Rider live map (`/rider/live-map`): WebSocket-powered real-time driver tracking with trip polylines
+- Public tracking page (`/track/:token`): Unauthenticated live tracking for emergency contacts
+- Admin live map enhanced with WebSocket + polyline overlays
+- "Track on Map" button added to rider ride status card (visible when driver assigned)
+- Auto trip context tracking: driver dashboard automatically sets `setTripContext(tripId)` when trip is in_progress
+- `socket.io` added to `script/build.ts` allowlist for production bundling

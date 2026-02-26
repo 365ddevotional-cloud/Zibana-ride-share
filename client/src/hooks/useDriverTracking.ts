@@ -3,6 +3,8 @@ import {
   startTracking,
   stopTracking,
   onTrackingStateChange,
+  setTripContext,
+  isTracking as checkIsTracking,
   type TrackingState,
 } from "@/lib/trackingEngine";
 
@@ -28,12 +30,18 @@ export function useDriverTracking() {
     };
   }, []);
 
-  const start = useCallback(async () => {
+  const start = useCallback(async (tripId?: string) => {
+    if (tripId) setTripContext(tripId);
     await startTracking();
   }, []);
 
   const stop = useCallback(async () => {
+    setTripContext(null);
     await stopTracking();
+  }, []);
+
+  const setTrip = useCallback((tripId: string | null) => {
+    setTripContext(tripId);
   }, []);
 
   return {
@@ -41,7 +49,9 @@ export function useDriverTracking() {
     lastCoords: state.lastCoords,
     lastSentAt: state.lastSentAt,
     error: state.error,
+    isTracking: checkIsTracking(),
     start,
     stop,
+    setTrip,
   };
 }

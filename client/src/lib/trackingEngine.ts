@@ -17,6 +17,15 @@ let lastSentLat = 0;
 let lastSentLng = 0;
 let pendingUpdate: { lat: number; lng: number; heading: number | null; speed: number | null; accuracy: number | null; battery: number | null } | null = null;
 let retryTimeout: ReturnType<typeof setTimeout> | null = null;
+let activeTripId: string | null = null;
+
+export function setTripContext(tripId: string | null) {
+  activeTripId = tripId;
+}
+
+export function getTripContext(): string | null {
+  return activeTripId;
+}
 
 function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371000;
@@ -44,11 +53,13 @@ async function sendLocationToServer(data: {
   accuracy: number | null; battery: number | null;
 }): Promise<boolean> {
   try {
+    const payload: any = { ...data };
+    if (activeTripId) payload.tripId = activeTripId;
     const res = await fetch(`${API_BASE}/api/driver/location`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
     });
     return res.ok;
   } catch {

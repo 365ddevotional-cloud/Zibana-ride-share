@@ -1,0 +1,175 @@
+You are working on the ZIBANA repo. Implement the following 5 features A–E with minimal UI, production-safe guards, and clear testing steps. Do all code changes yourself, update schema, routes, and client pages, and ensure everything compiles.
+
+Context (existing):
+- React 18 (so use react-leaflet v4.x only)
+- Existing driver tracking engine exists:
+  - client/src/lib/trackingEngine.ts
+  - client/src/hooks/useDriverTracking.ts
+- Existing DB includes driver_locations table that stores the latest location per driver (driverId unique)
+- Existing server files:
+  - shared/schema.ts
+  - server/storage.ts
+  - server/routes.ts
+- There is already an admin live map page route like /admin/live-map (if present); reuse patterns.
+
+Goal:
+A) Rider live map page (authenticated rider)
+B) Emergency contact live tracking link (shareable public link with token + expiry)
+C) Auto ride start → auto tracking (start/stop tracking based on trip status)
+D) WebSocket realtime upgrade (no polling delay)
+E) Trip route path drawing (polyline trail)
+
+-----------------------
+A) RIDER LIVE MAP PAGE
+-----------------------
+1) Create a rider page to view assigned/active trip driver live location:
+- New route: /rider/live-map (or /rider/trip/:tripId/map if trip routing exists). Choose the one that fits current routing patterns.
+- Show a Leaflet map and a driver marker (and rider pickup/drop markers if trip data exists).
+- Map should follow driver smoothly (setView) without jitter (throttle recentering).
+- Rider must be authenticated.
+
+Data source:
+- Prefer WebSocket subscription (feature D).
+- Fallback to polling GET endpoint every 2–3 seconds if socket disconnected.
+
+Implement:
+- client/src/pages/rider/LiveMap.tsx (or appropriate folder)
+- Add route registration in client routing (App.tsx or router file)
+- Add minimal link/button from rider dashboard/trip details to open this map.
+
+-----------------------------------------
+B) EMERGENCY CONTACT LIVE TRACKING LINK
+-----------------------------------------
+Create a public, shareable, read-only tracking page for an emergency contact.
+
+Backend:
+1) Add DB table emergency_tracking_links with:
+- id (pk)
+- token (unique, long random string)
+- tripId (nullable if your system doesn’t always have tripId, but prefer tripId)
+- driverId (store for quick lookup)
+- riderId (optional)
+- createdAt
+- expiresAt
+- revokedAt (nullable)
+2) Create endpoints:
+- POST /api/rider/emergency-tracking-link
+  - Auth required (rider)
+  - Input: tripId (or driverId if tripId not available), expiresInMinutes (default 120)
+  - Output: { url, token, expiresAt }
+- GET /api/public/track/:token
+  - No auth
+  - Validates token, not expired, not revoked
+  - Returns minimal data needed for the map (driver latest location + optional trip summary)
+Public page:
+- Create client route: /track/:token
+- Shows Leaflet map with driver marker and polyline (feature E if trip points available)
+- No login required
+Security:
+- Token must be unguessable (crypto.randomBytes 32+)
+- Response must not leak private rider/driver info beyond what’s needed (location + maybe first name initials)
+- Add a “Link expired” / “Link revoked” message states.
+
+------------------------------------
+C) AUTO RIDE START → AUTO TRACKING
+------------------------------------
+Make driver tracking start/stop automatically based on trip lifecycle.
+
+Rules:
+- Start tracking when driver goes “Online” AND has an active trip in progress OR when the driver starts a trip (RideStarted/InProgress).
+- Stop tracking when driver goes Offline OR trip ends/cancels/completes OR driver logs out.
+- If page reloads while trip is active, tracking should auto-resume.
+
+Implementation approach:
+1) Identify the driver “active trip” state source (API or client store).
+2) Extend useDriverTracking hook to support:
+- start(reason)
+- stop(reason)
+- setTripContext({ tripId })
+3) Ensure tracking POST payload includes tripId when available.
+4) Ensure stop tracking runs on unmount, trip change, and offline toggle.
+
+Backend:
+- Ensure POST /api/driver/location accepts optional tripId and stores it in points table (see E).
+
+------------------------------------------------
+D) WEBSOCKET REAL-TIME UPGRADE (NO POLLING DELAY)
+------------------------------------------------
+Implement real-time streaming of location updates.
+
+Server:
+1) Add Socket.IO (preferred) or ws.
+2) When a driver posts a new location (POST /api/driver/location), emit:
+- driver:location event to room driver:{driverId}
+- if tripId exists, also emit to room trip:{tripId}
+Payload should include lat,lng,heading,speed,accuracy,battery,isMoving,updatedAt.
+
+Auth:
+- For rider/admin/dispatcher sockets: require session auth and authorize room joins.
+- For public token tracking: allow join via token validation:
+  - client connects to socket and requests joinPublicToken(token)
+  - server validates token then joins socket to room token:{token} and internally forwards trip/driver location events to token room
+Simpler alternative if needed:
+- For public page, skip socket auth complexities by using HTTP SSE (server-sent events) just for public tokens. But prefer socket.io if feasible.
+
+Client:
+- Add socket client utility (client/src/lib/socket.ts)
+- Rider live map subscribes to trip:{tripId} or driver:{driverId}
+- Admin live map subscribes similarly
+- Public tracking page subscribes using token method
+Fallback:
+- If socket fails, fallback to polling.
+
+------------------------------------------------------
+E) TRIP ROUTE PATH DRAWING (POLYLINE TRAIL / HISTORY)
+------------------------------------------------------
+Because driver_locations stores only the latest, add a history table for path trail.
+
+DB:
+1) Add driver_location_points table with:
+- id (pk)
+- driverId (indexed)
+- tripId (indexed, nullable)
+- lat,lng
+- heading,speed,accuracy,battery,isMoving
+- createdAt (timestamp)
+2) Keep driver_locations as “latest per driver” cache.
+3) Update storage so each POST does:
+- upsert latest into driver_locations
+- insert into driver_location_points (if tripId exists OR always insert but allow retention rules)
+
+API:
+- GET /api/trips/:tripId/locations?limit=500
+  - Auth required (rider assigned to trip OR admin/dispatcher)
+  - Return ordered points for polyline
+- GET /api/public/track/:token/locations?limit=500
+  - No auth, token validation
+  - Return ordered points for polyline (only for that trip/driver)
+
+Client polyline:
+- On map pages, draw Polyline from returned points.
+- For realtime updates, append new points to polyline in memory (cap at e.g. last 500 points).
+- Smoothness: don’t redraw entire polyline on every tick; append if possible.
+
+Performance/retention:
+- Add cleanup policy (optional): keep only last N points per trip or last 24h per driver if no tripId.
+- Ensure indexes exist for fast query.
+
+-----------------------
+TESTING INSTRUCTIONS
+-----------------------
+After implementation, print:
+1) Final list of files changed/created
+2) All new routes (web routes + API routes + socket events)
+3) Step-by-step testing:
+- Driver mock mode in browser → generates points
+- Open /admin/live-map and see marker moving realtime
+- Open /rider/live-map for the same trip and see realtime
+- Generate emergency link and open /track/:token in incognito, see realtime + polyline
+- Start trip → tracking autostarts; end trip → tracking autostops
+
+Also:
+- Ensure dev-only mock code remains dev-only
+- Ensure production build still compiles cleanly
+- Add minimal UI nav links without redesigning the whole app
+Proceed without asking me to choose options unless something is truly blocked.

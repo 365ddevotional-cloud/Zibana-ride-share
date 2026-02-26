@@ -4,9 +4,11 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { startRatingNotificationScheduler } from "./rating-notification-scheduler";
 import { logSimulationStatus } from "./simulation-config";
+import { setupSocketIO } from "./socket";
 
 const app = express();
 const httpServer = createServer(app);
+setupSocketIO(httpServer);
 
 declare module "http" {
   interface IncomingMessage {

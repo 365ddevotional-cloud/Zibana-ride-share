@@ -29,6 +29,7 @@ import {
   Shield,
   AlertTriangle
 } from "lucide-react";
+import { Link } from "wouter";
 import type { RideWithDetails, RideStatus } from "@/hooks/use-ride-lifecycle";
 
 interface RiderRideStatusProps {
@@ -201,6 +202,19 @@ export function RiderRideStatus({
               <Shield className="h-4 w-4 mr-2" />
               Safety Check
             </Button>
+          )}
+
+          {ride.driverId && (
+            <Link href="/rider/live-map">
+              <Button
+                variant="outline"
+                className="w-full"
+                data-testid="button-track-on-map"
+              >
+                <Navigation className="h-4 w-4 mr-2" />
+                Track on Map
+              </Button>
+            </Link>
           )}
 
           {canCancel && (

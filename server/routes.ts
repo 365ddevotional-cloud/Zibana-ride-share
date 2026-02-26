@@ -30347,7 +30347,7 @@ export async function registerRoutes(
   app.post("/api/driver/location", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { lat, lng, heading, speed, accuracy, battery } = req.body;
+      const { lat, lng, heading, speed, accuracy, battery, tripId } = req.body;
 
       if (lat == null || lng == null) {
         return res.status(400).json({ message: "lat and lng are required" });
@@ -30355,7 +30355,7 @@ export async function registerRoutes(
 
       const isMoving = speed != null ? Number(speed) > 0.5 : null;
 
-      await storage.upsertDriverLocation(userId, {
+      const locationData = {
         lat: String(lat),
         lng: String(lng),
         heading: heading != null ? String(heading) : null,
@@ -30363,7 +30363,17 @@ export async function registerRoutes(
         accuracy: accuracy != null ? String(accuracy) : null,
         battery: battery != null ? String(battery) : null,
         isMoving,
-      });
+      };
+
+      await storage.upsertDriverLocation(userId, locationData, tripId || null);
+
+      await storage.insertLocationPoint(userId, locationData, tripId || null);
+
+      const { emitDriverLocation } = await import("./socket");
+      emitDriverLocation(userId, {
+        lat, lng, heading, speed, accuracy, battery, isMoving,
+        updatedAt: new Date().toISOString(),
+      }, tripId || null);
 
       if (process.env.NODE_ENV === "development") {
         console.log(`[TRACKING] Driver location updated: driverId=${userId}, lat=${lat}, lng=${lng}`);
@@ -30390,6 +30400,151 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error fetching driver location:", error);
       return res.status(500).json({ message: "Failed to fetch location" });
+    }
+  });
+
+  // ============================================================
+  // EMERGENCY TRACKING LINKS
+  // ============================================================
+
+  app.post("/api/rider/emergency-tracking-link", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { tripId, driverId, expiresInMinutes = 120 } = req.body;
+
+      if (!driverId && !tripId) {
+        return res.status(400).json({ message: "driverId or tripId required" });
+      }
+
+      let resolvedDriverId = driverId;
+      if (tripId && !driverId) {
+        const trip = await storage.getTripById(tripId);
+        if (trip?.driverId) resolvedDriverId = trip.driverId;
+      }
+      if (!resolvedDriverId) {
+        return res.status(400).json({ message: "Could not resolve driver" });
+      }
+
+      const { randomBytes } = await import("crypto");
+      const token = randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + expiresInMinutes * 60 * 1000);
+
+      const link = await storage.createEmergencyTrackingLink({
+        token,
+        tripId: tripId || null,
+        driverId: resolvedDriverId,
+        riderId: userId,
+        expiresAt,
+      });
+
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      return res.json({
+        url: `${baseUrl}/track/${token}`,
+        token,
+        expiresAt: link.expiresAt,
+      });
+    } catch (error) {
+      console.error("Error creating emergency tracking link:", error);
+      return res.status(500).json({ message: "Failed to create tracking link" });
+    }
+  });
+
+  app.get("/api/public/track/:token", async (req: any, res) => {
+    try {
+      const { token } = req.params;
+      const link = await storage.getEmergencyTrackingLink(token);
+
+      if (!link) {
+        return res.status(404).json({ message: "Tracking link not found", code: "NOT_FOUND" });
+      }
+      if (link.revokedAt) {
+        return res.status(410).json({ message: "This tracking link has been revoked", code: "REVOKED" });
+      }
+      if (new Date(link.expiresAt) < new Date()) {
+        return res.status(410).json({ message: "This tracking link has expired", code: "EXPIRED" });
+      }
+
+      const loc = await storage.getDriverLocation(link.driverId);
+      let tripSummary = null;
+      if (link.tripId) {
+        const trip = await storage.getTripById(link.tripId);
+        if (trip) {
+          tripSummary = {
+            pickupLocation: trip.pickupLocation,
+            dropoffLocation: trip.dropoffLocation,
+            status: trip.status,
+          };
+        }
+      }
+
+      return res.json({
+        driverId: link.driverId,
+        tripId: link.tripId,
+        expiresAt: link.expiresAt,
+        location: loc ? {
+          lat: loc.lat,
+          lng: loc.lng,
+          heading: loc.heading,
+          speed: loc.speed,
+          updatedAt: loc.updatedAt,
+        } : null,
+        tripSummary,
+      });
+    } catch (error) {
+      console.error("Error fetching public tracking data:", error);
+      return res.status(500).json({ message: "Failed to fetch tracking data" });
+    }
+  });
+
+  app.get("/api/public/track/:token/locations", async (req: any, res) => {
+    try {
+      const { token } = req.params;
+      const limit = Math.min(parseInt(req.query.limit || "500"), 500);
+      const link = await storage.getEmergencyTrackingLink(token);
+
+      if (!link || link.revokedAt || new Date(link.expiresAt) < new Date()) {
+        return res.status(410).json({ message: "Link expired or revoked" });
+      }
+
+      let points;
+      if (link.tripId) {
+        points = await storage.getLocationPointsForTrip(link.tripId, limit);
+      } else {
+        points = await storage.getLocationPointsForDriver(link.driverId, limit);
+      }
+
+      return res.json(points.map((p: any) => ({
+        lat: p.lat,
+        lng: p.lng,
+        heading: p.heading,
+        speed: p.speed,
+        createdAt: p.createdAt,
+      })));
+    } catch (error) {
+      console.error("Error fetching public track locations:", error);
+      return res.status(500).json({ message: "Failed to fetch locations" });
+    }
+  });
+
+  // ============================================================
+  // TRIP LOCATION POINTS
+  // ============================================================
+
+  app.get("/api/trips/:tripId/locations", isAuthenticated, requireRole(["rider", "admin", "super_admin", "dispatcher"]), async (req: any, res) => {
+    try {
+      const { tripId } = req.params;
+      const limit = Math.min(parseInt(req.query.limit || "500"), 500);
+      const points = await storage.getLocationPointsForTrip(tripId, limit);
+      return res.json(points.map((p: any) => ({
+        lat: p.lat,
+        lng: p.lng,
+        heading: p.heading,
+        speed: p.speed,
+        createdAt: p.createdAt,
+      })));
+    } catch (error) {
+      console.error("Error fetching trip locations:", error);
+      return res.status(500).json({ message: "Failed to fetch trip locations" });
     }
   });
 

@@ -404,6 +404,8 @@ import {
   platformSettlements,
   driverStanding,
   driverLocations,
+  driverLocationPoints,
+  emergencyTrackingLinks,
   type InsertPlatformSettlement,
   type PlatformSettlement,
   type InsertDriverStanding,
@@ -1377,8 +1379,16 @@ export interface IStorage {
   getDriverSharePercent(driverId: string): Promise<number>;
 
   // Driver Live Location
-  upsertDriverLocation(driverId: string, data: { lat: string; lng: string; heading?: string | null; speed?: string | null; accuracy?: string | null; battery?: string | null; isMoving?: boolean | null }): Promise<DriverLocation>;
+  upsertDriverLocation(driverId: string, data: { lat: string; lng: string; heading?: string | null; speed?: string | null; accuracy?: string | null; battery?: string | null; isMoving?: boolean | null }, tripId?: string | null): Promise<DriverLocation>;
   getDriverLocation(driverId: string): Promise<DriverLocation | null>;
+  insertLocationPoint(driverId: string, data: { lat: string; lng: string; heading?: string | null; speed?: string | null; accuracy?: string | null; battery?: string | null; isMoving?: boolean | null }, tripId?: string | null): Promise<void>;
+  getLocationPointsForTrip(tripId: string, limit?: number): Promise<any[]>;
+  getLocationPointsForDriver(driverId: string, limit?: number): Promise<any[]>;
+
+  // Emergency Tracking Links
+  createEmergencyTrackingLink(data: { token: string; tripId?: string | null; driverId: string; riderId?: string | null; expiresAt: Date }): Promise<any>;
+  getEmergencyTrackingLink(token: string): Promise<any | null>;
+  revokeEmergencyTrackingLink(token: string): Promise<void>;
 
   // Cash Settlement Ledger
   createCashSettlementLedger(data: InsertCashSettlementLedger): Promise<CashSettlementLedger>;
@@ -10522,7 +10532,7 @@ export class DatabaseStorage implements IStorage {
   // DRIVER LIVE LOCATION
   // ============================================================
 
-  async upsertDriverLocation(driverId: string, data: { lat: string; lng: string; heading?: string | null; speed?: string | null; accuracy?: string | null; battery?: string | null; isMoving?: boolean | null }): Promise<DriverLocation> {
+  async upsertDriverLocation(driverId: string, data: { lat: string; lng: string; heading?: string | null; speed?: string | null; accuracy?: string | null; battery?: string | null; isMoving?: boolean | null }, tripId?: string | null): Promise<DriverLocation> {
     const existing = await this.getDriverLocation(driverId);
     if (existing) {
       const [updated] = await db.update(driverLocations)
@@ -10541,6 +10551,57 @@ export class DatabaseStorage implements IStorage {
     const [loc] = await db.select().from(driverLocations)
       .where(eq(driverLocations.driverId, driverId));
     return loc || null;
+  }
+
+  async insertLocationPoint(driverId: string, data: { lat: string; lng: string; heading?: string | null; speed?: string | null; accuracy?: string | null; battery?: string | null; isMoving?: boolean | null }, tripId?: string | null): Promise<void> {
+    await db.insert(driverLocationPoints).values({
+      driverId,
+      tripId: tripId || null,
+      lat: data.lat,
+      lng: data.lng,
+      heading: data.heading || null,
+      speed: data.speed || null,
+      accuracy: data.accuracy || null,
+      battery: data.battery || null,
+      isMoving: data.isMoving || null,
+    });
+  }
+
+  async getLocationPointsForTrip(tripId: string, limit = 500): Promise<any[]> {
+    return db.select().from(driverLocationPoints)
+      .where(eq(driverLocationPoints.tripId, tripId))
+      .orderBy(driverLocationPoints.createdAt)
+      .limit(limit);
+  }
+
+  async getLocationPointsForDriver(driverId: string, limit = 500): Promise<any[]> {
+    return db.select().from(driverLocationPoints)
+      .where(eq(driverLocationPoints.driverId, driverId))
+      .orderBy(desc(driverLocationPoints.createdAt))
+      .limit(limit);
+  }
+
+  async createEmergencyTrackingLink(data: { token: string; tripId?: string | null; driverId: string; riderId?: string | null; expiresAt: Date }): Promise<any> {
+    const [link] = await db.insert(emergencyTrackingLinks).values({
+      token: data.token,
+      tripId: data.tripId || null,
+      driverId: data.driverId,
+      riderId: data.riderId || null,
+      expiresAt: data.expiresAt,
+    }).returning();
+    return link;
+  }
+
+  async getEmergencyTrackingLink(token: string): Promise<any | null> {
+    const [link] = await db.select().from(emergencyTrackingLinks)
+      .where(eq(emergencyTrackingLinks.token, token));
+    return link || null;
+  }
+
+  async revokeEmergencyTrackingLink(token: string): Promise<void> {
+    await db.update(emergencyTrackingLinks)
+      .set({ revokedAt: new Date() })
+      .where(eq(emergencyTrackingLinks.token, token));
   }
 
   // ============================================================

@@ -86,7 +86,7 @@ export default function DriverDashboard() {
   const [isOnlineLocal, setIsOnlineLocal] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [simTrip, setSimTrip] = useState<(Trip & { _sim?: boolean }) | null>(null);
-  const { trackingState, lastCoords, lastSentAt, error: trackingError, start: startTracking, stop: stopTracking } = useDriverTracking();
+  const { trackingState, lastCoords, lastSentAt, error: trackingError, start: startTracking, stop: stopTracking, setTrip } = useDriverTracking();
 
   const { data: userRole } = useQuery<{ role: string; roles?: string[] } | null>({
     queryKey: ["/api/user/role"],
@@ -130,6 +130,17 @@ export default function DriverDashboard() {
     enabled: !!user,
     refetchInterval: 5000,
   });
+
+  useEffect(() => {
+    if (currentTrip?.id && currentTrip.status === "in_progress") {
+      setTrip(currentTrip.id);
+      if (trackingState === "idle" && isOnlineLocal) {
+        startTracking(currentTrip.id);
+      }
+    } else {
+      setTrip(null);
+    }
+  }, [currentTrip?.id, currentTrip?.status]);
 
   const { data: tripHistory } = useQuery<Trip[]>({
     queryKey: ["/api/driver/trip-history"],

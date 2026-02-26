@@ -27,6 +27,7 @@ const allowlist = [
   "pg",
   "stripe",
   "uuid",
+  "socket.io",
   "ws",
   "xlsx",
   "zod",
