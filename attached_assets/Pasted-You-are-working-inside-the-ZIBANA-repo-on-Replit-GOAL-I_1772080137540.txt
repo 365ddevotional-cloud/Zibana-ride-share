@@ -1,0 +1,121 @@
+You are working inside the ZIBANA repo on Replit.
+
+GOAL: Implement “Tracking Engine” for driver live location (foreground tracking) using Capacitor Geolocation, and send updates to backend. Must be safe/idempotent: confirm existing installs, install only if missing, update only if needed, and avoid breaking changes.
+
+STEP 0 — Create a checkpoint and inspect current state
+- Create a Replit checkpoint.
+- Run:
+  - node -v
+  - npm -v
+  - npm ls @capacitor/core @capacitor/cli @capacitor/android @capacitor/ios @capacitor/geolocation @capacitor/app @capacitor/device
+  - ls -la
+- If any of these packages are missing, install them with npm i (do not downgrade).
+- If they exist, do not reinstall. If versions differ wildly, only propose updates; do NOT bump major versions automatically.
+
+STEP 1 — Confirm Capacitor is configured
+- Open and verify capacitor.config.ts exists and has:
+  - appId: com.zibana.app
+  - appName: Zibana
+  - webDir matches the project output (currently dist/public per our setup)
+- If webDir is wrong, fix it carefully.
+- Run:
+  - npm run build
+  - npx cap sync android
+  - npx cap sync ios
+Note: iOS pod install may be skipped on Linux — that is expected.
+
+STEP 2 — Backend: store “latest driver location”
+Create or modify server code (ONLY server/, shared/, prisma/ or db layer as appropriate).
+We need:
+- A table to store the latest location per driver (upsert style)
+Fields:
+  - id (pk)
+  - driverId (unique)
+  - lat (float)
+  - lng (float)
+  - heading (float nullable)
+  - speed (float nullable)
+  - accuracy (float nullable)
+  - battery (float nullable)
+  - isMoving (boolean nullable)
+  - updatedAt (timestamp)
+- Implement API endpoints:
+  1) POST /api/driver/location
+     Body: { lat, lng, heading?, speed?, accuracy?, battery? }
+     Auth: must require driver session/auth (same auth you already use for driver endpoints)
+     Action: upsert latest location for that driverId
+     Return: { ok: true }
+  2) GET /api/driver/location/latest?driverId=...
+     Auth: admin or authorized rider/dispatcher (use whatever “role check” exists)
+     Return: latest record or 404
+
+If the project uses Prisma:
+- Update schema.prisma and run migrations safely (or prisma db push if that’s the existing pattern).
+If it uses another DB layer, follow existing conventions.
+
+STEP 3 — Frontend Tracking Engine
+Create these files:
+
+A) client/src/lib/trackingEngine.ts
+- Implement:
+  - startTracking(options): starts watchPosition
+  - stopTracking(): clears watch
+  - internal throttle: upload to server at most once every 3 seconds OR when distance moved > 20 meters
+  - uses Capacitor Geolocation.watchPosition with enableHighAccuracy = true
+  - reads battery using @capacitor/device if available (Device.getBatteryInfo)
+  - posts updates to /api/driver/location using existing apiRequest/getQueryFn utilities and API_BASE logic
+- Must handle:
+  - permission denied: return a clear error and do not spam
+  - offline/no network: queue last known point in memory and retry next tick
+  - avoid memory leaks (clear watchId on stop)
+
+B) client/src/hooks/useDriverTracking.ts
+- Exposes:
+  - trackingState: 'idle' | 'starting' | 'tracking' | 'error'
+  - start()
+  - stop()
+  - lastSentAt
+  - lastCoords
+
+STEP 4 — Wire into Driver “Online” flow
+Find the driver page and online toggle:
+- likely file: client/src/pages/driver/index.tsx or similar
+When driver switches Online:
+- call start() from useDriverTracking
+When driver switches Offline:
+- call stop()
+
+If there is no toggle yet, add a simple toggle on the driver page:
+- Button: “Go Online” / “Go Offline”
+- When Online, show small status: “Tracking active (foreground)”
+- Keep UI minimal; do not change styling widely.
+
+STEP 5 — Permissions sanity (we already added manifest/plist keys)
+- Confirm AndroidManifest includes:
+  - ACCESS_FINE_LOCATION
+  - ACCESS_COARSE_LOCATION
+  - ACCESS_BACKGROUND_LOCATION (we can keep it even if not using background yet)
+- Confirm iOS Info.plist includes:
+  - NSLocationWhenInUseUsageDescription
+  - NSLocationAlwaysAndWhenInUseUsageDescription
+Use simple text if missing:
+  “Zibana uses your location to enable ride tracking and pickups.”
+
+STEP 6 — Verification
+- Add a lightweight debug panel on driver page (only visible in dev):
+  - shows current coords
+  - shows last successful POST time
+  - shows last server response ok/fail
+- Run app and confirm:
+  - Starting tracking prompts permission
+  - Once granted, POST hits /api/driver/location repeatedly while online
+  - Stop tracking stops calls
+
+STEP 7 — Report back
+Return:
+- files created/modified
+- exact endpoints added
+- how to test on Android (Capacitor run)
+- note clearly: this is foreground tracking only; background tracking will be a separate step later.
+
+Do NOT refactor unrelated files. Keep changes minimal and targeted.

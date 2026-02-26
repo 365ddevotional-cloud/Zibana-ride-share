@@ -403,10 +403,12 @@ import {
   type InsertCountryTaxConfig,
   platformSettlements,
   driverStanding,
+  driverLocations,
   type InsertPlatformSettlement,
   type PlatformSettlement,
   type InsertDriverStanding,
   type DriverStanding,
+  type DriverLocation,
   cashSettlementLedger,
   countryCashConfig,
   type CashSettlementLedger,
@@ -1373,6 +1375,10 @@ export interface IStorage {
   getDriverStanding(driverId: string): Promise<DriverStanding | null>;
   upsertDriverStanding(driverId: string, data: Partial<InsertDriverStanding>): Promise<DriverStanding>;
   getDriverSharePercent(driverId: string): Promise<number>;
+
+  // Driver Live Location
+  upsertDriverLocation(driverId: string, data: { lat: string; lng: string; heading?: string | null; speed?: string | null; accuracy?: string | null; battery?: string | null; isMoving?: boolean | null }): Promise<DriverLocation>;
+  getDriverLocation(driverId: string): Promise<DriverLocation | null>;
 
   // Cash Settlement Ledger
   createCashSettlementLedger(data: InsertCashSettlementLedger): Promise<CashSettlementLedger>;
@@ -10510,6 +10516,31 @@ export class DatabaseStorage implements IStorage {
   async getDriverSharePercent(driverId: string): Promise<number> {
     const standing = await this.getDriverStanding(driverId);
     return standing?.currentSharePercent || 70;
+  }
+
+  // ============================================================
+  // DRIVER LIVE LOCATION
+  // ============================================================
+
+  async upsertDriverLocation(driverId: string, data: { lat: string; lng: string; heading?: string | null; speed?: string | null; accuracy?: string | null; battery?: string | null; isMoving?: boolean | null }): Promise<DriverLocation> {
+    const existing = await this.getDriverLocation(driverId);
+    if (existing) {
+      const [updated] = await db.update(driverLocations)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(driverLocations.driverId, driverId))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(driverLocations)
+      .values({ driverId, ...data })
+      .returning();
+    return created;
+  }
+
+  async getDriverLocation(driverId: string): Promise<DriverLocation | null> {
+    const [loc] = await db.select().from(driverLocations)
+      .where(eq(driverLocations.driverId, driverId));
+    return loc || null;
   }
 
   // ============================================================

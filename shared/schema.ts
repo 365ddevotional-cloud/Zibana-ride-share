@@ -6030,3 +6030,20 @@ export const founderStrategicReminders = pgTable("founder_strategic_reminders", 
 });
 
 export type FounderStrategicReminder = typeof founderStrategicReminders.$inferSelect;
+
+export const driverLocations = pgTable("driver_locations", {
+  id: serial("id").primaryKey(),
+  driverId: varchar("driver_id").notNull().unique(),
+  lat: decimal("lat", { precision: 10, scale: 7 }).notNull(),
+  lng: decimal("lng", { precision: 10, scale: 7 }).notNull(),
+  heading: decimal("heading", { precision: 6, scale: 2 }),
+  speed: decimal("speed", { precision: 8, scale: 2 }),
+  accuracy: decimal("accuracy", { precision: 8, scale: 2 }),
+  battery: decimal("battery", { precision: 5, scale: 2 }),
+  isMoving: boolean("is_moving"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertDriverLocationSchema = createInsertSchema(driverLocations).omit({ id: true });
+export type InsertDriverLocation = z.infer<typeof insertDriverLocationSchema>;
+export type DriverLocation = typeof driverLocations.$inferSelect;

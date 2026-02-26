@@ -71,3 +71,21 @@ The data storage layer uses PostgreSQL as the database, with Drizzle ORM and Zod
 - All direct `fetch('/api/...')` calls across components also use `API_BASE`
 - For Capacitor/mobile: set `VITE_API_BASE_URL=https://your-deployed-backend.com` at build time
 - See `.env.example` for reference
+
+### Capacitor Mobile Integration
+- Capacitor 7.5.0 with `@capacitor/core@8.1.0`, `@capacitor/android@8.1.0`, `@capacitor/ios@8.1.0`
+- Plugins: `@capacitor/geolocation@8.1.0`, `@capacitor/app@8.0.1`, `@capacitor/device@8.0.1`
+- App ID: `com.zibana.app`, webDir: `dist/public`
+- Android: permissions for `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`, `ACCESS_BACKGROUND_LOCATION`, `usesCleartextTraffic=true`
+- iOS: `NSLocationWhenInUseUsageDescription` and `NSLocationAlwaysAndWhenInUseUsageDescription` set in Info.plist
+
+### Driver Location Tracking Engine
+- `client/src/lib/trackingEngine.ts` — Foreground GPS tracking using Capacitor Geolocation watchPosition
+- `client/src/hooks/useDriverTracking.ts` — React hook exposing `trackingState`, `start()`, `stop()`, `lastCoords`, `lastSentAt`
+- Wired into driver dashboard: starts on Go Online, stops on Go Offline, auto-resumes on page reload if online
+- Throttle: uploads at most once every 3s OR when distance > 20m
+- Battery level reported via `@capacitor/device`
+- Offline resilience: queues last known point, retries after 5s
+- Backend: `POST /api/driver/location` (upsert), `GET /api/driver/location/latest?driverId=` (read)
+- DB table: `driver_locations` (unique per driverId, latest position only)
+- Dev-only debug panel shows coords, last POST time, and errors on driver dashboard

@@ -30340,6 +30340,55 @@ export async function registerRoutes(
       return res.status(500).json({ message: "Failed to cleanup messages" });
     }
   });
+  // ============================================================
+  // DRIVER LIVE LOCATION
+  // ============================================================
+
+  app.post("/api/driver/location", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { lat, lng, heading, speed, accuracy, battery } = req.body;
+
+      if (lat == null || lng == null) {
+        return res.status(400).json({ message: "lat and lng are required" });
+      }
+
+      const isMoving = speed != null ? Number(speed) > 0.5 : null;
+
+      await storage.upsertDriverLocation(userId, {
+        lat: String(lat),
+        lng: String(lng),
+        heading: heading != null ? String(heading) : null,
+        speed: speed != null ? String(speed) : null,
+        accuracy: accuracy != null ? String(accuracy) : null,
+        battery: battery != null ? String(battery) : null,
+        isMoving,
+      });
+
+      return res.json({ ok: true });
+    } catch (error) {
+      console.error("Error updating driver location:", error);
+      return res.status(500).json({ message: "Failed to update location" });
+    }
+  });
+
+  app.get("/api/driver/location/latest", isAuthenticated, requireRole(["admin", "super_admin", "rider", "dispatcher"]), async (req: any, res) => {
+    try {
+      const { driverId } = req.query;
+      if (!driverId) {
+        return res.status(400).json({ message: "driverId query parameter is required" });
+      }
+      const loc = await storage.getDriverLocation(driverId as string);
+      if (!loc) {
+        return res.status(404).json({ message: "No location found for this driver" });
+      }
+      return res.json(loc);
+    } catch (error) {
+      console.error("Error fetching driver location:", error);
+      return res.status(500).json({ message: "Failed to fetch location" });
+    }
+  });
+
   app.use((err: any, req: any, res: any, next: any) => {
     console.error(`[ERROR] ${req.method} ${req.path}:`, err);
     const statusCode = err.statusCode || err.status || 500;

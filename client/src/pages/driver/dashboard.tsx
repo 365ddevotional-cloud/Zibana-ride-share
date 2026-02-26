@@ -21,6 +21,7 @@ import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
 import { TripChat } from "@/components/trip-chat";
 import { RideRequestOverlay } from "@/components/driver/RideRequestOverlay";
 import type { DriverProfile, Trip } from "@shared/schema";
+import { useDriverTracking } from "@/hooks/useDriverTracking";
 
 const isDev = import.meta.env.DEV;
 const SUPER_ADMIN_EMAIL = "365ddevotional@gmail.com";
@@ -84,6 +85,7 @@ export default function DriverDashboard() {
   const [isOnlineLocal, setIsOnlineLocal] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [simTrip, setSimTrip] = useState<(Trip & { _sim?: boolean }) | null>(null);
+  const { trackingState, lastCoords, lastSentAt, error: trackingError, start: startTracking, stop: stopTracking } = useDriverTracking();
 
   const { data: userRole } = useQuery<{ role: string; roles?: string[] } | null>({
     queryKey: ["/api/user/role"],
@@ -110,6 +112,9 @@ export default function DriverDashboard() {
     if (profile && !profileLoaded) {
       setIsOnlineLocal(profile.isOnline);
       setProfileLoaded(true);
+      if (profile.isOnline && trackingState === "idle") {
+        startTracking();
+      }
     }
   }, [profile, profileLoaded]);
 
@@ -181,6 +186,11 @@ export default function DriverDashboard() {
     onSuccess: (data) => {
       setIsOnlineLocal(data.isOnline);
       queryClient.invalidateQueries({ queryKey: ["/api/driver/profile"] });
+      if (data.isOnline) {
+        startTracking();
+      } else {
+        stopTracking();
+      }
       toast({
         title: data.isOnline ? "You're online!" : "You're offline",
         description: data.isOnline 
@@ -611,6 +621,28 @@ export default function DriverDashboard() {
         )}
 
         {isOnline && <BehaviorAdvisory />}
+
+        {isOnline && trackingState !== "idle" && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground" data-testid="tracking-status">
+            <MapPin className="h-3 w-3" />
+            <span>
+              {trackingState === "starting" && "Starting GPS..."}
+              {trackingState === "tracking" && "Tracking active (foreground)"}
+              {trackingState === "error" && `Tracking error: ${trackingError || "unknown"}`}
+            </span>
+          </div>
+        )}
+
+        {isDev && trackingState !== "idle" && (
+          <Card className="border-dashed border-yellow-500/40" data-testid="tracking-debug-panel">
+            <CardContent className="pt-3 text-xs space-y-1 font-mono">
+              <p>Status: {trackingState}</p>
+              <p>Coords: {lastCoords ? `${lastCoords.lat.toFixed(6)}, ${lastCoords.lng.toFixed(6)}` : "—"}</p>
+              <p>Last POST: {lastSentAt ? new Date(lastSentAt).toLocaleTimeString() : "—"}</p>
+              {trackingError && <p className="text-red-500">Error: {trackingError}</p>}
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid grid-cols-2 gap-3">
           <Card data-testid="card-today-trips">
