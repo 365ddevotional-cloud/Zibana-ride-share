@@ -11,6 +11,7 @@ interface TrackingOptions {
 }
 
 let watchId: number | null = null;
+let mockIntervalId: ReturnType<typeof setInterval> | null = null;
 let lastSentTime = 0;
 let lastSentLat = 0;
 let lastSentLng = 0;
@@ -110,11 +111,70 @@ export function onTrackingStateChange(cb: (state: Partial<TrackingState>) => voi
   stateCallback = cb;
 }
 
+async function isNativePlatform(): Promise<boolean> {
+  try {
+    const { Capacitor } = await import("@capacitor/core");
+    return Capacitor.getPlatform() !== "web";
+  } catch {
+    return false;
+  }
+}
+
+export async function startMockTracking(): Promise<void> {
+  if (mockIntervalId != null) return;
+
+  const throttleMs = 3000;
+  const minDistanceMeters = 20;
+
+  stateCallback?.({ status: "starting" });
+
+  let mockLat = 29.4241;
+  let mockLng = -98.4936;
+  let step = 0;
+
+  mockIntervalId = setInterval(async () => {
+    step++;
+    mockLat += 0.0003 * Math.cos(step * 0.2);
+    mockLng += 0.0004 * Math.sin(step * 0.15);
+    const heading = (step * 15) % 360;
+    const speed = 8 + Math.random() * 4;
+
+    stateCallback?.({
+      status: "tracking",
+      lastCoords: { lat: mockLat, lng: mockLng },
+      error: null,
+    });
+
+    const result = await processUpdate(
+      mockLat, mockLng, heading, speed, 10, throttleMs, minDistanceMeters,
+    );
+    if (result.sent && result.ok) {
+      stateCallback?.({ lastSentAt: Date.now() });
+    }
+  }, 3000);
+
+  stateCallback?.({ status: "tracking" });
+}
+
+export async function stopMockTracking(): Promise<void> {
+  if (mockIntervalId != null) {
+    clearInterval(mockIntervalId);
+    mockIntervalId = null;
+  }
+  resetState();
+}
+
 export async function startTracking(options: TrackingOptions = {}): Promise<void> {
   const throttleMs = options.throttleMs ?? 3000;
   const minDistanceMeters = options.minDistanceMeters ?? 20;
 
-  if (watchId != null) return;
+  if (watchId != null || mockIntervalId != null) return;
+
+  const native = await isNativePlatform();
+  if (!native && import.meta.env.DEV) {
+    await startMockTracking();
+    return;
+  }
 
   stateCallback?.({ status: "starting" });
 
@@ -167,14 +227,7 @@ export async function startTracking(options: TrackingOptions = {}): Promise<void
   }
 }
 
-export async function stopTracking(): Promise<void> {
-  if (watchId != null) {
-    try {
-      const { Geolocation } = await import("@capacitor/geolocation");
-      await Geolocation.clearWatch({ id: String(watchId) });
-    } catch {}
-    watchId = null;
-  }
+function resetState() {
   if (retryTimeout) {
     clearTimeout(retryTimeout);
     retryTimeout = null;
@@ -186,6 +239,25 @@ export async function stopTracking(): Promise<void> {
   stateCallback?.({ status: "idle", lastCoords: null, lastSentAt: null, error: null });
 }
 
+export async function stopTracking(): Promise<void> {
+  if (mockIntervalId != null) {
+    await stopMockTracking();
+    return;
+  }
+  if (watchId != null) {
+    try {
+      const { Geolocation } = await import("@capacitor/geolocation");
+      await Geolocation.clearWatch({ id: String(watchId) });
+    } catch {}
+    watchId = null;
+  }
+  resetState();
+}
+
 export function isTracking(): boolean {
-  return watchId != null;
+  return watchId != null || mockIntervalId != null;
+}
+
+export function isMockMode(): boolean {
+  return mockIntervalId != null;
 }

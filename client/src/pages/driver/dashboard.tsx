@@ -22,6 +22,7 @@ import { TripChat } from "@/components/trip-chat";
 import { RideRequestOverlay } from "@/components/driver/RideRequestOverlay";
 import type { DriverProfile, Trip } from "@shared/schema";
 import { useDriverTracking } from "@/hooks/useDriverTracking";
+import { startMockTracking, stopMockTracking, isMockMode } from "@/lib/trackingEngine";
 
 const isDev = import.meta.env.DEV;
 const SUPER_ADMIN_EMAIL = "365ddevotional@gmail.com";
@@ -633,13 +634,36 @@ export default function DriverDashboard() {
           </div>
         )}
 
-        {isDev && trackingState !== "idle" && (
+        {isDev && (
           <Card className="border-dashed border-yellow-500/40" data-testid="tracking-debug-panel">
-            <CardContent className="pt-3 text-xs space-y-1 font-mono">
-              <p>Status: {trackingState}</p>
+            <CardContent className="pt-3 text-xs space-y-2 font-mono">
+              <p className="font-semibold text-yellow-600">GPS Debug (dev only)</p>
+              <p>Status: {trackingState}{isMockMode() ? " (MOCK)" : ""}</p>
               <p>Coords: {lastCoords ? `${lastCoords.lat.toFixed(6)}, ${lastCoords.lng.toFixed(6)}` : "—"}</p>
               <p>Last POST: {lastSentAt ? new Date(lastSentAt).toLocaleTimeString() : "—"}</p>
               {trackingError && <p className="text-red-500">Error: {trackingError}</p>}
+              <div className="flex gap-2 pt-1">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-xs h-7"
+                  onClick={() => startMockTracking()}
+                  disabled={trackingState === "tracking"}
+                  data-testid="button-start-mock-drive"
+                >
+                  Start Mock Drive
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-xs h-7"
+                  onClick={() => stopMockTracking()}
+                  disabled={trackingState === "idle"}
+                  data-testid="button-stop-mock-drive"
+                >
+                  Stop Mock Drive
+                </Button>
+              </div>
             </CardContent>
           </Card>
         )}

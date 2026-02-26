@@ -30365,6 +30365,10 @@ export async function registerRoutes(
         isMoving,
       });
 
+      if (process.env.NODE_ENV === "development") {
+        console.log(`[TRACKING] Driver location updated: driverId=${userId}, lat=${lat}, lng=${lng}`);
+      }
+
       return res.json({ ok: true });
     } catch (error) {
       console.error("Error updating driver location:", error);
