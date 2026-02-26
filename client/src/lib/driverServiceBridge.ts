@@ -15,6 +15,8 @@ interface DriverServicePluginInterface {
     distance: string;
     duration: string;
   }): Promise<{ triggered: boolean }>;
+  setDriverOnlineState(data: { online: boolean }): Promise<{ online: boolean }>;
+  setTripActive(data: { active: boolean }): Promise<{ active: boolean }>;
   addListener(
     eventName: "rideActionResponse",
     listener: (data: { rideId: string; accepted: boolean }) => void
@@ -73,6 +75,26 @@ export async function triggerIncomingRide(data: {
     console.log("[DriverService] Incoming ride triggered:", data.rideId);
   } catch (e) {
     console.error("[DriverService] Failed to trigger incoming ride:", e);
+  }
+}
+
+export async function setDriverOnlineState(online: boolean): Promise<void> {
+  if (!DriverServiceNative) return;
+  try {
+    await DriverServiceNative.setDriverOnlineState({ online });
+    console.log("[DriverService] Driver online state set to:", online);
+  } catch (e) {
+    console.error("[DriverService] Failed to set driver online state:", e);
+  }
+}
+
+export async function setTripActive(active: boolean): Promise<void> {
+  if (!DriverServiceNative) return;
+  try {
+    await DriverServiceNative.setTripActive({ active });
+    console.log("[DriverService] Trip active state set to:", active);
+  } catch (e) {
+    console.error("[DriverService] Failed to set trip active state:", e);
   }
 }
 

@@ -72,4 +72,18 @@ class DriverServicePlugin : Plugin() {
             call.reject("Failed to trigger incoming ride: ${e.message}", e)
         }
     }
+
+    @PluginMethod
+    fun setDriverOnlineState(call: PluginCall) {
+        val online = call.getBoolean("online") ?: false
+        MainActivity.setDriverOnline(online)
+        call.resolve(JSObject().apply { put("online", online) })
+    }
+
+    @PluginMethod
+    fun setTripActive(call: PluginCall) {
+        val active = call.getBoolean("active") ?: false
+        MainActivity.setTripActive(active)
+        call.resolve(JSObject().apply { put("active", active) })
+    }
 }

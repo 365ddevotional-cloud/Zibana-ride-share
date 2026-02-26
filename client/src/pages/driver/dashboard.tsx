@@ -29,6 +29,8 @@ import {
   triggerIncomingRide,
   onRideActionResponse,
   isAndroidNative,
+  setDriverOnlineState,
+  setTripActive,
 } from "@/lib/driverServiceBridge";
 
 const isDev = import.meta.env.DEV;
@@ -123,6 +125,7 @@ export default function DriverDashboard() {
       if (profile.isOnline && trackingState === "idle") {
         startTracking();
         startDriverService();
+        setDriverOnlineState(true);
       }
     }
   }, [profile, profileLoaded]);
@@ -142,11 +145,13 @@ export default function DriverDashboard() {
   useEffect(() => {
     if (currentTrip?.id && currentTrip.status === "in_progress") {
       setTrip(currentTrip.id);
+      setTripActive(true);
       if (trackingState === "idle" && isOnlineLocal) {
         startTracking(currentTrip.id);
       }
     } else {
       setTrip(null);
+      setTripActive(false);
     }
   }, [currentTrip?.id, currentTrip?.status]);
 
@@ -209,9 +214,12 @@ export default function DriverDashboard() {
       if (data.isOnline) {
         startTracking();
         startDriverService();
+        setDriverOnlineState(true);
       } else {
         stopTracking();
         stopDriverService();
+        setDriverOnlineState(false);
+        setTripActive(false);
       }
       toast({
         title: data.isOnline ? "You're online!" : "You're offline",
