@@ -2235,7 +2235,7 @@ export async function registerRoutes(
       }
 
       // Get trip first to check pairing block
-      const tripToCheck = await storage.getTrip(tripId);
+      const tripToCheck = await storage.getTripById(tripId);
       if (!tripToCheck) {
         return res.status(404).json({ message: "Trip not found" });
       }
