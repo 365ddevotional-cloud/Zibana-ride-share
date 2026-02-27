@@ -1,8 +1,10 @@
 package com.zibana.app
 
 import android.app.KeyguardManager
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
@@ -37,7 +39,7 @@ class RideIncomingActivity : AppCompatActivity() {
         const val EXTRA_DISTANCE = "distance"
         const val EXTRA_DURATION = "duration"
 
-        const val RIDE_CHANNEL_ID = "zibana_ride_incoming"
+        const val RIDE_CHANNEL_ID = "zibana_ride_incoming_v2"
         const val RIDE_NOTIFICATION_ID = 2001
         const val COUNTDOWN_MS = 12000L
         const val TICK_MS = 100L
@@ -48,6 +50,7 @@ class RideIncomingActivity : AppCompatActivity() {
     private var countDownTimer: CountDownTimer? = null
     private var mediaPlayer: MediaPlayer? = null
     private var wakeLock: PowerManager.WakeLock? = null
+    private var audioFocusHelper: AudioFocusHelper? = null
     private var rideId: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -92,8 +95,13 @@ class RideIncomingActivity : AppCompatActivity() {
             respondToRide(false)
         }
 
+        audioFocusHelper = AudioFocusHelper(this)
+        audioFocusHelper?.requestFocus()
+
         startAlertSound()
         startVibration()
+
+        OnlineOverlayService.notifyRideIncoming(this, rideId, riderName, "$currency$fare")
 
         countDownTimer = object : CountDownTimer(COUNTDOWN_MS, TICK_MS) {
             override fun onTick(millisUntilFinished: Long) {
@@ -142,16 +150,18 @@ class RideIncomingActivity : AppCompatActivity() {
                 if (resId != 0) {
                     Uri.parse("android.resource://$packageName/$resId")
                 } else {
-                    RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+                    RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                        ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
                 }
             } catch (e: Exception) {
-                RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+                RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                    ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
             }
 
             mediaPlayer = MediaPlayer().apply {
                 setAudioAttributes(
                     AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                        .setUsage(AudioAttributes.USAGE_ALARM)
                         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                         .build()
                 )
@@ -162,8 +172,8 @@ class RideIncomingActivity : AppCompatActivity() {
             }
 
             val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
-            val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_RING)
-            audioManager.setStreamVolume(AudioManager.STREAM_RING, maxVolume, 0)
+            val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+            audioManager.setStreamVolume(AudioManager.STREAM_ALARM, maxVolume, 0)
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -189,10 +199,13 @@ class RideIncomingActivity : AppCompatActivity() {
 
     private fun stopAlerts() {
         mediaPlayer?.apply {
-            if (isPlaying) stop()
-            release()
+            try { if (isPlaying) stop() } catch (_: Exception) {}
+            try { release() } catch (_: Exception) {}
         }
         mediaPlayer = null
+
+        audioFocusHelper?.abandonFocus()
+        audioFocusHelper = null
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val vibratorManager = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
@@ -212,6 +225,7 @@ class RideIncomingActivity : AppCompatActivity() {
         countDownTimer?.cancel()
         stopAlerts()
         cancelNotification()
+        OnlineOverlayService.notifyRideDismissed(this)
         onRideAction?.invoke(rideId, accepted)
 
         val resultIntent = Intent(this, MainActivity::class.java).apply {
@@ -275,10 +289,13 @@ class RideIncomingActivity : AppCompatActivity() {
         countDownTimer?.cancel()
         stopAlerts()
         cancelNotification()
+        OnlineOverlayService.notifyRideDismissed(this)
         super.onDestroy()
     }
 
+    @Suppress("DEPRECATION")
     override fun onBackPressed() {
+        super.onBackPressed()
         respondToRide(false)
     }
 }

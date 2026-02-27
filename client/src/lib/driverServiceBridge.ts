@@ -17,6 +17,15 @@ interface DriverServicePluginInterface {
   }): Promise<{ triggered: boolean }>;
   setDriverOnlineState(data: { online: boolean }): Promise<{ online: boolean }>;
   setTripActive(data: { active: boolean }): Promise<{ active: boolean }>;
+  requestOverlayPermission(): Promise<{
+    granted: boolean;
+    alreadyGranted?: boolean;
+    settingsOpened?: boolean;
+  }>;
+  setOverlayEnabled(data: { enabled: boolean }): Promise<{
+    enabled: boolean;
+    permissionDenied?: boolean;
+  }>;
   addListener(
     eventName: "rideActionResponse",
     listener: (data: { rideId: string; accepted: boolean }) => void
@@ -95,6 +104,43 @@ export async function setTripActive(active: boolean): Promise<void> {
     console.log("[DriverService] Trip active state set to:", active);
   } catch (e) {
     console.error("[DriverService] Failed to set trip active state:", e);
+  }
+}
+
+export async function requestOverlayPermission(): Promise<{
+  granted: boolean;
+  alreadyGranted?: boolean;
+  settingsOpened?: boolean;
+}> {
+  if (!DriverServiceNative) {
+    console.log("[DriverService] Not on Android native, skipping requestOverlayPermission");
+    return { granted: false };
+  }
+  try {
+    const result = await DriverServiceNative.requestOverlayPermission();
+    console.log("[DriverService] Overlay permission result:", result);
+    return result;
+  } catch (e) {
+    console.error("[DriverService] Failed to request overlay permission:", e);
+    return { granted: false };
+  }
+}
+
+export async function setOverlayEnabled(enabled: boolean): Promise<{
+  enabled: boolean;
+  permissionDenied?: boolean;
+}> {
+  if (!DriverServiceNative) {
+    console.log("[DriverService] Not on Android native, skipping setOverlayEnabled");
+    return { enabled: false };
+  }
+  try {
+    const result = await DriverServiceNative.setOverlayEnabled({ enabled });
+    console.log("[DriverService] Overlay enabled:", result);
+    return result;
+  } catch (e) {
+    console.error("[DriverService] Failed to set overlay:", e);
+    return { enabled: false };
   }
 }
 

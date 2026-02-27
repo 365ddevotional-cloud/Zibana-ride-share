@@ -31,6 +31,8 @@ import {
   isAndroidNative,
   setDriverOnlineState,
   setTripActive,
+  requestOverlayPermission,
+  setOverlayEnabled,
 } from "@/lib/driverServiceBridge";
 
 const isDev = import.meta.env.DEV;
@@ -95,6 +97,7 @@ export default function DriverDashboard() {
   const [isOnlineLocal, setIsOnlineLocal] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [simTrip, setSimTrip] = useState<(Trip & { _sim?: boolean }) | null>(null);
+  const [overlayBubbleEnabled, setOverlayBubbleEnabled] = useState(false);
   const { trackingState, lastCoords, lastSentAt, error: trackingError, start: startTracking, stop: stopTracking, setTrip } = useDriverTracking();
 
   const { data: userRole } = useQuery<{ role: string; roles?: string[] } | null>({
@@ -220,6 +223,7 @@ export default function DriverDashboard() {
         stopDriverService();
         setDriverOnlineState(false);
         setTripActive(false);
+        setOverlayBubbleEnabled(false);
       }
       toast({
         title: data.isOnline ? "You're online!" : "You're offline",
@@ -726,6 +730,32 @@ export default function DriverDashboard() {
                   Stop Mock Drive
                 </Button>
               </div>
+              {isAndroidNative() && (
+                <div className="flex items-center justify-between pt-2 border-t border-yellow-500/20">
+                  <span className="text-yellow-600">Online Bubble (overlay)</span>
+                  <Switch
+                    checked={overlayBubbleEnabled}
+                    onCheckedChange={async (checked) => {
+                      if (checked) {
+                        const perm = await requestOverlayPermission();
+                        if (perm.granted || perm.alreadyGranted) {
+                          const result = await setOverlayEnabled(true);
+                          setOverlayBubbleEnabled(result.enabled);
+                          if (result.permissionDenied) {
+                            toast({ title: "Permission needed", description: "Please grant 'Display over other apps' in settings", variant: "destructive" });
+                          }
+                        } else {
+                          toast({ title: "Permission requested", description: "Allow 'Display over other apps' for Zibana, then try again" });
+                        }
+                      } else {
+                        await setOverlayEnabled(false);
+                        setOverlayBubbleEnabled(false);
+                      }
+                    }}
+                    data-testid="switch-overlay-bubble"
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
         )}

@@ -1,0 +1,51 @@
+ZIBANA — Implement “Online Priority Mode” so Zibana ride requests break through other apps reliably, without illegal OS locking.
+
+Goal:
+- When driver is ONLINE (or tripActive), incoming ride must interrupt YouTube/other apps with sound + heads-up/full-screen alert.
+- Add robust audio focus so alert sound plays even when media is active.
+- Add an OPTIONAL overlay “Online Bubble” (draw-over-other-apps) showing “Zibana Online” + Accept/Decline shortcut. Must be disabled by default and only enabled after user grants permission.
+- Do NOT attempt to block other apps globally (no kiosk mode). Use OS-compliant patterns only.
+
+Current known pieces already exist:
+- Foreground service: DriverForegroundService.kt
+- Full screen incoming alert activity: RideIncomingActivity.kt
+- Capacitor plugin: DriverServicePlugin.kt
+- Bridge: client/src/lib/driverServiceBridge.ts
+- Driver dashboard calls setDriverOnlineState / setTripActive and triggers incoming ride.
+
+Tasks:
+1) Android audio focus:
+   - In RideIncomingActivity.kt (or a shared helper), request AudioFocus using AudioManager + AudioFocusRequest (API 26+) with USAGE_ALARM or USAGE_NOTIFICATION_RINGTONE and CONTENT_TYPE_SONIFICATION.
+   - Duck or pause other audio while alert plays; release focus on accept/decline/timeout.
+   - Ensure alert sound always plays even if device is in Do Not Disturb is not allowed; keep within normal notification/audio rules.
+
+2) Notification importance:
+   - Ensure the foreground service notification channel is IMPORTANCE_LOW (fine) but incoming ride channel is IMPORTANCE_HIGH with CATEGORY_CALL or CATEGORY_ALARM and fullScreenIntent set.
+   - If channels already exist, migrate carefully (Android channels can’t be downgraded once created; create a new channel id if needed).
+
+3) Optional overlay bubble:
+   - Add a new Android component: OnlineOverlayService.kt (TYPE_APPLICATION_OVERLAY) that shows a small draggable bubble when driverOnline=true.
+   - Bubble opens Zibana app on tap.
+   - Bubble shows a simple “Ride Incoming” state and provides Accept/Decline buttons ONLY while RideIncomingActivity is active (or via broadcast).
+   - Gate behind permission: Settings.canDrawOverlays(). Provide a single method in DriverServicePlugin:
+        - requestOverlayPermission()
+        - setOverlayEnabled(boolean)
+     Overlay is OFF by default.
+
+4) Frontend wiring:
+   - In client/src/pages/driver/dashboard.tsx add a “Enable Online Bubble (optional)” toggle in driver settings (dev-only is fine initially).
+   - When toggled ON: call requestOverlayPermission() then setOverlayEnabled(true). When OFF: setOverlayEnabled(false).
+   - Ensure web/iOS no-op.
+
+5) Safety:
+   - Must not crash if permission denied.
+   - Must not run overlay unless driverOnline=true.
+   - Must stop overlay when driver goes offline.
+   - Keep iOS untouched.
+
+Deliverables:
+- List all files created/modified.
+- Provide exact test steps on Android device:
+   - While YouTube is playing, go online in driver app, trigger incoming ride, confirm full-screen interrupt + sound.
+   - Confirm PiP still works.
+   - Confirm optional overlay bubble appears only after permission + online, and disappears when offline.
