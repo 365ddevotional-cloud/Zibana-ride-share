@@ -1,8 +1,41 @@
-node_modules
-dist
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Environment files
+.env
+.env.*
+
+# System / IDE junk
 .DS_Store
+.cache/
+.replit
+.replit.nix
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Large archive files
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+log-query.db*
+
+# Binary files
+*.bin
+
+# Project-specific
 server/public
 vite.config.ts.*
-*.tar.gz
-*.zip
 zibana-full-backup.zip
