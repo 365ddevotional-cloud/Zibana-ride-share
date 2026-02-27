@@ -1,5 +1,6 @@
 package com.zibana.app
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -133,6 +134,38 @@ class DriverServicePlugin : Plugin() {
             }
         } catch (e: Exception) {
             call.reject("Failed to request overlay permission: ${e.message}", e)
+        }
+    }
+
+    @PluginMethod
+    fun requestBatteryOptimizationExemption(call: PluginCall) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val pm = context.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+                if (pm.isIgnoringBatteryOptimizations(context.packageName)) {
+                    call.resolve(JSObject().apply {
+                        put("alreadyExempt", true)
+                    })
+                    return
+                }
+                val intent = Intent(
+                    android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                    Uri.parse("package:${context.packageName}")
+                ).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                context.startActivity(intent)
+                call.resolve(JSObject().apply {
+                    put("alreadyExempt", false)
+                    put("dialogOpened", true)
+                })
+            } else {
+                call.resolve(JSObject().apply {
+                    put("alreadyExempt", true)
+                })
+            }
+        } catch (e: Exception) {
+            call.reject("Failed to request battery exemption: ${e.message}", e)
         }
     }
 

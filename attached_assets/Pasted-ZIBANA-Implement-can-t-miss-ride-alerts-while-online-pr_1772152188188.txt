@@ -1,0 +1,57 @@
+ZIBANA — Implement “can’t miss ride alerts while online” properly (without impossible OS-breaking behavior).
+
+Context:
+- App is Capacitor (web + Android native).
+- We already have Android foreground service + full-screen RideIncomingActivity + PiP support.
+- User request: while driver is Online, ride alerts must cut through other apps (YouTube etc), driver must hear alert, and Zibana should remain functional. We cannot truly block other apps globally; implement the best-practice Uber-like behavior.
+
+Goal:
+A) Make ride alert audio reliably audible even if another app is playing audio.
+B) Make incoming ride alert show as heads-up + full-screen intent where possible.
+C) Improve reliability under Doze/battery optimizations (Android).
+D) Optional: Add an “overlay bubble” ONLY if user enables it (requires SYSTEM_ALERT_WINDOW permission). Default OFF.
+
+Tasks:
+1) Android audio focus + alert channel tuning
+   - In RideIncomingActivity (or wherever alert sound plays), request Audio Focus:
+     * Use AudioAttributes USAGE_ALARM / CONTENT_TYPE_SONIFICATION (or USAGE_NOTIFICATION_RINGTONE).
+     * Request AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK or AUDIOFOCUS_GAIN_TRANSIENT.
+     * On focus granted: play sound at max (respect device volume), vibrate, loop until accept/decline/timeout.
+     * Release audio focus on stop/destroy.
+   - Ensure NotificationChannel importance is HIGH, category CALL (or ALARM), visibility PUBLIC, and supports full screen intent.
+   - Ensure foreground service notification uses appropriate channel; ensure it doesn’t downgrade alert channel.
+
+2) Heads-up / Full-screen intent reliability
+   - When a ride arrives while driver online:
+     * Post a high priority notification (PRIORITY_MAX / IMPORTANCE_HIGH).
+     * Attach fullScreenIntent to RideIncomingActivity.
+     * Use setCategory(CATEGORY_CALL) and setOngoing(true) for the duration of countdown.
+   - Ensure flags in RideIncomingActivity:
+     * setShowWhenLocked(true), setTurnScreenOn(true)
+     * window flags: FLAG_KEEP_SCREEN_ON, FLAG_TURN_SCREEN_ON, FLAG_SHOW_WHEN_LOCKED (API conditional)
+   - Keep the 12s countdown behavior.
+
+3) Battery optimization helper (no assumptions)
+   - Add a small UI notice on Driver dashboard when Online:
+     * If Android, show “Improve reliability” button that opens battery optimization exemption screen:
+       ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS for this package.
+     * Also include instructions text in repl.it / docs.
+
+4) Optional overlay bubble (strictly opt-in)
+   - Add a Driver setting toggle: “Floating alert bubble (optional)”
+   - If enabled, request overlay permission (Settings.ACTION_MANAGE_OVERLAY_PERMISSION).
+   - When a ride comes in and app is backgrounded, show small overlay bubble that opens RideIncomingActivity on tap.
+   - Keep it minimal and safe; if permission not granted, gracefully no-op.
+
+5) Web/iOS behavior
+   - Web: keep existing behavior (sound + in-app UI).
+   - iOS: do NOT attempt overlays; only keep existing webview behavior; no breaking changes.
+
+Deliverables:
+- Implement code changes with clean compilation.
+- List all files changed.
+- Add testing steps:
+  * Start YouTube audio, toggle driver online, trigger ride → confirm alert sound interrupts/ducks YouTube, full-screen UI shows.
+  * Test lock screen and home screen.
+  * Test with battery optimization on/off.
+- Keep changes minimal and guarded (Android-only checks).

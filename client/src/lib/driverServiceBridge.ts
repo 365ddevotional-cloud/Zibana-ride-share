@@ -26,6 +26,10 @@ interface DriverServicePluginInterface {
     enabled: boolean;
     permissionDenied?: boolean;
   }>;
+  requestBatteryOptimizationExemption(): Promise<{
+    alreadyExempt?: boolean;
+    dialogOpened?: boolean;
+  }>;
   addListener(
     eventName: "rideActionResponse",
     listener: (data: { rideId: string; accepted: boolean }) => void
@@ -141,6 +145,24 @@ export async function setOverlayEnabled(enabled: boolean): Promise<{
   } catch (e) {
     console.error("[DriverService] Failed to set overlay:", e);
     return { enabled: false };
+  }
+}
+
+export async function requestBatteryOptimizationExemption(): Promise<{
+  alreadyExempt?: boolean;
+  dialogOpened?: boolean;
+}> {
+  if (!DriverServiceNative) {
+    console.log("[DriverService] Not on Android native, skipping requestBatteryOptimizationExemption");
+    return {};
+  }
+  try {
+    const result = await DriverServiceNative.requestBatteryOptimizationExemption();
+    console.log("[DriverService] Battery optimization result:", result);
+    return result;
+  } catch (e) {
+    console.error("[DriverService] Failed to request battery optimization exemption:", e);
+    return {};
   }
 }
 

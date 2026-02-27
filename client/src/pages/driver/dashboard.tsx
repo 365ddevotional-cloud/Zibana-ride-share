@@ -33,6 +33,7 @@ import {
   setTripActive,
   requestOverlayPermission,
   setOverlayEnabled,
+  requestBatteryOptimizationExemption,
 } from "@/lib/driverServiceBridge";
 
 const isDev = import.meta.env.DEV;
@@ -697,6 +698,31 @@ export default function DriverDashboard() {
               {trackingState === "tracking" && "Tracking active (foreground)"}
               {trackingState === "error" && `Tracking error: ${trackingError || "unknown"}`}
             </span>
+          </div>
+        )}
+
+        {isOnline && isAndroidNative() && (
+          <div className="flex items-center justify-between bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3" data-testid="battery-optimization-notice">
+            <div className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-400">
+              <Shield className="h-4 w-4 shrink-0" />
+              <span>For reliable ride alerts, disable battery optimization for Zibana</span>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-xs h-7 shrink-0 ml-2 border-amber-300 dark:border-amber-700"
+              onClick={async () => {
+                const result = await requestBatteryOptimizationExemption();
+                if (result.alreadyExempt) {
+                  toast({ title: "Already optimized", description: "Battery optimization is already disabled for Zibana" });
+                } else if (result.dialogOpened) {
+                  toast({ title: "Settings opened", description: "Select 'Don't optimize' for Zibana" });
+                }
+              }}
+              data-testid="button-battery-optimization"
+            >
+              Fix Now
+            </Button>
           </div>
         )}
 
