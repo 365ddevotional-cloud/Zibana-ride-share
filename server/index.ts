@@ -69,6 +69,20 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  if (process.env.NODE_ENV === "production" && process.env.DATABASE_URL) {
+    try {
+      const { execSync } = await import("child_process");
+      console.log("Syncing database schema...");
+      execSync("npx drizzle-kit push --force", {
+        stdio: "pipe",
+        timeout: 30000,
+      });
+      console.log("Database schema synced.");
+    } catch (err: any) {
+      console.warn("Schema sync warning (non-fatal):", err.message?.slice(0, 200));
+    }
+  }
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
