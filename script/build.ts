@@ -60,7 +60,14 @@ async function buildAll() {
 
   console.log("pushing database schema...");
   try {
-    execSync("npx drizzle-kit push --force", { stdio: "inherit" });
+    const dbPushOutput = execSync("npx drizzle-kit push --force", {
+      stdio: "pipe",
+      encoding: "utf-8",
+      timeout: 120000,
+    });
+    const lines = (dbPushOutput || "").trim().split("\n");
+    const lastLines = lines.slice(-5).join("\n");
+    if (lastLines) console.log(lastLines);
     console.log("database schema push complete.");
   } catch (err) {
     console.warn("db:push warning (non-fatal):", (err as Error).message);
