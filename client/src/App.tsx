@@ -17,7 +17,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useAdminInactivity } from "@/hooks/use-admin-inactivity";
 import { useQuery } from "@tanstack/react-query";
 import { QuickAccessBubblePrompt } from "@/components/quick-access-bubble-prompt";
-import { saveLastRoute } from "@/lib/quickAccessBubble";
+import { saveLastRoute, getLastRoute } from "@/lib/quickAccessBubble";
 import { FullPageLoading } from "@/components/loading-spinner";
 import { DashboardSkeleton } from "@/components/loading-skeleton";
 import NotFound from "@/pages/not-found";
@@ -1167,7 +1167,7 @@ function AppModeGuard({ children }: { children: React.ReactNode }) {
 }
 
 function MainRouter() {
-  const [location] = useLocation();
+  const [location, setLoc] = useLocation();
   const { user, isLoading: authLoading } = useAuth();
 
   useEffect(() => {
@@ -1175,6 +1175,17 @@ function MainRouter() {
       saveLastRoute(location);
     }
   }, [location, user]);
+
+  useEffect(() => {
+    const handleRestoreRoute = () => {
+      const lastRoute = getLastRoute();
+      if (lastRoute && lastRoute !== "/" && lastRoute !== location) {
+        setLoc(lastRoute);
+      }
+    };
+    window.addEventListener("restoreRoute", handleRestoreRoute);
+    return () => window.removeEventListener("restoreRoute", handleRestoreRoute);
+  }, [location, setLoc]);
   
   const { data: userRole, isLoading: roleLoading } = useQuery<{ role: string; roleCount?: number } | null>({
     queryKey: ["/api/user/role"],

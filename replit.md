@@ -86,6 +86,17 @@ Data storage uses PostgreSQL with Drizzle ORM and Zod for schema validation. The
 - `DriverServicePlugin.kt`: Capacitor plugin bridging JS to native features.
 - `OnlineOverlayService.kt`: Optional draggable "Online Bubble" overlay with ride alert functionality.
 
+### Quick Access Bubble (Messenger/Bolt-style)
+- `QuickAccessBubbleService.kt`: ForegroundService overlay bubble using Zibana logo (`ic_launcher_foreground`).
+- `QuickAccessPlugin.kt`: Capacitor plugin with `startBubble`, `stopBubble`, `isBubbleActive`, `requestOverlayPermission`, `hasOverlayPermission`.
+- `client/src/lib/quickAccessBubble.ts`: TS bridge with progressive prompt logic, route/ride state persistence.
+- `client/src/components/quick-access-bubble-prompt.tsx`: Dialog prompt shown on login with progressive frequency.
+- Bubble appears on login if enabled, disappears on logout, persists across app switches.
+- Tap restores app to last route via `restoreRoute` CustomEvent from `MainActivity.onNewIntent`.
+- Settings toggle in both rider and driver Settings → App Preferences.
+- Progressive prompt: 1st login, after 2 more logins, after 10 more; then disabled. Resets if user turns off in settings.
+- localStorage keys: `zibana_bubble_enabled`, `zibana_bubble_prompt_count`, `zibana_bubble_prompt_disabled`, `zibana_login_counter`, `lastRoute`, `rideState`.
+
 ### Android Picture-in-Picture (PiP) Mode
 - `android:supportsPictureInPicture="true"` enabled for MainActivity.
 - Automatic PiP entry when driver is online or has an active trip.

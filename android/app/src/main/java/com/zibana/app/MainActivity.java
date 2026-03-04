@@ -1,6 +1,7 @@
 package com.zibana.app;
 
 import android.app.PictureInPictureParams;
+import android.content.Intent;
 import android.content.res.Configuration;
 import android.os.Build;
 import android.os.Bundle;
@@ -33,6 +34,24 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(DriverServicePlugin.class);
         registerPlugin(QuickAccessPlugin.class);
         super.onCreate(savedInstanceState);
+        handleRestoreRoute(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        handleRestoreRoute(intent);
+    }
+
+    private void handleRestoreRoute(Intent intent) {
+        if (intent != null && intent.getBooleanExtra("restore_route", false)) {
+            if (getBridge() != null && getBridge().getWebView() != null) {
+                getBridge().getWebView().evaluateJavascript(
+                    "window.dispatchEvent(new CustomEvent('restoreRoute'));",
+                    null
+                );
+            }
+        }
     }
 
     @Override
