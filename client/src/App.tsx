@@ -16,6 +16,8 @@ import { SimulationProvider, SimulationBanner } from "@/context/SimulationContex
 import { useAuth } from "@/hooks/use-auth";
 import { useAdminInactivity } from "@/hooks/use-admin-inactivity";
 import { useQuery } from "@tanstack/react-query";
+import { QuickAccessBubblePrompt } from "@/components/quick-access-bubble-prompt";
+import { saveLastRoute } from "@/lib/quickAccessBubble";
 import { FullPageLoading } from "@/components/loading-spinner";
 import { DashboardSkeleton } from "@/components/loading-skeleton";
 import NotFound from "@/pages/not-found";
@@ -1167,6 +1169,12 @@ function AppModeGuard({ children }: { children: React.ReactNode }) {
 function MainRouter() {
   const [location] = useLocation();
   const { user, isLoading: authLoading } = useAuth();
+
+  useEffect(() => {
+    if (user && location && location !== "/") {
+      saveLastRoute(location);
+    }
+  }, [location, user]);
   
   const { data: userRole, isLoading: roleLoading } = useQuery<{ role: string; roleCount?: number } | null>({
     queryKey: ["/api/user/role"],
@@ -1248,6 +1256,7 @@ function App() {
                     <SimulationBanner />
                     <Toaster />
                     <NetworkStatusIndicator />
+                    <QuickAccessBubblePrompt />
                     <MainRouter />
                   </SimulationProvider>
                 </AppModeGuard>

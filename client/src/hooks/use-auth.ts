@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import type { User } from "@shared/models/auth";
 import { API_BASE } from "@/lib/apiBase";
+import { onUserLogin, onUserLogout } from "@/lib/quickAccessBubble";
 
 async function fetchUser(): Promise<User | null> {
   const response = await fetch(`${API_BASE}/api/auth/user`, {
@@ -34,6 +35,7 @@ const ZIBANA_LOCAL_KEYS = [
 ];
 
 async function logout(): Promise<void> {
+  await onUserLogout();
   sessionStorage.clear();
   for (const key of ZIBANA_LOCAL_KEYS) {
     localStorage.removeItem(key);
@@ -64,6 +66,7 @@ export function useAuth() {
   useEffect(() => {
     if (user && !heartbeatSent.current) {
       heartbeatSent.current = true;
+      onUserLogin();
       fetch(`${API_BASE}/api/analytics/session-heartbeat`, {
         method: "POST",
         credentials: "include",

@@ -14,10 +14,19 @@ import { useLocation } from "wouter";
 import { useTranslation, LANGUAGES } from "@/i18n";
 import {
   ArrowLeft, Bell, Sun, Moon, Monitor, Globe, Eye, Shield,
-  Info, ChevronRight, Lock, FileText, LogOut, Trash2, AlertTriangle, Phone, Car,
+  Info, ChevronRight, Lock, FileText, LogOut, Trash2, AlertTriangle, Phone, Car, Smartphone,
 } from "lucide-react";
 import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
 import type { DriverProfile } from "@shared/schema";
+import {
+  isQuickAccessAvailable,
+  isBubbleEnabled,
+  setBubbleEnabled,
+  startQuickAccessBubble,
+  stopQuickAccessBubble,
+  requestBubbleOverlayPermission,
+  resetPromptCycle,
+} from "@/lib/quickAccessBubble";
 
 export default function DriverSettings() {
   const { logout } = useAuth();
@@ -25,6 +34,7 @@ export default function DriverSettings() {
   const { theme, setTheme } = useTheme();
   const [, setLocation] = useLocation();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [bubbleOn, setBubbleOn] = useState(isBubbleEnabled());
   const { t, language } = useTranslation();
   const currentLang = LANGUAGES.find((l) => l.code === language);
 
@@ -208,6 +218,52 @@ export default function DriverSettings() {
             </CardContent>
           </Card>
         </div>
+
+        {isQuickAccessAvailable() && (
+          <div className="space-y-1">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1 mb-2">
+              App Preferences
+            </p>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                      <Smartphone className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="min-w-0">
+                      <Label className="text-sm font-medium">Zibana Quick Access Bubble</Label>
+                      <p className="text-xs text-muted-foreground">Floating bubble for quick app access</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={bubbleOn}
+                    onCheckedChange={async (checked) => {
+                      if (checked) {
+                        const perm = await requestBubbleOverlayPermission();
+                        if (perm.granted || perm.alreadyGranted) {
+                          setBubbleEnabled(true);
+                          setBubbleOn(true);
+                          await startQuickAccessBubble();
+                          toast({ title: "Quick Access Bubble enabled" });
+                        } else if (perm.settingsOpened) {
+                          toast({ title: "Permission needed", description: "Allow 'Display over other apps' for Zibana" });
+                        }
+                      } else {
+                        setBubbleEnabled(false);
+                        setBubbleOn(false);
+                        await stopQuickAccessBubble();
+                        resetPromptCycle();
+                        toast({ title: "Quick Access Bubble disabled" });
+                      }
+                    }}
+                    data-testid="switch-quick-access-bubble"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         <div className="space-y-1">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1 mb-2">
