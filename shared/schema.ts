@@ -24,7 +24,7 @@ export const adminPermissionScopeEnum = pgEnum("admin_permission_scope", [
 export const directorStatusEnum = pgEnum("director_status", ["active", "inactive"]);
 export const directorTypeEnum = pgEnum("director_type", ["contract", "employed"]);
 export const rolloutStatusEnum = pgEnum("rollout_status", ["PLANNED", "PREP", "PILOT", "LIMITED_LIVE", "FULL_LIVE", "PAUSED"]);
-export const driverStatusEnum = pgEnum("driver_status", ["pending", "approved", "suspended", "rejected"]);
+export const driverStatusEnum = pgEnum("driver_status", ["pending", "approved", "suspended", "rejected", "correction_required"]);
 
 // Navigation and GPS setup enums for driver mandatory setup
 export const navigationProviderEnum = pgEnum("navigation_provider", ["google_maps", "apple_maps", "waze", "other"]);
@@ -455,6 +455,12 @@ export const driverProfiles = pgTable("driver_profiles", {
   driversLicenseDocData: text("drivers_license_doc_data"),
   ninDocData: text("nin_doc_data"),
   addressDocData: text("address_doc_data"),
+  vehicleLicenseDocSubmitted: boolean("vehicle_license_doc_submitted").notNull().default(false),
+  isVehicleLicenseVerified: boolean("is_vehicle_license_verified").notNull().default(false),
+  vehicleLicenseDocData: text("vehicle_license_doc_data"),
+  insuranceDocSubmitted: boolean("insurance_doc_submitted").notNull().default(false),
+  isInsuranceVerified: boolean("is_insurance_verified").notNull().default(false),
+  insuranceDocData: text("insurance_doc_data"),
   // Nigeria fraud prevention - hashed document numbers for uniqueness checks
   ninHash: varchar("nin_hash", { length: 128 }), // SHA-256 hash of NIN for duplicate detection
   driversLicenseHash: varchar("drivers_license_hash", { length: 128 }), // SHA-256 hash of license number
@@ -471,6 +477,15 @@ export const driverProfiles = pgTable("driver_profiles", {
   preferenceRestrictedUntil: timestamp("preference_restricted_until"),
   acceptWhileOnTrip: boolean("accept_while_on_trip").notNull().default(false),
   receivingRequests: boolean("receiving_requests").notNull().default(true),
+  destinationModeActive: boolean("destination_mode_active").notNull().default(false),
+  destinationTargetLat: decimal("destination_target_lat", { precision: 10, scale: 7 }),
+  destinationTargetLng: decimal("destination_target_lng", { precision: 10, scale: 7 }),
+  destinationTargetAddress: text("destination_target_address"),
+  homeBaseLat: decimal("home_base_lat", { precision: 10, scale: 7 }),
+  homeBaseLng: decimal("home_base_lng", { precision: 10, scale: 7 }),
+  homeBaseAddress: text("home_base_address"),
+  destinationUsesToday: integer("destination_uses_today").notNull().default(0),
+  destinationLastResetDate: varchar("destination_last_reset_date", { length: 10 }),
   isTraining: boolean("is_training").notNull().default(false),
   trainingCredits: integer("training_credits").notNull().default(0),
   trainingStartedAt: timestamp("training_started_at"),

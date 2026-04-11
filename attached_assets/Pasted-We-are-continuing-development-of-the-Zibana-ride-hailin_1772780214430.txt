@@ -1,0 +1,178 @@
+We are continuing development of the Zibana ride-hailing platform.
+
+CRITICAL SAFETY RULES
+
+This is a large working application.
+
+Do NOT refactor the project.
+Do NOT modify ride request flow.
+Do NOT modify the map system.
+Do NOT modify authentication (Replit Auth).
+Do NOT modify rider or driver app screens.
+Do NOT rename files or restructure the project.
+
+IMPORTANT:
+
+Before creating anything new, FIRST scan the entire codebase to check if any of the following already exist:
+
+• Driver approval system
+• Driver verification status
+• Admin driver review page
+• Document preview system
+• Driver approval notifications
+
+If any of these features already exist:
+
+DO NOT duplicate them.
+
+Instead:
+Improve or extend the existing implementation so that it meets the requirements described below.
+
+Only create new components if they truly do not exist.
+
+--------------------------------
+
+FEATURE TO IMPLEMENT OR IMPROVE
+
+Admin Driver Approval Dashboard
+
+Route example:
+
+/admin/drivers
+
+--------------------------------
+
+PAGE LAYOUT
+
+At the top display counters:
+
+Pending Drivers
+Approved Drivers
+Rejected Drivers
+
+If these counters already exist, reuse them.
+
+--------------------------------
+
+DRIVER CARD FORMAT
+
+Each driver should appear as a card with:
+
+Driver Name
+City
+Phone Number
+
+NIN
+Vehicle Plate Number
+
+Driver License (thumbnail preview)
+NIN Document (thumbnail preview)
+
+Status: Pending Review
+
+Buttons:
+
+Approve Driver
+Reject
+Request Correction
+
+If a driver card layout already exists, update it to include the missing fields instead of replacing it.
+
+--------------------------------
+
+DOCUMENT PREVIEW
+
+If document preview already exists:
+
+Reuse it.
+
+If not:
+
+Add thumbnail preview and a popup modal showing the full image when clicked.
+
+--------------------------------
+
+APPROVE BUTTON
+
+When admin clicks:
+
+Approve Driver
+
+Update driver verification status to:
+
+Approved
+
+Then send notification to driver:
+
+"Your driver account has been approved. You can now go online and accept rides."
+
+--------------------------------
+
+REJECT BUTTON
+
+Reject sets status to:
+
+Rejected
+
+Driver receives notification:
+
+"Your documents were rejected. Please upload correct documents."
+
+--------------------------------
+
+REQUEST CORRECTION BUTTON
+
+Status becomes:
+
+Correction Required
+
+Driver receives message:
+
+"Please re-upload your driver documents."
+
+--------------------------------
+
+FILTERS
+
+Add filters above the list:
+
+City
+Registration Date
+
+Default view should show:
+
+Pending Drivers
+
+If filters already exist, extend them instead of replacing them.
+
+--------------------------------
+
+PERFORMANCE RULE
+
+Do NOT load unnecessary data.
+
+Only load drivers where verification status is:
+
+Pending
+Rejected
+Correction Required
+
+--------------------------------
+
+UI RULE
+
+Use existing Zibana UI components and styling.
+
+Do not introduce a new design framework.
+
+--------------------------------
+
+FINAL REPORT
+
+After implementation report:
+
+• What existing systems were detected
+• What features were reused
+• What was updated
+• What new files were added
+• What parts were skipped because they already existed

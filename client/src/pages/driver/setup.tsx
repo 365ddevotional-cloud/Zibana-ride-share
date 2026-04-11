@@ -85,7 +85,7 @@ export default function DriverSetupPage() {
             </div>
             <CardTitle className="text-2xl">Complete Your Profile</CardTitle>
             <CardDescription>
-              Tell us about yourself and your vehicle to start driving with ZIBANA
+              Quick Driver Signup — Only License and NIN Required
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -123,7 +123,9 @@ export default function DriverSetupPage() {
                         <div className="relative">
                           <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                           <Input 
-                            placeholder="+1 234 567 8900" 
+                            placeholder="+234 801 234 5678" 
+                            type="tel"
+                            autoComplete="tel"
                             className="pl-10" 
                             data-testid="input-phone"
                             {...field} 

@@ -1,0 +1,153 @@
+We are continuing development of the Zibana ride-hailing platform.
+
+CRITICAL SAFETY RULES
+
+This is a large production app.
+
+Do NOT refactor the project.
+Do NOT rewrite authentication.
+Do NOT alter ride flow.
+Do NOT alter map logic.
+Do NOT alter driver online/offline system.
+Do NOT alter floating bubble system.
+Do NOT change database structure unless absolutely required for the items below.
+
+ONLY apply minimal patches required to implement the driver tester feedback improvements listed below.
+
+If any feature already exists, improve it instead of rewriting it.
+
+At the end report:
+• files touched
+• changes made
+• anything skipped because it already existed
+
+--------------------------------
+
+PATCH 1 — PHONE NUMBER FIELD AUTOFILL FIX
+
+Problem:
+The phone number field incorrectly autofills email.
+
+Fix:
+
+Locate the driver registration phone field and ensure it uses:
+
+type="tel"
+
+Add:
+
+autocomplete="tel"
+
+Remove any "email" input type or email autocomplete behavior from this field.
+
+Do not alter the layout or design.
+
+--------------------------------
+
+PATCH 2 — SIMPLIFY DRIVER DOCUMENT REQUIREMENTS
+
+Current onboarding requires too many documents.
+
+Update driver registration so that the required documents are ONLY:
+
+• Driver License
+• NIN
+
+The following documents should be OPTIONAL instead of required:
+
+• Government ID
+• Utility Bill
+
+Do not remove the fields entirely.  
+Just mark them optional.
+
+--------------------------------
+
+PATCH 3 — ALLOW DOCUMENT REPLACEMENT
+
+Currently drivers cannot replace a document after upload.
+
+Add a button under each uploaded document preview:
+
+Replace Document
+
+Behavior:
+
+Upload Document  
+↓  
+Preview Document  
+↓  
+Replace Document (opens file picker again)
+
+This must overwrite the previous upload safely.
+
+--------------------------------
+
+PATCH 4 — DRIVER ONBOARDING PROGRESS GUIDE
+
+Add a simple progress guide on the driver registration screen.
+
+Example display:
+
+Driver Registration Progress
+
+Profile Information ✔  
+Driver License ✔  
+NIN ✔  
+Vehicle Information ⬜
+
+Drivers should not be able to go online until required fields are complete.
+
+Do not modify existing ride logic.
+
+--------------------------------
+
+PATCH 5 — ADD VEHICLE DOCUMENT FIELDS
+
+Inside the vehicle information section add:
+
+Vehicle Plate Number  
+Vehicle License Upload  
+Insurance Certificate Upload
+
+If these fields already exist, confirm and do not duplicate them.
+
+--------------------------------
+
+PATCH 6 — ADMIN DOCUMENT REVIEW (MINIMAL)
+
+Add a basic status flag for driver documents:
+
+Pending  
+Approved  
+Rejected
+
+Drivers should see:
+
+"Your documents are under review"
+
+Do not build a full verification system yet.  
+Just add the status flag if it does not exist.
+
+--------------------------------
+
+PATCH 7 — BANNER TEXT UPDATE
+
+Update the driver onboarding banner messaging to emphasize simplicity.
+
+Suggested line:
+
+"Quick Driver Signup — Only License and NIN Required"
+
+Do not redesign the banner.  
+Only update the text content.
+
+--------------------------------
+
+FINAL RULE
+
+Do not modify anything outside the scope above.
+
+This task is only to apply driver tester feedback improvements safely.
+
+After completion provide a summary of changes.

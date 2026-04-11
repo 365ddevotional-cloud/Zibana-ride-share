@@ -1,0 +1,200 @@
+We are continuing Zibana (Capacitor / WebView PWA). Do NOT refactor or rewrite working code. First CONFIRM what exists, then only add/patch missing parts.
+
+GOAL: Implement/verify these launch features without breaking production:
+
+1) Driver Online/Offline
+2) Ride Request Popup (Accept/Decline with countdown)
+3) Live Map Tracking (rider sees moving driver + ETA)
+4) Floating Quick Access Bubble (Android overlay)
+5) Driver Earnings Screen
+6) NEW: Driver Destination Filter (max 4/day with 50km rule)
+7) NEW: Instant Cash Wallet (Bank transfer first)
+8) Landing page banner: “Drive Today. Cash Out Today.”
+
+========================
+STEP A — AUDIT (NO CHANGES YET)
+Search the codebase and report FOUND / PARTIAL / MISSING for each:
+
+- Driver Online/Offline toggle & backend gating (only online drivers get requests)
+- Ride request popup UI and accept/decline handling
+- Live tracking: driver -> rider realtime updates + ETA
+- Bubble overlay plugin/service + permission + settings toggle + login prompt
+- Earnings dashboard pulling completed trips totals
+- Existing wallet/payout models
+- Existing landing page/marketing banner component
+
+List exact files/paths where each feature lives.
+
+Only after the audit, implement minimal patches for items that are PARTIAL/MISSING.
+
+========================
+STEP B — FIX: QUICK ACCESS BUBBLE (REQUIRED)
+User reports:
+- Not seeing the enable bubble prompt at login
+- Not seeing bubble toggle in Settings
+
+Implement/repair Bubble feature for Android Capacitor:
+
+B1) Settings Toggle
+Add/confirm menu path:
+Settings → App Preferences (or Settings → Driver Preferences)
+Add toggle:
+“Quick Access Bubble”
+- ON: start overlay bubble service
+- OFF: stop overlay bubble service
+
+B2) One-time progressive prompt logic
+At login success, run the prompt schedule (do NOT spam):
+Persist values in storage (DB or localStorage):
+bubble_enabled (bool)
+bubble_prompt_disabled (bool)
+bubble_login_counter (int)
+bubble_last_prompt_at_login_count (int)
+
+Rules:
+- On first-ever login after signup, show prompt once:
+  “Enable Zibana Quick Access Bubble?”
+  Buttons: Enable / Not Now
+- If Not Now:
+  Ask again after 2 more successful logins
+- If Not Now again:
+  Ask again after 10 more successful logins
+- If ignored/refused after that:
+  bubble_prompt_disabled = true (stop asking)
+- If user later disables bubble in settings:
+  restart the reminder cycle (ask after 2 logins, then 10)
+- If bubble_enabled becomes true at any time:
+  bubble persists across logouts/logins until disabled
+
+B3) Overlay implementation
+Use native Android overlay bubble (SYSTEM_ALERT_WINDOW permission).
+Bubble uses Zibana logo as icon.
+Bubble appears when logged in AND bubble_enabled is true.
+Bubble disappears on logout.
+Bubble persists across other apps when user is online/logged in.
+
+B4) Restore exact screen state on bubble tap
+When app navigates, persist:
+localStorage.lastRoute
+localStorage.rideState
+On bubble tap, open app and route to lastRoute, restoring rideState (e.g. if in-trip, go back to map/trip screen, not home).
+
+Do minimal changes: create/patch only necessary plugin + glue code.
+Do not break existing tracking code.
+
+========================
+STEP C — NEW FEATURE: DRIVER DESTINATION FILTER (MAX 4/DAY + 50KM RULE)
+Add “Destination Mode” for drivers:
+
+C1) UI
+Driver screen: button “Destination Mode”
+Flow:
+- Set destination (address/search or pin)
+- Activate destination filter
+
+C2) Matching rule
+When destination mode is active:
+Only offer trips whose dropoff moves driver closer to destination (directional filter).
+Implement a simple rule first:
+distance(dropoff, destination) < distance(pickup, destination)
+Optionally also require pickup within reasonable radius.
+
+C3) Usage limits
+- Max 4 activations per day
+- Standard allowance: 3 activations/day
+- 4th activation allowed ONLY if driver is >= 50km away from their “Home Base” location
+Home Base:
+- Ask driver once to set Home Base (or use saved profile location) in Settings
+
+Tracking fields per driver per day:
+destination_uses_today (int)
+destination_last_reset_date (YYYY-MM-DD)
+home_base_lat, home_base_lng
+If destination_uses_today >= 3:
+Allow 4th only if distance(current_location, home_base) >= 50km
+Hard cap: 4/day no exceptions
+
+Reset counter daily (based on local timezone Nigeria / Africa-Lagos).
+
+C4) Data model
+Add fields in DB:
+driver.destination_mode_active (bool)
+driver.destination_target (lat,lng,address)
+driver.home_base (lat,lng,address)
+driver.destination_uses_today (int)
+driver.destination_last_reset_date (string)
+
+No refactor. Add minimal migrations/updates.
+
+========================
+STEP D — NEW FEATURE: INSTANT CASH WALLET (BANK TRANSFER FIRST)
+Implement driver wallet + instant payout request:
+
+D1) Earnings → Wallet
+Driver Earnings screen should show:
+- Available balance
+- Pending balance
+- Total earned (today/week)
+
+D2) Payout flow
+Add “Withdraw” button.
+Withdraw method v1: Bank transfer.
+Collect bank details:
+- Bank name
+- Account number
+- Account name
+Store securely in driver profile.
+
+D3) Payout request
+Create backend endpoint:
+POST /api/driver/withdraw
+Validations:
+- Must be logged in
+- Amount <= available balance
+- Minimum payout threshold (set a default, e.g. ₦1000, editable)
+- Create a payout record with status: pending
+- Deduct from available to pending immediately (ledger style)
+
+D4) Processing
+Since payment integration may not be ready:
+Implement “Manual payout processing” first:
+- Admin dashboard page lists pending payouts
+- Admin can mark as “Paid” with reference note
+Later we can connect Paystack/Flutterwave.
+
+Data model:
+wallet_balance_available
+wallet_balance_pending
+payouts table/collection: id, driverId, amount, status, createdAt, paidAt, reference
+
+No breaking changes.
+
+========================
+STEP E — LANDING PAGE BANNER COPY
+Find the landing page hero section (zibana.app).
+Add the banner phrase prominently (do not redesign):
+“Drive Today. Cash Out Today.”
+Place under main headline or as a badge.
+Do not remove existing content unless necessary.
+
+========================
+STEP F — VERIFY 5 CORE FEATURES (DO NOT REWRITE)
+For these, confirm they exist; if partial, patch minimally:
+1) Driver Online/Offline gating for dispatch
+2) Ride request popup accept/decline + countdown
+3) Live map tracking for rider + driver
+4) Bubble overlay (fixed above)
+5) Driver earnings totals update after trip completion
+
+========================
+DELIVERABLES
+After completing:
+1) List every file changed with brief reason
+2) Provide test steps (5-minute checklist) to verify:
+   - bubble prompt shows on schedule
+   - settings toggle works
+   - bubble restores last screen
+   - destination uses limit works incl 50km rule
+   - withdraw creates payout + admin can mark paid
+   - banner text visible on landing page
+3) Ensure no refactors, no breaking changes.

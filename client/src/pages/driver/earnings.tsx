@@ -70,6 +70,10 @@ export default function DriverEarnings() {
   const monthTips = 0;
   const avgTip = 0;
 
+  const avgTripFare = completedTrips.length > 0
+    ? completedTrips.reduce((sum, t) => sum + parseFloat(t.fareAmount || "0"), 0) / completedTrips.length
+    : 0;
+
   const acceptedCount = allTrips.filter(t => t.status === "completed" || t.status === "in_progress" || t.status === "accepted").length;
   const acceptanceRate = allTrips.length > 0 ? Math.round((acceptedCount / allTrips.length) * 100) : 100;
   const cancellationRate = cancellationMetrics?.cancellationRate ?? 0;
@@ -194,6 +198,12 @@ export default function DriverEarnings() {
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Cancellation Rate</span>
               <span className="font-medium" data-testid="text-cancellation-rate">{cancellationRate.toFixed(1)}%</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Average Trip Fare</span>
+              <span className="font-medium" data-testid="text-avg-fare">
+                {"\u20A6"}{avgTripFare.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Average Tip</span>

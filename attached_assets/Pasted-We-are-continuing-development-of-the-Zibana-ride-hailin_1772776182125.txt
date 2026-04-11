@@ -1,0 +1,130 @@
+We are continuing development of the Zibana ride-hailing platform.
+
+CRITICAL INSTRUCTION:
+This is a very large app.
+Do NOT break anything.
+Do NOT refactor unrelated code.
+Do NOT alter any feature, file, route, database logic, UI, or workflow that is not directly required for this password recovery task.
+Do NOT rename files unnecessarily.
+Do NOT change existing working authentication logic except where absolutely necessary to extend it safely.
+Do NOT remove or rewrite any current Zibana functionality.
+Only add or patch the minimum code needed for the features below.
+
+FIRST:
+Scan the project and confirm whether the following already exist:
+
+1. Forgot Password
+2. Reset Password Email
+3. Change Password in Settings
+
+If any feature already exists, do not replace it.
+Only improve or complete it safely.
+
+--------------------------------
+
+FEATURE 1 — FORGOT PASSWORD
+
+On the Login screen add a link:
+
+Forgot Password?
+
+When clicked:
+
+Step 1
+User enters their registered email.
+
+Step 2
+Backend generates a secure reset token that expires in 30 minutes.
+
+Step 3
+Send email to the user with subject:
+
+Zibana Password Reset
+
+Email content should include a secure reset link:
+
+https://zibana.app/reset-password?token={token}
+
+--------------------------------
+
+FEATURE 2 — RESET PASSWORD PAGE
+
+Create a page:
+
+/reset-password
+
+Requirements:
+
+User enters:
+New Password
+Confirm Password
+
+Validate:
+- passwords match
+- minimum 8 characters
+
+After submission:
+
+Update password in database.
+Invalidate the reset token.
+Redirect user to login page with message:
+
+Password successfully reset. Please log in.
+
+--------------------------------
+
+FEATURE 3 — CHANGE PASSWORD IN SETTINGS
+
+Add inside:
+
+Settings -> Account Security
+
+Option:
+
+Change Password
+
+Fields:
+
+Current Password
+New Password
+Confirm New Password
+
+After success show:
+
+Password updated successfully.
+
+--------------------------------
+
+SECURITY RULES
+
+Passwords must be hashed using the same method currently used in the project.
+
+Reset tokens must expire in 30 minutes.
+
+Do not expose user emails in responses.
+
+--------------------------------
+
+TEST FLOW
+
+Test the following:
+
+1. Login page shows Forgot Password link
+2. User receives reset email
+3. Reset link opens reset page
+4. User sets new password
+5. User logs in with new password
+6. Settings page allows password change
+
+--------------------------------
+
+IMPORTANT FINAL RULE
+
+Do not break existing authentication.
+Do not alter anything outside this scope.
+Only extend current login/account system safely and minimally.
+
+At the end, report:
+- what already existed
+- what was added
+- what files were changed

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Shield, Clock, MapPin, Users, CheckCircle, Navigation, Wallet, Star, Play } from "lucide-react";
+import { Shield, Clock, MapPin, Users, CheckCircle, Navigation, Wallet, Star, Play, DollarSign } from "lucide-react";
 import { getAppName } from "@/config/appMode";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
@@ -118,10 +118,15 @@ export default function LandingPage() {
                 <span className="text-primary">your way</span>
               </h1>
               
-              <p className="mx-auto mb-8 max-w-xl text-lg text-muted-foreground md:text-xl">
+              <p className="mx-auto mb-4 max-w-xl text-lg text-muted-foreground md:text-xl">
                 {appName} connects you with trusted drivers for safe, reliable transportation. 
                 Request a ride in seconds and travel with confidence.
               </p>
+
+              <div className="mb-8 inline-flex items-center gap-2 rounded-full bg-primary/10 border border-primary/20 px-5 py-2 text-sm font-semibold text-primary" data-testid="badge-drive-cashout">
+                <DollarSign className="h-4 w-4" />
+                Drive Today. Cash Out Today.
+              </div>
               
               <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
                 <Button size="lg" className="text-base" onClick={handleGetStarted} data-testid="button-get-started">

@@ -6,13 +6,14 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Power, TrendingUp, Clock, Navigation, Check, MapPin, Settings, User, Bell, Shield, Star, Lightbulb, RefreshCw, X, MessageCircle, ExternalLink } from "lucide-react";
+import { Power, TrendingUp, Clock, Navigation, Check, MapPin, Settings, User, Bell, Shield, Star, Lightbulb, RefreshCw, X, MessageCircle, ExternalLink, AlertCircle } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { FullPageLoading } from "@/components/loading-spinner";
 import { UserAvatar } from "@/components/user-avatar";
 import { CancellationWarning } from "@/components/cancellation-warning";
 import { BehaviorAdvisory } from "@/components/driver/behavior-advisory";
+import { DestinationModeCard } from "@/components/driver/destination-mode-card";
 import { DriverSimulationControls } from "@/components/simulation-ride-controls";
 import { cn } from "@/lib/utils";
 import { useLocation } from "wouter";
@@ -437,6 +438,7 @@ export default function DriverDashboard() {
   const isRejected = profile?.status === "rejected";
   const isPending = profile?.status === "pending";
   const isSuspended = profile?.status === "suspended";
+  const isCorrectionRequired = profile?.status === "correction_required";
   const isTraining = profile?.isTraining ?? false;
   const canGoOnline = isApproved || isTraining;
 
@@ -523,6 +525,37 @@ export default function DriverDashboard() {
                       Please contact support for more information about your application status.
                     </p>
                   )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {isCorrectionRequired && (
+          <Card className="border-purple-300 dark:border-purple-800" data-testid="card-status-correction">
+            <CardContent className="pt-4">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-purple-600 mt-0.5 shrink-0" />
+                <div>
+                  <p className="font-semibold text-purple-700 dark:text-purple-400">Documents need correction</p>
+                  {(profile as any)?.rejectionReason ? (
+                    <p className="text-sm text-muted-foreground mt-1" data-testid="text-correction-reason">
+                      {(profile as any).rejectionReason}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Please re-upload your driver documents so we can review them again.
+                    </p>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="mt-2 border-purple-300 text-purple-700 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-400 dark:hover:bg-purple-900/20"
+                    onClick={() => setLocation("/driver/documents")}
+                    data-testid="button-go-to-documents"
+                  >
+                    Go to Documents
+                  </Button>
                 </div>
               </div>
             </CardContent>
@@ -687,6 +720,8 @@ export default function DriverDashboard() {
             </div>
           </>
         )}
+
+        {isOnline && <DestinationModeCard />}
 
         {isOnline && <BehaviorAdvisory />}
 

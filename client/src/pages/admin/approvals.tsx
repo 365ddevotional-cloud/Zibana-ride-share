@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -11,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { ArrowLeft, UserCheck, XCircle, Car, Users, Clock, GraduationCap, Filter, Eye, FileText, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { ArrowLeft, UserCheck, XCircle, Car, Users, Clock, GraduationCap, Filter, Eye, FileText, CheckCircle, AlertCircle, Loader2, RotateCcw, MapPin, Calendar, Search } from "lucide-react";
 import { API_BASE } from "@/lib/apiBase";
 
 interface PendingDriver {
@@ -25,6 +26,7 @@ interface PendingDriver {
   licensePlate: string;
   status: string;
   createdAt: string;
+  city?: string;
   isTrainee?: boolean;
   verificationStatus?: string;
   rejectionReason?: string;
@@ -32,6 +34,8 @@ interface PendingDriver {
   driversLicenseDocSubmitted?: boolean;
   ninDocSubmitted?: boolean;
   addressDocSubmitted?: boolean;
+  vehicleLicenseDocSubmitted?: boolean;
+  insuranceDocSubmitted?: boolean;
 }
 
 interface DriverDocument {
@@ -89,6 +93,12 @@ function StatusBadge({ status }: { status: string }) {
           Suspended
         </Badge>
       );
+    case "correction_required":
+      return (
+        <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-800">
+          Correction Required
+        </Badge>
+      );
     default:
       return <Badge variant="outline">{status}</Badge>;
   }
@@ -105,10 +115,16 @@ export default function ApprovalsPage() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("drivers");
   const [statusFilter, setStatusFilter] = useState("pending");
+  const [cityFilter, setCityFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedDriver, setSelectedDriver] = useState<PendingDriver | null>(null);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [correctionDialogOpen, setCorrectionDialogOpen] = useState(false);
   const [rejectTarget, setRejectTarget] = useState<PendingDriver | null>(null);
+  const [correctionTarget, setCorrectionTarget] = useState<PendingDriver | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
+  const [correctionReason, setCorrectionReason] = useState("");
   const [docViewerOpen, setDocViewerOpen] = useState(false);
   const [viewingDocType, setViewingDocType] = useState<string | null>(null);
   const [viewingDocData, setViewingDocData] = useState<string | null>(null);
@@ -125,7 +141,62 @@ export default function ApprovalsPage() {
     },
   });
 
-  const traineeDrivers = allDrivers.filter(
+  const { data: allDriversForCounts = [] } = useQuery<PendingDriver[]>({
+    queryKey: ["/api/admin/approvals", "drivers", "all"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/api/admin/approvals?type=driver&status=all`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to fetch drivers");
+      return res.json();
+    },
+  });
+
+  const statusCounts = useMemo(() => {
+    const counts = { pending: 0, approved: 0, rejected: 0, correction_required: 0, suspended: 0 };
+    allDriversForCounts.forEach((d) => {
+      if (d.status in counts) counts[d.status as keyof typeof counts]++;
+    });
+    return counts;
+  }, [allDriversForCounts]);
+
+  const uniqueCities = useMemo(() => {
+    const cities = new Set<string>();
+    allDriversForCounts.forEach((d) => {
+      if (d.city) cities.add(d.city);
+    });
+    return Array.from(cities).sort();
+  }, [allDriversForCounts]);
+
+  const filteredDrivers = useMemo(() => {
+    let result = allDrivers;
+    if (cityFilter && cityFilter !== "all") {
+      result = result.filter((d) => d.city === cityFilter);
+    }
+    if (dateFilter) {
+      const filterDate = new Date(dateFilter);
+      filterDate.setHours(0, 0, 0, 0);
+      const nextDay = new Date(filterDate);
+      nextDay.setDate(nextDay.getDate() + 1);
+      result = result.filter((d) => {
+        if (!d.createdAt) return false;
+        const created = new Date(d.createdAt);
+        return created >= filterDate && created < nextDay;
+      });
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      result = result.filter((d) =>
+        d.fullName?.toLowerCase().includes(q) ||
+        d.phone?.toLowerCase().includes(q) ||
+        d.licensePlate?.toLowerCase().includes(q) ||
+        d.email?.toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [allDrivers, cityFilter, dateFilter, searchQuery]);
+
+  const traineeDrivers = filteredDrivers.filter(
     (d) => d.verificationStatus === "unverified" || d.verificationStatus === "pending"
   );
 
@@ -145,7 +216,7 @@ export default function ApprovalsPage() {
     mutationFn: async ({ type, id }: { type: string; id: string }) => {
       return apiRequest("POST", "/api/admin/approvals/approve", { type, id });
     },
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       toast({
         title: "Driver Approved",
         description: "The driver has been approved and can now go online.",
@@ -211,10 +282,42 @@ export default function ApprovalsPage() {
     },
   });
 
+  const correctionMutation = useMutation({
+    mutationFn: async ({ type, id, reason }: { type: string; id: string; reason?: string }) => {
+      return apiRequest("POST", "/api/admin/approvals/request-correction", { type, id, reason });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Correction Requested",
+        description: "The driver has been notified to re-upload their documents.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/approvals"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/drivers"] });
+      setCorrectionDialogOpen(false);
+      setCorrectionTarget(null);
+      setCorrectionReason("");
+      setSelectedDriver(null);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to request correction. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const openRejectDialog = (driver: PendingDriver) => {
     setRejectTarget(driver);
     setRejectionReason("");
     setRejectDialogOpen(true);
+  };
+
+  const openCorrectionDialog = (driver: PendingDriver) => {
+    setCorrectionTarget(driver);
+    setCorrectionReason("");
+    setCorrectionDialogOpen(true);
   };
 
   const confirmReject = () => {
@@ -223,6 +326,16 @@ export default function ApprovalsPage() {
         type: "driver",
         id: rejectTarget.userId,
         reason: rejectionReason || undefined,
+      });
+    }
+  };
+
+  const confirmCorrection = () => {
+    if (correctionTarget) {
+      correctionMutation.mutate({
+        type: "driver",
+        id: correctionTarget.userId,
+        reason: correctionReason || undefined,
       });
     }
   };
@@ -265,9 +378,9 @@ export default function ApprovalsPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
+              <TableHead>City</TableHead>
               <TableHead>Phone</TableHead>
-              <TableHead>Vehicle</TableHead>
+              <TableHead>Plate</TableHead>
               <TableHead>Docs</TableHead>
               <TableHead>Applied</TableHead>
               <TableHead>Status</TableHead>
@@ -281,6 +394,8 @@ export default function ApprovalsPage() {
                 driver.driversLicenseDocSubmitted,
                 driver.ninDocSubmitted,
                 driver.addressDocSubmitted,
+                driver.vehicleLicenseDocSubmitted,
+                driver.insuranceDocSubmitted,
               ].filter(Boolean).length;
 
               return (
@@ -294,11 +409,13 @@ export default function ApprovalsPage() {
                       {driver.fullName}
                     </button>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{driver.email || "\u2014"}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {driver.city || "\u2014"}
+                  </TableCell>
                   <TableCell>{driver.phone}</TableCell>
-                  <TableCell>{driver.vehicleMake} {driver.vehicleModel}</TableCell>
+                  <TableCell className="font-mono text-xs">{driver.licensePlate || "\u2014"}</TableCell>
                   <TableCell>
-                    <Badge variant="secondary">{docsSubmitted}/4</Badge>
+                    <Badge variant="secondary">{docsSubmitted}/6</Badge>
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {driver.createdAt ? formatDate(driver.createdAt) : "\u2014"}
@@ -308,7 +425,7 @@ export default function ApprovalsPage() {
                   </TableCell>
                   {showActions && (
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
+                      <div className="flex justify-end gap-1 flex-wrap">
                         <Button
                           size="sm"
                           variant="outline"
@@ -318,12 +435,12 @@ export default function ApprovalsPage() {
                           <Eye className="h-4 w-4 mr-1" />
                           View
                         </Button>
-                        {driver.status === "pending" && (
+                        {(driver.status === "pending" || driver.status === "correction_required") && (
                           <>
                             <Button
                               size="sm"
                               onClick={() => approveMutation.mutate({ type: "driver", id: driver.userId })}
-                              disabled={approveMutation.isPending || rejectMutation.isPending}
+                              disabled={approveMutation.isPending || rejectMutation.isPending || correctionMutation.isPending}
                               data-testid={`button-approve-driver-${driver.id}`}
                             >
                               <UserCheck className="h-4 w-4 mr-1" />
@@ -333,11 +450,22 @@ export default function ApprovalsPage() {
                               size="sm"
                               variant="destructive"
                               onClick={() => openRejectDialog(driver)}
-                              disabled={approveMutation.isPending || rejectMutation.isPending}
+                              disabled={approveMutation.isPending || rejectMutation.isPending || correctionMutation.isPending}
                               data-testid={`button-reject-driver-${driver.id}`}
                             >
                               <XCircle className="h-4 w-4 mr-1" />
                               Reject
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-purple-300 text-purple-700 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-400 dark:hover:bg-purple-900/20"
+                              onClick={() => openCorrectionDialog(driver)}
+                              disabled={approveMutation.isPending || rejectMutation.isPending || correctionMutation.isPending}
+                              data-testid={`button-correction-driver-${driver.id}`}
+                            >
+                              <RotateCcw className="h-4 w-4 mr-1" />
+                              Correction
                             </Button>
                           </>
                         )}
@@ -397,14 +525,61 @@ export default function ApprovalsPage() {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-6">
+      <div className="container mx-auto px-4 py-6 space-y-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4" data-testid="status-counters">
+          <Card className="cursor-pointer hover:border-yellow-400 transition-colors" onClick={() => setStatusFilter("pending")} data-testid="counter-pending">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground">Pending</p>
+                  <p className="text-2xl font-bold text-yellow-600">{statusCounts.pending}</p>
+                </div>
+                <Clock className="h-8 w-8 text-yellow-500 opacity-60" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="cursor-pointer hover:border-green-400 transition-colors" onClick={() => setStatusFilter("approved")} data-testid="counter-approved">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground">Approved</p>
+                  <p className="text-2xl font-bold text-green-600">{statusCounts.approved}</p>
+                </div>
+                <CheckCircle className="h-8 w-8 text-green-500 opacity-60" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="cursor-pointer hover:border-red-400 transition-colors" onClick={() => setStatusFilter("rejected")} data-testid="counter-rejected">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground">Rejected</p>
+                  <p className="text-2xl font-bold text-red-600">{statusCounts.rejected}</p>
+                </div>
+                <XCircle className="h-8 w-8 text-red-500 opacity-60" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="cursor-pointer hover:border-purple-400 transition-colors" onClick={() => setStatusFilter("correction_required")} data-testid="counter-correction">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground">Correction</p>
+                  <p className="text-2xl font-bold text-purple-600">{statusCounts.correction_required}</p>
+                </div>
+                <RotateCcw className="h-8 w-8 text-purple-500 opacity-60" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-6">
             <TabsTrigger value="drivers" className="gap-2" data-testid="tab-drivers">
               <Car className="h-4 w-4" />
               Drivers
-              {statusFilter === "pending" && allDrivers.length > 0 && (
-                <Badge variant="secondary" className="ml-1">{allDrivers.length}</Badge>
+              {statusFilter === "pending" && filteredDrivers.length > 0 && (
+                <Badge variant="secondary" className="ml-1">{filteredDrivers.length}</Badge>
               )}
             </TabsTrigger>
             <TabsTrigger value="trainees" className="gap-2" data-testid="tab-trainees">
@@ -433,20 +608,62 @@ export default function ApprovalsPage() {
                       Review driver registrations, view documents, and manage approval status
                     </CardDescription>
                   </div>
-                  <div className="flex items-center gap-2">
+                </div>
+                <div className="flex items-center gap-2 flex-wrap pt-2">
+                  <div className="flex items-center gap-1">
+                    <Search className="h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search name, phone, plate..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-[200px] h-9"
+                      data-testid="input-search-drivers"
+                    />
+                  </div>
+                  <div className="flex items-center gap-1">
                     <Filter className="h-4 w-4 text-muted-foreground" />
                     <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger className="w-[140px]" data-testid="select-status-filter">
+                      <SelectTrigger className="w-[160px] h-9" data-testid="select-status-filter">
                         <SelectValue placeholder="Filter status" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="pending" data-testid="option-pending">Pending</SelectItem>
                         <SelectItem value="approved" data-testid="option-approved">Approved</SelectItem>
                         <SelectItem value="rejected" data-testid="option-rejected">Rejected</SelectItem>
+                        <SelectItem value="correction_required" data-testid="option-correction">Correction Required</SelectItem>
                         <SelectItem value="suspended" data-testid="option-suspended">Suspended</SelectItem>
                         <SelectItem value="all" data-testid="option-all">All</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <Select value={cityFilter} onValueChange={setCityFilter}>
+                      <SelectTrigger className="w-[140px] h-9" data-testid="select-city-filter">
+                        <SelectValue placeholder="City" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all" data-testid="option-city-all">All Cities</SelectItem>
+                        {uniqueCities.map((city) => (
+                          <SelectItem key={city} value={city} data-testid={`option-city-${city}`}>{city}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="date"
+                      value={dateFilter}
+                      onChange={(e) => setDateFilter(e.target.value)}
+                      className="w-[160px] h-9"
+                      data-testid="input-date-filter"
+                    />
+                    {dateFilter && (
+                      <Button size="sm" variant="ghost" className="h-9 px-2" onClick={() => setDateFilter("")} data-testid="button-clear-date">
+                        <XCircle className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               </CardHeader>
@@ -456,7 +673,7 @@ export default function ApprovalsPage() {
                     Loading drivers...
                   </div>
                 ) : (
-                  renderDriverTable(allDrivers, true)
+                  renderDriverTable(filteredDrivers, true)
                 )}
               </CardContent>
             </Card>
@@ -515,7 +732,7 @@ export default function ApprovalsPage() {
       </div>
 
       <Dialog open={!!selectedDriver} onOpenChange={(open) => { if (!open) setSelectedDriver(null); }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Car className="h-5 w-5" />
@@ -538,8 +755,8 @@ export default function ApprovalsPage() {
                   <StatusBadge status={selectedDriver.status} />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Email</p>
-                  <p className="text-sm" data-testid="text-driver-email">{selectedDriver.email || "\u2014"}</p>
+                  <p className="text-xs text-muted-foreground">City</p>
+                  <p className="text-sm" data-testid="text-driver-city">{selectedDriver.city || "\u2014"}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Phone</p>
@@ -551,13 +768,23 @@ export default function ApprovalsPage() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">License Plate</p>
-                  <p className="text-sm">{selectedDriver.licensePlate}</p>
+                  <p className="text-sm font-mono" data-testid="text-driver-plate">{selectedDriver.licensePlate}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Email</p>
+                  <p className="text-sm" data-testid="text-driver-email">{selectedDriver.email || "\u2014"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Applied</p>
+                  <p className="text-sm">{selectedDriver.createdAt ? formatDate(selectedDriver.createdAt) : "\u2014"}</p>
                 </div>
               </div>
 
               {selectedDriver.rejectionReason && (
                 <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-3">
-                  <p className="text-xs font-medium text-red-700 dark:text-red-400 mb-1">Rejection Reason</p>
+                  <p className="text-xs font-medium text-red-700 dark:text-red-400 mb-1">
+                    {selectedDriver.status === "correction_required" ? "Correction Reason" : "Rejection Reason"}
+                  </p>
                   <p className="text-sm text-red-600 dark:text-red-300" data-testid="text-rejection-reason">
                     {selectedDriver.rejectionReason}
                   </p>
@@ -575,7 +802,18 @@ export default function ApprovalsPage() {
                       <div key={doc.type} className="flex items-center justify-between p-2 rounded-md border">
                         <div className="flex items-center gap-2">
                           <DocStatusIcon submitted={doc.submitted} verified={doc.verified} />
-                          <span className="text-sm">{doc.label}</span>
+                          <div className="flex items-center gap-2">
+                            {doc.hasData && (
+                              <button
+                                className="w-10 h-10 rounded border bg-muted flex items-center justify-center overflow-hidden cursor-pointer hover:ring-2 ring-primary transition-all"
+                                onClick={() => viewDocument(selectedDriver.userId, doc.type)}
+                                data-testid={`thumb-doc-${doc.type}`}
+                              >
+                                <FileText className="h-5 w-5 text-muted-foreground" />
+                              </button>
+                            )}
+                            <span className="text-sm">{doc.label}</span>
+                          </div>
                         </div>
                         <div className="flex items-center gap-2">
                           {doc.verified && (
@@ -627,7 +865,7 @@ export default function ApprovalsPage() {
                   <CheckCircle className="h-4 w-4 mr-1" />
                   {forceApproveDocsMutation.isPending ? "Approving Docs..." : "Force Approve Documents"}
                 </Button>
-                {selectedDriver.status === "pending" && (
+                {(selectedDriver.status === "pending" || selectedDriver.status === "correction_required") && (
                   <>
                     <Button
                       onClick={() => approveMutation.mutate({ type: "driver", id: selectedDriver.userId })}
@@ -645,6 +883,16 @@ export default function ApprovalsPage() {
                     >
                       <XCircle className="h-4 w-4 mr-1" />
                       Reject
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="border-purple-300 text-purple-700 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-400 dark:hover:bg-purple-900/20"
+                      onClick={() => openCorrectionDialog(selectedDriver)}
+                      disabled={correctionMutation.isPending}
+                      data-testid="button-correction-from-profile"
+                    >
+                      <RotateCcw className="h-4 w-4 mr-1" />
+                      {correctionMutation.isPending ? "Requesting..." : "Request Correction"}
                     </Button>
                   </>
                 )}
@@ -709,6 +957,47 @@ export default function ApprovalsPage() {
                 <>
                   <XCircle className="h-4 w-4 mr-1" />
                   Confirm Rejection
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={correctionDialogOpen} onOpenChange={setCorrectionDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Request Document Correction</DialogTitle>
+            <DialogDescription>
+              Ask {correctionTarget?.fullName} to re-upload their documents. The driver will be notified.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            placeholder="Explain what needs to be corrected (optional)..."
+            value={correctionReason}
+            onChange={(e) => setCorrectionReason(e.target.value)}
+            className="min-h-[100px]"
+            data-testid="input-correction-reason"
+          />
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setCorrectionDialogOpen(false)} data-testid="button-cancel-correction">
+              Cancel
+            </Button>
+            <Button
+              className="bg-purple-600 hover:bg-purple-700 text-white"
+              onClick={confirmCorrection}
+              disabled={correctionMutation.isPending}
+              data-testid="button-confirm-correction"
+            >
+              {correctionMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <RotateCcw className="h-4 w-4 mr-1" />
+                  Request Correction
                 </>
               )}
             </Button>

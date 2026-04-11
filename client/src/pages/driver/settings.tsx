@@ -14,8 +14,9 @@ import { useLocation } from "wouter";
 import { useTranslation, LANGUAGES } from "@/i18n";
 import {
   ArrowLeft, Bell, Sun, Moon, Monitor, Globe, Eye, Shield,
-  Info, ChevronRight, Lock, FileText, LogOut, Trash2, AlertTriangle, Phone, Car, Smartphone,
+  Info, ChevronRight, Lock, FileText, LogOut, Trash2, AlertTriangle, Phone, Car, Smartphone, Home, MapPin,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
 import type { DriverProfile } from "@shared/schema";
 import {
@@ -27,6 +28,92 @@ import {
   requestBubbleOverlayPermission,
   resetPromptCycle,
 } from "@/lib/quickAccessBubble";
+
+function HomeBaseSection() {
+  const { toast } = useToast();
+  const [editing, setEditing] = useState(false);
+  const [lat, setLat] = useState("");
+  const [lng, setLng] = useState("");
+  const [address, setAddress] = useState("");
+
+  const { data: destStatus } = useQuery<any>({
+    queryKey: ["/api/driver/destination-status"],
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/driver/home-base", {
+      lat: parseFloat(lat), lng: parseFloat(lng), address: address || null,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/driver/destination-status"] });
+      setEditing(false);
+      toast({ title: "Home Base saved" });
+    },
+    onError: () => toast({ title: "Failed to save", variant: "destructive" }),
+  });
+
+  const useCurrentLocation = () => {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLat(pos.coords.latitude.toFixed(6));
+        setLng(pos.coords.longitude.toFixed(6));
+        setAddress("Current Location");
+      },
+      () => toast({ title: "Could not get location", variant: "destructive" }),
+      { timeout: 5000 }
+    );
+  };
+
+  return (
+    <div className="border-t pt-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className="h-9 w-9 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0">
+            <Home className="h-5 w-5 text-blue-600" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium">Home Base</p>
+            <p className="text-xs text-muted-foreground truncate">
+              {destStatus?.homeBase?.address || (destStatus?.homeBase ? `${parseFloat(destStatus.homeBase.lat).toFixed(4)}, ${parseFloat(destStatus.homeBase.lng).toFixed(4)}` : "Not set")}
+            </p>
+          </div>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            if (destStatus?.homeBase) {
+              setLat(destStatus.homeBase.lat);
+              setLng(destStatus.homeBase.lng);
+              setAddress(destStatus.homeBase.address || "");
+            }
+            setEditing(!editing);
+          }}
+          data-testid="button-edit-home-base"
+        >
+          {editing ? "Cancel" : destStatus?.homeBase ? "Edit" : "Set"}
+        </Button>
+      </div>
+      {editing && (
+        <div className="mt-3 space-y-2 pl-12">
+          <Input placeholder="Address" value={address} onChange={(e) => setAddress(e.target.value)} data-testid="input-home-address" />
+          <div className="grid grid-cols-2 gap-2">
+            <Input placeholder="Latitude" type="number" step="any" value={lat} onChange={(e) => setLat(e.target.value)} data-testid="input-home-lat" />
+            <Input placeholder="Longitude" type="number" step="any" value={lng} onChange={(e) => setLng(e.target.value)} data-testid="input-home-lng" />
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={useCurrentLocation} className="flex-1" data-testid="button-home-current-location">
+              <MapPin className="h-3 w-3 mr-1" /> Use Current
+            </Button>
+            <Button size="sm" onClick={() => saveMutation.mutate()} disabled={!lat || !lng || saveMutation.isPending} className="flex-1" data-testid="button-save-home-base">
+              {saveMutation.isPending ? "Saving..." : "Save"}
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function DriverSettings() {
   const { logout } = useAuth();
@@ -215,6 +302,41 @@ export default function DriverSettings() {
                   </Button>
                 ))}
               </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1 mb-2">
+            Driver Preferences
+          </p>
+          <Card>
+            <CardContent className="p-4 space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="h-9 w-9 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
+                    <Car className="h-5 w-5 text-emerald-600" />
+                  </div>
+                  <div className="min-w-0">
+                    <Label className="text-sm font-medium">Driver Online Status</Label>
+                    <p className="text-xs text-muted-foreground">{profile?.isOnline ? "Currently accepting rides" : "Currently offline"}</p>
+                  </div>
+                </div>
+                <Switch
+                  checked={profile?.isOnline ?? false}
+                  onCheckedChange={async (checked) => {
+                    try {
+                      await apiRequest("POST", "/api/driver/toggle-online", { isOnline: checked });
+                      queryClient.invalidateQueries({ queryKey: ["/api/driver/profile"] });
+                      toast({ title: checked ? "You are now online" : "You are now offline" });
+                    } catch {
+                      toast({ title: "Failed to update status", variant: "destructive" });
+                    }
+                  }}
+                  data-testid="switch-online-status-settings"
+                />
+              </div>
+              <HomeBaseSection />
             </CardContent>
           </Card>
         </div>

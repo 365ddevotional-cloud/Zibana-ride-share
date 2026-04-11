@@ -604,7 +604,7 @@ export async function registerRoutes(
       const userId = req.user.claims.sub;
       const { documentType, fileData } = req.body;
 
-      const validTypes = ["identity", "drivers-license", "nin", "address"];
+      const validTypes = ["identity", "drivers-license", "nin", "address", "vehicle-license", "insurance"];
       if (!documentType || !validTypes.includes(documentType)) {
         return res.status(400).json({ message: `Invalid document type. Must be one of: ${validTypes.join(", ")}` });
       }
@@ -647,6 +647,14 @@ export async function registerRoutes(
           updateData.addressDocData = fileData;
           updateData.addressDocSubmitted = true;
           break;
+        case "vehicle-license":
+          updateData.vehicleLicenseDocData = fileData;
+          updateData.vehicleLicenseDocSubmitted = true;
+          break;
+        case "insurance":
+          updateData.insuranceDocData = fileData;
+          updateData.insuranceDocSubmitted = true;
+          break;
       }
 
       const driverProfile = await storage.getDriverProfile(userId);
@@ -658,6 +666,8 @@ export async function registerRoutes(
           case "drivers-license": updateData.isDriversLicenseVerified = true; break;
           case "nin": updateData.isNINVerified = true; break;
           case "address": updateData.isAddressVerified = true; break;
+          case "vehicle-license": updateData.isVehicleLicenseVerified = true; break;
+          case "insurance": updateData.isInsuranceVerified = true; break;
         }
       }
 
@@ -2022,6 +2032,131 @@ export async function registerRoutes(
     }
   });
 
+  function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  app.post("/api/driver/destination-mode", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { lat, lng, address } = req.body;
+      const profile = await storage.getDriverProfile(userId);
+      if (!profile) return res.status(404).json({ message: "Profile not found" });
+      if (!profile.isOnline) return res.status(400).json({ message: "Must be online to use destination mode" });
+
+      const today = new Date().toLocaleDateString("en-CA", { timeZone: "Africa/Lagos" });
+      let usesToday = profile.destinationUsesToday ?? 0;
+      if (profile.destinationLastResetDate !== today) {
+        usesToday = 0;
+      }
+
+      if (usesToday >= 4) {
+        return res.status(400).json({ message: "Daily destination mode limit reached (max 4)" });
+      }
+
+      if (usesToday >= 3) {
+        const homeLat = parseFloat(String(profile.homeBaseLat || "0"));
+        const homeLng = parseFloat(String(profile.homeBaseLng || "0"));
+        if (!homeLat || !homeLng) {
+          return res.status(400).json({ message: "Set your Home Base in settings to use the 4th destination activation" });
+        }
+        const { currentLat, currentLng } = req.body;
+        if (!currentLat || !currentLng) {
+          return res.status(400).json({ message: "Current location required for 4th activation" });
+        }
+        const distToHome = haversineKm(parseFloat(currentLat), parseFloat(currentLng), homeLat, homeLng);
+        if (distToHome < 50) {
+          return res.status(400).json({ message: `4th activation only allowed when 50km+ from Home Base (currently ${distToHome.toFixed(1)}km away)` });
+        }
+      }
+
+      const updated = await storage.updateDriverProfile(userId, {
+        destinationModeActive: true,
+        destinationTargetLat: String(lat),
+        destinationTargetLng: String(lng),
+        destinationTargetAddress: address || null,
+        destinationUsesToday: usesToday + 1,
+        destinationLastResetDate: today,
+      });
+
+      console.log(`[DESTINATION_MODE] Activated: userId=${userId}, uses=${usesToday + 1}/4, dest=${lat},${lng}`);
+      return res.json({ success: true, usesRemaining: 4 - (usesToday + 1), profile: updated });
+    } catch (error) {
+      console.error("Error activating destination mode:", error);
+      return res.status(500).json({ message: "Failed to activate destination mode" });
+    }
+  });
+
+  app.post("/api/driver/destination-mode/off", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const updated = await storage.updateDriverProfile(userId, {
+        destinationModeActive: false,
+        destinationTargetLat: null,
+        destinationTargetLng: null,
+        destinationTargetAddress: null,
+      });
+      console.log(`[DESTINATION_MODE] Deactivated: userId=${userId}`);
+      return res.json({ success: true, profile: updated });
+    } catch (error) {
+      console.error("Error deactivating destination mode:", error);
+      return res.status(500).json({ message: "Failed to deactivate destination mode" });
+    }
+  });
+
+  app.post("/api/driver/home-base", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { lat, lng, address } = req.body;
+      if (!lat || !lng) return res.status(400).json({ message: "Location required" });
+
+      const updated = await storage.updateDriverProfile(userId, {
+        homeBaseLat: String(lat),
+        homeBaseLng: String(lng),
+        homeBaseAddress: address || null,
+      });
+      return res.json({ success: true, profile: updated });
+    } catch (error) {
+      console.error("Error setting home base:", error);
+      return res.status(500).json({ message: "Failed to set home base" });
+    }
+  });
+
+  app.get("/api/driver/destination-status", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const profile = await storage.getDriverProfile(userId);
+      if (!profile) return res.status(404).json({ message: "Profile not found" });
+
+      const today = new Date().toLocaleDateString("en-CA", { timeZone: "Africa/Lagos" });
+      const usesToday = profile.destinationLastResetDate === today ? (profile.destinationUsesToday ?? 0) : 0;
+
+      return res.json({
+        active: profile.destinationModeActive ?? false,
+        targetLat: profile.destinationTargetLat,
+        targetLng: profile.destinationTargetLng,
+        targetAddress: profile.destinationTargetAddress,
+        usesToday,
+        usesRemaining: Math.max(0, 4 - usesToday),
+        homeBase: profile.homeBaseLat ? {
+          lat: profile.homeBaseLat,
+          lng: profile.homeBaseLng,
+          address: profile.homeBaseAddress,
+        } : null,
+      });
+    } catch (error) {
+      console.error("Error getting destination status:", error);
+      return res.status(500).json({ message: "Failed to get destination status" });
+    }
+  });
+
   // Get driver setup status
   app.get("/api/driver/setup-status", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
     try {
@@ -2183,7 +2318,19 @@ export async function registerRoutes(
         return res.json([]);
       }
 
-      const rides = await storage.getAvailableTrips();
+      let rides = await storage.getAvailableTrips();
+
+      if (profile.destinationModeActive && profile.destinationTargetLat && profile.destinationTargetLng) {
+        const destLat = parseFloat(String(profile.destinationTargetLat));
+        const destLng = parseFloat(String(profile.destinationTargetLng));
+        rides = rides.filter((ride: any) => {
+          if (!ride.dropoffLat || !ride.dropoffLng || !ride.pickupLat || !ride.pickupLng) return false;
+          const dropoffToDest = haversineKm(parseFloat(ride.dropoffLat), parseFloat(ride.dropoffLng), destLat, destLng);
+          const pickupToDest = haversineKm(parseFloat(ride.pickupLat), parseFloat(ride.pickupLng), destLat, destLng);
+          return dropoffToDest < pickupToDest;
+        });
+      }
+
       return res.json(rides);
     } catch (error) {
       console.error("Error getting available rides:", error);
@@ -4527,6 +4674,47 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error rejecting:", error);
       return res.status(500).json({ message: "Failed to reject" });
+    }
+  });
+
+  app.post("/api/admin/approvals/request-correction", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
+    try {
+      const { type, id, reason } = req.body;
+      
+      if (!type || !id) {
+        return res.status(400).json({ message: "Type and ID are required" });
+      }
+      
+      if (type === "driver") {
+        const driver = await storage.updateDriverStatus(id, "correction_required", { reason, adminId: req.user.claims.sub });
+        if (!driver) {
+          return res.status(404).json({ message: "Driver not found" });
+        }
+        console.log(`[DRIVER CORRECTION] Correction requested: userId=${id}, by=${req.user.claims.sub}, reason=${reason || 'none'}, timestamp=${new Date().toISOString()}`);
+        
+        await storage.createNotification({
+          userId: id,
+          role: "driver",
+          title: "Documents Need Correction",
+          message: reason || "Please re-upload your driver documents.",
+          type: "warning",
+        });
+        try {
+          await storage.createDriverInboxMessage({
+            userId: id,
+            title: "Documents Need Correction",
+            body: reason || "Please re-upload your driver documents. Our team needs updated versions before we can approve your account.",
+            type: "approval_update",
+          });
+        } catch (e) { console.warn("[INBOX] Failed to send correction message:", e); }
+        
+        return res.json({ success: true, driver });
+      }
+      
+      return res.status(400).json({ message: "Invalid type" });
+    } catch (error) {
+      console.error("Error requesting correction:", error);
+      return res.status(500).json({ message: "Failed to request correction" });
     }
   });
 

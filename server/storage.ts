@@ -2112,6 +2112,8 @@ export class DatabaseStorage implements IStorage {
       updateFields.rejectionReason = options?.reason || null;
       updateFields.rejectedAt = new Date();
       updateFields.rejectedBy = options?.adminId || null;
+    } else if (status === "correction_required") {
+      updateFields.rejectionReason = options?.reason || "Please re-upload your driver documents.";
     }
 
     const [profile] = await db
@@ -2136,7 +2138,7 @@ export class DatabaseStorage implements IStorage {
     const driversWithDetails = await Promise.all(
       allDrivers.map(async (driver) => {
         const [user] = await db.select().from(users).where(eq(users.id, driver.userId));
-        return { ...driver, email: user?.email };
+        return { ...driver, email: user?.email, city: user?.residenceCity || null };
       })
     );
 

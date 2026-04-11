@@ -1,0 +1,230 @@
+We are continuing development of the Zibana ride-hailing platform.
+
+The app is a Capacitor / WebView PWA running in Android.
+
+IMPORTANT RULE:
+Do NOT rewrite existing working features. 
+First scan the project and confirm what already exists. 
+Only update or add what is missing.
+
+Perform the following system audit and upgrades.
+
+----------------------------------------
+
+STEP 1 — SCAN CURRENT FEATURES
+
+Search the codebase and confirm whether the following features already exist:
+
+1. Driver Online / Offline status toggle
+2. Incoming Ride Request popup card
+3. Live map tracking for active trips
+4. Floating Quick Access Bubble overlay
+5. Driver earnings dashboard
+
+For each feature report:
+
+FOUND
+PARTIAL
+MISSING
+
+If a feature already exists and works, do NOT rewrite it.
+
+----------------------------------------
+
+STEP 2 — DRIVER ONLINE / OFFLINE SYSTEM
+
+If the system exists:
+Improve UI only if needed.
+
+If missing:
+Implement a driver availability toggle.
+
+Requirements:
+
+Driver Dashboard should contain:
+
+Driver Status
+[ GO ONLINE ] / [ GO OFFLINE ]
+
+When GO ONLINE:
+Driver becomes available for ride requests.
+
+When GO OFFLINE:
+Driver receives no ride requests.
+
+Store driver status in database:
+
+driver_status = online | offline
+
+Update backend listener so only ONLINE drivers receive trip requests.
+
+----------------------------------------
+
+STEP 3 — RIDE REQUEST POPUP CARD
+
+If this system is missing, implement it.
+
+When a rider requests a trip:
+
+Show a popup card on the driver screen:
+
+New Ride Request
+
+Pickup: {pickup_location}
+Dropoff: {dropoff_location}
+
+Distance: {distance}
+Fare Estimate: {estimated_fare}
+
+Buttons:
+ACCEPT
+DECLINE
+
+Driver has 10 seconds to respond.
+
+If ACCEPT:
+Driver assigned to trip.
+
+If DECLINE:
+Offer ride to next nearest driver.
+
+----------------------------------------
+
+STEP 4 — LIVE MAP TRIP TRACKING
+
+Check whether the rider and driver map screens support real-time tracking.
+
+If partially implemented:
+Upgrade to live tracking.
+
+Requirements:
+
+Use map provider already in the project.
+
+Display:
+
+• Driver vehicle moving on map
+• Route line from driver → pickup
+• Route from pickup → destination
+• Estimated arrival time
+
+Rider must see:
+
+Driver name
+Vehicle
+Plate number
+ETA
+
+Driver must see navigation route to pickup.
+
+----------------------------------------
+
+STEP 5 — FLOATING QUICK ACCESS BUBBLE
+
+Confirm whether the bubble system exists.
+
+If missing:
+
+Create Android floating overlay bubble using Capacitor plugin.
+
+Requirements:
+
+Permission required:
+SYSTEM_ALERT_WINDOW
+
+Bubble icon must use Zibana logo.
+
+Bubble appears when user logs in.
+
+Bubble disappears when user logs out.
+
+Bubble remains visible across other apps.
+
+When bubble is tapped:
+
+Reopen the app and restore the last route state.
+
+Store last route state using:
+
+localStorage.lastRoute
+localStorage.rideState
+
+----------------------------------------
+
+STEP 6 — DRIVER EARNINGS SCREEN
+
+Check if earnings screen exists.
+
+If missing:
+
+Create a Driver Earnings dashboard.
+
+Display:
+
+Today Earnings
+This Week Earnings
+Total Trips
+Average Trip Fare
+
+Example UI:
+
+Today's Earnings: ₦14,500
+Weekly Earnings: ₦62,000
+Trips Completed: 19
+
+Fetch data from completed trips.
+
+----------------------------------------
+
+STEP 7 — SETTINGS MENU
+
+Add a new section:
+
+Settings → Driver Preferences
+
+Include toggles:
+
+Enable Quick Access Bubble
+Driver Online Status
+
+----------------------------------------
+
+STEP 8 — TEST FLOW
+
+After implementing updates:
+
+Test the complete ride flow.
+
+Rider:
+Request trip
+
+Driver:
+Receive ride request popup
+Accept trip
+Navigate to pickup
+Start trip
+Complete trip
+
+Rider should see live driver tracking.
+
+Driver earnings should update after trip completion.
+
+----------------------------------------
+
+STEP 9 — DO NOT BREAK CURRENT FEATURES
+
+If any existing implementation is working:
+
+Keep it.
+
+Only extend functionality.
+
+----------------------------------------
+
+After completing the scan and upgrades:
+
+Provide a summary of what features were:
+
+Already implemented
+Improved
+Newly added

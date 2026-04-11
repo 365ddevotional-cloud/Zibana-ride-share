@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MapPin, Navigation, Share2, ArrowLeft } from "lucide-react";
+import { MapPin, Navigation, Share2, ArrowLeft, Car, Clock, User } from "lucide-react";
 import { API_BASE } from "@/lib/apiBase";
 import { joinTrip, joinDriver, leaveTrip, leaveDriver, onDriverLocation, type LocationUpdate } from "@/lib/socket";
 import { useToast } from "@/hooks/use-toast";
@@ -213,13 +213,50 @@ export default function RiderLiveMap() {
         )}
 
         {driverLoc && (
-          <Card className="absolute bottom-4 left-4 z-[1000] shadow-lg" data-testid="card-driver-location">
-            <CardContent className="py-3 px-4 text-xs font-mono space-y-1">
-              <p>Driver Location</p>
-              <p>Lat: {driverLoc.lat.toFixed(6)}</p>
-              <p>Lng: {driverLoc.lng.toFixed(6)}</p>
-              {driverLoc.speed != null && <p>Speed: {Number(driverLoc.speed).toFixed(1)} m/s</p>}
-              {driverLoc.updatedAt && <p>Updated: {new Date(driverLoc.updatedAt).toLocaleTimeString()}</p>}
+          <Card className="absolute bottom-4 left-4 right-4 z-[1000] shadow-lg" data-testid="card-driver-location">
+            <CardContent className="py-3 px-4 space-y-2">
+              {currentTrip && (
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <User className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm truncate" data-testid="text-driver-name-map">{currentTrip.driverName || "Your Driver"}</p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      {currentTrip.driverVehicle && (
+                        <span className="flex items-center gap-1" data-testid="text-driver-vehicle-map">
+                          <Car className="h-3 w-3" /> {currentTrip.driverVehicle}
+                        </span>
+                      )}
+                      {currentTrip.driverLicensePlate && (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0" data-testid="text-driver-plate-map">
+                          {currentTrip.driverLicensePlate}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                  {driverLoc.speed != null && Number(driverLoc.speed) > 0.5 && (
+                    <div className="text-right flex-shrink-0">
+                      <div className="flex items-center gap-1 text-primary font-semibold" data-testid="text-eta">
+                        <Clock className="h-4 w-4" />
+                        <span>{Math.max(1, Math.round((currentTrip.estimatedDistance || 2) / (Number(driverLoc.speed) * 3.6 || 30) * 60))} min</span>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">ETA</p>
+                    </div>
+                  )}
+                </div>
+              )}
+              <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t">
+                <span>
+                  {driverLoc.speed != null ? `${(Number(driverLoc.speed) * 3.6).toFixed(0)} km/h` : "Waiting..."}
+                </span>
+                {driverLoc.updatedAt && (
+                  <span>{new Date(driverLoc.updatedAt).toLocaleTimeString()}</span>
+                )}
+                <Badge variant={isStale ? "destructive" : "default"} className={`text-[10px] ${!isStale ? "bg-emerald-600" : ""}`}>
+                  {isStale ? "Stale" : "Live"}
+                </Badge>
+              </div>
             </CardContent>
           </Card>
         )}

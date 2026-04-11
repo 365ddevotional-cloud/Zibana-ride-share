@@ -16,9 +16,12 @@ export default function DriverWelcome() {
             <span className="text-lg font-medium opacity-80">Driver</span>
           </div>
           <h1 className="text-2xl font-bold mb-3">{t("onboarding.driverWelcome")}</h1>
-          <p className="text-emerald-100">
+          <p className="text-emerald-100 mb-3">
             {t("onboarding.driverSubtext")}
           </p>
+          <div className="inline-flex items-center gap-2 rounded-full bg-white/15 border border-white/20 px-4 py-1.5 text-sm font-semibold" data-testid="badge-quick-signup">
+            Quick Driver Signup — Only License and NIN Required
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4 mb-12">

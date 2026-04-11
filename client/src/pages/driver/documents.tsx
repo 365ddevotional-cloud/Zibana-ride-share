@@ -9,7 +9,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
-import { ArrowLeft, Info, ShieldCheck, CreditCard, MapPin, Fingerprint, Upload, RefreshCw, AlertTriangle, Loader2 } from "lucide-react";
+import { ArrowLeft, Info, ShieldCheck, CreditCard, MapPin, Fingerprint, Upload, RefreshCw, AlertTriangle, Loader2, CheckCircle, Car, FileText } from "lucide-react";
 import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
 import { API_BASE } from "@/lib/apiBase";
 
@@ -56,6 +56,11 @@ interface DriverProfile {
   ninDocSubmitted: boolean;
   addressDocSubmitted: boolean;
   isTraining?: boolean;
+  vehicleLicenseDocSubmitted?: boolean;
+  isVehicleLicenseVerified?: boolean;
+  insuranceDocSubmitted?: boolean;
+  isInsuranceVerified?: boolean;
+  licensePlate?: string;
 }
 
 export default function DriverDocuments() {
@@ -106,16 +111,6 @@ export default function DriverDocuments() {
 
   const documents = [
     {
-      id: "identity",
-      title: "Identity Verification",
-      icon: Fingerprint,
-      verified: profile?.isIdentityVerified,
-      submitted: profile?.identityDocSubmitted,
-      status: profile?.verificationStatus,
-      description: "Government-issued photo ID (passport, national ID, or voter's card).",
-      expired: false,
-    },
-    {
       id: "drivers-license",
       title: "Driver's License",
       icon: CreditCard,
@@ -123,6 +118,7 @@ export default function DriverDocuments() {
       submitted: profile?.driversLicenseDocSubmitted,
       description: "Valid driver's license required to operate on the platform.",
       expired: false,
+      required: true,
     },
     {
       id: "nin",
@@ -132,6 +128,49 @@ export default function DriverDocuments() {
       submitted: profile?.ninDocSubmitted,
       description: "National Identification Number slip or card.",
       expired: false,
+      required: true,
+    },
+    {
+      id: "identity",
+      title: "Identity Verification",
+      icon: Fingerprint,
+      verified: profile?.isIdentityVerified,
+      submitted: profile?.identityDocSubmitted,
+      status: profile?.verificationStatus,
+      description: "Government-issued photo ID (passport, national ID, or voter's card).",
+      expired: false,
+      required: false,
+    },
+    {
+      id: "vehicle-license",
+      title: "Vehicle License",
+      icon: Car,
+      verified: profile?.isVehicleLicenseVerified,
+      submitted: profile?.vehicleLicenseDocSubmitted,
+      description: "Valid vehicle registration / license document.",
+      expired: false,
+      required: false,
+    },
+    {
+      id: "insurance",
+      title: "Insurance Certificate",
+      icon: FileText,
+      verified: profile?.isInsuranceVerified,
+      submitted: profile?.insuranceDocSubmitted,
+      description: "Current vehicle insurance certificate.",
+      expired: false,
+      required: false,
+    },
+    {
+      id: "identity",
+      title: "Identity Verification",
+      icon: Fingerprint,
+      verified: profile?.isIdentityVerified,
+      submitted: profile?.identityDocSubmitted,
+      status: profile?.verificationStatus,
+      description: "Government-issued photo ID (passport, national ID, or voter's card).",
+      expired: false,
+      required: false,
     },
     {
       id: "address",
@@ -141,8 +180,12 @@ export default function DriverDocuments() {
       submitted: profile?.addressDocSubmitted,
       description: "Proof of residential address (utility bill or bank statement, within 3 months).",
       expired: false,
+      required: false,
     },
   ];
+
+  const requiredDocs = documents.filter(d => d.required);
+  const requiredComplete = requiredDocs.every(d => d.verified || d.submitted);
 
   const handleUpload = useCallback((docId: string) => {
     if (uploadingDoc) return;
@@ -231,6 +274,31 @@ export default function DriverDocuments() {
           <h1 className="text-xl font-bold" data-testid="text-page-title">Documents</h1>
         </div>
 
+        {!isLoading && profile && (
+          <Card data-testid="card-registration-progress">
+            <CardContent className="pt-4 space-y-3">
+              <h3 className="text-sm font-semibold">Driver Registration Progress</h3>
+              <div className="space-y-2">
+                <ProgressStep label="Profile Information" done={true} />
+                <ProgressStep label="Driver's License" done={!!profile.isDriversLicenseVerified || !!profile.driversLicenseDocSubmitted} />
+                <ProgressStep label="NIN" done={!!profile.isNINVerified || !!profile.ninDocSubmitted} />
+                <ProgressStep label="Vehicle Information" done={!!profile.licensePlate} />
+              </div>
+              {!requiredComplete && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 mt-2" data-testid="text-progress-warning">
+                  Complete all required documents to go online and start accepting rides.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-semibold text-emerald-600" data-testid="text-docs-banner">
+            Quick Driver Signup — Only License and NIN Required
+          </p>
+        </div>
+
         {isLoading ? (
           <div className="space-y-3">
             {[1, 2, 3, 4].map((i) => (
@@ -259,7 +327,12 @@ export default function DriverDocuments() {
                           <Icon className="h-5 w-5" />
                         </div>
                         <div className="space-y-1 min-w-0">
-                          <h3 className="text-sm font-semibold" data-testid={`text-doc-title-${doc.id}`}>{doc.title}</h3>
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-sm font-semibold" data-testid={`text-doc-title-${doc.id}`}>{doc.title}</h3>
+                            <Badge variant={doc.required ? "default" : "outline"} className={`text-[10px] px-1.5 py-0 ${doc.required ? "bg-emerald-600" : ""}`}>
+                              {doc.required ? "Required" : "Optional"}
+                            </Badge>
+                          </div>
                           <p className="text-xs text-muted-foreground" data-testid={`text-doc-desc-${doc.id}`}>{doc.description}</p>
                         </div>
                       </div>
@@ -290,18 +363,28 @@ export default function DriverDocuments() {
                           ) : (
                             <RefreshCw className="h-3.5 w-3.5 mr-1" />
                           )}
-                          {isUploading ? "Uploading..." : "Replace"}
+                          {isUploading ? "Uploading..." : "Replace Document"}
                         </Button>
                       ) : doc.submitted && !isExpired ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled
-                          data-testid={`button-submitted-${doc.id}`}
-                        >
-                          <Loader2 className="h-3.5 w-3.5 mr-1" />
-                          Awaiting Review
-                        </Button>
+                        <div className="flex gap-2">
+                          <Badge variant="outline" className="flex items-center gap-1 text-xs">
+                            <Loader2 className="h-3 w-3 animate-spin" /> Awaiting Review
+                          </Badge>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleUpload(doc.id)}
+                            disabled={isUploading}
+                            data-testid={`button-replace-${doc.id}`}
+                          >
+                            {isUploading ? (
+                              <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                            ) : (
+                              <RefreshCw className="h-3.5 w-3.5 mr-1" />
+                            )}
+                            {isUploading ? "Uploading..." : "Replace Document"}
+                          </Button>
+                        </div>
                       ) : (
                         <Button
                           size="sm"
@@ -339,5 +422,18 @@ export default function DriverDocuments() {
         <ZibraFloatingButton />
       </div>
     </DriverLayout>
+  );
+}
+
+function ProgressStep({ label, done }: { label: string; done: boolean }) {
+  return (
+    <div className="flex items-center gap-2" data-testid={`progress-${label.toLowerCase().replace(/\s+/g, "-")}`}>
+      {done ? (
+        <CheckCircle className="h-4 w-4 text-emerald-500 shrink-0" />
+      ) : (
+        <div className="h-4 w-4 rounded border-2 border-muted-foreground/30 shrink-0" />
+      )}
+      <span className={`text-sm ${done ? "text-foreground" : "text-muted-foreground"}`}>{label}</span>
+    </div>
   );
 }
