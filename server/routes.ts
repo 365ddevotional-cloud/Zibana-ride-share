@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { createHash } from "crypto";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { storage } from "./storage";
+import { activeTrip, canTrack, getLiveLink } from "./tracking-policy";
 import { db } from "./db";
 import { eq, and, count, sql, gte, lt, lte, isNotNull, inArray, desc, or, ilike } from "drizzle-orm";
 import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, driverInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages, walletFundingTransactions, walletFundingSettings, driverWallets, directorFundingTransactions, directorFundingSettings, directorFundingAcceptance, directorFundingSuspensions, directorProfiles, directorDriverAssignments, directorActionLogs, driverCoachingLogs, directorCells, directorCommissionSettings, directorPayoutSummaries, referralCodes, directorFraudSignals, directorDisputes, directorDisputeMessages, directorWindDowns, welcomeAnalytics, directorPerformanceScores, directorPerformanceWeights, directorIncentives, directorRestrictions, directorPerformanceLogs, directorSuccessions, directorTerminationTimeline, directorStaff, riderTrustScores, riderTrustWeights, riderLoyaltyIncentives, riderTrustLogs, fundingRelationships, fundingAbuseFlags, thirdPartyFundingConfig, fundingAuditLogs, sponsoredBalances, directorCoachingLogs, directorTrainingModules, directorTermsAcceptance, directorTrustScores, platformSettings, qaChecklistItems, qaSimulationLogs, tripMessages, insertTripMessageSchema, qaSessionLogs, qaActivityLogs, founderStrategicReminders } from "@shared/schema";
@@ -534,6 +535,7 @@ export async function registerRoutes(
 
   app.post("/api/admin/seed", isAuthenticated, async (req: any, res) => {
     try {
+      if (process.env.NODE_ENV === "production") return res.status(403).json({ message: "Administrator setup is disabled in production" });
       const userId = req.user.claims.sub;
       
       const existingAdmins = await storage.getAdminCount();
@@ -30541,6 +30543,11 @@ export async function registerRoutes(
         return res.status(400).json({ message: "lat and lng are required" });
       }
 
+      if (tripId) {
+        const trip = typeof tripId === "string" ? await storage.getTripById(tripId) : null;
+        if (!activeTrip(trip) || trip.driverId !== userId) return res.status(403).json({ message: "Trip access denied" });
+      }
+
       const isMoving = speed != null ? Number(speed) > 0.5 : null;
 
       const locationData = {
@@ -30558,7 +30565,7 @@ export async function registerRoutes(
       await storage.insertLocationPoint(userId, locationData, tripId || null);
 
       const { emitDriverLocation } = await import("./socket");
-      emitDriverLocation(userId, {
+      await emitDriverLocation(userId, {
         lat, lng, heading, speed, accuracy, battery, isMoving,
         updatedAt: new Date().toISOString(),
       }, tripId || null);
@@ -30577,9 +30584,10 @@ export async function registerRoutes(
   app.get("/api/driver/location/latest", isAuthenticated, requireRole(["admin", "super_admin", "rider", "dispatcher"]), async (req: any, res) => {
     try {
       const { driverId } = req.query;
-      if (!driverId) {
+      if (typeof driverId !== "string" || !driverId) {
         return res.status(400).json({ message: "driverId query parameter is required" });
       }
+      if (!await canTrack(req.user.claims.sub, { driverId })) return res.status(403).json({ message: "Tracking access denied" });
       const loc = await storage.getDriverLocation(driverId as string);
       if (!loc) {
         return res.status(404).json({ message: "No location found for this driver" });
@@ -30604,13 +30612,13 @@ export async function registerRoutes(
         return res.status(400).json({ message: "driverId or tripId required" });
       }
 
-      let resolvedDriverId = driverId;
-      if (tripId && !driverId) {
-        const trip = await storage.getTripById(tripId);
-        if (trip?.driverId) resolvedDriverId = trip.driverId;
+      const trip = typeof tripId === "string" ? await storage.getTripById(tripId) : null;
+      if (!activeTrip(trip) || trip.riderId !== userId || !trip.driverId || (driverId && driverId !== trip.driverId)) {
+        return res.status(403).json({ message: "Share tracking only for your active trip" });
       }
-      if (!resolvedDriverId) {
-        return res.status(400).json({ message: "Could not resolve driver" });
+      const resolvedDriverId = trip.driverId;
+      if (!Number.isFinite(expiresInMinutes) || expiresInMinutes < 1 || expiresInMinutes > 120) {
+        return res.status(400).json({ message: "Tracking duration must be between 1 and 120 minutes" });
       }
 
       const { randomBytes } = await import("crypto");
@@ -30625,7 +30633,7 @@ export async function registerRoutes(
         expiresAt,
       });
 
-      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      const baseUrl = process.env.APP_BASE_URL!;
       return res.json({
         url: `${baseUrl}/track/${token}`,
         token,
@@ -30640,7 +30648,7 @@ export async function registerRoutes(
   app.get("/api/public/track/:token", async (req: any, res) => {
     try {
       const { token } = req.params;
-      const link = await storage.getEmergencyTrackingLink(token);
+      const link = await getLiveLink(token);
 
       if (!link) {
         return res.status(404).json({ message: "Tracking link not found", code: "NOT_FOUND" });
@@ -30688,7 +30696,7 @@ export async function registerRoutes(
     try {
       const { token } = req.params;
       const limit = Math.min(parseInt(req.query.limit || "500"), 500);
-      const link = await storage.getEmergencyTrackingLink(token);
+      const link = await getLiveLink(token);
 
       if (!link || link.revokedAt || new Date(link.expiresAt) < new Date()) {
         return res.status(410).json({ message: "Link expired or revoked" });
@@ -30722,6 +30730,7 @@ export async function registerRoutes(
     try {
       const { tripId } = req.params;
       const limit = Math.min(parseInt(req.query.limit || "500"), 500);
+      if (!await canTrack(req.user.claims.sub, { tripId })) return res.status(403).json({ message: "Trip access denied" });
       const points = await storage.getLocationPointsForTrip(tripId, limit);
       return res.json(points.map((p: any) => ({
         lat: p.lat,

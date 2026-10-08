@@ -1,199 +1,122 @@
-import * as client from "openid-client";
-import { Strategy, type VerifyFunction } from "openid-client/passport";
-
 import passport from "passport";
 import session from "express-session";
 import type { Express, RequestHandler } from "express";
-import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
+import * as oidc from "openid-client";
 import { authStorage } from "./storage";
+import { db } from "../../db";
+import { users } from "@shared/models/auth";
+import { eq } from "drizzle-orm";
 
-const getOidcConfig = memoize(
-  async () => {
-    return await client.discovery(
-      new URL(process.env.ISSUER_URL ?? "https://replit.com/oidc"),
-      process.env.REPL_ID!
-    );
-  },
-  { maxAge: 3600 * 1000 }
-);
-
+// Kept at the existing import path so the app's role-protected routes stay intact.
+// Authentication now uses an independently configured OIDC provider.
 export function getSession() {
-  const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
+  const secret = process.env.SESSION_SECRET;
+  if (!secret || secret.length < 32) throw new Error("Set a new SESSION_SECRET with at least 32 characters");
+  const sessionTtlSeconds = 7 * 24 * 60 * 60;
   const pgStore = connectPg(session);
-  const sessionStore = new pgStore({
-    conString: process.env.DATABASE_URL,
-    createTableIfMissing: false,
-    ttl: sessionTtl,
-    tableName: "sessions",
-  });
   return session({
-    secret: process.env.SESSION_SECRET!,
-    store: sessionStore,
+    name: "zibana.sid",
+    secret,
+    store: new pgStore({ conString: process.env.DATABASE_URL, createTableIfMissing: false, ttl: sessionTtlSeconds, tableName: "sessions" }),
     resave: false,
     saveUninitialized: false,
-    cookie: {
-      httpOnly: true,
-      secure: true,
-      maxAge: sessionTtl,
-    },
-  });
-}
-
-function updateUserSession(
-  user: any,
-  tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers
-) {
-  user.claims = tokens.claims();
-  user.access_token = tokens.access_token;
-  user.refresh_token = tokens.refresh_token;
-  user.expires_at = user.claims?.exp;
-}
-
-async function upsertUser(claims: any) {
-  await authStorage.upsertUser({
-    id: claims["sub"],
-    email: claims["email"],
-    firstName: claims["first_name"],
-    lastName: claims["last_name"],
-    profileImageUrl: claims["profile_image_url"],
+    cookie: { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", maxAge: sessionTtlSeconds * 1000 },
   });
 }
 
 export async function setupAuth(app: Express) {
+  const base = process.env.APP_BASE_URL;
+  const issuer = process.env.OIDC_ISSUER_URL;
+  const clientId = process.env.OIDC_CLIENT_ID;
+  const clientSecret = process.env.OIDC_CLIENT_SECRET;
+  if (!base || !issuer || !clientId || !clientSecret) {
+    throw new Error("Configure APP_BASE_URL, OIDC_ISSUER_URL, OIDC_CLIENT_ID and OIDC_CLIENT_SECRET before starting Zibana");
+  }
+  const baseUrl = new URL(base);
+  if (process.env.NODE_ENV === "production" && baseUrl.protocol !== "https:") throw new Error("APP_BASE_URL must use HTTPS in production");
+  if (process.env.NODE_ENV === "production" && new URL(issuer).protocol !== "https:") throw new Error("OIDC issuer must use HTTPS in production");
+  const redirectUri = new URL("/api/callback", baseUrl).href;
+  const config = await oidc.discovery(new URL(issuer), clientId, clientSecret);
   app.set("trust proxy", 1);
-  app.use(getSession());
+  const sessionMiddleware = getSession();
+  app.locals.zibanaSession = sessionMiddleware;
+  app.use(sessionMiddleware);
   app.use(passport.initialize());
   app.use(passport.session());
-
-  const config = await getOidcConfig();
-
-  const verify: VerifyFunction = async (
-    tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
-    verified: passport.AuthenticateCallback
-  ) => {
-    const user = {};
-    updateUserSession(user, tokens);
-    await upsertUser(tokens.claims());
-    verified(null, user);
-  };
-
-  // Keep track of registered strategies
-  const registeredStrategies = new Set<string>();
-
-  // Helper function to ensure strategy exists for a domain
-  const ensureStrategy = (domain: string) => {
-    const strategyName = `replitauth:${domain}`;
-    if (!registeredStrategies.has(strategyName)) {
-      const strategy = new Strategy(
-        {
-          name: strategyName,
-          config,
-          scope: "openid email profile offline_access",
-          callbackURL: `https://${domain}/api/callback`,
-        },
-        verify
-      );
-      passport.use(strategy);
-      registeredStrategies.add(strategyName);
-    }
-  };
-
   passport.serializeUser((user: Express.User, cb) => cb(null, user));
   passport.deserializeUser((user: Express.User, cb) => cb(null, user));
 
-  app.get("/api/login", (req, res, next) => {
-    req.session.save(() => {
-      ensureStrategy(req.hostname);
-      passport.authenticate(`replitauth:${req.hostname}`, {
-        prompt: "login",
-        scope: ["openid", "email", "profile", "offline_access"],
-      })(req, res, next);
-    });
-  });
-
-  app.get("/api/callback", (req, res, next) => {
-    ensureStrategy(req.hostname);
-    passport.authenticate(`replitauth:${req.hostname}`, {
-      failureRedirect: "/api/login",
-    }, async (err: any, user: any, info: any) => {
-      if (err || !user) {
-        return res.redirect("/api/login");
-      }
-      
-      req.login(user, async (loginErr) => {
-        if (loginErr) {
-          console.error("[AUTH CALLBACK] Login error:", loginErr);
-          return res.redirect("/api/login");
-        }
-        
-        const claims = (user as any)?.claims;
-        console.log(`[AUTH CALLBACK] Login success: userId=${claims?.sub}, email=${claims?.email}`);
-        
-        delete (req.session as any).activeRole;
-        
-        req.session.save((saveErr) => {
-          if (saveErr) {
-            console.error("[AUTH CALLBACK] Session save error:", saveErr);
-          }
-          res.redirect("/role-select");
-        });
+  app.get("/api/login", async (req, res, next) => {
+    try {
+      const verifier = oidc.randomPKCECodeVerifier();
+      const state = oidc.randomState();
+      const nonce = oidc.randomNonce();
+      (req.session as any).oidc = { verifier, state, nonce, createdAt: Date.now() };
+      const url = oidc.buildAuthorizationUrl(config, {
+        redirect_uri: redirectUri, scope: "openid email profile", state, nonce,
+        code_challenge: await oidc.calculatePKCECodeChallenge(verifier), code_challenge_method: "S256",
       });
-    })(req, res, next);
+      req.session.save(err => err ? next(err) : res.redirect(url.href));
+    } catch (err) { next(err); }
   });
 
-  app.get("/api/logout", (req, res) => {
-    const redirectPath = (req.query.redirect as string) || "/";
-    req.logout(() => {
-      res.redirect(
-        client.buildEndSessionUrl(config, {
-          client_id: process.env.REPL_ID!,
-          post_logout_redirect_uri: `${req.protocol}://${req.hostname}${redirectPath}`,
-        }).href
-      );
+  app.get("/api/callback", async (req, res, next) => {
+    const pending = (req.session as any).oidc;
+    delete (req.session as any).oidc;
+    if (!pending || Date.now() - pending.createdAt > 10 * 60 * 1000) {
+      res.status(401).json({ message: "Sign-in expired. Please sign in again." }); return;
+    }
+    try {
+      await new Promise<void>((resolve, reject) => req.session.save(err => err ? reject(err) : resolve()));
+      const currentUrl = new URL(redirectUri);
+      currentUrl.search = new URL(req.originalUrl, baseUrl).search;
+      const tokens = await oidc.authorizationCodeGrant(config, currentUrl, {
+        pkceCodeVerifier: pending.verifier, expectedState: pending.state, expectedNonce: pending.nonce, idTokenExpected: true,
+      });
+      const claims = tokens.claims();
+      if (!claims?.sub || claims.email_verified !== true || typeof claims.email !== "string") {
+        res.status(401).json({ message: "A verified email address is required." }); return;
+      }
+      const email = claims.email.toLowerCase();
+      // Preserve restored user IDs and their linked rides, balances and roles.
+      const [existing] = await db.select().from(users).where(eq(users.email, email));
+      const user = await authStorage.upsertUser({
+        id: existing?.id || `oidc:${claims.iss}:${claims.sub}`,
+        email,
+        firstName: typeof claims.given_name === "string" ? claims.given_name : existing?.firstName,
+        lastName: typeof claims.family_name === "string" ? claims.family_name : existing?.lastName,
+        profileImageUrl: typeof claims.picture === "string" ? claims.picture : existing?.profileImageUrl,
+      });
+      const identity = { claims: { sub: user.id, email: user.email, first_name: user.firstName, last_name: user.lastName }, expires_at: claims.exp };
+      await new Promise<void>((resolve, reject) => req.session.regenerate(err => err ? reject(err) : resolve()));
+      req.login(identity, err => {
+        if (err) return next(err);
+        req.session.save(saveErr => saveErr ? next(saveErr) : res.redirect("/"));
+      });
+    } catch {
+      res.status(401).json({ message: "Sign-in failed. Please try again." });
+    }
+  });
+
+  app.get("/api/logout", (req, res, next) => {
+    req.logout(err => {
+      if (err) return next(err);
+      req.session.destroy(destroyErr => {
+        if (destroyErr) return next(destroyErr);
+        res.clearCookie("zibana.sid", { path: "/" });
+        const target = req.query.redirect;
+        res.redirect(typeof target === "string" && /^\/(?!\/)/.test(target) && !target.includes("\\") ? target : "/");
+      });
     });
   });
 }
 
-export const isAuthenticated: RequestHandler = async (req, res, next) => {
-  const sessionData = req.session as any;
-  if (sessionData?.simulationActive && sessionData?.simulatedUserId) {
-    (req as any).user = {
-      claims: {
-        sub: sessionData.simulatedUserId,
-        email: sessionData.simulatedEmail || "sim@zibana.test",
-        first_name: sessionData.simulatedFirstName || "Simulation",
-        last_name: sessionData.simulatedLastName || "User",
-      },
-      _isSimulated: true,
-    };
-    return next();
+export const isAuthenticated: RequestHandler = (req, res, next) => {
+  const identity = req.user as any;
+  if (!req.isAuthenticated?.() || !identity?.claims?.sub || identity.claims.sub === "dev-user" ||
+      !Number.isFinite(identity.expires_at) || identity.expires_at <= Date.now() / 1000) {
+    res.status(401).json({ message: "Unauthorized" }); return;
   }
-
-  const user = req.user as any;
-
-  if (!req.isAuthenticated() || !user?.expires_at) {
-    return res.status(401).json({ message: "Not authenticated" });
-  }
-
-  const now = Math.floor(Date.now() / 1000);
-  if (now <= user.expires_at) {
-    return next();
-  }
-
-  const refreshToken = user.refresh_token;
-  if (!refreshToken) {
-    res.status(401).json({ message: "Not authenticated" });
-    return;
-  }
-
-  try {
-    const config = await getOidcConfig();
-    const tokenResponse = await client.refreshTokenGrant(config, refreshToken);
-    updateUserSession(user, tokenResponse);
-    return next();
-  } catch (error) {
-    res.status(401).json({ message: "Not authenticated" });
-    return;
-  }
+  next();
 };

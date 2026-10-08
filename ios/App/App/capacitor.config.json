@@ -1,0 +1,6 @@
+{
+	"appId": "com.zibana.app",
+	"appName": "Zibana",
+	"webDir": "dist/public",
+	"packageClassList": []
+}

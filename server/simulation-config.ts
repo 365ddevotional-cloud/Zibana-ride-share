@@ -1,7 +1,7 @@
 export const SIMULATION_ENGINE_LOCKED = true;
 
 export function getSimulationConfig() {
-  const enabled = process.env.SIMULATION_MODE_ENABLED === "true";
+  const enabled = process.env.NODE_ENV !== "production" && process.env.SIMULATION_MODE_ENABLED === "true";
   const codeLength = parseInt(process.env.SIMULATION_CODE_LENGTH || "6", 10);
   const expiresMinutes = parseInt(process.env.SIMULATION_EXPIRES_MINUTES || "60", 10);
 

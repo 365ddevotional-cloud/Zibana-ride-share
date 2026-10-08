@@ -25,6 +25,18 @@ export function registerAuthRoutes(app: Express): void {
       }
 
       const user = await authStorage.getUser(userId);
+      if (!user) {
+        return res.json({
+          id: userId,
+          email: req.user.claims.email || null,
+          firstName: req.user.claims.first_name || null,
+          lastName: req.user.claims.last_name || null,
+          profileImageUrl: null,
+          themePreference: "system",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+      }
       res.json(user);
     } catch (error) {
       console.error("Error fetching user:", error);
