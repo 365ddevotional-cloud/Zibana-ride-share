@@ -94,9 +94,9 @@ export default function RoleSelectionPage() {
       const response = await apiRequest("POST", "/api/user/active-role", { role });
       return response.json();
     },
-    onSuccess: (_data, role) => {
+    onSuccess: async (_data, role) => {
       localStorage.setItem("zibana-active-role", role);
-      queryClient.invalidateQueries({ queryKey: ["/api/user/role"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/user/role"] });
       const config = ROLE_CONFIG[role];
       if (config) {
         setLocation(config.redirect);
@@ -122,9 +122,9 @@ export default function RoleSelectionPage() {
       await apiRequest("POST", "/api/user/active-role", { role: "rider" });
       return result;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       localStorage.setItem("zibana-active-role", "rider");
-      queryClient.invalidateQueries({ queryKey: ["/api/user/role"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/user/role"] });
       setLocation("/rider/home");
     },
     onError: (error: Error) => {

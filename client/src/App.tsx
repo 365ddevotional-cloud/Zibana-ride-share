@@ -809,12 +809,12 @@ function ProtectedRoute({
   userRole: { role: string } | null | undefined;
   isLoading: boolean;
 }) {
-  if (!user) {
-    return <Redirect to="/welcome" />;
-  }
-  
   if (isLoading) {
     return <FullPageLoading text="Verifying access..." />;
+  }
+
+  if (!user) {
+    return <Redirect to="/welcome" />;
   }
   
   const hasAccess = userRole?.role && allowedRoles.includes(userRole.role);
