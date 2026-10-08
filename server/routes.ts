@@ -1,3 +1,8 @@
+import { z } from "zod";
+import { userRoles } from "@shared/schema";
+import { determineRiderTrustTier, determineDirectorPerformanceTier } from "./score-tiers";
+import { measuredTripDistanceKm } from "./trip-distance";
+import { routeParam } from "./route-param";
 import type { Express, RequestHandler } from "express";
 import { createServer, type Server } from "http";
 import { createHash } from "crypto";
@@ -916,7 +921,7 @@ export async function registerRoutes(
   app.post("/api/rider/trip/:tripId/confirm-cash", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { tripId } = req.params;
+      const tripId = routeParam(req, "tripId");
       const [trip] = await db.select().from(trips).where(eq(trips.id, tripId));
       if (!trip) {
         return res.status(404).json({ message: "Trip not found" });
@@ -944,7 +949,7 @@ export async function registerRoutes(
   app.post("/api/driver/trip/:tripId/confirm-cash", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { tripId } = req.params;
+      const tripId = routeParam(req, "tripId");
       const [trip] = await db.select().from(trips).where(eq(trips.id, tripId));
       if (!trip) {
         return res.status(404).json({ message: "Trip not found" });
@@ -973,7 +978,7 @@ export async function registerRoutes(
   app.post("/api/driver/trip/:tripId/dispute-cash", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { tripId } = req.params;
+      const tripId = routeParam(req, "tripId");
       const [trip] = await db.select().from(trips).where(eq(trips.id, tripId));
       if (!trip) {
         return res.status(404).json({ message: "Trip not found" });
@@ -1008,7 +1013,7 @@ export async function registerRoutes(
         const driverWallet = await storage.getOrCreateWallet(userId, "driver");
         await storage.creditWallet(
           driverWallet.id,
-          trip.fareAmount || 0,
+          trip.fareAmount || "0",
           "adjustment",
           tripId,
           undefined,
@@ -1039,7 +1044,7 @@ export async function registerRoutes(
   app.post("/api/rider/trip/:tripId/dispute-cash", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { tripId } = req.params;
+      const tripId = routeParam(req, "tripId");
       const [trip] = await db.select().from(trips).where(eq(trips.id, tripId));
       if (!trip) {
         return res.status(404).json({ message: "Trip not found" });
@@ -1086,7 +1091,7 @@ export async function registerRoutes(
   app.get("/api/rider/trip/:tripId/cash-status", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { tripId } = req.params;
+      const tripId = routeParam(req, "tripId");
       const [trip] = await db.select().from(trips).where(eq(trips.id, tripId));
       if (!trip || trip.riderId !== userId) {
         return res.status(404).json({ message: "Trip not found" });
@@ -1107,7 +1112,7 @@ export async function registerRoutes(
   app.get("/api/driver/trip/:tripId/cash-status", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { tripId } = req.params;
+      const tripId = routeParam(req, "tripId");
       const [trip] = await db.select().from(trips).where(eq(trips.id, tripId));
       if (!trip || trip.driverId !== userId) {
         return res.status(404).json({ message: "Trip not found" });
@@ -1631,7 +1636,7 @@ export async function registerRoutes(
       });
       const eligibleIds = eligibleClasses.map(ec => ec.id);
 
-      const invalidClasses = acceptedClasses.filter((c: string) => !eligibleIds.includes(c));
+      const invalidClasses = acceptedClasses.filter((c: string) => !eligibleIds.some(id => id === c));
       if (invalidClasses.length > 0) {
         return res.status(400).json({
           message: `You are not eligible for these ride classes: ${invalidClasses.join(", ")}`,
@@ -2354,7 +2359,7 @@ export async function registerRoutes(
   app.post("/api/driver/accept-ride/:tripId", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { tripId } = req.params;
+      const tripId = routeParam(req, "tripId");
 
       const profile = await storage.getDriverProfile(userId);
       if (!profile || (profile.status !== "approved" && !profile.isTraining)) {
@@ -2478,7 +2483,7 @@ export async function registerRoutes(
   app.post("/api/driver/trip/:tripId/status", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { tripId } = req.params;
+      const tripId = routeParam(req, "tripId");
       const { status } = req.body;
 
       if (!["in_progress", "completed"].includes(status)) {
@@ -2607,7 +2612,8 @@ export async function registerRoutes(
         // Accumulate trip mileage for annual tax reporting
         try {
           if (trip.driverId) {
-            const tripDistanceKm = parseFloat(trip.actualDistanceKm || trip.estimatedDistanceKm || "0");
+            const tripPoints = await storage.getGpsTrackingLogsForTrip(trip.id);
+            const tripDistanceKm = measuredTripDistanceKm(tripPoints.filter(p => p.userId === trip.driverId));
             if (tripDistanceKm > 0) {
               const tripDistanceMiles = tripDistanceKm * 0.621371;
               const taxYear = new Date().getFullYear();
@@ -3614,7 +3620,7 @@ export async function registerRoutes(
       const range = calculateClassFareRange(classId as any, estimatedDistanceKm, estimatedDurationMin);
 
       const userId = req.user.claims.sub;
-      const { getCountryConfig } = await import("@shared/countries");
+      const { getCountryConfig } = await import("@shared/currency");
       const userRole = await storage.getUserRole(userId);
       const countryCode = userRole?.countryCode || "NG";
       const countryConfig = getCountryConfig(countryCode);
@@ -3867,7 +3873,7 @@ export async function registerRoutes(
 
   app.post("/api/admin/scheduled-trips/:tripId/assign-driver", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {
-      const { tripId } = req.params;
+      const tripId = routeParam(req, "tripId");
       const { driverId } = req.body;
       if (!driverId) {
         return res.status(400).json({ message: "Driver ID is required" });
@@ -3891,7 +3897,7 @@ export async function registerRoutes(
 
   app.post("/api/admin/scheduled-trips/:tripId/cancel", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {
-      const { tripId } = req.params;
+      const tripId = routeParam(req, "tripId");
       const { reason } = req.body;
       const trip = await storage.getTripById(tripId);
       if (!trip || !trip.isReserved) {
@@ -3926,7 +3932,7 @@ export async function registerRoutes(
   app.post("/api/driver/scheduled-trips/:tripId/accept", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { tripId } = req.params;
+      const tripId = routeParam(req, "tripId");
       const trip = await storage.getTripById(tripId);
       if (!trip || !trip.isReserved) {
         return res.status(404).json({ message: "Scheduled trip not found" });
@@ -3950,7 +3956,7 @@ export async function registerRoutes(
   app.post("/api/driver/scheduled-trips/:tripId/start", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { tripId } = req.params;
+      const tripId = routeParam(req, "tripId");
       const trip = await storage.getTripById(tripId);
       if (!trip || !trip.isReserved) {
         return res.status(404).json({ message: "Scheduled trip not found" });
@@ -4002,7 +4008,7 @@ export async function registerRoutes(
   app.post("/api/rider/cancel-ride/:tripId", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { tripId } = req.params;
+      const tripId = routeParam(req, "tripId");
       const { reason } = req.body || {};
 
       const existingTrip = await storage.getTripById(tripId);
@@ -4094,7 +4100,7 @@ export async function registerRoutes(
         if (trip.driverId) {
           await evaluateBehaviorAndWarnings(trip.driverId, "driver");
         }
-        await voidPromosOnCancellation(tripId);
+        await voidPromosOnCancellation(trip.riderId, tripId);
       } catch (behaviorError) {
         console.error("Error updating behavior on cancellation:", behaviorError);
       }
@@ -4144,7 +4150,7 @@ export async function registerRoutes(
 
   app.get("/api/trips/:tripId", isAuthenticated, async (req: any, res) => {
     try {
-      const { tripId } = req.params;
+      const tripId = routeParam(req, "tripId");
       const userId = req.user.claims.sub;
       const userRole = await storage.getUserRole(userId);
       
@@ -4380,11 +4386,6 @@ export async function registerRoutes(
         const existingRiderProfile = await storage.getRiderProfile(userId);
         if (!existingRiderProfile) {
           await storage.createRiderProfile({ userId });
-        }
-      } else if (role === "driver") {
-        const existingDriverProfile = await storage.getDriverProfile(userId);
-        if (!existingDriverProfile) {
-          await storage.createDriverProfile({ userId, status: "pending" });
         }
       }
       
@@ -4734,7 +4735,7 @@ export async function registerRoutes(
 
   app.post("/api/admin/approvals/drivers/:id/approve", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {
-      const driverId = req.params.id;
+      const driverId = routeParam(req, "id");
       const driver = await storage.updateDriverStatus(driverId, "approved", { adminId: req.user.claims.sub });
       if (!driver) {
         return res.status(404).json({ message: "Driver not found" });
@@ -4767,7 +4768,7 @@ export async function registerRoutes(
 
   app.post("/api/admin/approvals/drivers/:id/reject", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {
-      const driverId = req.params.id;
+      const driverId = routeParam(req, "id");
       const { reason } = req.body;
       const driver = await storage.updateDriverStatus(driverId, "rejected", { reason, adminId: req.user.claims.sub });
       if (!driver) {
@@ -4889,7 +4890,7 @@ export async function registerRoutes(
 
   app.post("/api/admin/trip/:tripId/cancel", isAuthenticated, requireRole(["admin"]), async (req: any, res) => {
     try {
-      const { tripId } = req.params;
+      const tripId = routeParam(req, "tripId");
       const { reason } = req.body || {};
 
       const trip = await storage.adminCancelTrip(tripId, reason);
@@ -5274,10 +5275,11 @@ export async function registerRoutes(
 
         const admins = await db.select().from(users);
         for (const admin of admins) {
-          const roles = await storage.getUserRoles(admin.id);
+          const roles = (await storage.getAllUserRoles(admin.id)).map(record => record.role);
           if (roles.includes("admin") || roles.includes("super_admin")) {
             await storage.createNotification({
               userId: admin.id,
+        role: "admin",
               type: "warning",
               title: "Potential Retaliation Flag",
               message: `Director ${req.user.claims.sub} suspended a driver while having ${recentDriverDisputes.length} active dispute(s). Possible retaliation — review recommended.`,
@@ -5363,10 +5365,12 @@ export async function registerRoutes(
 
       await storage.createNotification({
         userId: driverUserId,
+        role: "driver",
         type: "warning",
         title: "Director Warning",
         message: reason.trim(),
-        metadata: JSON.stringify({ issuedBy: userId, issuedByRole: "director" }),
+        referenceId: userId,
+        referenceType: "director_warning",
       });
 
       await storage.createDirectorActionLog({
@@ -5394,7 +5398,7 @@ export async function registerRoutes(
       if (!profile) {
         return res.status(404).json({ message: "Director profile not found" });
       }
-      const [referralCode] = await db.select().from(referralCodes).where(eq(referralCodes.ownerId, userId));
+      const [referralCode] = await db.select().from(referralCodes).where(eq(referralCodes.ownerUserId, userId));
       if (!referralCode) {
         return res.json({ code: null });
       }
@@ -5790,6 +5794,7 @@ export async function registerRoutes(
       for (const assignment of driversUnderDirector) {
         await storage.createNotification({
           userId: assignment.driverUserId,
+        role: "driver",
           type: "info",
           title: "Director Assignment Updated",
           message: "Your Director assignment has been updated. Your driver status and earnings are unaffected.",
@@ -5903,6 +5908,7 @@ export async function registerRoutes(
         try {
           await storage.createNotification({
             userId: assignment.driverUserId,
+        role: "driver",
             type: "info",
             title: "Director Assignment Updated",
             message: "Your Director assignment has been updated. Your driver status and earnings are unaffected.",
@@ -6304,6 +6310,7 @@ export async function registerRoutes(
         });
         await storage.createNotification({
           userId: directorUserId,
+        role: "director",
           type: "warning",
           title: "Operational Review Notice",
           message: "ZIBRA has flagged operational patterns for improvement. Check your coaching insights.",
@@ -6464,7 +6471,8 @@ export async function registerRoutes(
 
       await storage.createNotification({
         userId: appeal.directorUserId,
-        type: "system",
+        role: "director",
+        type: "info",
         title: status === "approved" ? "Appeal Approved" : "Appeal Denied",
         message: status === "approved"
           ? "Your appeal has been reviewed and approved. Your director status has been restored."
@@ -6548,7 +6556,8 @@ export async function registerRoutes(
 
         await storage.createNotification({
           userId: directorUserId,
-          type: "system",
+        role: "director",
+          type: "info",
           title: "Director Role Update",
           message: "Your Director role has been ended based on review. Driver assignments have been updated.",
         });
@@ -6572,7 +6581,8 @@ export async function registerRoutes(
 
         await storage.createNotification({
           userId: directorUserId,
-          type: "system",
+        role: "director",
+          type: "info",
           title: "Director Account Suspended",
           message: "Your director account has been suspended pending review. Commission calculations are paused. You may submit an appeal through your dashboard.",
         });
@@ -7936,7 +7946,7 @@ export async function registerRoutes(
   // Admin: Get GPS tracking logs for a trip
   app.get("/api/admin/navigation/tracking/trip/:tripId", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {
-      const { tripId } = req.params;
+      const tripId = routeParam(req, "tripId");
       const logs = await storage.getGpsTrackingLogsForTrip(tripId);
       return res.json(logs);
     } catch (error) {
@@ -8080,7 +8090,7 @@ export async function registerRoutes(
 
   app.get("/api/ratings/trip/:tripId", isAuthenticated, async (req: any, res) => {
     try {
-      const { tripId } = req.params;
+      const tripId = routeParam(req, "tripId");
       const ratings = await storage.getTripRatings(tripId);
       return res.json(ratings);
     } catch (error) {
@@ -8092,7 +8102,7 @@ export async function registerRoutes(
   app.get("/api/ratings/check/:tripId", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { tripId } = req.params;
+      const tripId = routeParam(req, "tripId");
       const existingRating = await storage.getRatingByTripAndRater(tripId, userId);
       return res.json({ hasRated: !!existingRating, rating: existingRating });
     } catch (error) {
@@ -8177,7 +8187,7 @@ export async function registerRoutes(
   app.get("/api/disputes/check/:tripId", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { tripId } = req.params;
+      const tripId = routeParam(req, "tripId");
       const existingDispute = await storage.getDisputeByTripAndUser(tripId, userId);
       return res.json({ hasDispute: !!existingDispute, dispute: existingDispute });
     } catch (error) {
@@ -8188,7 +8198,7 @@ export async function registerRoutes(
 
   app.get("/api/disputes/trip/:tripId", isAuthenticated, async (req: any, res) => {
     try {
-      const { tripId } = req.params;
+      const tripId = routeParam(req, "tripId");
       const disputes = await storage.getTripDisputes(tripId);
       return res.json(disputes);
     } catch (error) {
@@ -8753,7 +8763,7 @@ export async function registerRoutes(
     try {
       const userId = req.user.claims.sub;
       const userRole = req.userRole;
-      const { tripId } = req.params;
+      const tripId = routeParam(req, "tripId");
       const { reason, evidence } = req.body;
 
       const trip = await storage.getTripById(tripId);
@@ -10463,7 +10473,7 @@ export async function registerRoutes(
   app.get("/api/coordinator/receipts/:tripId", isAuthenticated, requireRole(["trip_coordinator"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { tripId } = req.params;
+      const tripId = routeParam(req, "tripId");
 
       const trip = await storage.getTripById(tripId);
       if (!trip) {
@@ -10634,7 +10644,7 @@ export async function registerRoutes(
   app.post("/api/coordinator/trips/:tripId/cancel", isAuthenticated, requireRole(["trip_coordinator"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { tripId } = req.params;
+      const tripId = routeParam(req, "tripId");
       const { reason } = req.body;
 
       const trip = await storage.getTripById(tripId);
@@ -12013,7 +12023,7 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Referral code not found" });
       }
 
-      if (!referralCode.isActive) {
+      if (!referralCode.active) {
         return res.status(400).json({ message: "Referral code is no longer active" });
       }
 
@@ -12028,8 +12038,9 @@ export async function registerRoutes(
 
       await storage.createReferralEvent({
         referralCodeId: referralCode.id,
-        referredUserId: userId,
-        eventType: "signup",
+        newUserId: userId,
+        newUserRole: "rider",
+        source: "APP",
       });
 
       await storage.updateReferralCodeUsage(referralCode.id);
@@ -12133,7 +12144,8 @@ export async function registerRoutes(
       });
 
       await storage.createAuditLog({
-        userId,
+        performedByUserId: userId,
+        performedByRole: "admin",
         action: "campaign_detail_created",
         entityType: "campaign_detail",
         entityId: detail.id,
@@ -12181,7 +12193,8 @@ export async function registerRoutes(
       });
 
       await storage.createAuditLog({
-        userId,
+        performedByUserId: userId,
+        performedByRole: "admin",
         action: "reactivation_rule_created",
         entityType: "reactivation_rule",
         entityId: rule.id,
@@ -12223,7 +12236,8 @@ export async function registerRoutes(
       }
 
       await storage.createAuditLog({
-        userId,
+        performedByUserId: userId,
+        performedByRole: "admin",
         action: "reactivation_rule_status_updated",
         entityType: "reactivation_rule",
         entityId: ruleId,
@@ -12294,7 +12308,8 @@ export async function registerRoutes(
       });
 
       await storage.createAuditLog({
-        userId,
+        performedByUserId: userId,
+        performedByRole: "admin",
         action: "growth_safety_control_updated",
         entityType: "growth_safety_control",
         entityId: control.id,
@@ -14379,7 +14394,7 @@ export async function registerRoutes(
 
   app.get("/api/country-pricing-rules/:countryId", isAuthenticated, requireRole(["super_admin", "admin", "finance"]), async (req, res) => {
     try {
-      const countryId = req.params.countryId as string;
+      const countryId = routeParam(req, "countryId") as string;
       const rules = await storage.getCountryPricingRules(countryId);
       if (!rules) {
         return res.status(404).json({ message: "Pricing rules not found" });
@@ -14403,7 +14418,7 @@ export async function registerRoutes(
 
   app.patch("/api/country-pricing-rules/:countryId", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
     try {
-      const countryId = req.params.countryId as string;
+      const countryId = routeParam(req, "countryId") as string;
       const rules = await storage.updateCountryPricingRules(countryId, req.body);
       if (!rules) {
         return res.status(404).json({ message: "Pricing rules not found" });
@@ -14429,7 +14444,7 @@ export async function registerRoutes(
   app.get("/api/rider-wallets/:userId", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
-      const targetUserId = req.params.userId;
+      const targetUserId = routeParam(req, "userId");
       
       // Allow users to see their own wallet, or admins to see any wallet
       const userRole = await storage.getUserRole(userId);
@@ -14463,7 +14478,7 @@ export async function registerRoutes(
   app.get("/api/driver-wallets-v2/:userId", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
-      const targetUserId = req.params.userId;
+      const targetUserId = routeParam(req, "userId");
       
       const userRole = await storage.getUserRole(userId);
       if (userId !== targetUserId && !["super_admin", "admin", "finance"].includes(userRole?.role || "")) {
@@ -14519,7 +14534,7 @@ export async function registerRoutes(
       const userId = req.user?.claims?.sub;
       const { transactionRef } = req.body;
       
-      const payout = await storage.completeDriverPayout(req.params.id, userId, transactionRef);
+      const payout = await storage.completeDriverPayout(routeParam(req, "id"), userId, transactionRef);
       if (!payout) {
         return res.status(404).json({ message: "Payout not found" });
       }
@@ -14533,7 +14548,7 @@ export async function registerRoutes(
 
   app.patch("/api/driver-payouts/:id/fail", isAuthenticated, requireRole(["super_admin", "admin", "finance"]), async (req, res) => {
     try {
-      const payoutId = req.params.id as string;
+      const payoutId = routeParam(req, "id") as string;
       const { reason } = req.body;
       
       const payout = await storage.failDriverPayout(payoutId, reason || "Unknown error");
@@ -14552,7 +14567,7 @@ export async function registerRoutes(
   app.post("/api/admin/wallet/freeze/rider/:userId", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
     try {
       const adminId = req.user.claims.sub;
-      const targetUserId = req.params.userId as string;
+      const targetUserId = routeParam(req, "userId") as string;
       const { reason } = req.body;
       
       if (!reason) {
@@ -14585,7 +14600,7 @@ export async function registerRoutes(
   app.post("/api/admin/wallet/unfreeze/rider/:userId", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
     try {
       const adminId = req.user.claims.sub;
-      const targetUserId = req.params.userId as string;
+      const targetUserId = routeParam(req, "userId") as string;
       
       const wallet = await storage.unfreezeRiderWallet(targetUserId);
       if (!wallet) {
@@ -14613,7 +14628,7 @@ export async function registerRoutes(
   app.post("/api/admin/wallet/freeze/driver/:userId", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
     try {
       const adminId = req.user.claims.sub;
-      const targetUserId = req.params.userId as string;
+      const targetUserId = routeParam(req, "userId") as string;
       const { reason } = req.body;
       
       if (!reason) {
@@ -14646,7 +14661,7 @@ export async function registerRoutes(
   app.post("/api/admin/wallet/unfreeze/driver/:userId", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
     try {
       const adminId = req.user.claims.sub;
-      const targetUserId = req.params.userId as string;
+      const targetUserId = routeParam(req, "userId") as string;
       
       const wallet = await storage.unfreezeDriverWallet(targetUserId);
       if (!wallet) {
@@ -14674,7 +14689,7 @@ export async function registerRoutes(
   app.post("/api/admin/wallet/adjust/rider/:userId", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
     try {
       const adminId = req.user.claims.sub;
-      const targetUserId = req.params.userId as string;
+      const targetUserId = routeParam(req, "userId") as string;
       const { amount, reason } = req.body;
       
       if (amount === undefined || !reason) {
@@ -14698,7 +14713,7 @@ export async function registerRoutes(
   app.post("/api/admin/wallet/adjust/driver/:userId", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
     try {
       const adminId = req.user.claims.sub;
-      const targetUserId = req.params.userId as string;
+      const targetUserId = routeParam(req, "userId") as string;
       const { amount, reason } = req.body;
       
       if (amount === undefined || !reason) {
@@ -15250,7 +15265,7 @@ export async function registerRoutes(
       }
       
       const flag = await storage.resolveAbuseFlag(
-        req.params.id,
+        routeParam(req, "id"),
         userId,
         status,
         reviewNotes,
@@ -15282,7 +15297,7 @@ export async function registerRoutes(
 
   app.get("/api/escrows/ride/:rideId", isAuthenticated, requireRole(["super_admin", "admin", "finance"]), async (req, res) => {
     try {
-      const rideId = req.params.rideId as string;
+      const rideId = routeParam(req, "rideId") as string;
       const escrow = await storage.getEscrowByRideId(rideId);
       if (!escrow) {
         return res.status(404).json({ message: "Escrow not found" });
@@ -15498,7 +15513,7 @@ export async function registerRoutes(
   app.get("/api/rider-transactions/:riderId", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
-      const targetRiderId = req.params.riderId;
+      const targetRiderId = routeParam(req, "riderId");
       
       const userRole = await storage.getUserRole(userId);
       if (userId !== targetRiderId && !["super_admin", "admin", "finance"].includes(userRole?.role || "")) {
@@ -15517,7 +15532,7 @@ export async function registerRoutes(
   app.get("/api/driver-payout-history/:driverId", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
-      const targetDriverId = req.params.driverId;
+      const targetDriverId = routeParam(req, "driverId");
       
       const userRole = await storage.getUserRole(userId);
       if (userId !== targetDriverId && !["super_admin", "admin", "finance"].includes(userRole?.role || "")) {
@@ -16169,7 +16184,7 @@ export async function registerRoutes(
 
   app.get("/api/trips/:tripId/receipt", isAuthenticated, async (req: any, res) => {
     try {
-      const { tripId } = req.params;
+      const tripId = routeParam(req, "tripId");
       const userId = req.user?.claims?.sub || req.user?.id;
       
       const [trip] = await db.select().from(trips).where(eq(trips.id, tripId));
@@ -16185,10 +16200,10 @@ export async function registerRoutes(
       let driverName = "Driver";
       try {
         const [rider] = await db.select().from(users).where(eq(users.id, trip.riderId));
-        if (rider) riderName = rider.firstName || rider.username || "Rider";
+        if (rider) riderName = rider.firstName || rider.firstName || "Rider";
         if (trip.driverId) {
           const [driver] = await db.select().from(users).where(eq(users.id, trip.driverId));
-          if (driver) driverName = driver.firstName || driver.username || "Driver";
+          if (driver) driverName = driver.firstName || driver.firstName || "Driver";
         }
       } catch {}
 
@@ -16544,7 +16559,7 @@ export async function registerRoutes(
   // Get ratings for a specific trip
   app.get("/api/ratings/trip/:tripId", isAuthenticated, async (req, res) => {
     try {
-      const ratings = await storage.getTrustTripRatings(req.params.tripId);
+      const ratings = await storage.getTrustTripRatings(routeParam(req, "tripId"));
       return res.json(ratings);
     } catch (error) {
       console.error("Error getting trip ratings:", error);
@@ -16556,7 +16571,7 @@ export async function registerRoutes(
   app.get("/api/ratings/can-rate/:tripId", isAuthenticated, async (req, res) => {
     try {
       const userId = req.user!.claims.sub;
-      const { tripId } = req.params;
+      const tripId = routeParam(req, "tripId");
 
       const trip = await storage.getTripById(tripId);
       if (!trip) {
@@ -16615,7 +16630,7 @@ export async function registerRoutes(
   app.get("/api/admin/trust/user/:userId", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
     try {
       const { getAdminTrustView } = await import("./trust-guards");
-      const details = await getAdminTrustView(req.params.userId);
+      const details = await getAdminTrustView(routeParam(req, "userId"));
       return res.json(details);
     } catch (error) {
       console.error("Error getting user trust details:", error);
@@ -16712,7 +16727,7 @@ export async function registerRoutes(
   // Super Admin: Get rating audit history for a user
   app.get("/api/admin/trust/rating-audit/:userId", isAuthenticated, requireRole(["super_admin"]), async (req, res) => {
     try {
-      const audits = await storage.getAdminRatingAuditForUser(req.params.userId);
+      const audits = await storage.getAdminRatingAuditForUser(routeParam(req, "userId"));
       return res.json(audits);
     } catch (error) {
       console.error("Error getting rating audit history:", error);
@@ -16749,7 +16764,7 @@ export async function registerRoutes(
   // Admin: Get pairing blocks for a specific user
   app.get("/api/admin/pairing-blocks/user/:userId", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
     try {
-      const blocks = await storage.getPairingBlocksByUser(req.params.userId);
+      const blocks = await storage.getPairingBlocksByUser(routeParam(req, "userId"));
       return res.json(blocks);
     } catch (error) {
       console.error("Error getting user pairing blocks:", error);
@@ -16787,7 +16802,7 @@ export async function registerRoutes(
   // Driver matching: Check if driver is blocked for rider
   app.get("/api/matching/blocked-drivers/:riderId", isAuthenticated, async (req, res) => {
     try {
-      const blockedDrivers = await storage.getBlockedDriversForRider(req.params.riderId);
+      const blockedDrivers = await storage.getBlockedDriversForRider(routeParam(req, "riderId"));
       return res.json({ blockedDrivers });
     } catch (error) {
       console.error("Error getting blocked drivers:", error);
@@ -16949,7 +16964,7 @@ export async function registerRoutes(
   // Admin: Get all incidents by status
   app.get("/api/admin/safety/incidents/:status", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
     try {
-      const incidents = await storage.getIncidentsByStatus(req.params.status);
+      const incidents = await storage.getIncidentsByStatus(routeParam(req, "status"));
       return res.json(incidents);
     } catch (error) {
       console.error("Error getting incidents by status:", error);
@@ -16960,12 +16975,12 @@ export async function registerRoutes(
   // Admin: Get single incident details
   app.get("/api/admin/safety/incident/:incidentId", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
     try {
-      const incident = await storage.getIncident(req.params.incidentId);
+      const incident = await storage.getIncident(routeParam(req, "incidentId"));
       if (!incident) {
         return res.status(404).json({ message: "Incident not found" });
       }
       
-      const auditLogs = await storage.getSafetyAuditLogsForIncident(req.params.incidentId);
+      const auditLogs = await storage.getSafetyAuditLogsForIncident(routeParam(req, "incidentId"));
       return res.json({ incident, auditLogs });
     } catch (error) {
       console.error("Error getting incident:", error);
@@ -16978,7 +16993,7 @@ export async function registerRoutes(
     try {
       const adminId = req.user!.claims.sub;
       const { adminReviewIncident } = await import("./safety-guards");
-      const result = await adminReviewIncident(req.params.incidentId, adminId);
+      const result = await adminReviewIncident(routeParam(req, "incidentId"), adminId);
 
       if (!result.success) {
         return res.status(400).json({ message: result.error });
@@ -17003,7 +17018,7 @@ export async function registerRoutes(
 
       const { adminApproveIncident } = await import("./safety-guards");
       const result = await adminApproveIncident(
-        req.params.incidentId,
+        routeParam(req, "incidentId"),
         adminId,
         notes,
         suspendUser || false,
@@ -17032,7 +17047,7 @@ export async function registerRoutes(
       }
 
       const { adminDismissIncident } = await import("./safety-guards");
-      const result = await adminDismissIncident(req.params.incidentId, adminId, reason);
+      const result = await adminDismissIncident(routeParam(req, "incidentId"), adminId, reason);
 
       if (!result.success) {
         return res.status(400).json({ message: result.error });
@@ -17056,7 +17071,7 @@ export async function registerRoutes(
       }
 
       const { adminEscalateIncident } = await import("./safety-guards");
-      const result = await adminEscalateIncident(req.params.incidentId, adminId, reason);
+      const result = await adminEscalateIncident(routeParam(req, "incidentId"), adminId, reason);
 
       if (!result.success) {
         return res.status(400).json({ message: result.error });
@@ -17092,7 +17107,7 @@ export async function registerRoutes(
       }
 
       const { adminBanUser } = await import("./safety-guards");
-      const result = await adminBanUser(req.params.userId, adminId, reason, relatedIncidentId);
+      const result = await adminBanUser(routeParam(req, "userId"), adminId, reason, relatedIncidentId);
 
       if (!result.success) {
         return res.status(400).json({ message: result.error });
@@ -17116,7 +17131,7 @@ export async function registerRoutes(
       }
 
       const { liftUserSuspension } = await import("./safety-guards");
-      const result = await liftUserSuspension(req.params.suspensionId, adminId, reason);
+      const result = await liftUserSuspension(routeParam(req, "suspensionId"), adminId, reason);
 
       if (!result.success) {
         return res.status(400).json({ message: result.error });
@@ -17133,7 +17148,7 @@ export async function registerRoutes(
   app.get("/api/admin/safety/user/:userId", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
     try {
       const { getUserSafetyProfile } = await import("./safety-guards");
-      const profile = await getUserSafetyProfile(req.params.userId);
+      const profile = await getUserSafetyProfile(routeParam(req, "userId"));
       return res.json(profile);
     } catch (error) {
       console.error("Error getting user safety profile:", error);
@@ -17156,7 +17171,7 @@ export async function registerRoutes(
   // Admin: Get SOS triggers for a trip
   app.get("/api/admin/safety/sos/trip/:tripId", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
     try {
-      const triggers = await storage.getSosTriggersByTrip(req.params.tripId);
+      const triggers = await storage.getSosTriggersByTrip(routeParam(req, "tripId"));
       return res.json(triggers);
     } catch (error) {
       console.error("Error getting SOS triggers:", error);
@@ -17296,7 +17311,7 @@ export async function registerRoutes(
   // Get single lost item report
   app.get("/api/lost-items/:id", isAuthenticated, async (req, res) => {
     try {
-      const report = await storage.getLostItemReport(req.params.id);
+      const report = await storage.getLostItemReport(routeParam(req, "id"));
       if (!report) {
         return res.status(404).json({ message: "Report not found" });
       }
@@ -17317,7 +17332,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Response must be 'driver_confirmed' or 'driver_denied'" });
       }
 
-      const report = await storage.getLostItemReport(req.params.id);
+      const report = await storage.getLostItemReport(routeParam(req, "id"));
       if (!report) {
         return res.status(404).json({ message: "Report not found" });
       }
@@ -17339,12 +17354,12 @@ export async function registerRoutes(
         updateData.riderPhoneVisible = true;
       }
 
-      const updated = await storage.updateLostItemReport(req.params.id, updateData);
+      const updated = await storage.updateLostItemReport(routeParam(req, "id"), updateData);
 
       // Create system message in chat
       if (response === "driver_confirmed") {
         await storage.createLostItemMessage({
-          lostItemReportId: req.params.id,
+          lostItemReportId: routeParam(req, "id"),
           senderId: "system",
           senderRole: "system",
           message: "Driver confirmed the item was found. Chat is now unlocked for coordinating the return.",
@@ -17356,9 +17371,9 @@ export async function registerRoutes(
       try {
         const { captureBehaviorSignal } = await import("./trust-guards");
         if (response === "driver_confirmed") {
-          await captureBehaviorSignal(driverId, "LOST_ITEM_RETURNED", "driver", report.tripId, { lostItemId: req.params.id });
+          await captureBehaviorSignal(driverId, "LOST_ITEM_RETURNED", "driver", report.tripId, { lostItemId: routeParam(req, "id") });
         } else if (response === "driver_denied") {
-          await captureBehaviorSignal(driverId, "LOST_ITEM_DENIED", "driver", report.tripId, { lostItemId: req.params.id });
+          await captureBehaviorSignal(driverId, "LOST_ITEM_DENIED", "driver", report.tripId, { lostItemId: routeParam(req, "id") });
         }
       } catch (signalErr) {
         console.error("Trust signal capture failed (non-blocking):", signalErr);
@@ -17386,7 +17401,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
       }
 
-      const report = await storage.getLostItemReport(req.params.id);
+      const report = await storage.getLostItemReport(routeParam(req, "id"));
       if (!report) {
         return res.status(404).json({ message: "Report not found" });
       }
@@ -17420,7 +17435,7 @@ export async function registerRoutes(
 
         // System message
         await storage.createLostItemMessage({
-          lostItemReportId: req.params.id,
+          lostItemReportId: routeParam(req, "id"),
           senderId: "system",
           senderRole: "system",
           message: "Item has been returned successfully. Driver phone number is now visible to the rider.",
@@ -17431,7 +17446,7 @@ export async function registerRoutes(
       if (status === "disputed") {
         updateData.disputeReason = disputeReason || "No reason provided";
         await storage.createLostItemMessage({
-          lostItemReportId: req.params.id,
+          lostItemReportId: routeParam(req, "id"),
           senderId: "system",
           senderRole: "system",
           message: "This case has been disputed and escalated for admin review.",
@@ -17443,7 +17458,7 @@ export async function registerRoutes(
         updateData.resolvedByAdminId = userId;
         updateData.resolvedAt = new Date();
         await storage.createLostItemMessage({
-          lostItemReportId: req.params.id,
+          lostItemReportId: routeParam(req, "id"),
           senderId: "system",
           senderRole: "system",
           message: "This case has been resolved by an administrator.",
@@ -17451,12 +17466,12 @@ export async function registerRoutes(
         });
       }
 
-      const updated = await storage.updateLostItemReport(req.params.id, updateData);
+      const updated = await storage.updateLostItemReport(routeParam(req, "id"), updateData);
 
       // Log analytics on terminal states
       if (["returned", "disputed", "resolved_by_admin", "closed"].includes(status)) {
         try {
-          const messages = await storage.getLostItemMessages(req.params.id);
+          const messages = await storage.getLostItemMessages(routeParam(req, "id"));
           const fraudSignals = await storage.getLostItemFraudSignalsByUser(report.riderId);
           const riderReports = await storage.getLostItemReportsByRider(report.riderId);
           const driverReports = report.driverId ? await storage.getLostItemReportsByDriver(report.driverId) : [];
@@ -17468,7 +17483,7 @@ export async function registerRoutes(
           const resolutionHours = (resolvedAt.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
 
           await storage.createLostItemAnalytics({
-            lostItemReportId: req.params.id,
+            lostItemReportId: routeParam(req, "id"),
             riderId: report.riderId,
             driverId: report.driverId || undefined,
             tripId: report.tripId,
@@ -17481,7 +17496,7 @@ export async function registerRoutes(
             driverReturnCount: driverReturns,
             driverDenialCount: driverDenials,
             chatMessageCount: messages.filter(m => !m.isSystemMessage).length,
-            fraudSignalCount: fraudSignals.filter(s => s.lostItemReportId === req.params.id).length,
+            fraudSignalCount: fraudSignals.filter(s => s.relatedReportId === routeParam(req, "id")).length,
           });
         } catch (analyticsErr) {
           console.error("Analytics logging failed (non-blocking):", analyticsErr);
@@ -17492,7 +17507,7 @@ export async function registerRoutes(
       try {
         const { captureBehaviorSignal } = await import("./trust-guards");
         if (status === "returned" && report.riderId) {
-          await captureBehaviorSignal(report.riderId, "LOST_ITEM_RESOLVED", "rider", report.tripId, { lostItemId: req.params.id });
+          await captureBehaviorSignal(report.riderId, "LOST_ITEM_RESOLVED", "rider", report.tripId, { lostItemId: routeParam(req, "id") });
         }
       } catch (signalErr) {
         console.error("Trust signal capture failed (non-blocking):", signalErr);
@@ -17558,7 +17573,7 @@ export async function registerRoutes(
   app.get("/api/lost-items/:id/messages", isAuthenticated, async (req, res) => {
     try {
       const userId = req.user!.claims.sub;
-      const report = await storage.getLostItemReport(req.params.id);
+      const report = await storage.getLostItemReport(routeParam(req, "id"));
       if (!report) {
         return res.status(404).json({ message: "Report not found" });
       }
@@ -17571,8 +17586,8 @@ export async function registerRoutes(
       if (!report.communicationUnlocked) {
         return res.json([]);
       }
-      await storage.markLostItemMessagesRead(req.params.id, userId);
-      const messages = await storage.getLostItemMessages(req.params.id);
+      await storage.markLostItemMessagesRead(routeParam(req, "id"), userId);
+      const messages = await storage.getLostItemMessages(routeParam(req, "id"));
       return res.json(messages);
     } catch (error) {
       console.error("Error getting lost item messages:", error);
@@ -17588,7 +17603,7 @@ export async function registerRoutes(
       if (!message || !message.trim()) {
         return res.status(400).json({ message: "Message is required" });
       }
-      const report = await storage.getLostItemReport(req.params.id);
+      const report = await storage.getLostItemReport(routeParam(req, "id"));
       if (!report) {
         return res.status(404).json({ message: "Report not found" });
       }
@@ -17600,7 +17615,7 @@ export async function registerRoutes(
       }
       const senderRole = report.riderId === userId ? "rider" : "driver";
       const msg = await storage.createLostItemMessage({
-        lostItemReportId: req.params.id,
+        lostItemReportId: routeParam(req, "id"),
         senderId: userId,
         senderRole,
         message: message.trim(),
@@ -17617,7 +17632,7 @@ export async function registerRoutes(
   app.get("/api/lost-items/:id/phone", isAuthenticated, async (req, res) => {
     try {
       const userId = req.user!.claims.sub;
-      const report = await storage.getLostItemReport(req.params.id);
+      const report = await storage.getLostItemReport(routeParam(req, "id"));
       if (!report) {
         return res.status(404).json({ message: "Report not found" });
       }
@@ -17636,7 +17651,7 @@ export async function registerRoutes(
 
       // Driver wants rider phone: only after driver confirms found
       if (isDriver && report.riderPhoneVisible) {
-        const riderUser = await storage.getUser(report.riderId);
+        const riderUser = await storage.getRiderProfile(report.riderId);
         return res.json({ phone: riderUser?.phone || null, role: "rider" });
       }
 
@@ -17653,7 +17668,7 @@ export async function registerRoutes(
       const adminId = req.user!.claims.sub;
       const { unlock, riderPhoneVisible, driverPhoneVisible } = req.body;
 
-      const report = await storage.getLostItemReport(req.params.id);
+      const report = await storage.getLostItemReport(routeParam(req, "id"));
       if (!report) {
         return res.status(404).json({ message: "Report not found" });
       }
@@ -17667,11 +17682,11 @@ export async function registerRoutes(
       if (riderPhoneVisible !== undefined) updateData.riderPhoneVisible = riderPhoneVisible;
       if (driverPhoneVisible !== undefined) updateData.driverPhoneVisible = driverPhoneVisible;
 
-      const updated = await storage.updateLostItemReport(req.params.id, updateData);
+      const updated = await storage.updateLostItemReport(routeParam(req, "id"), updateData);
 
       const action = unlock ? "unlocked" : "revoked";
       await storage.createLostItemMessage({
-        lostItemReportId: req.params.id,
+        lostItemReportId: routeParam(req, "id"),
         senderId: "system",
         senderRole: "system",
         message: `Admin has ${action} communication for this case.`,
@@ -17691,12 +17706,12 @@ export async function registerRoutes(
       const adminId = req.user!.claims.sub;
       const { resolution, adminNotes } = req.body;
 
-      const report = await storage.getLostItemReport(req.params.id);
+      const report = await storage.getLostItemReport(routeParam(req, "id"));
       if (!report) {
         return res.status(404).json({ message: "Report not found" });
       }
 
-      const updated = await storage.updateLostItemReport(req.params.id, {
+      const updated = await storage.updateLostItemReport(routeParam(req, "id"), {
         status: "resolved_by_admin",
         resolvedByAdminId: adminId,
         resolvedAt: new Date(),
@@ -17704,7 +17719,7 @@ export async function registerRoutes(
       });
 
       await storage.createLostItemMessage({
-        lostItemReportId: req.params.id,
+        lostItemReportId: routeParam(req, "id"),
         senderId: "system",
         senderRole: "system",
         message: `Case resolved by admin. ${adminNotes || ""}`.trim(),
@@ -17785,11 +17800,11 @@ export async function registerRoutes(
   // Admin: Update a Safe Return Hub
   app.patch("/api/admin/safe-return-hubs/:id", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
     try {
-      const hub = await storage.getSafeReturnHub(req.params.id);
+      const hub = await storage.getSafeReturnHub(routeParam(req, "id"));
       if (!hub) {
         return res.status(404).json({ message: "Hub not found" });
       }
-      const updated = await storage.updateSafeReturnHub(req.params.id, req.body);
+      const updated = await storage.updateSafeReturnHub(routeParam(req, "id"), req.body);
       return res.json(updated);
     } catch (error) {
       console.error("Error updating safe return hub:", error);
@@ -17800,7 +17815,7 @@ export async function registerRoutes(
   // Admin: Delete a Safe Return Hub
   app.delete("/api/admin/safe-return-hubs/:id", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
     try {
-      const deleted = await storage.deleteSafeReturnHub(req.params.id);
+      const deleted = await storage.deleteSafeReturnHub(routeParam(req, "id"));
       if (!deleted) {
         return res.status(404).json({ message: "Hub not found" });
       }
@@ -17831,7 +17846,7 @@ export async function registerRoutes(
       if (!returnMethod || !["direct", "hub"].includes(returnMethod)) {
         return res.status(400).json({ message: "Return method must be 'direct' or 'hub'" });
       }
-      const report = await storage.getLostItemReport(req.params.id);
+      const report = await storage.getLostItemReport(routeParam(req, "id"));
       if (!report) {
         return res.status(404).json({ message: "Report not found" });
       }
@@ -17858,7 +17873,7 @@ export async function registerRoutes(
           updateData.expectedDropOffTime = new Date(expectedDropOffTime);
         }
         await storage.createLostItemMessage({
-          lostItemReportId: req.params.id,
+          lostItemReportId: routeParam(req, "id"),
           senderId: "system",
           senderRole: "system",
           message: `Driver is delivering the item to Safe Return Hub: ${hub.name} (${hub.address}). You will be notified when the item arrives.`,
@@ -17867,7 +17882,8 @@ export async function registerRoutes(
         try {
           await storage.createNotification({
             userId: report.riderId,
-            type: "safety",
+        role: "rider",
+            type: "safety_check",
             title: "Item Being Delivered to Hub",
             message: `Your lost item is being delivered to a Safe Return Hub. You'll be notified when it arrives.`,
           });
@@ -17877,14 +17893,14 @@ export async function registerRoutes(
       } else {
         updateData.status = "found";
         await storage.createLostItemMessage({
-          lostItemReportId: req.params.id,
+          lostItemReportId: routeParam(req, "id"),
           senderId: "system",
           senderRole: "system",
           message: "Driver will return the item directly. Please coordinate via chat.",
           isSystemMessage: true,
         });
       }
-      const updated = await storage.updateLostItemReport(req.params.id, updateData);
+      const updated = await storage.updateLostItemReport(routeParam(req, "id"), updateData);
       return res.json(updated);
     } catch (error) {
       console.error("Error setting return method:", error);
@@ -17897,7 +17913,7 @@ export async function registerRoutes(
     try {
       const driverId = req.user!.claims.sub;
       const { photoUrl } = req.body;
-      const report = await storage.getLostItemReport(req.params.id);
+      const report = await storage.getLostItemReport(routeParam(req, "id"));
       if (!report) {
         return res.status(404).json({ message: "Report not found" });
       }
@@ -17914,10 +17930,10 @@ export async function registerRoutes(
       if (photoUrl) {
         updateData.hubDropOffPhotoUrl = photoUrl;
       }
-      const updated = await storage.updateLostItemReport(req.params.id, updateData);
+      const updated = await storage.updateLostItemReport(routeParam(req, "id"), updateData);
       const hub = report.hubId ? await storage.getSafeReturnHub(report.hubId) : null;
       await storage.createLostItemMessage({
-        lostItemReportId: req.params.id,
+        lostItemReportId: routeParam(req, "id"),
         senderId: "system",
         senderRole: "system",
         message: `Item has been dropped off at ${hub?.name || "the Safe Return Hub"}. ${hub ? `Address: ${hub.address}. Operating hours: ${hub.operatingHoursStart}-${hub.operatingHoursEnd}.` : ""} Please visit the hub to pick up your item.`,
@@ -17926,7 +17942,8 @@ export async function registerRoutes(
       try {
         await storage.createNotification({
           userId: report.riderId,
-          type: "safety",
+        role: "rider",
+          type: "safety_check",
           title: "Item Ready for Pickup",
           message: `Your lost item has been dropped off at ${hub?.name || "a Safe Return Hub"}. Please visit the hub to pick it up.`,
         });
@@ -17936,7 +17953,7 @@ export async function registerRoutes(
       // Capture trust signal for hub drop-off
       try {
         const { captureBehaviorSignal } = await import("./trust-guards");
-        await captureBehaviorSignal(driverId, "LOST_ITEM_HUB_DROPOFF", "driver", report.tripId, { lostItemId: req.params.id, hubId: report.hubId });
+        await captureBehaviorSignal(driverId, "LOST_ITEM_HUB_DROPOFF", "driver", report.tripId, { lostItemId: routeParam(req, "id"), hubId: report.hubId });
       } catch (signalErr) {
         console.error("Trust signal capture failed (non-blocking):", signalErr);
       }
@@ -17951,7 +17968,7 @@ export async function registerRoutes(
   app.patch("/api/lost-items/:id/hub-pickup", isAuthenticated, async (req, res) => {
     try {
       const riderId = req.user!.claims.sub;
-      const report = await storage.getLostItemReport(req.params.id);
+      const report = await storage.getLostItemReport(routeParam(req, "id"));
       if (!report) {
         return res.status(404).json({ message: "Report not found" });
       }
@@ -17961,13 +17978,13 @@ export async function registerRoutes(
       if (report.status !== "at_hub") {
         return res.status(400).json({ message: "Item must be at the hub to confirm pickup" });
       }
-      const updated = await storage.updateLostItemReport(req.params.id, {
+      const updated = await storage.updateLostItemReport(routeParam(req, "id"), {
         status: "returned",
         hubPickedUpAt: new Date(),
         returnCompletedAt: new Date(),
       });
       await storage.createLostItemMessage({
-        lostItemReportId: req.params.id,
+        lostItemReportId: routeParam(req, "id"),
         senderId: "system",
         senderRole: "system",
         message: "Rider has picked up the item from the hub. Case resolved successfully.",
@@ -17977,7 +17994,8 @@ export async function registerRoutes(
         if (report.driverId) {
           await storage.createNotification({
             userId: report.driverId,
-            type: "safety",
+        role: "driver",
+            type: "safety_check",
             title: "Item Pickup Confirmed",
             message: "The rider has picked up their item from the hub. Thank you for using the Safe Return Hub!",
           });
@@ -17990,13 +18008,11 @@ export async function registerRoutes(
         try {
           const bonus = parseFloat(report.driverHubBonus);
           if (bonus > 0) {
-            const wallet = await storage.getWallet(report.driverId);
+            const wallet = await storage.getOrCreateWallet(report.driverId, "driver");
             if (wallet) {
-              await storage.updateWallet(report.driverId, {
-                balance: (parseFloat(wallet.balance || "0") + bonus).toFixed(2),
-              });
+              await storage.creditHubReturnBonus(wallet.id, bonus.toFixed(2), report.id);
               await storage.createLostItemMessage({
-                lostItemReportId: req.params.id,
+                lostItemReportId: routeParam(req, "id"),
                 senderId: "system",
                 senderRole: "system",
                 message: `Driver bonus of ${bonus.toFixed(2)} credited for using Safe Return Hub.`,
@@ -18010,14 +18026,14 @@ export async function registerRoutes(
       }
       // Log analytics
       try {
-        const messages = await storage.getLostItemMessages(req.params.id);
+        const messages = await storage.getLostItemMessages(routeParam(req, "id"));
         const riderReports = await storage.getLostItemReportsByRider(report.riderId);
         const driverReports = report.driverId ? await storage.getLostItemReportsByDriver(report.driverId) : [];
         const driverReturns = driverReports.filter(r => r.status === "returned").length;
         const createdAt = new Date(report.createdAt);
         const resolutionHours = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60);
         await storage.createLostItemAnalytics({
-          lostItemReportId: req.params.id,
+          lostItemReportId: routeParam(req, "id"),
           riderId: report.riderId,
           driverId: report.driverId || undefined,
           tripId: report.tripId,
@@ -18036,7 +18052,7 @@ export async function registerRoutes(
       // Trust signal
       try {
         const { captureBehaviorSignal } = await import("./trust-guards");
-        await captureBehaviorSignal(report.riderId, "LOST_ITEM_RESOLVED", "rider", report.tripId, { lostItemId: req.params.id, viaHub: true });
+        await captureBehaviorSignal(report.riderId, "LOST_ITEM_RESOLVED", "rider", report.tripId, { lostItemId: routeParam(req, "id"), viaHub: true });
       } catch (signalErr) {
         console.error("Trust signal capture failed (non-blocking):", signalErr);
       }
@@ -18128,7 +18144,7 @@ export async function registerRoutes(
   // Get single accident report
   app.get("/api/accident-reports/:id", isAuthenticated, async (req, res) => {
     try {
-      const report = await storage.getAccidentReport(req.params.id);
+      const report = await storage.getAccidentReport(routeParam(req, "id"));
       if (!report) {
         return res.status(404).json({ message: "Report not found" });
       }
@@ -18163,12 +18179,12 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Review status is required" });
       }
 
-      const updated = await storage.updateAccidentReport(req.params.id, {
+      const updated = await storage.updateAccidentReport(routeParam(req, "id"), {
         adminReviewStatus,
-        adminNotes: adminNotes || null,
+        adminReviewNotes: adminNotes || null,
         insuranceClaimRef: insuranceClaimRef || null,
-        reviewedBy: adminId,
-        reviewedAt: new Date(),
+        adminReviewedBy: adminId,
+        adminReviewedAt: new Date(),
       });
 
       if (!updated) {
@@ -18236,7 +18252,7 @@ export async function registerRoutes(
   // Admin: Update insurance partner
   app.patch("/api/admin/insurance-partners/:id", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
     try {
-      const updated = await storage.updateInsurancePartner(req.params.id, { ...req.body, updatedAt: new Date() });
+      const updated = await storage.updateInsurancePartner(routeParam(req, "id"), { ...req.body, updatedAt: new Date() });
       if (!updated) return res.status(404).json({ message: "Partner not found" });
       return res.json(updated);
     } catch (error) {
@@ -18248,7 +18264,7 @@ export async function registerRoutes(
   // Get insurance referrals for an accident report
   app.get("/api/insurance-referrals/:accidentReportId", isAuthenticated, async (req, res) => {
     try {
-      const referrals = await storage.getInsuranceReferralsByAccident(req.params.accidentReportId);
+      const referrals = await storage.getInsuranceReferralsByAccident(routeParam(req, "accidentReportId"));
       return res.json(referrals);
     } catch (error) {
       console.error("Error getting insurance referrals:", error);
@@ -18362,7 +18378,7 @@ export async function registerRoutes(
     try {
       const adminId = req.user!.claims.sub;
       const { status, approvedAmount, reviewNotes, expectedPayoutDate, faultDetermination } = req.body;
-      const updated = await storage.updateReliefFundClaim(req.params.id, {
+      const updated = await storage.updateReliefFundClaim(routeParam(req, "id"), {
         status,
         approvedAmount: approvedAmount || null,
         reviewedBy: adminId,
@@ -18432,8 +18448,8 @@ export async function registerRoutes(
   // Admin: Get fraud signals for a user
   app.get("/api/admin/lost-item-fraud/user/:userId", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
     try {
-      const signals = await storage.getLostItemFraudSignalsByUser(req.params.userId);
-      const riskScore = await storage.getUserLostItemRiskScore(req.params.userId);
+      const signals = await storage.getLostItemFraudSignalsByUser(routeParam(req, "userId"));
+      const riskScore = await storage.getUserLostItemRiskScore(routeParam(req, "userId"));
       return res.json({ signals, riskScore });
     } catch (error) {
       console.error("Error getting user fraud signals:", error);
@@ -18446,7 +18462,7 @@ export async function registerRoutes(
     try {
       const adminId = req.user!.claims.sub;
       const { adminNotes, autoResolved } = req.body;
-      const updated = await storage.updateLostItemFraudSignal(req.params.id, {
+      const updated = await storage.updateLostItemFraudSignal(routeParam(req, "id"), {
         adminReviewed: true,
         adminReviewedBy: adminId,
         adminNotes: adminNotes || null,
@@ -18472,7 +18488,7 @@ export async function registerRoutes(
       const initiatorRole = role?.role === "driver" ? "DRIVER" : "RIDER";
 
       const { checkDisputeEligibility } = await import("./dispute-guards");
-      const result = await checkDisputeEligibility(req.params.tripId, userId, initiatorRole);
+      const result = await checkDisputeEligibility(routeParam(req, "tripId"), userId, initiatorRole);
 
       return res.json(result);
     } catch (error) {
@@ -18549,7 +18565,7 @@ export async function registerRoutes(
   app.get("/api/disputes/:disputeId", isAuthenticated, async (req, res) => {
     try {
       const userId = req.user!.claims.sub;
-      const dispute = await storage.getPhase5Dispute(req.params.disputeId);
+      const dispute = await storage.getPhase5Dispute(routeParam(req, "disputeId"));
 
       if (!dispute) {
         return res.status(404).json({ message: "Dispute not found" });
@@ -18574,7 +18590,7 @@ export async function registerRoutes(
   app.get("/api/disputes/trip/:tripId", isAuthenticated, async (req, res) => {
     try {
       const userId = req.user!.claims.sub;
-      const trip = await storage.getTripById(req.params.tripId);
+      const trip = await storage.getTripById(routeParam(req, "tripId"));
 
       if (!trip) {
         return res.status(404).json({ message: "Trip not found" });
@@ -18588,7 +18604,7 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Not authorized" });
       }
 
-      const disputes = await storage.getPhase5DisputesByTrip(req.params.tripId);
+      const disputes = await storage.getPhase5DisputesByTrip(routeParam(req, "tripId"));
       return res.json(disputes);
     } catch (error) {
       console.error("Error getting trip disputes:", error);
@@ -18611,7 +18627,7 @@ export async function registerRoutes(
   // Admin: Get disputes by status
   app.get("/api/admin/disputes/status/:status", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
     try {
-      const disputes = await storage.getPhase5DisputesByStatus(req.params.status);
+      const disputes = await storage.getPhase5DisputesByStatus(routeParam(req, "status"));
       return res.json(disputes);
     } catch (error) {
       console.error("Error getting disputes by status:", error);
@@ -18625,7 +18641,7 @@ export async function registerRoutes(
       const adminId = req.user!.claims.sub;
 
       const { adminReviewDispute } = await import("./dispute-guards");
-      const result = await adminReviewDispute(req.params.disputeId, adminId);
+      const result = await adminReviewDispute(routeParam(req, "disputeId"), adminId);
 
       if (!result.success) {
         return res.status(400).json({ message: result.error });
@@ -18649,7 +18665,7 @@ export async function registerRoutes(
       }
 
       const { adminApproveDispute } = await import("./dispute-guards");
-      const result = await adminApproveDispute(req.params.disputeId, adminId, notes, refundType, refundAmount);
+      const result = await adminApproveDispute(routeParam(req, "disputeId"), adminId, notes, refundType, refundAmount);
 
       if (!result.success) {
         return res.status(400).json({ message: result.error });
@@ -18673,7 +18689,7 @@ export async function registerRoutes(
       }
 
       const { adminRejectDispute } = await import("./dispute-guards");
-      const result = await adminRejectDispute(req.params.disputeId, adminId, reason);
+      const result = await adminRejectDispute(routeParam(req, "disputeId"), adminId, reason);
 
       if (!result.success) {
         return res.status(400).json({ message: result.error });
@@ -18697,7 +18713,7 @@ export async function registerRoutes(
       }
 
       const { adminEscalateDispute } = await import("./dispute-guards");
-      const result = await adminEscalateDispute(req.params.disputeId, adminId, reason);
+      const result = await adminEscalateDispute(routeParam(req, "disputeId"), adminId, reason);
 
       if (!result.success) {
         return res.status(400).json({ message: result.error });
@@ -18738,7 +18754,7 @@ export async function registerRoutes(
   app.get("/api/admin/disputes/user/:userId", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
     try {
       const { getUserDisputeProfile } = await import("./dispute-guards");
-      const profile = await getUserDisputeProfile(req.params.userId);
+      const profile = await getUserDisputeProfile(routeParam(req, "userId"));
       return res.json(profile);
     } catch (error) {
       console.error("Error getting user dispute profile:", error);
@@ -18761,7 +18777,7 @@ export async function registerRoutes(
   // Admin: Get dispute audit logs for specific dispute
   app.get("/api/admin/disputes/:disputeId/audit-logs", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
     try {
-      const logs = await storage.getDisputeAuditLogsForDispute(req.params.disputeId);
+      const logs = await storage.getDisputeAuditLogsForDispute(routeParam(req, "disputeId"));
       return res.json(logs);
     } catch (error) {
       console.error("Error getting dispute audit logs:", error);
@@ -18772,7 +18788,7 @@ export async function registerRoutes(
   // Admin: Get refunds for a dispute
   app.get("/api/admin/disputes/:disputeId/refunds", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
     try {
-      const refunds = await storage.getPhase5RefundsByDispute(req.params.disputeId);
+      const refunds = await storage.getPhase5RefundsByDispute(routeParam(req, "disputeId"));
       return res.json(refunds);
     } catch (error) {
       console.error("Error getting refunds:", error);
@@ -18785,15 +18801,15 @@ export async function registerRoutes(
     try {
       const adminId = req.user!.claims.sub;
 
-      const refund = await storage.getPhase5RefundOutcome(req.params.refundId);
+      const refund = await storage.getPhase5RefundOutcome(routeParam(req, "refundId"));
       if (!refund) {
         return res.status(404).json({ message: "Refund not found" });
       }
 
-      await storage.updatePhase5RefundStatus(req.params.refundId, "APPROVED", adminId);
+      await storage.updatePhase5RefundStatus(routeParam(req, "refundId"), "APPROVED", adminId);
 
       const { processRefund } = await import("./dispute-guards");
-      const result = await processRefund(req.params.refundId, adminId);
+      const result = await processRefund(routeParam(req, "refundId"), adminId);
 
       if (!result.success) {
         return res.status(400).json({ message: result.error });
@@ -18836,7 +18852,7 @@ export async function registerRoutes(
   // Public: Get specific legal document by type
   app.get("/api/legal/:documentType", async (req, res) => {
     try {
-      const doc = await storage.getActiveLegalDocumentByType(req.params.documentType);
+      const doc = await storage.getActiveLegalDocumentByType(routeParam(req, "documentType"));
       if (!doc) {
         return res.status(404).json({ message: "Document not found" });
       }
@@ -19312,7 +19328,7 @@ export async function registerRoutes(
 
       const allRoles = await storage.getAllUserRoles(userId);
       const roleList = allRoles.map(r => r.role);
-      let detectedRole = "rider";
+      let detectedRole: ZibraRole = "rider";
       if (roleList.includes("super_admin")) detectedRole = "super_admin";
       else if (roleList.includes("admin")) detectedRole = "admin";
       else if (roleList.includes("director")) detectedRole = "director";
@@ -19354,13 +19370,12 @@ export async function registerRoutes(
         if (legalScan.shouldLog) {
           try {
             await storage.logSupportInteraction({
-              userId: parseInt(userId),
+              userId,
               userMessage: message,
               supportResponse: legalScan.response,
               userRole: detectedRole,
               currentScreen: currentScreen || "unknown",
-              escalated: legalScan.shouldNotifyAdmin,
-              conversationId: conversationId || `conv-${Date.now()}`,
+              matchedCategory: `legal_${legalScan.level}`,
             });
           } catch {}
         }
@@ -19757,7 +19772,7 @@ export async function registerRoutes(
 
       const allRoles = await storage.getAllUserRoles(userId);
       const roleList = allRoles.map(r => r.role);
-      let detectedRole = "rider";
+      let detectedRole: ZibraRole = "rider";
       if (roleList.includes("super_admin")) detectedRole = "super_admin";
       else if (roleList.includes("admin")) detectedRole = "admin";
       else if (roleList.includes("driver")) detectedRole = "driver";
@@ -21096,7 +21111,7 @@ export async function registerRoutes(
   // Public: Get article by slug and increment view
   app.get("/api/help/articles/slug/:slug", async (req: any, res) => {
     try {
-      const article = await storage.getHelpArticleBySlug(req.params.slug);
+      const article = await storage.getHelpArticleBySlug(routeParam(req, "slug"));
       if (!article || article.status !== "PUBLISHED") {
         return res.status(404).json({ message: "Article not found" });
       }
@@ -21136,7 +21151,7 @@ export async function registerRoutes(
       if (typeof helpful !== "boolean") {
         return res.status(400).json({ message: "helpful must be a boolean" });
       }
-      await storage.rateArticleHelpful(req.params.id, helpful);
+      await storage.rateArticleHelpful(routeParam(req, "id"), helpful);
       return res.json({ success: true });
     } catch (error) {
       console.error("Error rating help article:", error);
@@ -21169,7 +21184,7 @@ export async function registerRoutes(
   // Admin: Update help category
   app.patch("/api/admin/help/categories/:id", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
     try {
-      const category = await storage.updateHelpCategory(req.params.id, req.body);
+      const category = await storage.updateHelpCategory(routeParam(req, "id"), req.body);
       if (!category) return res.status(404).json({ message: "Category not found" });
       return res.json(category);
     } catch (error) {
@@ -21181,7 +21196,7 @@ export async function registerRoutes(
   // Admin: Delete help category
   app.delete("/api/admin/help/categories/:id", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
     try {
-      const deleted = await storage.deleteHelpCategory(req.params.id);
+      const deleted = await storage.deleteHelpCategory(routeParam(req, "id"));
       if (!deleted) return res.status(404).json({ message: "Category not found" });
       return res.json({ success: true });
     } catch (error) {
@@ -21224,7 +21239,7 @@ export async function registerRoutes(
   // Admin: Update help article
   app.patch("/api/admin/help/articles/:id", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
     try {
-      const article = await storage.updateHelpArticle(req.params.id, {
+      const article = await storage.updateHelpArticle(routeParam(req, "id"), {
         ...req.body,
         updatedBy: req.user.id,
       });
@@ -21239,7 +21254,7 @@ export async function registerRoutes(
   // Admin: Delete help article
   app.delete("/api/admin/help/articles/:id", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
     try {
-      const deleted = await storage.deleteHelpArticle(req.params.id);
+      const deleted = await storage.deleteHelpArticle(routeParam(req, "id"));
       if (!deleted) return res.status(404).json({ message: "Article not found" });
       return res.json({ success: true });
     } catch (error) {
@@ -21293,7 +21308,7 @@ export async function registerRoutes(
 
   app.patch("/api/trusted-contacts/:id", isAuthenticated, async (req: any, res) => {
     try {
-      const contact = await storage.updateTrustedContact(req.params.id, req.user.id, req.body);
+      const contact = await storage.updateTrustedContact(routeParam(req, "id"), req.user.id, req.body);
       if (!contact) return res.status(404).json({ message: "Contact not found" });
       return res.json(contact);
     } catch (error) {
@@ -21304,7 +21319,7 @@ export async function registerRoutes(
 
   app.delete("/api/trusted-contacts/:id", isAuthenticated, async (req: any, res) => {
     try {
-      const deleted = await storage.deleteTrustedContact(req.params.id, req.user.id);
+      const deleted = await storage.deleteTrustedContact(routeParam(req, "id"), req.user.id);
       if (!deleted) return res.status(404).json({ message: "Contact not found" });
       return res.json({ success: true });
     } catch (error) {
@@ -21324,7 +21339,7 @@ export async function registerRoutes(
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
       
       const link = await storage.createTripShareLink({
-        tripId: req.params.tripId,
+        tripId: routeParam(req, "tripId"),
         sharedBy: req.user.id,
         shareToken,
         recipientPhone: req.body.recipientPhone || null,
@@ -21341,7 +21356,7 @@ export async function registerRoutes(
 
   app.get("/api/trip-share/:token", async (req, res) => {
     try {
-      const link = await storage.getTripShareLinkByToken(req.params.token);
+      const link = await storage.getTripShareLinkByToken(routeParam(req, "token"));
       if (!link) return res.status(404).json({ message: "Share link not found or expired" });
       if (new Date() > new Date(link.expiresAt)) {
         return res.status(410).json({ message: "Share link has expired" });
@@ -21368,7 +21383,7 @@ export async function registerRoutes(
 
   app.get("/api/trips/:tripId/share-links", isAuthenticated, async (req: any, res) => {
     try {
-      const links = await storage.getTripShareLinks(req.params.tripId);
+      const links = await storage.getTripShareLinks(routeParam(req, "tripId"));
       return res.json(links);
     } catch (error) {
       console.error("Error fetching share links:", error);
@@ -21378,7 +21393,7 @@ export async function registerRoutes(
 
   app.delete("/api/trip-share/:id", isAuthenticated, async (req: any, res) => {
     try {
-      const deactivated = await storage.deactivateTripShareLink(req.params.id);
+      const deactivated = await storage.deactivateTripShareLink(routeParam(req, "id"));
       if (!deactivated) return res.status(404).json({ message: "Share link not found" });
       return res.json({ success: true });
     } catch (error) {
@@ -21393,10 +21408,10 @@ export async function registerRoutes(
 
   app.get("/api/emergency-config/:countryCode", async (req, res) => {
     try {
-      const config = await storage.getCountryEmergencyConfig(req.params.countryCode.toUpperCase());
+      const config = await storage.getCountryEmergencyConfig(routeParam(req, "countryCode").toUpperCase());
       if (!config) {
         return res.json({
-          countryCode: req.params.countryCode.toUpperCase(),
+          countryCode: routeParam(req, "countryCode").toUpperCase(),
           emergencyNumber: "911",
           policeNumber: null,
           ambulanceNumber: null,
@@ -21592,7 +21607,7 @@ export async function registerRoutes(
   app.get("/api/driver/statements/:year", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const year = parseInt(req.params.year);
+      const year = parseInt(routeParam(req, "year"));
       if (isNaN(year)) return res.status(400).json({ message: "Invalid year" });
 
       const startOfYear = new Date(year, 0, 1);
@@ -21739,7 +21754,7 @@ export async function registerRoutes(
   app.get("/api/driver/statements/annual/:year", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const year = parseInt(req.params.year);
+      const year = parseInt(routeParam(req, "year"));
       if (isNaN(year)) return res.status(400).json({ message: "Invalid year" });
 
       const driverProfile = await storage.getDriverProfile(userId);
@@ -21800,8 +21815,8 @@ export async function registerRoutes(
   app.get("/api/driver/statements/:year/:month/download", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const year = parseInt(req.params.year);
-      const month = parseInt(req.params.month);
+      const year = parseInt(routeParam(req, "year"));
+      const month = parseInt(routeParam(req, "month"));
       const format = req.query.format || "csv";
 
       if (isNaN(year) || isNaN(month)) return res.status(400).json({ message: "Invalid parameters" });
@@ -21928,7 +21943,7 @@ export async function registerRoutes(
   app.get("/api/driver/statements/annual/:year/download", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const year = parseInt(req.params.year);
+      const year = parseInt(routeParam(req, "year"));
       const format = (req.query.format || "pdf").toLowerCase();
 
       if (isNaN(year)) return res.status(400).json({ message: "Invalid year" });
@@ -21961,8 +21976,8 @@ export async function registerRoutes(
   // Admin: validate driver data before generation
   app.get("/api/admin/tax/validate/:driverId/:year", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {
-      const driverId = req.params.driverId;
-      const year = parseInt(req.params.year);
+      const driverId = routeParam(req, "driverId");
+      const year = parseInt(routeParam(req, "year"));
       if (isNaN(year)) return res.status(400).json({ message: "Invalid year" });
 
       const errors: string[] = [];
@@ -22001,19 +22016,20 @@ export async function registerRoutes(
   // Admin: list all drivers with their tax generation status
   app.get("/api/admin/tax/drivers/:year", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {
-      const year = parseInt(req.params.year);
+      const year = parseInt(routeParam(req, "year"));
       if (isNaN(year)) return res.status(400).json({ message: "Invalid year" });
 
       const allDriverProfiles = await db.select().from(driverProfiles);
       const summaries = await storage.getAllTaxYearSummariesForYear(year);
       const summaryMap = new Map(summaries.map(s => [s.driverUserId, s]));
 
+      const registeredRoles = await db.select().from(userRoles);
       const drivers = allDriverProfiles.map(dp => {
         const summary = summaryMap.get(dp.userId);
         return {
           driverId: dp.userId,
           driverName: dp.fullName,
-          country: dp.countryCode || "NG",
+          country: registeredRoles.find(r => r.userId === dp.userId && r.role === "driver")?.countryCode || null,
           status: summary?.status || "not_generated",
           totalGrossEarnings: summary ? parseFloat(summary.totalGrossEarnings) : null,
           reportableIncome: summary ? parseFloat(summary.reportableIncome) : null,
@@ -22032,8 +22048,8 @@ export async function registerRoutes(
   app.post("/api/admin/tax/generate/:driverId/:year", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {
       const adminId = req.user.claims.sub;
-      const driverId = req.params.driverId;
-      const year = parseInt(req.params.year);
+      const driverId = routeParam(req, "driverId");
+      const year = parseInt(routeParam(req, "year"));
       if (isNaN(year)) return res.status(400).json({ message: "Invalid year" });
 
       const existingSummary = await storage.getDriverTaxYearSummary(driverId, year);
@@ -22068,8 +22084,8 @@ export async function registerRoutes(
   app.post("/api/admin/tax/finalize/:driverId/:year", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {
       const adminId = req.user.claims.sub;
-      const driverId = req.params.driverId;
-      const year = parseInt(req.params.year);
+      const driverId = routeParam(req, "driverId");
+      const year = parseInt(routeParam(req, "year"));
       if (isNaN(year)) return res.status(400).json({ message: "Invalid year" });
 
       const summary = await storage.finalizeTaxYearSummary(driverId, year, adminId);
@@ -22085,8 +22101,8 @@ export async function registerRoutes(
   app.post("/api/admin/tax/issue/:driverId/:year", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {
       const adminId = req.user.claims.sub;
-      const driverId = req.params.driverId;
-      const year = parseInt(req.params.year);
+      const driverId = routeParam(req, "driverId");
+      const year = parseInt(routeParam(req, "year"));
       if (isNaN(year)) return res.status(400).json({ message: "Invalid year" });
 
       const summary = await storage.issueTaxYearSummary(driverId, year, adminId);
@@ -22128,8 +22144,8 @@ export async function registerRoutes(
   // Admin: view driver tax summary (read-only)
   app.get("/api/admin/tax/summary/:driverId/:year", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {
-      const driverId = req.params.driverId;
-      const year = parseInt(req.params.year);
+      const driverId = routeParam(req, "driverId");
+      const year = parseInt(routeParam(req, "year"));
       if (isNaN(year)) return res.status(400).json({ message: "Invalid year" });
 
       const summary = await storage.getDriverTaxYearSummary(driverId, year);
@@ -22180,7 +22196,7 @@ export async function registerRoutes(
   // Admin: list all tax summaries for a year (for compliance download)
   app.get("/api/admin/tax/summaries/:year", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {
-      const year = parseInt(req.params.year);
+      const year = parseInt(routeParam(req, "year"));
       if (isNaN(year)) return res.status(400).json({ message: "Invalid year" });
 
       const summaries = await storage.getAllTaxYearSummariesForYear(year);
@@ -22204,7 +22220,7 @@ export async function registerRoutes(
   // Admin: bulk export tax summaries as CSV (spec-compliant format)
   app.get("/api/admin/tax/export/:year", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {
-      const year = parseInt(req.params.year);
+      const year = parseInt(routeParam(req, "year"));
       if (isNaN(year)) return res.status(400).json({ message: "Invalid year" });
 
       const summaries = await storage.getAllTaxYearSummariesForYear(year);
@@ -22249,8 +22265,8 @@ export async function registerRoutes(
   // Admin: download individual driver tax document as PDF or CSV
   app.get("/api/admin/tax/download/:driverId/:year", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {
-      const driverId = req.params.driverId;
-      const year = parseInt(req.params.year);
+      const driverId = routeParam(req, "driverId");
+      const year = parseInt(routeParam(req, "year"));
       const format = (req.query.format || "pdf").toLowerCase();
       const docType = (req.query.type || "annual_statement") as string;
 
@@ -22280,8 +22296,8 @@ export async function registerRoutes(
   // Admin: view audit log for a driver's tax year
   app.get("/api/admin/tax/audit/:driverId/:year", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {
-      const driverId = req.params.driverId;
-      const year = parseInt(req.params.year);
+      const driverId = routeParam(req, "driverId");
+      const year = parseInt(routeParam(req, "year"));
       if (isNaN(year)) return res.status(400).json({ message: "Invalid year" });
 
       const logs = await storage.getTaxAuditLogs(driverId, year);
@@ -22308,7 +22324,7 @@ export async function registerRoutes(
 
   app.get("/api/admin/tax/country-configs/:countryCode", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {
-      const config = await storage.getCountryTaxConfig(req.params.countryCode);
+      const config = await storage.getCountryTaxConfig(routeParam(req, "countryCode"));
       if (!config) return res.status(404).json({ message: "No tax configuration found for this country" });
       return res.json(config);
     } catch (error) {
@@ -22329,7 +22345,7 @@ export async function registerRoutes(
 
   app.delete("/api/admin/tax/country-configs/:countryCode", isAuthenticated, requireRole(["super_admin"]), async (req: any, res) => {
     try {
-      await storage.deleteCountryTaxConfig(req.params.countryCode);
+      await storage.deleteCountryTaxConfig(routeParam(req, "countryCode"));
       return res.json({ success: true });
     } catch (error) {
       console.error("Error deleting country tax config:", error);
@@ -22491,7 +22507,7 @@ export async function registerRoutes(
   app.get("/api/driver/mileage/:year", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const year = parseInt(req.params.year);
+      const year = parseInt(routeParam(req, "year"));
       if (isNaN(year)) return res.status(400).json({ message: "Invalid year" });
 
       const record = await storage.getDriverMileageForYear(userId, year);
@@ -22511,8 +22527,8 @@ export async function registerRoutes(
   // Admin compliance: read-only mileage views
   app.get("/api/admin/mileage/driver/:driverId/:year", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {
-      const driverId = req.params.driverId;
-      const year = parseInt(req.params.year);
+      const driverId = routeParam(req, "driverId");
+      const year = parseInt(routeParam(req, "year"));
       if (isNaN(year)) return res.status(400).json({ message: "Invalid year" });
 
       const yearlyRecord = await storage.getDriverMileageForYear(driverId, year);
@@ -22542,7 +22558,7 @@ export async function registerRoutes(
 
   app.get("/api/admin/mileage/export/:year", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {
-      const year = parseInt(req.params.year);
+      const year = parseInt(routeParam(req, "year"));
       if (isNaN(year)) return res.status(400).json({ message: "Invalid year" });
 
       const allRecords = await storage.getAllDriverMileageYearlySummaries();
@@ -22644,7 +22660,7 @@ export async function registerRoutes(
   // Admin: Revoke simulation code
   app.post("/api/admin/simulation/codes/:id/revoke", isAuthenticated, requireSimulationEnabled, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseInt(routeParam(req, "id"));
       if (isNaN(id)) return res.status(400).json({ message: "Invalid code ID" });
       await storage.revokeSimulationCode(id);
       return res.json({ success: true });
@@ -22668,7 +22684,7 @@ export async function registerRoutes(
   // Admin: End a simulation session
   app.post("/api/admin/simulation/sessions/:id/end", isAuthenticated, requireSimulationEnabled, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseInt(routeParam(req, "id"));
       if (isNaN(id)) return res.status(400).json({ message: "Invalid session ID" });
       await storage.endSimulationSession(id);
       return res.json({ success: true });
@@ -23246,6 +23262,7 @@ export async function registerRoutes(
             if (daysRemaining <= 30 && daysRemaining > 0 && director.lifecycleStatus === "active") {
               await storage.createNotification({
                 userId: director.userId,
+        role: "director",
                 type: "warning",
                 title: "Contract Expiry Approaching",
                 message: `Your director appointment expires in ${daysRemaining} days. Please contact administration if you have questions about renewal.`,
@@ -23253,10 +23270,11 @@ export async function registerRoutes(
 
               const admins = await db.select().from(users);
               for (const admin of admins) {
-                const roles = await storage.getUserRoles(admin.id);
+                const roles = (await storage.getAllUserRoles(admin.id)).map(record => record.role);
                 if (roles.includes("super_admin")) {
                   await storage.createNotification({
                     userId: admin.id,
+        role: "admin",
                     type: "info",
                     title: "Director Expiry Warning",
                     message: `Director ${director.fullName || director.userId} expires in ${daysRemaining} days. Consider succession planning.`,
@@ -23279,6 +23297,7 @@ export async function registerRoutes(
 
               await storage.createNotification({
                 userId: director.userId,
+        role: "director",
                 type: "warning",
                 title: "Director Appointment Expired",
                 message: "Your director appointment has expired. Your dashboard is now in read-only mode. Contact administration for next steps.",
@@ -23305,10 +23324,11 @@ export async function registerRoutes(
             if (lowActivityDays >= 4) {
               const admins = await db.select().from(users);
               for (const admin of admins) {
-                const roles = await storage.getUserRoles(admin.id);
+                const roles = (await storage.getAllUserRoles(admin.id)).map(record => record.role);
                 if (roles.includes("admin") || roles.includes("super_admin")) {
                   await storage.createNotification({
                     userId: admin.id,
+        role: "admin",
                     type: "warning",
                     title: "Director Low Activity Alert",
                     message: `Director ${director.fullName || director.userId} has had low driver activity for ${lowActivityDays} of the last ${commissionLogs.length} days. Consider review.`,
@@ -23331,16 +23351,17 @@ export async function registerRoutes(
             .where(and(
               eq(directorActionLogs.actorId, director.userId),
               eq(directorActionLogs.action, "director_suspend_driver"),
-              gte(directorActionLogs.timestamp, new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000))
+              gte(directorActionLogs.createdAt, new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000))
             ));
 
           if (recentActions.length >= 5) {
             const admins = await db.select().from(users);
             for (const admin of admins) {
-              const roles = await storage.getUserRoles(admin.id);
+              const roles = (await storage.getAllUserRoles(admin.id)).map(record => record.role);
               if (roles.includes("super_admin")) {
                 await storage.createNotification({
                   userId: admin.id,
+        role: "admin",
                   type: "warning",
                   title: "Director Repeated Violations",
                   message: `Director ${director.fullName || director.userId} has suspended ${recentActions.length} drivers this week. Investigate for potential abuse.`,
@@ -23435,7 +23456,7 @@ export async function registerRoutes(
         const [user] = await db.select().from(users).where(eq(users.id, transfer.userId));
         return {
           ...transfer,
-          userName: user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : user?.username || "Unknown",
+          userName: user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : user?.firstName || "Unknown",
           userEmail: user?.email || "",
         };
       }));
@@ -23449,7 +23470,7 @@ export async function registerRoutes(
   app.post("/api/admin/bank-transfers/:id/approve", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {
       const adminId = req.user.claims.sub;
-      const transferId = req.params.id;
+      const transferId = routeParam(req, "id");
 
       const allTransfers = await storage.getAllBankTransfers();
       const transfer = allTransfers.find(t => t.id === transferId);
@@ -23476,8 +23497,9 @@ export async function registerRoutes(
         action: "bank_transfer_approved",
         entityType: "bank_transfer",
         entityId: transferId,
-        performedBy: adminId,
-        details: `Approved bank transfer of ${transfer.amount} ${transfer.currency} for ${transfer.userRole} ${transfer.userId}. Reference: ${transfer.referenceCode}`,
+        performedByUserId: adminId,
+        performedByRole: "admin",
+        metadata: `Approved bank transfer of ${transfer.amount} ${transfer.currency} for ${transfer.userRole} ${transfer.userId}. Reference: ${transfer.referenceCode}`,
       });
 
       return res.json(updated);
@@ -23490,7 +23512,7 @@ export async function registerRoutes(
   app.post("/api/admin/bank-transfers/:id/flag", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {
       const adminId = req.user.claims.sub;
-      const transferId = req.params.id;
+      const transferId = routeParam(req, "id");
       const { notes } = req.body;
 
       const updated = await storage.updateBankTransferStatus(transferId, "flagged", adminId, notes);
@@ -23502,8 +23524,9 @@ export async function registerRoutes(
         action: "bank_transfer_flagged",
         entityType: "bank_transfer",
         entityId: transferId,
-        performedBy: adminId,
-        details: `Flagged bank transfer as suspicious. Notes: ${notes || "N/A"}`,
+        performedByUserId: adminId,
+        performedByRole: "admin",
+        metadata: `Flagged bank transfer as suspicious. Notes: ${notes || "N/A"}`,
       });
 
       return res.json(updated);
@@ -24017,7 +24040,7 @@ export async function registerRoutes(
   app.post("/api/driver/inbox/:messageId/read", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
-      const message = await storage.markDriverInboxMessageRead(userId, req.params.messageId);
+      const message = await storage.markDriverInboxMessageRead(userId, routeParam(req, "messageId"));
       if (!message) {
         return res.status(404).json({ message: "Message not found" });
       }
@@ -24553,7 +24576,7 @@ export async function registerRoutes(
       const adminUserId = req.user.claims.sub;
       const { id } = req.params;
 
-      await storage.updateDirectorStaffStatus(parseInt(id), {
+      await storage.updateDirectorStaffStatus(id, {
         status: "approved",
         approvedByAdmin: true,
         approvedBy: adminUserId,
@@ -24580,7 +24603,7 @@ export async function registerRoutes(
   app.post("/api/admin/director-staff/:id/reject", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {
       const { id } = req.params;
-      await storage.updateDirectorStaffStatus(parseInt(id), { status: "rejected" });
+      await storage.updateDirectorStaffStatus(id, { status: "rejected" });
       return res.json({ message: "Staff rejected" });
     } catch (error) {
       console.error("Error rejecting director staff:", error);
@@ -24593,12 +24616,12 @@ export async function registerRoutes(
       const userId = req.user.claims.sub;
       const { id } = req.params;
 
-      const staff = await storage.getDirectorStaffById(parseInt(id));
+      const staff = await storage.getDirectorStaffById(id);
       if (!staff || staff.directorUserId !== userId) {
         return res.status(403).json({ message: "Staff does not belong to this director" });
       }
 
-      await storage.removeDirectorStaff(parseInt(id));
+      await storage.removeDirectorStaff(id);
 
       await storage.createDirectorActionLog({
         actorId: userId,
@@ -24669,7 +24692,7 @@ export async function registerRoutes(
   app.post("/api/director/coaching/:id/dismiss", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
     try {
       const { id } = req.params;
-      await storage.dismissDirectorCoachingLog(parseInt(id));
+      await storage.dismissDirectorCoachingLog(id);
       return res.json({ message: "Coaching log dismissed" });
     } catch (error) {
       console.error("Error dismissing coaching log:", error);
@@ -24839,7 +24862,7 @@ export async function registerRoutes(
 
   app.post("/api/alerts/:id/read", isAuthenticated, async (req: any, res) => {
     try {
-      const alert = await storage.markAlertRead(req.params.id);
+      const alert = await storage.markAlertRead(routeParam(req, "id"));
       if (!alert) return res.status(404).json({ error: "Alert not found" });
       res.json(alert);
     } catch (error) {
@@ -24849,7 +24872,7 @@ export async function registerRoutes(
 
   app.post("/api/alerts/:id/dismiss", isAuthenticated, async (req: any, res) => {
     try {
-      const alert = await storage.dismissAlert(req.params.id);
+      const alert = await storage.dismissAlert(routeParam(req, "id"));
       if (!alert) return res.status(404).json({ error: "Alert not found" });
       res.json(alert);
     } catch (error) {
@@ -24908,7 +24931,7 @@ export async function registerRoutes(
         firstName: users.firstName,
         lastName: users.lastName,
         profileImageUrl: users.profileImageUrl,
-        roles: users.roles,
+        roles: sql<string[]>`ARRAY(SELECT ur.role::text FROM user_roles ur WHERE ur.user_id = ${users.id})`,
       }).from(users);
 
       let found = allUsers.find(u => u.email?.toLowerCase() === trimmed || u.id === trimmed);
@@ -25009,8 +25032,8 @@ export async function registerRoutes(
       if (!receiver) return res.status(404).json({ error: "Recipient not found" });
 
       const [sender] = await db.select().from(users).where(eq(users.id, senderUserId));
-      const senderRoles = (sender?.roles as string[]) || [];
-      const receiverRoles = (receiver.roles as string[]) || [];
+      const senderRoles = (await storage.getAllUserRoles(senderUserId)).map(r => r.role);
+      const receiverRoles = (await storage.getAllUserRoles(receiver.id)).map(r => r.role);
       const senderRole = senderRoles[0] || "rider";
       const receiverRole = receiverRoles[0] || "rider";
 
@@ -25139,7 +25162,7 @@ export async function registerRoutes(
       const userId = req.user?.claims?.sub;
       if (!userId) return res.status(401).json({ error: "Not authenticated" });
 
-      const txnId = req.params.id;
+      const txnId = routeParam(req, "id");
       const [txn] = await db.select().from(walletFundingTransactions)
         .where(and(
           eq(walletFundingTransactions.id, txnId),
@@ -25151,7 +25174,7 @@ export async function registerRoutes(
 
       const amountStr = txn.amount;
       const [receiver] = await db.select().from(users).where(eq(users.id, userId));
-      const receiverRoles = (receiver?.roles as string[]) || [];
+      const receiverRoles = (await storage.getAllUserRoles(receiver.id)).map(r => r.role);
 
       if (receiverRoles.includes("driver")) {
         const [wallet] = await db.select().from(driverWallets).where(eq(driverWallets.userId, userId));
@@ -25178,7 +25201,7 @@ export async function registerRoutes(
         .where(eq(walletFundingTransactions.id, txnId))
         .returning();
 
-      const senderRoles = (await db.select().from(users).where(eq(users.id, txn.senderUserId)))?.[0]?.roles as string[] || [];
+      const senderRoles = (await storage.getAllUserRoles(txn.senderUserId)).map(r => r.role);
       const senderNotifRole = senderRoles.includes("driver") ? "driver" as const
         : senderRoles.includes("director") ? "director" as const : "rider" as const;
       const receiverName = receiver?.firstName && receiver?.lastName
@@ -25203,7 +25226,7 @@ export async function registerRoutes(
       const userId = req.user?.claims?.sub;
       if (!userId) return res.status(401).json({ error: "Not authenticated" });
 
-      const txnId = req.params.id;
+      const txnId = routeParam(req, "id");
       const [txn] = await db.select().from(walletFundingTransactions)
         .where(and(
           eq(walletFundingTransactions.id, txnId),
@@ -25219,7 +25242,7 @@ export async function registerRoutes(
         .returning();
 
       const [sender] = await db.select().from(users).where(eq(users.id, txn.senderUserId));
-      const senderRoles = (sender?.roles as string[]) || [];
+      const senderRoles = (await storage.getAllUserRoles(txn.senderUserId)).map(r => r.role);
       const senderNotifRole = senderRoles.includes("driver") ? "driver" as const
         : senderRoles.includes("director") ? "director" as const : "rider" as const;
       const [receiver] = await db.select().from(users).where(eq(users.id, userId));
@@ -26085,8 +26108,8 @@ export async function registerRoutes(
         const weekLabel = weekStart.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 
         const assignedByWeek = assignments.filter(a => {
-          const created = new Date(a.createdAt as any);
-          return created <= weekEnd;
+          const created = a.assignedAt;
+          return created !== null && created <= weekEnd;
         });
         weeklyGrowth.push({ week: weekLabel, count: assignedByWeek.length });
       }
@@ -26185,13 +26208,14 @@ export async function registerRoutes(
         .where(eq(directorCells.directorUserId, userId));
       const cellSummaries = cells.map(c => ({
         id: c.id,
+        cellNumber: c.cellNumber,
         name: c.cellName,
         driverCount: 0,
-        maxCapacity: c.maxDriverCapacity || 50,
+        maxCapacity: c.maxDrivers || 50,
       }));
 
       for (const cell of cellSummaries) {
-        const cellAssignments = assignments.filter(a => a.cellId === cell.id);
+        const cellAssignments = assignments.filter(a => a.cellNumber === cell.cellNumber);
         cell.driverCount = cellAssignments.length;
       }
 
@@ -26298,7 +26322,7 @@ export async function registerRoutes(
         .where(eq(directorPerformanceScores.directorUserId, userId))
         .orderBy(desc(directorPerformanceScores.calculatedAt))
         .limit(1);
-      const performanceScore = perf[0]?.totalScore || null;
+      const performanceScore = perf[0]?.score || null;
       const performanceTier = perf[0]?.tier || null;
 
       const firstWeek = weeklyBuckets[weeklyBuckets.length - 1];
@@ -26362,7 +26386,7 @@ export async function registerRoutes(
 
         reports.push({
           directorUserId: director.userId,
-          name: user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.username || "Unknown" : "Unknown",
+          name: user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.firstName || "Unknown" : "Unknown",
           directorType: director.directorType,
           lifecycleStatus: director.lifecycleStatus,
           totalDrivers: assignments.length,
@@ -26370,7 +26394,7 @@ export async function registerRoutes(
           activityRatio,
           avgActive7d,
           complianceRate,
-          performanceScore: perf[0]?.totalScore || null,
+          performanceScore: perf[0]?.score || null,
           performanceTier: perf[0]?.tier || null,
           lifespanEndDate: director.lifespanEndDate,
           commissionFrozen: director.commissionFrozen,
@@ -26390,7 +26414,7 @@ export async function registerRoutes(
       const { directorUserId } = req.params;
       const { reason } = req.body;
       const actorId = req.user?.claims?.sub;
-      const userRoles = await storage.getUserRoles(actorId);
+      const userRoles = (await storage.getAllUserRoles(actorId)).map(record => record.role);
       const actorRole = userRoles.includes("super_admin") ? "super_admin" : "admin";
 
       await db.insert(directorActionLogs).values({
@@ -26405,7 +26429,8 @@ export async function registerRoutes(
 
       await storage.createNotification({
         userId: directorUserId,
-        type: "system",
+        role: "director",
+        type: "info",
         title: "Account Under Review",
         message: "Your director account has been flagged for administrative review. No action is required at this time.",
       });
@@ -26584,7 +26609,7 @@ export async function registerRoutes(
     try {
       const userId = req.user?.claims?.sub;
       const directorUserId = req.query.directorId || userId;
-      const userRoles = await storage.getUserRoles(userId);
+      const userRoles = (await storage.getAllUserRoles(userId)).map(record => record.role);
       const isAdmin = userRoles.includes("admin") || userRoles.includes("super_admin");
       if (directorUserId !== userId && !isAdmin) {
         return res.status(403).json({ error: "Access denied" });
@@ -26723,7 +26748,7 @@ export async function registerRoutes(
   app.post("/api/admin/directors/:directorUserId/payout", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {
       const adminUserId = req.user?.claims?.sub;
-      const adminRoles = await storage.getUserRoles(adminUserId);
+      const adminRoles = (await storage.getAllUserRoles(adminUserId)).map(record => record.role);
       const isSuperAdmin = adminRoles.includes("super_admin");
       const { directorUserId } = req.params;
       const { action, payoutId, reason, periodDate, periodStart, periodEnd, payoutCadence, partialAmount, scheduledDate, adminNotes } = req.body;
@@ -26962,10 +26987,10 @@ export async function registerRoutes(
       });
       const admins = await db.select().from(users);
       for (const admin of admins) {
-        const roles = await storage.getUserRoles(admin.id);
+        const roles = (await storage.getAllUserRoles(admin.id)).map(record => record.role);
         if (roles.includes("admin") || roles.includes("super_admin")) {
           await storage.createNotification({
-            userId: admin.id, role: roles.includes("super_admin") ? "super_admin" : "admin",
+            userId: admin.id, role: "admin",
             type: "warning", title: "Payout Dispute Submitted",
             message: `Director dispute submitted for payout ${payoutId}. Review required.`,
           });
@@ -27061,7 +27086,7 @@ export async function registerRoutes(
         });
       }
 
-      if (trustProfile && trustProfile.riskScore > 60) {
+      if (trustProfile && trustProfile.trustScore < 40) {
         coachingItems.push({
           type: "trust_dip",
           message: "Your trust indicator has changed recently. Consistent, reliable ride completion and positive interactions help maintain strong trust levels.",
@@ -27078,7 +27103,7 @@ export async function registerRoutes(
       }
 
       if (profile && profile.averageRating && parseFloat(profile.averageRating) >= 4.5 &&
-          (!trustProfile || trustProfile.riskScore < 30)) {
+          (!trustProfile || trustProfile.trustScore > 70)) {
         coachingItems.push({
           type: "positive_streak",
           message: "You have been performing well recently. Consistent engagement and positive rider feedback strengthen your profile. Thank you for your continued dedication.",
@@ -27129,7 +27154,7 @@ export async function registerRoutes(
 
   app.post("/api/driver/coaching/:id/dismiss", isAuthenticated, requireRole(["driver"]), async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseInt(routeParam(req, "id"));
       const userId = req.user.claims.sub;
 
       const [updated] = await db.update(driverCoachingLogs)
@@ -27157,11 +27182,11 @@ export async function registerRoutes(
   app.get("/api/admin/directors/fraud-signals", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {
       const directorId = req.query.directorId;
-      let query = db.select().from(directorFraudSignals).orderBy(desc(directorFraudSignals.detectedAt)).limit(100);
+      let query = db.select().from(directorFraudSignals).orderBy(desc(directorFraudSignals.detectedAt)).limit(100).$dynamic();
       if (directorId) {
         query = db.select().from(directorFraudSignals)
           .where(eq(directorFraudSignals.directorUserId, directorId as string))
-          .orderBy(desc(directorFraudSignals.detectedAt)).limit(50);
+          .orderBy(desc(directorFraudSignals.detectedAt)).limit(50).$dynamic();
       }
       const signals = await query;
       res.json({ signals });
@@ -27268,7 +27293,7 @@ export async function registerRoutes(
         actorId: adminUserId, actorRole: "admin",
         action: "fraud_signal_reviewed", targetType: "director", targetId: signal.directorUserId,
         beforeState: JSON.stringify({ status: signal.status, responseLevel: signal.responseLevel }),
-        afterState: JSON.stringify({ status: resolve ? "resolved" : signal.status, escalatedToLevel }),
+        afterState: JSON.stringify({ status: resolve ? "resolved" : signal.status, escalatedToLevel: escalateToLevel }),
         metadata: JSON.stringify({ signalId, reviewNotes: reviewNotes.substring(0, 200) }),
         ipAddress: req.ip || req.connection?.remoteAddress || null,
       });
@@ -27307,7 +27332,8 @@ export async function registerRoutes(
           });
         }
 
-        const lowTrustDrivers = drivers.filter(d => (d.trustScore || 100) < 40);
+        const trustRecords = await db.select().from(userTrustProfiles).where(inArray(userTrustProfiles.userId, assignmentDriverIds));
+        const lowTrustDrivers = trustRecords.filter(t => t.trustScore < 40);
         if (lowTrustDrivers.length >= 3) {
           detectedSignals.push({
             signalType: "suspicious_pattern",
@@ -27343,7 +27369,7 @@ export async function registerRoutes(
       }
 
       const referrals = await db.select().from(referralCodes)
-        .where(eq(referralCodes.createdByUserId, directorUserId));
+        .where(eq(referralCodes.ownerUserId, directorUserId));
       if (referrals.length > 10) {
         detectedSignals.push({
           signalType: "abnormal_referral_clustering",
@@ -27413,11 +27439,11 @@ export async function registerRoutes(
 
       const admins = await db.select().from(users);
       for (const admin of admins) {
-        const roles = await storage.getUserRoles(admin.id);
+        const roles = (await storage.getAllUserRoles(admin.id)).map(record => record.role);
         if (roles.includes("admin") || roles.includes("super_admin")) {
           await storage.createNotification({
             userId: admin.id,
-            role: roles.includes("super_admin") ? "super_admin" : "admin",
+            role: "admin",
             type: "warning",
             title: "New Director Dispute",
             message: `Director dispute submitted: ${subject}. Type: ${disputeType}. Review required.`,
@@ -27460,7 +27486,7 @@ export async function registerRoutes(
         .where(eq(directorDisputes.id, disputeId));
       if (!dispute) return res.status(404).json({ error: "Dispute not found" });
 
-      const userRoles = await storage.getUserRoles(userId);
+      const userRoles = (await storage.getAllUserRoles(userId)).map(record => record.role);
       const isAdmin = userRoles.includes("admin") || userRoles.includes("super_admin");
       if (!isAdmin && dispute.directorUserId !== userId) {
         return res.status(403).json({ error: "Access denied" });
@@ -27494,7 +27520,7 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Cannot add messages to resolved or closed disputes" });
       }
 
-      const userRoles = await storage.getUserRoles(userId);
+      const userRoles = (await storage.getAllUserRoles(userId)).map(record => record.role);
       const isAdmin = userRoles.includes("admin") || userRoles.includes("super_admin");
       if (!isAdmin && dispute.directorUserId !== userId) {
         return res.status(403).json({ error: "Access denied" });
@@ -27538,7 +27564,7 @@ export async function registerRoutes(
       let disputes;
       if (status) {
         disputes = await db.select().from(directorDisputes)
-          .where(eq(directorDisputes.status, status as string))
+          .where(eq(directorDisputes.status, z.enum(directorDisputes.status.enumValues).parse(status)))
           .orderBy(desc(directorDisputes.createdAt));
       } else {
         disputes = await db.select().from(directorDisputes)
@@ -27566,7 +27592,7 @@ export async function registerRoutes(
         .where(eq(directorDisputes.id, disputeId));
       if (!dispute) return res.status(404).json({ error: "Dispute not found" });
 
-      const userRoles = await storage.getUserRoles(adminUserId);
+      const userRoles = (await storage.getAllUserRoles(adminUserId)).map(record => record.role);
       const isSuperAdmin = userRoles.includes("super_admin");
 
       const updates: any = {
@@ -27668,10 +27694,11 @@ export async function registerRoutes(
 
       const admins = await db.select().from(users);
       for (const admin of admins) {
-        const roles = await storage.getUserRoles(admin.id);
+        const roles = (await storage.getAllUserRoles(admin.id)).map(record => record.role);
         if (roles.includes("super_admin")) {
           await storage.createNotification({
             userId: admin.id,
+        role: "admin",
             type: "warning",
             title: "Director Dispute Appeal",
             message: `Director has appealed dispute #${disputeId}. Super Admin review required. Appeals go directly to Super Admin.`,
@@ -27975,10 +28002,12 @@ export async function registerRoutes(
       }
 
       await db.insert(directorActionLogs).values({
-        directorUserId,
+        targetId: directorUserId,
+        targetType: "director",
         action: "create_succession_plan",
-        performedBy: adminUserId,
-        details: `Succession plan created. Type: ${terminationType}, Succession: ${successionType}`,
+        actorId: adminUserId,
+        actorRole: "admin",
+        afterState: JSON.stringify({ description: `Succession plan created. Type: ${terminationType}, Succession: ${successionType}` }),
         metadata: JSON.stringify({ successionId: succession.id, terminationType, successionType }),
         ipAddress: req.ip || req.connection?.remoteAddress || null,
       });
@@ -28178,10 +28207,12 @@ export async function registerRoutes(
       }).where(eq(directorSuccessions.id, successionId)).returning();
 
       await db.insert(directorActionLogs).values({
-        directorUserId,
+        targetId: directorUserId,
+        targetType: "director",
         action: "execute_succession",
-        performedBy: adminUserId,
-        details: `Succession plan executed. Type: ${succession.terminationType}, Succession: ${succession.successionType}`,
+        actorId: adminUserId,
+        actorRole: "admin",
+        afterState: JSON.stringify({ description: `Succession plan executed. Type: ${succession.terminationType}, Succession: ${succession.successionType}` }),
         metadata: JSON.stringify({ successionId, terminationType: succession.terminationType, successionType: succession.successionType }),
         ipAddress: req.ip || req.connection?.remoteAddress || null,
       });
@@ -28277,10 +28308,12 @@ export async function registerRoutes(
       }
 
       await db.insert(directorActionLogs).values({
-        directorUserId,
+        targetId: directorUserId,
+        targetType: "director",
         action: "payout_decision",
-        performedBy: adminUserId,
-        details: `Payout decision: ${decision}. Affected payouts: ${heldPayouts.length}. Reason: ${reason || "N/A"}`,
+        actorId: adminUserId,
+        actorRole: "admin",
+        afterState: JSON.stringify({ description: `Payout decision: ${decision}. Affected payouts: ${heldPayouts.length}. Reason: ${reason || "N/A"}` }),
         metadata: JSON.stringify({ decision, amount, reason, affectedCount: heldPayouts.length }),
         ipAddress: req.ip || req.connection?.remoteAddress || null,
       });
@@ -28339,7 +28372,7 @@ export async function registerRoutes(
       const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
       const fraudCountResult = await db.select({ value: count() }).from(directorFraudSignals).where(and(
         eq(directorFraudSignals.directorUserId, directorUserId),
-        gte(directorFraudSignals.createdAt, ninetyDaysAgo)
+        gte(directorFraudSignals.detectedAt, ninetyDaysAgo)
       ));
       const recentFraudSignals = fraudCountResult[0]?.value || 0;
 
@@ -28439,7 +28472,7 @@ export async function registerRoutes(
       let recipientUser = null;
       const allUsers = await db.select().from(users);
       for (const u of allUsers) {
-        if (u.id === recipientIdentifier || u.email === recipientIdentifier || u.username === recipientIdentifier) {
+        if (u.id === recipientIdentifier || u.email === recipientIdentifier || false) {
           recipientUser = u;
           break;
         }
@@ -28547,10 +28580,10 @@ export async function registerRoutes(
 
       const userMap: Record<string, string> = {};
       if (userIds.size > 0) {
-        const usersData = await db.select({ id: users.id, username: users.username, firstName: users.firstName, lastName: users.lastName })
+        const usersData = await db.select({ id: users.id, username: sql<string>`trim(concat_ws(' ', ${users.firstName}, ${users.lastName}))`, firstName: users.firstName, lastName: users.lastName })
           .from(users).where(inArray(users.id, Array.from(userIds)));
         usersData.forEach(u => {
-          userMap[u.id] = u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.username || u.id;
+          userMap[u.id] = u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.firstName || u.id;
         });
       }
 
@@ -28780,11 +28813,11 @@ export async function registerRoutes(
       // Create wallet funding transaction
       const [txn] = await db.insert(walletFundingTransactions).values({
         senderUserId: funderUserId,
-        recipientUserId: rel.recipientUserId,
+        receiverUserId: rel.recipientUserId,
         amount: parsedAmount.toFixed(2),
         status: "completed",
-        note: purpose || "Third-party wallet funding",
-        processedAt: now,
+        purpose: purpose || "Third-party wallet funding",
+        acceptedAt: now,
       }).returning();
 
       // Update sponsored balance
@@ -28851,7 +28884,7 @@ export async function registerRoutes(
       const recentTopUps = await db.select({ count: count() }).from(walletFundingTransactions)
         .where(and(
           eq(walletFundingTransactions.senderUserId, funderUserId),
-          gte(walletFundingTransactions.processedAt, oneHourAgo)
+          gte(walletFundingTransactions.acceptedAt, oneHourAgo)
         ));
       if (recentTopUps[0].count > 3) {
         await db.insert(fundingAbuseFlags).values({
@@ -28911,18 +28944,18 @@ export async function registerRoutes(
 
       // Get recipient names
       const recipientIds = relationships.map(r => r.recipientUserId);
-      const recipientUsers = await db.select({ id: users.id, username: users.username, firstName: users.firstName, lastName: users.lastName })
+      const recipientUsers = await db.select({ id: users.id, username: sql<string>`trim(concat_ws(' ', ${users.firstName}, ${users.lastName}))`, firstName: users.firstName, lastName: users.lastName })
         .from(users).where(inArray(users.id, recipientIds));
       const nameMap: Record<string, string> = {};
       recipientUsers.forEach(u => {
-        nameMap[u.id] = u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.username || u.id;
+        nameMap[u.id] = u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.firstName || u.id;
       });
 
       // Get ride usage for each recipient (count of completed rides and total cost — no routes/drivers/locations)
       const dashboard = await Promise.all(relationships.map(async (rel) => {
         const rideStats = await db.select({
           rideCount: count(),
-          totalCost: sql<string>`COALESCE(SUM(CAST(${rides.finalFare} AS numeric)), 0)`,
+          totalCost: sql<string>`COALESCE(SUM(CAST(${rides.totalFare} AS numeric)), 0)`,
         }).from(rides)
           .where(and(
             eq(rides.riderId, rel.recipientUserId),
@@ -28974,11 +29007,11 @@ export async function registerRoutes(
       const relMap: Record<string, any> = {};
       rels.forEach(r => { relMap[r.id] = r; });
 
-      const funderUsers = await db.select({ id: users.id, username: users.username, firstName: users.firstName, lastName: users.lastName })
+      const funderUsers = await db.select({ id: users.id, username: sql<string>`trim(concat_ws(' ', ${users.firstName}, ${users.lastName}))`, firstName: users.firstName, lastName: users.lastName })
         .from(users).where(inArray(users.id, funderIds));
       const funderNameMap: Record<string, string> = {};
       funderUsers.forEach(u => {
-        funderNameMap[u.id] = u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.username || u.id;
+        funderNameMap[u.id] = u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.firstName || u.id;
       });
 
       const result = balances.map(b => ({
@@ -29067,7 +29100,7 @@ export async function registerRoutes(
       let results;
       if (status) {
         results = await db.select().from(fundingRelationships)
-          .where(eq(fundingRelationships.status, status as string))
+          .where(eq(fundingRelationships.status, z.enum(fundingRelationships.status.enumValues).parse(status)))
           .orderBy(desc(fundingRelationships.createdAt))
           .limit(limit).offset(offset);
       } else {
@@ -29082,10 +29115,10 @@ export async function registerRoutes(
 
       const nameMap: Record<string, string> = {};
       if (allUserIds.size > 0) {
-        const usersData = await db.select({ id: users.id, username: users.username, firstName: users.firstName, lastName: users.lastName })
+        const usersData = await db.select({ id: users.id, username: sql<string>`trim(concat_ws(' ', ${users.firstName}, ${users.lastName}))`, firstName: users.firstName, lastName: users.lastName })
           .from(users).where(inArray(users.id, Array.from(allUserIds)));
         usersData.forEach(u => {
-          nameMap[u.id] = u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.username || u.id;
+          nameMap[u.id] = u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.firstName || u.id;
         });
       }
 
@@ -29219,10 +29252,10 @@ export async function registerRoutes(
 
       const nameMap: Record<string, string> = {};
       if (allUserIds.size > 0) {
-        const usersData = await db.select({ id: users.id, username: users.username, firstName: users.firstName, lastName: users.lastName })
+        const usersData = await db.select({ id: users.id, username: sql<string>`trim(concat_ws(' ', ${users.firstName}, ${users.lastName}))`, firstName: users.firstName, lastName: users.lastName })
           .from(users).where(inArray(users.id, Array.from(allUserIds)));
         usersData.forEach(u => {
-          nameMap[u.id] = u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.username || u.id;
+          nameMap[u.id] = u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.firstName || u.id;
         });
       }
 
@@ -29377,12 +29410,6 @@ export async function registerRoutes(
   }
 
   // Helper: Determine tier from score and thresholds
-  function determineTier(score: number, weights: any): string {
-    if (score >= weights.platinumThreshold) return "platinum";
-    if (score >= weights.goldThreshold) return "gold";
-    if (score >= weights.standardThreshold) return "standard";
-    return "limited";
-  }
 
   // Helper: Get grace period for a specific tier
   function getGracePeriodForTier(tier: string, weights: any): number {
@@ -29481,7 +29508,7 @@ export async function registerRoutes(
       const finalScore = clampScore(weightedTotal);
 
       // Determine tier
-      const newTier = determineTier(finalScore, weights);
+      const newTier = determineRiderTrustTier(finalScore, weights);
       const previousTier = trustScore.tier;
 
       // Update the trust score record
@@ -29542,7 +29569,7 @@ export async function registerRoutes(
 
       let query = db.select({
         userId: riderTrustScores.userId,
-        fullName: users.username,
+        fullName: sql<string>`trim(concat_ws(' ', ${users.firstName}, ${users.lastName}))`,
         score: riderTrustScores.score,
         tier: riderTrustScores.tier,
         reliabilityScore: riderTrustScores.reliabilityScore,
@@ -29663,7 +29690,7 @@ export async function registerRoutes(
         newAdminFlagsScore * weights.adminFlagsWeight
       ) / 100;
       const finalScore = clampScore(weightedTotal);
-      const newTier = determineTier(finalScore, weights);
+      const newTier = determineRiderTrustTier(finalScore, weights);
 
       const [updated] = await db.update(riderTrustScores)
         .set({
@@ -29944,12 +29971,6 @@ export async function registerRoutes(
     return weights;
   }
 
-  function determineTier(score: number, weights: any): "gold" | "silver" | "bronze" | "at_risk" {
-    if (score >= weights.goldThreshold) return "gold";
-    if (score >= weights.silverThreshold) return "silver";
-    if (score >= weights.bronzeThreshold) return "bronze";
-    return "at_risk";
-  }
 
   async function calculateDirectorPerformanceScore(directorUserId: string) {
     const weights = await getOrCreatePerformanceWeights();
@@ -29958,7 +29979,7 @@ export async function registerRoutes(
     const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
 
     const assignments = await db.select().from(directorDriverAssignments)
-      .where(and(eq(directorDriverAssignments.directorUserId, directorUserId), eq(directorDriverAssignments.isActive, true)));
+      .where(eq(directorDriverAssignments.directorUserId, directorUserId));
     const driverUserIds = assignments.map(a => a.driverUserId);
     const totalDrivers = driverUserIds.length;
 
@@ -29971,7 +29992,7 @@ export async function registerRoutes(
     if (totalDrivers > 0) {
       const drivers = await db.select().from(driverProfiles)
         .where(inArray(driverProfiles.userId, driverUserIds));
-      const activeDrivers = drivers.filter(d => d.isOnline || d.status === "active");
+      const activeDrivers = drivers.filter(d => d.isOnline && d.status === "approved");
       const activeRatio = parseFloat((await db.select().from(directorCommissionSettings).limit(1))?.[0]?.activeRatio || "0.77");
       const effectiveActive = Math.min(activeDrivers.length, Math.floor(totalDrivers * activeRatio));
       driverActivityRaw = totalDrivers > 0 ? Math.round((effectiveActive / totalDrivers) * 100) : 0;
@@ -29979,18 +30000,18 @@ export async function registerRoutes(
       const trustProfiles = await db.select().from(userTrustProfiles)
         .where(inArray(userTrustProfiles.userId, driverUserIds));
       const avgTrust = trustProfiles.length > 0
-        ? trustProfiles.reduce((sum, t) => sum + parseFloat(t.trustScore || "50"), 0) / trustProfiles.length
+        ? trustProfiles.reduce((sum, t) => sum + (t.trustScore ?? 50), 0) / trustProfiles.length
         : 50;
       const suspendedCount = drivers.filter(d => d.status === "suspended").length;
       const suspensionPenalty = Math.min(suspendedCount * 10, 40);
       driverQualityRaw = Math.max(0, Math.min(100, Math.round(avgTrust - suspensionPenalty)));
 
       const recentAssignments = assignments.filter(a => {
-        const assignDate = new Date(a.assignedAt);
-        return assignDate <= thirtyDaysAgo;
+        const assignDate = a.assignedAt;
+        return assignDate !== null && assignDate <= thirtyDaysAgo;
       });
-      const retainedCount = recentAssignments.filter(a => a.isActive).length;
-      const eligibleForRetention = assignments.filter(a => new Date(a.assignedAt) <= sixtyDaysAgo).length;
+      const retainedCount = recentAssignments.length;
+      const eligibleForRetention = assignments.filter(a => a.assignedAt !== null && a.assignedAt <= sixtyDaysAgo).length;
       if (eligibleForRetention > 0) {
         driverRetentionRaw = Math.round((retainedCount / Math.max(eligibleForRetention, 1)) * 100);
       } else {
@@ -30015,7 +30036,7 @@ export async function registerRoutes(
       (complianceSafetyRaw * weights.complianceSafetyWeight / 100) +
       (adminFeedbackRaw * weights.adminFeedbackWeight / 100)
     );
-    const tier = determineTier(score, weights);
+    const tier = determineDirectorPerformanceTier(score, weights);
 
     const existing = await db.select().from(directorPerformanceScores)
       .where(eq(directorPerformanceScores.directorUserId, directorUserId))
@@ -30214,7 +30235,7 @@ export async function registerRoutes(
 
   app.post("/api/admin/director-performance/:directorUserId/calculate", isAuthenticated, requireRole(["admin", "super_admin"]), async (req: any, res) => {
     try {
-      const result = await calculateDirectorPerformanceScore(req.params.directorUserId);
+      const result = await calculateDirectorPerformanceScore(routeParam(req, "directorUserId"));
       res.json(result);
     } catch (error) {
       res.status(500).json({ error: "Failed to calculate performance" });
@@ -30367,7 +30388,7 @@ export async function registerRoutes(
   // Get messages for a trip (rider/driver only if assigned, or admin)
   app.get("/api/trips/:tripId/messages", isAuthenticated, async (req: any, res) => {
     try {
-      const { tripId } = req.params;
+      const tripId = routeParam(req, "tripId");
       const userId = req.user.claims.sub;
       const userRole = await storage.getUserRole(userId);
 
@@ -30409,7 +30430,7 @@ export async function registerRoutes(
   // Send a message in a trip chat (rider/driver only, trip must be active)
   app.post("/api/trips/:tripId/messages", isAuthenticated, async (req: any, res) => {
     try {
-      const { tripId } = req.params;
+      const tripId = routeParam(req, "tripId");
       const userId = req.user.claims.sub;
       const userRole = await storage.getUserRole(userId);
 
@@ -30728,7 +30749,7 @@ export async function registerRoutes(
 
   app.get("/api/trips/:tripId/locations", isAuthenticated, requireRole(["rider", "admin", "super_admin", "dispatcher"]), async (req: any, res) => {
     try {
-      const { tripId } = req.params;
+      const tripId = routeParam(req, "tripId");
       const limit = Math.min(parseInt(req.query.limit || "500"), 500);
       if (!await canTrack(req.user.claims.sub, { tripId })) return res.status(403).json({ message: "Trip access denied" });
       const points = await storage.getLocationPointsForTrip(tripId, limit);

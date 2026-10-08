@@ -2236,6 +2236,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
     taxRulesCount: number;
     activeTripsCount: number;
     totalRevenue: string;
+    totalRevenueUsd: string | null;
   };
 
   type TaxRuleWithDetails = {
@@ -3898,7 +3899,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
                 Acquisition
               </TabsTrigger>
             )}
-            {(isSuperAdmin || userRole === "admin" || userRole === "support_agent") && (
+            {(isSuperAdmin || userRole === "admin") && (
               <TabsTrigger value="help-center" className="admin-nav-trigger rounded-md" data-testid="tab-help-center">
                 <BookOpen className="h-4 w-4 mr-2" />
                 Help Center
@@ -9394,7 +9395,7 @@ export default function AdminDashboard({ userRole = "admin" }: AdminDashboardPro
             </TabsContent>
           )}
 
-          {(isSuperAdmin || userRole === "admin" || userRole === "support_agent") && (
+          {(isSuperAdmin || userRole === "admin") && (
             <TabsContent value="help-center">
               <HelpCenterPanel />
             </TabsContent>

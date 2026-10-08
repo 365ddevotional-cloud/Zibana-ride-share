@@ -9,10 +9,14 @@
   "securityPolicyTests": 10,
   "securityPolicyTestsPassed": true,
   "productionBuildPassed": true,
-  "typeScriptErrors": 308,
+  "typeScriptErrors": 0,
   "railwayDeploymentPerformed": false,
   "liveLoginTestPerformed": false,
   "replitRuntimeReferences": 0,
   "googleCallbackPath": "/api/auth/callback/google",
-  "liveWebsiteInspectionBlocked": "Cloud browser ERR_BLOCKED_BY_CLIENT on apex and www"
+  "liveWebsiteInspectionBlocked": "Cloud browser ERR_BLOCKED_BY_CLIENT on apex and www",
+  "cleanTypeScriptCheckPassed": true,
+  "migrationRegressionTests": 5,
+  "migrationRegressionTestsPassed": true,
+  "additiveMigrationRepeatedRestorePassed": true
 }

@@ -205,7 +205,7 @@ export default function RiderLiveMap() {
                 <MapPin className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">No active trip with a driver assigned</p>
                 <Link href="/rider/home">
-                  <Button variant="link" className="mt-2">Back to Home</Button>
+                  <Button variant="ghost" className="mt-2">Back to Home</Button>
                 </Link>
               </CardContent>
             </Card>

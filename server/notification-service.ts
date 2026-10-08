@@ -1,5 +1,5 @@
 import { storage } from "./storage";
-import type { Notification, RideOffer, Ride } from "@shared/schema";
+import type { InsertNotification, Notification, RideOffer, Ride } from "@shared/schema";
 
 const RIDE_OFFER_TIMEOUT_SECONDS = 10;
 
@@ -13,7 +13,29 @@ export interface RideOfferNotification {
   remainingSeconds: number;
 }
 
+async function createGeneralNotification(data: InsertNotification): Promise<Notification> {
+  return storage.createNotification(data);
+}
+
+async function createNotification(data: InsertNotification): Promise<Notification>;
+async function createNotification(userId: string, category: "wallet" | "system", title: string, message: string, metadata?: Record<string, unknown>): Promise<Notification>;
+async function createNotification(dataOrUserId: InsertNotification | string, category?: "wallet" | "system", title?: string, message?: string, metadata?: Record<string, unknown>): Promise<Notification> {
+  if (typeof dataOrUserId !== "string") return createGeneralNotification(dataOrUserId);
+  if (!title || !message) throw new Error("Notification title and message are required");
+  const roles = await storage.getAllUserRoles(dataOrUserId);
+  const activeRole = roles.find(r => (r.role === "super_admin" || r.role === "admin"))?.role
+    ?? roles.find(r => r.role !== "support_agent")?.role;
+  const role = activeRole === "super_admin" ? "admin" : activeRole;
+  if (!role || role === "support_agent") throw new Error("Recipient has no supported notification role");
+  return createGeneralNotification({ userId: dataOrUserId, role, type: "info", title, message,
+    metadata: metadata ? JSON.stringify({ category, ...metadata }) : null });
+}
+
 export const notificationService = {
+  createNotification,
+  async notifyUser(userId: string, data: Omit<InsertNotification, "userId" | "type"> & { type?: InsertNotification["type"] | "system" }): Promise<Notification> {
+    return createGeneralNotification({ ...data, userId, type: data.type === "system" ? "info" : data.type });
+  },
   async sendRideOfferToDrivers(ride: Ride, nearbyDriverIds: string[]): Promise<RideOffer[]> {
     const offers: RideOffer[] = [];
     const expiresAt = new Date(Date.now() + RIDE_OFFER_TIMEOUT_SECONDS * 1000);

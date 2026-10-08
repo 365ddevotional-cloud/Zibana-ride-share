@@ -423,7 +423,7 @@ export function generateFareReceipt(params: {
     summary,
     items,
     total: fareBreakdown.totalFare,
-    currency: fareBreakdown.currency
+    currency: fareBreakdown.currencyCode
   };
 }
 

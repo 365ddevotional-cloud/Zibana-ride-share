@@ -365,7 +365,7 @@ export function LaunchReadinessPanel() {
   });
 
   const stateConfigMutation = useMutation({
-    mutationFn: async (data: { stateCode: string; countryCode: string; minOnlineDriversCar: number; minOnlineDriversBike: number; maxPickupWaitMinutes: number }) => {
+    mutationFn: async (data: { stateCode: string; countryCode: string; minOnlineDriversCar: number; minOnlineDriversBike: number; minOnlineDriversKeke: number;  maxPickupWaitMinutes: number }) => {
       const { stateCode, ...body } = data;
       const res = await apiRequest("PATCH", `/api/admin/launch/state/${stateCode}`, body);
       return res.json();

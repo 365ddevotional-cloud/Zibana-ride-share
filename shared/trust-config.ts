@@ -67,6 +67,8 @@ export const DRIVER_SIGNAL_TYPES = [
   "TRIP_COMPLETED",
   "ON_TIME_ARRIVAL",
   "DIRECT_ROUTE",
+  "LOST_ITEM_HUB_DROPOFF",
+  "DISPUTE_RESOLVED",
   "LOST_ITEM_RETURNED",
   "LOST_ITEM_DENIED",
   "ACCIDENT_REPORT_HONEST",
@@ -77,6 +79,7 @@ export const RIDER_SIGNAL_TYPES = [
   "NO_SHOW",
   "CANCELLATION",
   "PAYMENT_FAILURE",
+  "DISPUTE_RESOLVED",
   "DISPUTE_FILED",
   "TRIP_COMPLETED",
   "ON_TIME_PICKUP",
@@ -96,6 +99,9 @@ export type BehaviorSignalType = DriverSignalType | RiderSignalType;
 // =============================================
 
 export const SIGNAL_WEIGHTS: Record<BehaviorSignalType, number> = {
+  // Administrative resolution and intermediate hub receipt are audit signals, not penalties or duplicate rewards.
+  DISPUTE_RESOLVED: 0,
+  LOST_ITEM_HUB_DROPOFF: 0,
   GPS_INTERRUPTION: -5,
   TRIP_CANCELLATION: -10,
   LATE_ARRIVAL: -3,

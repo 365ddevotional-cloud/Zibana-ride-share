@@ -27,7 +27,8 @@ type StatusType =
   | "open"
   | "under_review"
   | "resolved"
-  | "rejected";
+  | "rejected"
+  | "correction_required";
 
 interface StatusBadgeProps {
   status: StatusType;
@@ -35,6 +36,7 @@ interface StatusBadgeProps {
 }
 
 const statusConfig: Record<StatusType, { label: string; className: string }> = {
+  correction_required: { label: "Correction required", className: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400" },
   pending: {
     label: "Pending",
     className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",

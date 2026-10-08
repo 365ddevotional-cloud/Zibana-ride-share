@@ -199,7 +199,10 @@ export const behaviorSignalCategoryEnum = pgEnum("behavior_signal_category", ["d
 export const behaviorSignalTypeEnum = pgEnum("behavior_signal_type", [
   "GPS_INTERRUPTION", "TRIP_CANCELLATION", "LATE_ARRIVAL", "ROUTE_DEVIATION", 
   "APP_FORCE_CLOSE", "NO_SHOW", "TRIP_COMPLETED", "ON_TIME_ARRIVAL", "DIRECT_ROUTE",
-  "CANCELLATION", "PAYMENT_FAILURE", "DISPUTE_FILED", "ON_TIME_PICKUP", "PAYMENT_SUCCESS"
+  "CANCELLATION", "PAYMENT_FAILURE", "DISPUTE_FILED", "ON_TIME_PICKUP", "PAYMENT_SUCCESS",
+  "LOST_ITEM_RETURNED", "LOST_ITEM_DENIED", "ACCIDENT_REPORT_HONEST", "ACCIDENT_SAFETY_CHECK_PASSED",
+  "LOST_ITEM_FRAUD_DETECTED", "LOST_ITEM_RESOLVED", "ACCIDENT_REPORT_FILED", "ACCIDENT_SAFETY_COOPERATION",
+  "LOST_ITEM_HUB_DROPOFF", "DISPUTE_RESOLVED"
 ]);
 
 // Trust audit action types
@@ -426,6 +429,7 @@ export const driverProfiles = pgTable("driver_profiles", {
   phone: varchar("phone").notNull(),
   vehicleMake: varchar("vehicle_make").notNull(),
   vehicleModel: varchar("vehicle_model").notNull(),
+  vehicleYear: integer("vehicle_year"),
   licensePlate: varchar("license_plate").notNull(),
   status: driverStatusEnum("status").notNull().default("pending"),
   isOnline: boolean("is_online").notNull().default(false),
@@ -1226,6 +1230,7 @@ export const notifications = pgTable("notifications", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
   role: notificationRoleEnum("role").notNull(),
+  metadata: text("metadata"),
   title: varchar("title", { length: 200 }).notNull(),
   message: text("message").notNull(),
   type: notificationTypeEnum("type").notNull().default("info"),
@@ -2120,7 +2125,12 @@ export const updateDriverProfileSchema = createInsertSchema(driverProfiles).omit
   updatedAt: true,
   status: true,
   isOnline: true,
-}).partial();
+}).partial().extend({
+  vehicleYear: z.preprocess(
+    value => value === "" ? null : typeof value === "string" ? Number(value) : value,
+    z.number().int().min(1900).max(new Date().getFullYear() + 1).nullable().optional()
+  ),
+});
 
 // Types
 export type InsertUserRole = z.infer<typeof insertUserRoleSchema>;
@@ -2847,7 +2857,7 @@ export type EnterpriseInvoiceWithDetails = EnterpriseInvoice & {
 };
 
 // Phase 19 - Growth, Marketing & Partnerships enums
-export const referralOwnerRoleEnum = pgEnum("referral_owner_role", ["rider", "driver", "trip_coordinator"]);
+export const referralOwnerRoleEnum = pgEnum("referral_owner_role", ["rider", "driver", "trip_coordinator", "director"]);
 export const referralSourceEnum = pgEnum("referral_source", ["APP", "WEB", "PARTNER"]);
 export const campaignTypeEnum = pgEnum("campaign_type", ["REFERRAL", "PROMO", "PARTNERSHIP"]);
 export const campaignStatusEnum = pgEnum("campaign_status", ["ACTIVE", "PAUSED", "ENDED"]);
@@ -4934,6 +4944,8 @@ export const accidentReports = pgTable("accident_reports", {
   adminReviewStatus: varchar("admin_review_status", { length: 30 }).notNull().default("pending"),
   adminReviewedBy: varchar("admin_reviewed_by"),
   adminReviewNotes: text("admin_review_notes"),
+  insuranceClaimRef: text("insurance_claim_ref"),
+  adminReviewedAt: timestamp("admin_reviewed_at"),
   driverReinstated: boolean("driver_reinstated").notNull().default(false),
   driverSafetyBadge: boolean("driver_safety_badge").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -5466,6 +5478,7 @@ export const directorFraudSignals = pgTable("director_fraud_signals", {
 export type DirectorFraudSignal = typeof directorFraudSignals.$inferSelect;
 
 export const directorDisputeTypeEnum = pgEnum("director_dispute_type", [
+  "driver_complaint", "unfair_treatment",
   "payout_hold", "suspension", "driver_reassignment", "staff_restriction",
   "commission_adjustment", "cell_limit", "termination", "other"
 ]);

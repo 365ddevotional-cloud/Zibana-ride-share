@@ -1,6 +1,6 @@
 # Zibana migration checkpoint — 2026-10-08
 
-This is a private working copy of the verified Replit source backup. It is not live and is not a complete production security review.
+This migration branch is a source-only working copy of the verified Replit source backup. It is not live and is not a complete production security review.
 
 ## Changes
 
@@ -19,7 +19,11 @@ This is a private working copy of the verified Replit source backup. It is not l
 
 Production client/server build succeeded after these changes. Ten authentication/tracking/encryption policy tests passed. The production SQL backup was independently restored into isolated PGlite PostgreSQL: all 209 tables, 1,293 rows and record values matched the JSON capture using typed JSONB multiset comparisons. This is recovery validation, not a restore into Railway or a live app test.
 
-Full TypeScript checking reports 308 errors, the same count before this tracking change. Most are in the existing routes and reflect schema/API mismatches and duplicate definitions. No diagnostics were reported in the changed authentication, socket or tracking-policy files. These errors require review before launch; a successful bundled build is not proof that every feature works. The original source backup remains unchanged.
+Full TypeScript checking now passes with zero diagnostics (including a clean, non-incremental check). Five migration regression tests and ten security tests pass, and the production build passes. Repairs cover route parameter validation, real database field names, role checks, notification routing, referral and audit inserts, UUID identifiers, independent rider/director scoring, recorded GPS mileage, and an atomic, idempotent hub-return bonus ledger entry. This is not an end-to-end production feature audit; real login, payment, ride and mobile flows still need testing. The original source backup remains unchanged.
+
+Apply `migrations/20261008_code_schema_alignment.sql` to the RESTORED DESTINATION database before starting this version. It adds missing vehicle-year, accident-review and notification-metadata fields, and enum values already required by existing features. It deletes no records. The migration was applied twice to an isolated restored production backup; all 209 tables and 1,293 original records still matched. Do not apply it to the original Replit database as part of this checkpoint. Resolved disputes and intermediate hub drop-off are neutral audit signals, avoiding invented penalties and duplicate return rewards. Legacy trip mileage uses plausible, recorded driver GPS only; missing telemetry is not replaced with an invented tax-reporting estimate.
+
+Replit reports no active deployment or published `.replit.app` URL for this project. The current serving host of zibana.org has not been verified.
 
 Before public launch: configure and test real provider login/logout and owner roles, complete end-to-end tracking/session tests and audit remaining endpoints, restore/compare production tables and documents in the real destination, test trip/payment/mobile flows, obtain signing credentials if publishing native apps, verify domains/webhooks and obtain approval for hosting costs. No deployment, database replacement, DNS cutover, paid service, or Replit cancellation has been performed.
 

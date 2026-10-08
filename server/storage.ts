@@ -1619,6 +1619,11 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  async getUser(id: string) {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
   async getUserRole(userId: string): Promise<UserRole | undefined> {
     const [role] = await db.select().from(userRoles).where(eq(userRoles.userId, userId));
     return role;
@@ -2138,7 +2143,7 @@ export class DatabaseStorage implements IStorage {
     const driversWithDetails = await Promise.all(
       allDrivers.map(async (driver) => {
         const [user] = await db.select().from(users).where(eq(users.id, driver.userId));
-        return { ...driver, email: user?.email, city: user?.residenceCity || null };
+        return { ...driver, email: user?.email, city: (await this.getIdentityProfile(driver.userId))?.residenceCity || null };
       })
     );
 
@@ -2902,9 +2907,9 @@ export class DatabaseStorage implements IStorage {
       .limit(limit);
   }
 
-  async updateDirectorProfile(userId: string, updates: Partial<{ directorType: string; commissionFrozen: boolean; maxCellSize: number; activationThreshold: number; status: string; suspendedAt: Date | null; suspendedBy: string | null }>): Promise<DirectorProfile | undefined> {
+  async updateDirectorProfile(userId: string, updates: Partial<Omit<typeof directorProfiles.$inferInsert, "id" | "userId">>): Promise<DirectorProfile | undefined> {
     const [updated] = await db.update(directorProfiles)
-      .set(updates as any)
+      .set(updates)
       .where(eq(directorProfiles.userId, userId))
       .returning();
     return updated;
@@ -3110,6 +3115,10 @@ export class DatabaseStorage implements IStorage {
       .where(eq(directorStaff.id, id))
       .returning();
     return updated;
+  }
+
+  async getAllPendingDirectorStaff(): Promise<DirectorStaff[]> {
+    return db.select().from(directorStaff).where(eq(directorStaff.status, "pending"));
   }
 
   async getDirectorStaffById(id: string): Promise<DirectorStaff | undefined> {
@@ -3981,7 +3990,7 @@ export class DatabaseStorage implements IStorage {
 
   async getZibanaWallet(): Promise<Wallet> {
     const ZIBANA_SYSTEM_USER_ID = "zibana-system";
-    return this.getOrCreateWallet(ZIBANA_SYSTEM_USER_ID, "zibana");
+    return this.getOrCreateWallet(ZIBANA_SYSTEM_USER_ID, "ziba");
   }
 
   async getAllDriverWallets(): Promise<any[]> {
@@ -4010,6 +4019,23 @@ export class DatabaseStorage implements IStorage {
       })
     );
     return walletsWithDetails;
+  }
+
+  async creditHubReturnBonus(walletId: string, amount: string, reportId: string): Promise<void> {
+    const amountNum = Number(amount);
+    if (!Number.isFinite(amountNum) || amountNum <= 0) throw new Error("Invalid hub return bonus");
+    await db.transaction(async tx => {
+      // Lock the wallet before checking the ledger, so repeated/concurrent pickup requests credit once.
+      const [wallet] = await tx.select().from(wallets).where(eq(wallets.id, walletId)).for("update");
+      if (!wallet) throw new Error("Wallet not found");
+      const referenceId = `hub-return:${reportId}`;
+      const [existing] = await tx.select().from(walletTransactions).where(and(
+        eq(walletTransactions.walletId, walletId), eq(walletTransactions.referenceId, referenceId)));
+      if (existing) return;
+      await tx.update(wallets).set({ balance: sql`${wallets.balance} + ${amount}`, updatedAt: new Date() }).where(eq(wallets.id, walletId));
+      await tx.insert(walletTransactions).values({ walletId, type: "credit", amount,
+        source: "adjustment", referenceId, description: "Safe Return Hub bonus" });
+    });
   }
 
   async creditWallet(walletId: string, amount: string, source: string, referenceId?: string, createdByUserId?: string, description?: string): Promise<WalletTransaction> {

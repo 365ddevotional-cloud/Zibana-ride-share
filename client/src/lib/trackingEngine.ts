@@ -1,6 +1,6 @@
 import { API_BASE } from "./apiBase";
 
-type TrackingCallback = (coords: GeolocationCoordinates) => void;
+type TrackingCallback = (coords: Pick<GeolocationCoordinates, "latitude" | "longitude" | "accuracy" | "altitude" | "heading" | "speed">) => void;
 type ErrorCallback = (error: GeolocationPositionError | Error) => void;
 
 interface TrackingOptions {

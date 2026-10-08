@@ -401,10 +401,10 @@ export async function adminApproveDispute(
     try {
       const { captureBehaviorSignal } = await import("./trust-guards");
       await captureBehaviorSignal(
-        dispute.tripId,
         dispute.accusedUserId,
+        "DISPUTE_RESOLVED",
         dispute.initiatorRole === "RIDER" ? "driver" : "rider",
-        "DISPUTE_AGAINST",
+        dispute.tripId,
         { resolved: true, disputeType: dispute.disputeType }
       );
     } catch (trustError) {

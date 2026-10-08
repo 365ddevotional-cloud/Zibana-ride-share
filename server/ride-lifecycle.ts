@@ -380,7 +380,7 @@ function validateCancellation(
         driverMovement.durationSec
       );
       if (compensation.eligible) {
-        const fee = currentStatus === "arrived" ? 750 : 500;
+        const fee = 500;
         return {
           allowed: true,
           requiresFee: true,
