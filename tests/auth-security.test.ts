@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 process.env.DATABASE_URL = 'postgres://unused:unused@localhost/unused';
-const { isAuthenticated, getSession, setupAuth } = await import('../server/replit_integrations/auth/replitAuth');
+const { isAuthenticated, getSession, setupAuth } = await import('../server/integrations/auth/oidcAuth');
 const { getSimulationConfig } = await import('../server/simulation-config');
 function check(user: any, authenticated: boolean, session?: any) {
   let status: number | undefined;

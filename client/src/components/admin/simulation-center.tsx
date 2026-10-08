@@ -207,7 +207,7 @@ export function SimulationCenter() {
           </CardDescription>
           <div className="mt-2 flex items-center gap-2 flex-wrap">
             <Badge variant="outline" data-testid="badge-environment">
-              {window.location.hostname.includes("replit.app") ? "Published App" : "Development"}
+              {import.meta.env.PROD ? "Published App" : "Development"}
             </Badge>
             <span className="text-xs text-muted-foreground">
               Codes generated here only work on this same URL.

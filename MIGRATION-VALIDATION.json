@@ -6,10 +6,13 @@
   "recordComparisonPassed": true,
   "failures": [],
   "date": "2026-10-08",
-  "securityPolicyTests": 8,
+  "securityPolicyTests": 10,
   "securityPolicyTestsPassed": true,
   "productionBuildPassed": true,
   "typeScriptErrors": 308,
   "railwayDeploymentPerformed": false,
-  "liveLoginTestPerformed": false
+  "liveLoginTestPerformed": false,
+  "replitRuntimeReferences": 0,
+  "googleCallbackPath": "/api/auth/callback/google",
+  "liveWebsiteInspectionBlocked": "Cloud browser ERR_BLOCKED_BY_CLIENT on apex and www"
 }

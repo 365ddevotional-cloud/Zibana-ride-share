@@ -1,7 +1,7 @@
 import type { Express, RequestHandler } from "express";
 import { createServer, type Server } from "http";
 import { createHash } from "crypto";
-import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
+import { setupAuth, registerAuthRoutes, isAuthenticated } from "./integrations/auth";
 import { storage } from "./storage";
 import { activeTrip, canTrack, getLiveLink } from "./tracking-policy";
 import { db } from "./db";
@@ -165,7 +165,7 @@ export async function registerRoutes(
   // SUPER_ADMIN email binding - both emails have super admin access
   const SUPER_ADMIN_EMAILS = [
     "mosesafonabi951@gmail.com",  // Primary super admin (public/incognito)
-    "365ddevotional@gmail.com"    // Replit account owner (preview)
+    "365ddevotional@gmail.com"    // Additional owner account
   ];
   
   // Helper to check if email is authorized as SUPER_ADMIN

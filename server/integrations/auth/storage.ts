@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 // SUPER_ADMIN email binding - both emails have super admin access
 const SUPER_ADMIN_EMAILS = [
   "mosesafonabi951@gmail.com",  // Primary super admin (public/incognito)
-  "365ddevotional@gmail.com"    // Replit account owner (preview)
+  "365ddevotional@gmail.com"    // Additional owner account
 ];
 
 // Helper to check if email is authorized as SUPER_ADMIN
@@ -15,7 +15,7 @@ const isSuperAdminEmail = (email: string): boolean => {
 };
 
 // Interface for auth storage operations
-// (IMPORTANT) These user operations are mandatory for Replit Auth.
+// (IMPORTANT) These operations persist authenticated users and existing roles.
 export interface IAuthStorage {
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;

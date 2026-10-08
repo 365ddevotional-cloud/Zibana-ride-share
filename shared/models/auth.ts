@@ -5,7 +5,7 @@ import { index, jsonb, pgTable, timestamp, varchar, pgEnum } from "drizzle-orm/p
 export const themePreferenceEnum = pgEnum("theme_preference", ["light", "dark", "system"]);
 
 // Session storage table.
-// (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
+// (IMPORTANT) This table preserves authentication data and existing user relationships; do not drop it.
 export const sessions = pgTable(
   "sessions",
   {
@@ -17,7 +17,7 @@ export const sessions = pgTable(
 );
 
 // User storage table.
-// (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
+// (IMPORTANT) This table preserves authentication data and existing user relationships; do not drop it.
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: varchar("email").unique(),

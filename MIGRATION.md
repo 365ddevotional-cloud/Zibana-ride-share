@@ -5,7 +5,7 @@ This is a private working copy of the verified Replit source backup. It is not l
 ## Changes
 
 - Removed the development administrator injection and fake login redirects. OIDC sign-in now checks state, nonce, PKCE, verified email and session expiry. Existing user IDs are retained by matching verified email.
-- Missing identity-provider settings or session secret stop startup. Configure a trusted provider such as Google. Register the exact APP_BASE_URL + /api/callback redirect URI in its web client.
+- Missing identity-provider settings or session secret stop startup. Configure a trusted provider such as Google. Register the exact APP_BASE_URL + /api/auth/callback/google redirect URI in its web client.
 - New session cookie invalidates use of the old development/simulation sessions. Generate a fresh random SESSION_SECRET; the old Replit secret is unnecessary.
 - Disabled simulation mode in production.
 - Removed forced schema synchronization at startup. Restore the selected database into a NEW empty destination; do not merge development and production.
@@ -17,7 +17,7 @@ This is a private working copy of the verified Replit source backup. It is not l
 
 ## Validation and remaining work
 
-Production client/server build succeeded after these changes. Eight authentication/tracking policy tests passed. The production SQL backup was independently restored into isolated PGlite PostgreSQL: all 209 tables, 1,293 rows and record values matched the JSON capture using typed JSONB multiset comparisons. This is recovery validation, not a restore into Railway or a live app test.
+Production client/server build succeeded after these changes. Ten authentication/tracking/encryption policy tests passed. The production SQL backup was independently restored into isolated PGlite PostgreSQL: all 209 tables, 1,293 rows and record values matched the JSON capture using typed JSONB multiset comparisons. This is recovery validation, not a restore into Railway or a live app test.
 
 Full TypeScript checking reports 308 errors, the same count before this tracking change. Most are in the existing routes and reflect schema/API mismatches and duplicate definitions. No diagnostics were reported in the changed authentication, socket or tracking-policy files. These errors require review before launch; a successful bundled build is not proof that every feature works. The original source backup remains unchanged.
 
@@ -28,3 +28,11 @@ The eight history companion ZIPs preserve previous Git versions and are optional
 ## GitHub publication scope
 
 The migration branch contains app source/configuration and native project sources. It excludes attached_assets (unreferenced Replit uploads/pasted prompts), generated native public bundles, Replit workspace files, dependencies, build output, actual environment files, backup archives, database exports and Git-history chunks. Excluded material is preserved in the private backup/checkpoint. Existing GitHub main is not overwritten.
+
+## Independence cleanup
+
+Renamed integration folders and the authentication module to provider-neutral paths. Removed the Replit hostname check from the administration interface. Google login now uses /api/auth/callback/google, matching the existing client callback path; the exact destination hostname must still be registered before preview login. Existing Google client settings and the live website have not been changed.
+
+Field encryption now requires a separate FIELD_ENCRYPTION_SECRET and rejects missing/short keys instead of deriving from a Replit ID or a hard-coded fallback. If restored records contain encrypted tax IDs, privately preserve the EXACT previous encryption secret as FIELD_ENCRYPTION_SECRET before reading them. Changing SESSION_SECRET does not change the field-encryption key. This does not re-encrypt or alter any backup data.
+
+The verified production JSON capture contains zero enc:-formatted field values; the destination can use a fresh independent encryption secret for this snapshot. Check a fresh cutover export before selecting a key. The cloud browser could not inspect either live hostname (ERR_BLOCKED_BY_CLIENT), so live UX and role tests remain unperformed.

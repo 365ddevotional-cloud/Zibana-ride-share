@@ -6,7 +6,10 @@ const TAG_LENGTH = 16;
 const ENCODING: BufferEncoding = "hex";
 
 function getDerivedKey(): Buffer {
-  const secret = process.env.SESSION_SECRET || process.env.REPL_ID || "fallback-key";
+  const secret = process.env.FIELD_ENCRYPTION_SECRET;
+  if (!secret || secret.length < 32) {
+    throw new Error("Configure FIELD_ENCRYPTION_SECRET with the original field-encryption key, or a new random secret for data without encrypted fields");
+  }
   return crypto.createHash("sha256").update(secret).digest();
 }
 

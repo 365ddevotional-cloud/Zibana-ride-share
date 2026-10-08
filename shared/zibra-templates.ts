@@ -40,7 +40,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "rider",
     category: "account",
     keywords: ["sign up", "signup", "create account", "register", "new account", "join"],
-    response: "To create an account:\n1. Open the ZIBANA app.\n2. Log in using your Replit account.\n3. Your rider profile will be created automatically.\n\nLet me know if you'd like help with the next step."
+    response: "To create an account:\n1. Open the ZIBANA app.\n2. Sign in with your Google account.\n3. Your rider profile will be created automatically.\n\nLet me know if you'd like help with the next step."
   },
   {
     id: "r-account-edit",
@@ -61,7 +61,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "rider",
     category: "account",
     keywords: ["login", "log in", "can't login", "login issue", "sign in", "signin"],
-    response: "ZIBANA uses your Replit account for sign-in. If you're having trouble logging in:\n1. Make sure you're using the correct Replit account.\n2. Try refreshing the page.\n3. Clear your browser cache if needed.\n\nIf the issue persists, submit a support ticket for assistance."
+    response: "ZIBANA uses Google for sign-in. If you're having trouble logging in:\n1. Make sure you're using the correct Google account.\n2. Try refreshing the page.\n3. Clear your browser cache if needed.\n\nIf the issue persists, submit a support ticket for assistance."
   },
   {
     id: "r-account-notifications",
@@ -598,7 +598,7 @@ export const ZIBRA_TEMPLATES: ZibraTemplate[] = [
     role: "driver",
     category: "driver_signup",
     keywords: ["sign up", "register", "become driver", "join as driver", "apply", "driver application"],
-    response: "To apply as a driver:\n1. Log in with your Replit account.\n2. Select the driver role during registration.\n3. Submit your identity documents, vehicle information, and required licenses.\n\nYour application will be reviewed by our team. Let me know if you'd like help with the next step."
+    response: "To apply as a driver:\n1. Sign in with your Google account.\n2. Select the driver role during registration.\n3. Submit your identity documents, vehicle information, and required licenses.\n\nYour application will be reviewed by our team. Let me know if you'd like help with the next step."
   },
   {
     id: "d-signup-documents",

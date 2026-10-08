@@ -8,7 +8,6 @@ import { db } from "../../db";
 import { users } from "@shared/models/auth";
 import { eq } from "drizzle-orm";
 
-// Kept at the existing import path so the app's role-protected routes stay intact.
 // Authentication now uses an independently configured OIDC provider.
 export function getSession() {
   const secret = process.env.SESSION_SECRET;
@@ -36,7 +35,7 @@ export async function setupAuth(app: Express) {
   const baseUrl = new URL(base);
   if (process.env.NODE_ENV === "production" && baseUrl.protocol !== "https:") throw new Error("APP_BASE_URL must use HTTPS in production");
   if (process.env.NODE_ENV === "production" && new URL(issuer).protocol !== "https:") throw new Error("OIDC issuer must use HTTPS in production");
-  const redirectUri = new URL("/api/callback", baseUrl).href;
+  const redirectUri = new URL("/api/auth/callback/google", baseUrl).href;
   const config = await oidc.discovery(new URL(issuer), clientId, clientSecret);
   app.set("trust proxy", 1);
   const sessionMiddleware = getSession();
@@ -61,7 +60,7 @@ export async function setupAuth(app: Express) {
     } catch (err) { next(err); }
   });
 
-  app.get("/api/callback", async (req, res, next) => {
+  app.get("/api/auth/callback/google", async (req, res, next) => {
     const pending = (req.session as any).oidc;
     delete (req.session as any).oidc;
     if (!pending || Date.now() - pending.createdAt > 10 * 60 * 1000) {
