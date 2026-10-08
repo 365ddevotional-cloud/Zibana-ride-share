@@ -40,3 +40,9 @@ Renamed integration folders and the authentication module to provider-neutral pa
 Field encryption now requires a separate FIELD_ENCRYPTION_SECRET and rejects missing/short keys instead of deriving from a Replit ID or a hard-coded fallback. If restored records contain encrypted tax IDs, privately preserve the EXACT previous encryption secret as FIELD_ENCRYPTION_SECRET before reading them. Changing SESSION_SECRET does not change the field-encryption key. This does not re-encrypt or alter any backup data.
 
 The verified production JSON capture contains zero enc:-formatted field values; the destination can use a fresh independent encryption secret for this snapshot. Check a fresh cutover export before selecting a key. The cloud browser could not inspect either live hostname (ERR_BLOCKED_BY_CLIENT), so live UX and role tests remain unperformed.
+
+## Deployment preparation
+
+Railway preview hostname: `zibana-ride-share-v4-production.up.railway.app`. Register its `/api/auth/callback/google` URL in the existing Google web client before preview sign-in. Deployment uses the destination Postgres reference, fresh session/encryption secrets and existing stored OAuth credentials. Optional AI clients initialize only when called and an API key exists.
+
+Run `script/restore-destination.mjs` privately with the selected SQL and JSON capture and destination DATABASE_URL. It refuses a nonempty or different destination, wraps the restore and schema update in one transaction, and verifies all original records before committing. No data files are part of this repository. The pre-deploy readiness check prevents the app from going live against an unrestored database.

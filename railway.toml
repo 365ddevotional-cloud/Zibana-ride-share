@@ -3,6 +3,7 @@ builder = "RAILPACK"
 buildCommand = "npm ci --ignore-scripts && npm run build"
 
 [deploy]
+preDeployCommand = ["node script/verify-destination.mjs"]
 startCommand = "npm start"
 healthcheckPath = "/health"
 healthcheckTimeout = 120
