@@ -264,7 +264,7 @@ export default function RiderInbox() {
                               className={`font-medium truncate ${!msg.read ? "text-foreground" : "text-muted-foreground"}`}
                               data-testid={`text-message-title-${msg.id}`}
                             >
-                              {msg.title}
+                              {msg.title.replace(/\bZIBA\b/g, "ZIBANA")}
                             </p>
                             {!msg.read && (
                               <span
@@ -277,7 +277,7 @@ export default function RiderInbox() {
                             className="text-sm text-muted-foreground line-clamp-2"
                             data-testid={`text-message-body-${msg.id}`}
                           >
-                            {msg.body}
+                            {msg.body.replace(/\bZIBA\b/g, "ZIBANA")}
                           </p>
                           <div className="flex items-center gap-2 flex-wrap">
                             <Badge variant="outline" className="text-xs" data-testid={`badge-message-type-${msg.id}`}>

@@ -1,9 +1,7 @@
-import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Check, Clock, AlertCircle } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
 import { RideClassIcon } from "@/components/ride-class-icon";
 import type { RideClassId, RideClassDefinition } from "@shared/ride-classes";
 
@@ -13,27 +11,14 @@ interface RideClassSelectorProps {
   currencySymbol?: string;
 }
 
-interface FareEstimate {
-  rideClass: string;
-  fareMultiplier: number;
-  estimatedFare: number;
-  fareRange: { min: number; max: number };
-  fareBreakdown?: { baseFare: number; distanceFare: number; timeFare: number; surcharge: number };
-  pricing?: { baseFare: number; perKmRate: number; perMinuteRate: number; minimumFare: number; surcharge: number };
-  currencyCode: string;
-  estimatedDistanceKm: number;
-  estimatedDurationMin: number;
-}
-
 interface ClassAvailability {
   rideClassId: string;
-  available: boolean;
-  driverCount: number;
-  estimatedWaitMinutes: number;
+  available: boolean | null;
+  driverCount: number | null;
+  estimatedWaitMinutes: number | null;
 }
 
 export function RideClassSelector({ selectedClass, onClassChange, currencySymbol = "\u20A6" }: RideClassSelectorProps) {
-  const [estimates, setEstimates] = useState<Record<string, FareEstimate>>({});
 
   const { data: rideClasses, isLoading } = useQuery<RideClassDefinition[]>({
     queryKey: ["/api/ride-classes"],
@@ -43,26 +28,6 @@ export function RideClassSelector({ selectedClass, onClassChange, currencySymbol
     queryKey: ["/api/ride-classes/availability"],
     refetchInterval: 30000,
   });
-
-  const fareEstimateMutation = useMutation({
-    mutationFn: async (rideClassId: string) => {
-      const res = await apiRequest("POST", "/api/rider/fare-estimate", { rideClassId });
-      return res.json();
-    },
-    onSuccess: (data: FareEstimate) => {
-      setEstimates(prev => ({ ...prev, [data.rideClass]: data }));
-    },
-  });
-
-  useEffect(() => {
-    if (rideClasses) {
-      rideClasses.forEach(rc => {
-        if (!estimates[rc.id]) {
-          fareEstimateMutation.mutate(rc.id);
-        }
-      });
-    }
-  }, [rideClasses]);
 
   if (isLoading) {
     return (
@@ -86,12 +51,14 @@ export function RideClassSelector({ selectedClass, onClassChange, currencySymbol
       <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide" data-testid="text-ride-class-heading">
         Choose your ride
       </h3>
+      <p className="text-xs text-muted-foreground" data-testid="text-availability-not-confirmed">
+        Driver availability and pickup times are not yet confirmed.
+      </p>
       <div className="space-y-1.5">
         {rideClasses.map((rc) => {
           const isSelected = selectedClass === rc.id;
-          const estimate = estimates[rc.id];
           const classAvail = getAvailability(rc.id);
-          const isAvailable = classAvail ? classAvail.available : true;
+          const isAvailable = rc.isActive && classAvail?.available !== false;
 
           return (
             <button
@@ -141,14 +108,14 @@ export function RideClassSelector({ selectedClass, onClassChange, currencySymbol
                 {!isAvailable ? (
                   <p className="text-xs text-destructive flex items-center gap-1" data-testid={`text-unavailable-${rc.id}`}>
                     <AlertCircle className="h-3 w-3" />
-                    No drivers nearby right now
+                    Ride class unavailable
                   </p>
                 ) : (
                   <div className="flex items-center gap-2">
                     <p className="text-xs text-muted-foreground truncate" data-testid={`text-ride-class-desc-${rc.id}`}>
                       {rc.description}
                     </p>
-                    {classAvail && classAvail.estimatedWaitMinutes > 0 && (
+                    {classAvail?.estimatedWaitMinutes != null && classAvail.estimatedWaitMinutes > 0 && (
                       <span className="text-xs text-muted-foreground flex items-center gap-0.5 shrink-0">
                         <Clock className="h-3 w-3" />
                         ~{classAvail.estimatedWaitMinutes} min
@@ -161,21 +128,10 @@ export function RideClassSelector({ selectedClass, onClassChange, currencySymbol
               <div className="text-right shrink-0">
                 {!isAvailable ? (
                   <span className="text-xs text-muted-foreground">Unavailable</span>
-                ) : estimate ? (
-                  <div>
-                    <span
-                      className="font-semibold text-sm"
-                      style={isSelected ? { color: rc.color } : undefined}
-                      data-testid={`text-ride-class-fare-${rc.id}`}
-                    >
-                      {currencySymbol}{estimate.estimatedFare.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                    </span>
-                    <p className="text-xs text-muted-foreground">
-                      ~{estimate.estimatedDurationMin} min
-                    </p>
-                  </div>
                 ) : (
-                  <Skeleton className="h-8 w-12" />
+                  <span className="text-xs text-muted-foreground" data-testid={`text-ride-class-quote-${rc.id}`}>
+                    Fare not yet quoted
+                  </span>
                 )}
               </div>
             </button>

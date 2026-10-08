@@ -3587,16 +3587,14 @@ export async function registerRoutes(
     try {
       const { RIDE_CLASS_LIST } = await import("@shared/ride-classes");
       
-      const availability = RIDE_CLASS_LIST.map(rc => {
-        const isAvailable = rc.isActive;
-        const driverCount = isAvailable ? Math.floor(Math.random() * 8) + 1 : 0;
-        return {
-          rideClassId: rc.id,
-          available: isAvailable && driverCount > 0,
-          driverCount,
-          estimatedWaitMinutes: isAvailable ? Math.floor(Math.random() * 8) + 2 : 0,
-        };
-      });
+      // No verified nearby-driver query is configured for this endpoint.
+      // Unknown availability must never be reported as a random driver count.
+      const availability = RIDE_CLASS_LIST.map(rc => ({
+        rideClassId: rc.id,
+        available: rc.isActive ? null : false,
+        driverCount: null,
+        estimatedWaitMinutes: null,
+      }));
 
       return res.json(availability);
     } catch (error) {
@@ -3606,46 +3604,11 @@ export async function registerRoutes(
   });
 
   app.post("/api/rider/fare-estimate", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
-    try {
-      const { rideClassId } = req.body;
-      const { getRideClassMultiplier, isValidRideClass, calculateClassFareRange, getRideClassPricing } = await import("@shared/ride-classes");
-
-      const classId = rideClassId && isValidRideClass(rideClassId) ? rideClassId : "go";
-      const multiplier = getRideClassMultiplier(classId);
-      const pricing = getRideClassPricing(classId as any);
-
-      const estimatedDistanceKm = Math.random() * 15 + 3;
-      const estimatedDurationMin = estimatedDistanceKm * 3 + Math.random() * 10;
-
-      const range = calculateClassFareRange(classId as any, estimatedDistanceKm, estimatedDurationMin);
-
-      const userId = req.user.claims.sub;
-      const { getCountryConfig } = await import("@shared/currency");
-      const userRole = await storage.getUserRole(userId);
-      const countryCode = userRole?.countryCode || "NG";
-      const countryConfig = getCountryConfig(countryCode);
-
-      return res.json({
-        rideClass: classId,
-        fareMultiplier: multiplier,
-        estimatedFare: range.estimate,
-        fareRange: { min: range.min, max: range.max },
-        fareBreakdown: range.breakdown,
-        pricing: {
-          baseFare: pricing.baseFare,
-          perKmRate: pricing.perKmRate,
-          perMinuteRate: pricing.perMinuteRate,
-          minimumFare: pricing.minimumFare,
-          surcharge: pricing.surcharge,
-        },
-        currencyCode: countryConfig.currencyCode,
-        estimatedDistanceKm: parseFloat(estimatedDistanceKm.toFixed(1)),
-        estimatedDurationMin: Math.round(estimatedDurationMin),
-      });
-    } catch (error) {
-      console.error("Error calculating fare estimate:", error);
-      return res.status(500).json({ message: "Failed to calculate fare estimate" });
-    }
+    // A fare cannot be quoted without a verified route and market pricing.
+    return res.status(503).json({
+      code: "FARE_QUOTE_UNAVAILABLE",
+      message: "Route pricing is not available yet. No fare has been quoted or charged.",
+    });
   });
 
   app.get("/api/rider/current-trip", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {

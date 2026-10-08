@@ -22,6 +22,7 @@ import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
 import { RideClassSelector } from "@/components/rider/RideClassSelector";
 import type { RideClassId } from "@shared/ride-classes";
 import { getRideClass } from "@shared/ride-classes";
+import { COUNTRY_FINANCIAL_CONFIG } from "@shared/currency";
 
 const SUPER_ADMIN_EMAIL = "365ddevotional@gmail.com";
 
@@ -95,10 +96,10 @@ export default function RiderHome() {
   const currentBalance = paymentMethod === "TEST_WALLET" 
     ? walletInfo?.testBalance 
     : walletInfo?.mainBalance;
-  const hasLowBalance = paymentMethod !== "CASH" && parseFloat(currentBalance || "0") < 500;
+  const hasLowBalance = paymentMethod !== "CASH" && parseFloat(currentBalance || "0") < (Object.values(COUNTRY_FINANCIAL_CONFIG).find(c => c.currencyCode === currency)?.minBalanceForRide ?? 0);
 
   const handleRequestRide = () => {
-    if (!destination.trim()) return;
+    if (!pickup.trim() || !destination.trim()) return;
 
     // Edge case: Validate selected ride class is still active
     const selectedClassConfig = getRideClass(selectedRideClass);
@@ -119,7 +120,10 @@ export default function RiderHome() {
       });
     }
     
-    setLocation(`/rider/trips?action=request&destination=${encodeURIComponent(destination)}&pickup=${encodeURIComponent(pickup)}&paymentMethod=${paymentMethod}&rideClass=${selectedRideClass}`);
+    toast({
+      title: "Booking is not ready yet",
+      description: "Route pricing and driver availability must be confirmed before a ride can be booked. No ride was requested and no payment was taken.",
+    });
   };
 
   const handleRideClassChange = (classId: RideClassId, multiplier: number) => {
@@ -181,6 +185,9 @@ export default function RiderHome() {
                 />
               </div>
 
+              <p className="text-xs text-muted-foreground" data-testid="text-wallet-currency">
+                Wallet currency: {walletInfo ? currency : "Loading…"}. Your wallet keeps its original currency.
+              </p>
               <RideClassSelector
                 selectedClass={selectedRideClass}
                 onClassChange={handleRideClassChange}
@@ -272,7 +279,7 @@ export default function RiderHome() {
               <Button 
                 className="w-full h-14 text-base font-semibold shadow-lg"
                 onClick={handleRequestRide}
-                disabled={!destination.trim()}
+                disabled={!pickup.trim() || !destination.trim()}
                 data-testid="button-request-ride"
               >
                 {t("home.requestRide")}
@@ -289,7 +296,7 @@ export default function RiderHome() {
                   </div>
                   <div>
                     <p className="font-medium text-sm" data-testid="text-schedule-ride">{t("home.scheduleRide")}</p>
-                    <p className="text-xs text-muted-foreground">Book in advance for a guaranteed ride</p>
+                    <p className="text-xs text-muted-foreground">Plan a ride ahead; driver confirmation is required</p>
                   </div>
                 </div>
                 <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
