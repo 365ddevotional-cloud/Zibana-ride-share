@@ -8,7 +8,6 @@ import type { RideClassId, RideClassDefinition } from "@shared/ride-classes";
 interface RideClassSelectorProps {
   selectedClass: RideClassId;
   onClassChange: (classId: RideClassId, multiplier: number) => void;
-  currencySymbol?: string;
 }
 
 interface ClassAvailability {
@@ -18,15 +17,15 @@ interface ClassAvailability {
   estimatedWaitMinutes: number | null;
 }
 
-export function RideClassSelector({ selectedClass, onClassChange, currencySymbol = "\u20A6" }: RideClassSelectorProps) {
+export function RideClassSelector({ selectedClass, onClassChange }: RideClassSelectorProps) {
 
-  const { data: rideClasses, isLoading } = useQuery<RideClassDefinition[]>({
+  const { data: rideClasses, isLoading, isError, refetch } = useQuery<RideClassDefinition[]>({
     queryKey: ["/api/ride-classes"],
   });
 
   const { data: availability } = useQuery<ClassAvailability[]>({
     queryKey: ["/api/ride-classes/availability"],
-    refetchInterval: 30000,
+    staleTime: 60000,
   });
 
   if (isLoading) {
@@ -40,7 +39,8 @@ export function RideClassSelector({ selectedClass, onClassChange, currencySymbol
     );
   }
 
-  if (!rideClasses?.length) return null;
+  if (isError) return <div role="alert" className="rounded-xl border p-4 text-sm">Ride options could not load. <button className="font-medium text-primary underline" onClick={() => refetch()}>Try again</button></div>;
+  if (!rideClasses?.length) return <p className="text-sm text-muted-foreground">No ride classes are configured yet.</p>;
 
   const getAvailability = (classId: string): ClassAvailability | undefined => {
     return availability?.find(a => a.rideClassId === classId);
@@ -65,7 +65,8 @@ export function RideClassSelector({ selectedClass, onClassChange, currencySymbol
               key={rc.id}
               onClick={() => isAvailable && onClassChange(rc.id as RideClassId, rc.fareMultiplier)}
               disabled={!isAvailable}
-              className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-200 ${
+              aria-pressed={isSelected}
+              className={`w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all duration-200 ${
                 !isAvailable
                   ? "opacity-50 cursor-not-allowed"
                   : isSelected
@@ -112,7 +113,7 @@ export function RideClassSelector({ selectedClass, onClassChange, currencySymbol
                   </p>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <p className="text-xs text-muted-foreground truncate" data-testid={`text-ride-class-desc-${rc.id}`}>
+                    <p className="text-xs leading-5 text-muted-foreground" data-testid={`text-ride-class-desc-${rc.id}`}>
                       {rc.description}
                     </p>
                     {classAvail?.estimatedWaitMinutes != null && classAvail.estimatedWaitMinutes > 0 && (
@@ -125,7 +126,7 @@ export function RideClassSelector({ selectedClass, onClassChange, currencySymbol
                 )}
               </div>
 
-              <div className="text-right shrink-0">
+              <div className="hidden sm:block text-right shrink-0">
                 {!isAvailable ? (
                   <span className="text-xs text-muted-foreground">Unavailable</span>
                 ) : (

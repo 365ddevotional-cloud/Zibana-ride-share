@@ -1,385 +1,66 @@
 import { useState } from "react";
-import { useTranslation } from "@/i18n";
+import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
+import { MapPin, Navigation, ArrowUpRight, Wallet, Calendar, Home, Briefcase, ShieldCheck, Info } from "lucide-react";
 import { RiderLayout } from "@/components/rider/RiderLayout";
 import { RiderRouteGuard } from "@/components/rider/RiderRouteGuard";
-import { LocationDisclosure, useLocationDisclosure } from "@/components/rider/LocationDisclosure";
+import { RideClassSelector } from "@/components/rider/RideClassSelector";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { MapPin, Navigation, Calendar, ChevronRight, Wallet, Beaker, AlertCircle, BookOpen, Banknote, Home as HomeIcon, Briefcase, Shield, Star, Users } from "lucide-react";
-import { StarRating } from "@/components/ui/StarRating";
-import { useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/use-auth";
-import { CancellationWarning } from "@/components/cancellation-warning";
-import { ContextualHelpSuggestion } from "@/components/contextual-help";
-import { PaymentOnboardingModal } from "@/components/payment-onboarding-modal";
-import { RiderSimulationControls } from "@/components/simulation-ride-controls";
-import { MarketingTipBanner } from "@/components/rider/marketing-tip";
-import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
-import { RideClassSelector } from "@/components/rider/RideClassSelector";
+import { Label } from "@/components/ui/label";
+import { formatCurrency } from "@shared/currency";
 import type { RideClassId } from "@shared/ride-classes";
-import { getRideClass } from "@shared/ride-classes";
-import { COUNTRY_FINANCIAL_CONFIG } from "@shared/currency";
 
-const SUPER_ADMIN_EMAIL = "365ddevotional@gmail.com";
-
-interface WalletInfo {
-  mainBalance: string;
-  testBalance: string;
-  currencyCode: string;
-  isTester: boolean;
-  defaultPaymentMethod: string;
-}
+interface WalletInfo { mainBalance: string; currencyCode: string; defaultPaymentMethod: string }
+interface SavedPlace { id: string; type: string; address: string }
 
 export default function RiderHome() {
-  const { t } = useTranslation();
-  const { user } = useAuth();
-  const [, setLocation] = useLocation();
-  const [destination, setDestination] = useState("");
+  const [, navigate] = useLocation();
   const [pickup, setPickup] = useState("");
-  const [selectedRideClass, setSelectedRideClass] = useState<RideClassId>("go");
-  const [fareMultiplier, setFareMultiplier] = useState(1.0);
-  const { toast } = useToast();
-  const { showDisclosure, acceptDisclosure } = useLocationDisclosure();
+  const [destination, setDestination] = useState("");
+  const [selectedClass, setSelectedClass] = useState<RideClassId>("go");
+  const { data: wallet, isError: walletError } = useQuery<WalletInfo>({ queryKey: ["/api/rider/wallet-info"] });
+  const { data: places = [] } = useQuery<SavedPlace[]>({ queryKey: ["/api/rider/saved-places"] });
 
-  const { data: userRole } = useQuery<{ role: string; roles?: string[] } | null>({
-    queryKey: ["/api/user/role"],
-    enabled: !!user,
-    staleTime: 60000,
-  });
-
-  const { data: walletInfo } = useQuery<WalletInfo>({
-    queryKey: ["/api/rider/wallet-info"],
-  });
-
-  const { data: riderProfile } = useQuery<{ averageRating: string | null; totalRatings: number }>({
-    queryKey: ["/api/rider/profile"],
-  });
-
-  const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;
-  const isAdmin = userRole?.roles?.includes("admin") || userRole?.roles?.includes("super_admin") || false;
-  const showRiderSimulation = import.meta.env.DEV && (isSuperAdmin || isAdmin);
-
-  interface SavedPlace {
-    id: string;
-    riderId: string;
-    type: string;
-    address: string;
-    notes: string | null;
-    lat: string | null;
-    lng: string | null;
-  }
-
-  const { data: savedPlaces } = useQuery<SavedPlace[]>({
-    queryKey: ["/api/rider/saved-places"],
-  });
-
-  const homePlace = savedPlaces?.find(p => p.type === "home");
-  const workPlace = savedPlaces?.find(p => p.type === "work");
-
-  const formatCurrency = (amount: string | null | undefined, currency: string) => {
-    if (!amount) return `${getCurrencySymbol(currency)} 0.00`;
-    const symbols: Record<string, string> = { NGN: "₦", USD: "$", ZAR: "R" };
-    return `${symbols[currency] || currency} ${parseFloat(amount).toLocaleString()}`;
-  };
-
-  const getCurrencySymbol = (currency: string) => {
-    const symbols: Record<string, string> = { NGN: "₦", USD: "$", ZAR: "R" };
-    return symbols[currency] || currency;
-  };
-
-  const paymentMethod = walletInfo?.defaultPaymentMethod || "MAIN_WALLET";
-  const currency = walletInfo?.currencyCode || "NGN";
-  const currentBalance = paymentMethod === "TEST_WALLET" 
-    ? walletInfo?.testBalance 
-    : walletInfo?.mainBalance;
-  const hasLowBalance = paymentMethod !== "CASH" && parseFloat(currentBalance || "0") < (Object.values(COUNTRY_FINANCIAL_CONFIG).find(c => c.currencyCode === currency)?.minBalanceForRide ?? 0);
-
-  const handleRequestRide = () => {
-    if (!pickup.trim() || !destination.trim()) return;
-
-    // Edge case: Validate selected ride class is still active
-    const selectedClassConfig = getRideClass(selectedRideClass);
-    if (!selectedClassConfig.isActive) {
-      toast({
-        title: "Ride Class Unavailable",
-        description: "The selected ride class is currently unavailable. Please choose a different ride class.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (hasLowBalance && paymentMethod !== "CASH") {
-      toast({
-        title: "Low Balance Warning",
-        description: `Your ${paymentMethod === "MAIN_WALLET" ? "Main Wallet" : "Test Wallet"} has ${formatCurrency(currentBalance, currency)}. Consider adding funds or changing payment method.`,
-        variant: "destructive",
-      });
-    }
-    
-    toast({
-      title: "Booking is not ready yet",
-      description: "Route pricing and driver availability must be confirmed before a ride can be booked. No ride was requested and no payment was taken.",
-    });
-  };
-
-  const handleRideClassChange = (classId: RideClassId, multiplier: number) => {
-    setSelectedRideClass(classId);
-    setFareMultiplier(multiplier);
-  };
-
-  return (
-    <RiderRouteGuard>
-      {showDisclosure && <LocationDisclosure onAccept={acceptDisclosure} />}
-      <PaymentOnboardingModal />
-      <RiderLayout>
-        <CancellationWarning role="rider" />
-        <div className="p-4 space-y-6">
-          {showRiderSimulation && <RiderSimulationControls />}
-          <MarketingTipBanner />
-          <div className="pt-4 pb-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight" data-testid="text-greeting">
-                  {t("home.greeting")}
-                </h1>
-                <p className="text-muted-foreground mt-1 text-sm">
-                  Request a safe and reliable ride
-                </p>
-              </div>
-              {riderProfile?.averageRating != null && (
-                <div className="flex flex-col items-end gap-0.5" data-testid="home-rating">
-                  <StarRating rating={Number(riderProfile.averageRating)} size="sm" showNumber={false} />
-                  <span className="text-xs text-muted-foreground">
-                    {Number(riderProfile.averageRating).toFixed(1)} rating
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <Card className="shadow-md border-0 bg-card">
-            <CardContent className="p-5 space-y-5">
-              <div className="relative">
-                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-primary" />
-                <Input
-                  placeholder={t("home.pickupPlaceholder")}
-                  value={pickup}
-                  onChange={(e) => setPickup(e.target.value)}
-                  className="pl-10 h-12"
-                  data-testid="input-pickup"
-                />
-              </div>
-
-              <div className="relative">
-                <Navigation className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input
-                  placeholder={t("home.destinationPlaceholder")}
-                  value={destination}
-                  onChange={(e) => setDestination(e.target.value)}
-                  className="pl-10 h-12"
-                  data-testid="input-destination"
-                />
-              </div>
-
-              <p className="text-xs text-muted-foreground" data-testid="text-wallet-currency">
-                Wallet currency: {walletInfo ? currency : "Loading…"}. Your wallet keeps its original currency.
-              </p>
-              <RideClassSelector
-                selectedClass={selectedRideClass}
-                onClassChange={handleRideClassChange}
-                currencySymbol={getCurrencySymbol(currency)}
-              />
-
-              <Button
-                variant="outline"
-                className="w-full p-3 h-auto rounded-lg flex items-center justify-between gap-2"
-                onClick={() => setLocation("/rider/payments")}
-                data-testid="button-payment-method"
-              >
-                <div className="flex items-center gap-3">
-                  {paymentMethod === "TEST_WALLET" ? (
-                    <Beaker className="h-5 w-5 text-amber-500" />
-                  ) : paymentMethod === "CASH" ? (
-                    <Banknote className="h-5 w-5 text-emerald-600" />
-                  ) : (
-                    <Wallet className="h-5 w-5 text-primary" />
-                  )}
-                  <div className="text-left">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-sm">
-                        {paymentMethod === "TEST_WALLET" ? "Test Wallet" : paymentMethod === "CASH" ? "Cash" : "Wallet"}
-                      </span>
-                      {paymentMethod === "TEST_WALLET" && (
-                        <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-                          Test
-                        </Badge>
-                      )}
-                      {paymentMethod !== "CASH" && (
-                        <span className="text-xs font-semibold">
-                          {formatCurrency(currentBalance, currency)}
-                        </span>
-                      )}
-                    </div>
-                    {paymentMethod === "CASH" ? (
-                      <span className="text-xs text-muted-foreground">
-                        Pay the driver directly in cash
-                      </span>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">
-                        Tap to change payment method
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
-              </Button>
-
-              {hasLowBalance && paymentMethod !== "CASH" && (
-                <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300">
-                  <AlertCircle className="h-4 w-4 shrink-0" />
-                  <span className="text-xs">
-                    Low balance. Tap to add funds or change payment method.
-                  </span>
-                </div>
-              )}
-
-              <ContextualHelpSuggestion
-                category="payments"
-                audience="RIDER"
-                title="Payment help"
-                maxArticles={2}
-                show={hasLowBalance && paymentMethod !== "CASH"}
-              />
-
-              <div className="flex items-center gap-2 px-1 py-1">
-                <div className="flex items-center gap-1 text-muted-foreground">
-                  <Shield className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
-                  <span className="text-[11px]">Fair matching</span>
-                </div>
-                <span className="text-muted-foreground text-[11px]">·</span>
-                <div className="flex items-center gap-1 text-muted-foreground">
-                  <Star className="h-3.5 w-3.5 text-yellow-500" />
-                  <span className="text-[11px]">Rating-based</span>
-                </div>
-                <span className="text-muted-foreground text-[11px]">·</span>
-                <div className="flex items-center gap-1 text-muted-foreground">
-                  <Users className="h-3.5 w-3.5 text-blue-500" />
-                  <span className="text-[11px]">Safety first</span>
-                </div>
-              </div>
-
-              <p className="text-[11px] text-muted-foreground px-1" data-testid="text-matching-note">
-                Drivers are matched based on fairness and rating.
-              </p>
-
-              <Button 
-                className="w-full h-14 text-base font-semibold shadow-lg"
-                onClick={handleRequestRide}
-                disabled={!pickup.trim() || !destination.trim()}
-                data-testid="button-request-ride"
-              >
-                {t("home.requestRide")}
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-sm hover-elevate cursor-pointer border" onClick={() => setLocation("/rider/schedule")} data-testid="card-schedule-ride">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="h-11 w-11 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Calendar className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-sm" data-testid="text-schedule-ride">{t("home.scheduleRide")}</p>
-                    <p className="text-xs text-muted-foreground">Plan a ride ahead; driver confirmation is required</p>
-                  </div>
-                </div>
-                <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="space-y-3">
-            <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-              {t("home.savedPlaces")}
-            </h2>
-            <Card className="shadow-sm">
-              <CardContent className="p-0 divide-y">
-                <div className="flex items-center">
-                  <button 
-                    className="flex-1 p-4 flex items-center gap-3 hover-elevate text-left"
-                    onClick={() => setLocation("/rider/saved-places/home")}
-                    data-testid="button-saved-home"
-                  >
-                    <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
-                      <HomeIcon className="h-4 w-4" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium" data-testid="text-home-label">Home</p>
-                      <p className="text-sm text-muted-foreground truncate" data-testid="text-home-address">
-                        {homePlace?.address || t("home.addHome")}
-                      </p>
-                    </div>
-                  </button>
-                  {homePlace?.address && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="mr-2"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDestination(homePlace.address);
-                        toast({ title: "Home address set as destination" });
-                      }}
-                      data-testid="button-use-home"
-                    >
-                      Use
-                    </Button>
-                  )}
-                </div>
-                <div className="flex items-center">
-                  <button 
-                    className="flex-1 p-4 flex items-center gap-3 hover-elevate text-left"
-                    onClick={() => setLocation("/rider/saved-places/work")}
-                    data-testid="button-saved-work"
-                  >
-                    <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
-                      <Briefcase className="h-4 w-4" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium" data-testid="text-work-label">Work</p>
-                      <p className="text-sm text-muted-foreground truncate" data-testid="text-work-address">
-                        {workPlace?.address || t("home.addWork")}
-                      </p>
-                    </div>
-                  </button>
-                  {workPlace?.address && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="mr-2"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDestination(workPlace.address);
-                        toast({ title: "Work address set as destination" });
-                      }}
-                      data-testid="button-use-work"
-                    >
-                      Use
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+  return <RiderRouteGuard><RiderLayout>
+    <div className="space-y-7 px-4 py-6 sm:px-6 sm:py-8">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-violet-950 via-violet-900 to-indigo-900 px-6 py-8 text-white sm:px-8">
+        <div className="absolute -right-12 -top-16 h-56 w-56 rounded-full border-[28px] border-white/5" aria-hidden="true" />
+        <div className="relative max-w-lg">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-violet-200">Your journey, your way</p>
+          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl" data-testid="text-greeting">Where are you going?</h1>
+          <p className="mt-3 text-sm leading-6 text-violet-100">Explore ride options, keep your favourite places close, and manage your travel in one place.</p>
         </div>
-        <ZibraFloatingButton />
-      </RiderLayout>
-    </RiderRouteGuard>
-  );
+      </section>
+      <div className="flex items-start gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/5 p-4" role="status" data-testid="booking-readiness">
+        <Info className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+        <div><p className="text-sm font-semibold">Preview available · ride booking coming soon</p><p className="mt-1 text-sm text-muted-foreground">Fares and driver availability are still being connected. You can explore the app, but you cannot request an immediate ride yet.</p></div>
+      </div>
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+        <section className="rounded-3xl border bg-card p-5 shadow-sm sm:p-6" aria-labelledby="plan-title">
+          <h2 id="plan-title" className="text-lg font-semibold">Plan your journey</h2>
+          <p className="mb-5 mt-1 text-sm text-muted-foreground">Start with your pickup and destination.</p>
+          <div className="space-y-4">
+            <div className="space-y-2"><Label htmlFor="ride-pickup">Pickup</Label><div className="relative"><MapPin className="absolute left-3 top-3.5 h-5 w-5 text-primary" aria-hidden="true"/><Input id="ride-pickup" placeholder="Enter a pickup address" value={pickup} onChange={e => setPickup(e.target.value)} className="h-12 rounded-xl pl-10" data-testid="input-pickup" /></div></div>
+            <div className="space-y-2"><Label htmlFor="ride-destination">Destination</Label><div className="relative"><Navigation className="absolute left-3 top-3.5 h-5 w-5 text-muted-foreground" aria-hidden="true"/><Input id="ride-destination" placeholder="Where would you like to go?" value={destination} onChange={e => setDestination(e.target.value)} className="h-12 rounded-xl pl-10" data-testid="input-destination" /></div></div>
+          </div>
+          <div className="my-6 border-t" />
+          <RideClassSelector selectedClass={selectedClass} onClassChange={setSelectedClass} />
+          <Button className="mt-6 h-12 w-full rounded-xl" disabled data-testid="button-request-ride">Ride booking is not available yet</Button>
+          <p className="mt-3 text-center text-xs text-muted-foreground">No fare is quoted and no payment is taken.</p>
+        </section>
+        <aside className="space-y-5">
+          <section className="rounded-3xl border bg-card p-5 shadow-sm">
+            <div className="flex items-center gap-3"><span className="rounded-xl bg-primary/10 p-2.5"><Wallet className="h-5 w-5 text-primary"/></span><h2 className="font-semibold">Your wallet</h2></div>
+            <p className="mt-5 text-3xl font-semibold tracking-tight" data-testid="wallet-balance">{wallet ? formatCurrency(wallet.mainBalance, wallet.currencyCode) : walletError ? "Unavailable" : "Loading…"}</p>
+            <p className="mt-2 text-sm text-muted-foreground" data-testid="text-wallet-currency">{wallet ? `Account currency: ${wallet.currencyCode}. Existing funds keep their recorded currency.` : walletError ? "We could not load your wallet. Open payments to retry." : "Checking your account currency…"}</p>
+            <Button variant="outline" className="mt-5 w-full rounded-xl" onClick={() => navigate("/rider/payments")} data-testid="button-payment-method">Manage payments<ArrowUpRight className="ml-auto h-4 w-4"/></Button>
+          </section>
+          <section className="rounded-3xl border bg-card p-5 shadow-sm"><h2 className="mb-3 font-semibold">Saved places</h2><div className="divide-y">{[{type:"home",label:"Home",Icon:Home},{type:"work",label:"Work",Icon:Briefcase}].map(({type,label,Icon}) => { const place = places.find(p => p.type === type); return <button key={type} className="flex w-full items-center gap-3 rounded-lg py-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" onClick={() => place ? setDestination(place.address) : navigate(`/rider/saved-places/${type}`)} data-testid={`button-saved-${type}`}><Icon className="h-5 w-5 shrink-0 text-muted-foreground"/><span className="min-w-0 flex-1"><span className="block text-sm font-medium">{label}</span><span className="block truncate text-xs text-muted-foreground">{place?.address || `Add ${label.toLowerCase()} address`}</span></span><ArrowUpRight className="h-4 w-4 text-muted-foreground"/></button>})}</div></section>
+          <button className="flex w-full items-start gap-3 rounded-3xl border bg-card p-5 text-left shadow-sm transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-primary" onClick={() => navigate("/rider/schedule")} data-testid="button-schedule-ride"><Calendar className="h-5 w-5 text-primary"/><span><span className="block text-sm font-semibold">Plan ahead</span><span className="mt-1 block text-xs leading-5 text-muted-foreground">Save a future ride request. A driver must confirm it.</span></span><ArrowUpRight className="ml-auto h-4 w-4 shrink-0"/></button>
+          <Button variant="ghost" className="w-full" onClick={() => navigate("/rider/safety")}><ShieldCheck className="mr-2 h-4 w-4"/>Visit the safety hub</Button>
+        </aside>
+      </div>
+    </div>
+  </RiderLayout></RiderRouteGuard>;
 }

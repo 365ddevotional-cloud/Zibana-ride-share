@@ -1,3 +1,4 @@
+import { SUPPORTED_COUNTRIES } from "@shared/currency";
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -81,6 +82,7 @@ const ROLE_CONFIG: Record<string, { label: string; icon: typeof Users; descripti
 export default function RoleSelectionPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const [countryCode, setCountryCode] = useState("");
   const [switching, setSwitching] = useState<string | null>(null);
 
   const { data: userRoleData, isLoading: rolesLoading } = useQuery<UserRoleData | null>({
@@ -117,7 +119,7 @@ export default function RoleSelectionPage() {
   const registerRiderMutation = useMutation({
     mutationFn: async () => {
       setSwitching("rider");
-      const response = await apiRequest("POST", "/api/user/role", { role: "rider" });
+      const response = await apiRequest("POST", "/api/user/role", { role: "rider", countryCode });
       const result = await response.json();
       await apiRequest("POST", "/api/user/active-role", { role: "rider" });
       return result;
@@ -236,6 +238,13 @@ export default function RoleSelectionPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="text-center">
+                  <label className="mb-4 block text-left text-sm font-medium" htmlFor="account-country">Your account country
+                    <select id="account-country" data-testid="select-account-country" className="mt-2 h-12 w-full rounded-xl border bg-background px-3" value={countryCode} onChange={e => setCountryCode(e.target.value)}>
+                      <option value="" disabled>Choose your country</option>
+                      {SUPPORTED_COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.name} · {c.currency}</option>)}
+                    </select>
+                    <span className="mt-2 block text-xs font-normal text-muted-foreground">This sets the currency for your new wallet. Ride availability varies by location.</span>
+                  </label>
                   <ul className="space-y-1 text-sm text-muted-foreground mb-4">
                     <li>Request rides instantly</li>
                     <li>Track your journey in real-time</li>
@@ -244,7 +253,7 @@ export default function RoleSelectionPage() {
                   <Button
                     size="lg"
                     className="w-full"
-                    disabled={registerRiderMutation.isPending}
+                    disabled={!countryCode || registerRiderMutation.isPending}
                     onClick={() => registerRiderMutation.mutate()}
                     data-testid="button-register-rider"
                   >

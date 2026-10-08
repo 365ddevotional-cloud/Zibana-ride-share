@@ -1,3 +1,4 @@
+import { formatCurrency, getCurrencySymbol } from "@shared/currency";
 import { useState, useEffect } from "react";
 import { useTranslation } from "@/i18n";
 import { RiderLayout } from "@/components/rider/RiderLayout";
@@ -44,7 +45,7 @@ export default function RiderPayments() {
     queryKey: ["/api/funding/sponsored-balance"],
   });
 
-  const totalSponsoredBalance = sponsoredBalances.reduce(
+  const totalSponsoredBalance = sponsoredBalances.filter(sb => sb.currency === walletData?.currencyCode).reduce(
     (sum: number, sb: any) => sum + parseFloat(sb.balance || "0"), 0
   );
   const hasSponsoredFunds = totalSponsoredBalance > 0;
@@ -95,19 +96,10 @@ export default function RiderPayments() {
     updateDefaultMethod.mutate(backendMethod as PaymentMethod);
   };
 
-  const formatCurrency = (amount: string | null | undefined, currency: string) => {
-    if (!amount) return `${getCurrencySymbol(currency)} 0.00`;
-    const symbols: Record<string, string> = { NGN: "\u20A6", USD: "$", ZAR: "R" };
-    return `${symbols[currency] || currency} ${parseFloat(amount).toLocaleString()}`;
-  };
 
-  const getCurrencySymbol = (currency: string) => {
-    const symbols: Record<string, string> = { NGN: "\u20A6", USD: "$", ZAR: "R" };
-    return symbols[currency] || currency;
-  };
 
-  const currency = walletData?.currencyCode || "NGN";
-  const isTester = walletData?.isTester || false;
+  const currency = walletData?.currencyCode || "";
+  const isTester = import.meta.env.DEV && (walletData?.isTester || false);
 
   return (
     <RiderRouteGuard>

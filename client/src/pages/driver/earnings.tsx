@@ -1,3 +1,4 @@
+import { formatCurrency } from "@shared/currency";
 import { DriverLayout } from "@/components/driver/DriverLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -42,6 +43,9 @@ export default function DriverEarnings() {
     enabled: !!user,
   });
 
+  const { data: accountWallet } = useQuery<{ currency: string; balance: string } | null>({ queryKey: ["/api/wallets/me"], enabled: !!user });
+  const currency = accountWallet?.currency || "";
+
   const today = new Date();
   const startOfWeek = new Date(today);
   startOfWeek.setDate(today.getDate() - today.getDay());
@@ -49,7 +53,7 @@ export default function DriverEarnings() {
   const thirtyDaysAgo = new Date(today);
   thirtyDaysAgo.setDate(today.getDate() - 30);
 
-  const completedTrips = tripHistory?.filter(t => t.status === "completed") || [];
+  const completedTrips = tripHistory?.filter(t => t.status === "completed" && t.currencyCode === currency) || [];
   const allTrips = tripHistory || [];
   
   const todayCompletedTrips = completedTrips.filter(t => t.completedAt && new Date(t.completedAt).toDateString() === today.toDateString());
@@ -78,7 +82,7 @@ export default function DriverEarnings() {
   const acceptanceRate = allTrips.length > 0 ? Math.round((acceptedCount / allTrips.length) * 100) : 100;
   const cancellationRate = cancellationMetrics?.cancellationRate ?? 0;
 
-  const walletBalance = profile?.walletBalance ? parseFloat(profile.walletBalance) : 0;
+  const walletBalance = accountWallet ? Number(accountWallet.balance) : 0;
 
   const insights: { message: string; type: "positive" | "neutral" | "improvement" }[] = [];
   
@@ -133,7 +137,7 @@ export default function DriverEarnings() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold">
-              {"\u20A6"}{walletBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              {formatCurrency(walletBalance, currency)}
             </p>
             <Button 
               variant="secondary" 
@@ -156,7 +160,7 @@ export default function DriverEarnings() {
           </TabsList>
 
           <TabsContent value="today" className="mt-4 space-y-3">
-            <EarningsPeriodSummary 
+            <EarningsPeriodSummary currency={currency} 
               earnings={todayEarnings} 
               cashEarnings={todayCashEarnings}
               tips={todayTips} 
@@ -166,7 +170,7 @@ export default function DriverEarnings() {
           </TabsContent>
 
           <TabsContent value="week" className="mt-4 space-y-3">
-            <EarningsPeriodSummary 
+            <EarningsPeriodSummary currency={currency} 
               earnings={weekEarnings} 
               cashEarnings={weekCashEarnings}
               tips={weekTips} 
@@ -176,7 +180,7 @@ export default function DriverEarnings() {
           </TabsContent>
 
           <TabsContent value="month" className="mt-4 space-y-3">
-            <EarningsPeriodSummary 
+            <EarningsPeriodSummary currency={currency} 
               earnings={monthEarnings} 
               cashEarnings={monthCashEarnings}
               tips={monthTips} 
@@ -202,13 +206,13 @@ export default function DriverEarnings() {
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Average Trip Fare</span>
               <span className="font-medium" data-testid="text-avg-fare">
-                {"\u20A6"}{avgTripFare.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {formatCurrency(avgTripFare, currency)}
               </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Average Tip</span>
               <span className="font-medium" data-testid="text-avg-tip">
-                {"\u20A6"}{avgTip.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {formatCurrency(avgTip, currency)}
               </span>
             </div>
           </CardContent>
@@ -275,14 +279,14 @@ export default function DriverEarnings() {
                             <div className="flex items-center gap-1">
                               <Banknote className="h-3.5 w-3.5 text-emerald-600" />
                               <p className="font-bold text-emerald-600" data-testid={`text-cash-earning-${trip.id}`}>
-                                {"\u20A6"}{parseFloat(trip.fareAmount || "0").toLocaleString()}
+                                {formatCurrency(trip.fareAmount, trip.currencyCode)}
                               </p>
                             </div>
                             <span className="text-xs text-muted-foreground">Cash Trip</span>
                           </div>
                         ) : (
                           <p className="font-bold text-emerald-600">
-                            +{"\u20A6"}{parseFloat(trip.driverPayout || "0").toLocaleString()}
+                            +{formatCurrency(trip.driverPayout, trip.currencyCode)}
                           </p>
                         )}
                       </div>
@@ -321,7 +325,7 @@ export default function DriverEarnings() {
                         </p>
                       </div>
                       <p className="font-bold">
-                        {"\u20A6"}{parseFloat(withdrawal.amount || "0").toLocaleString()}
+                        {formatCurrency(withdrawal.amount, withdrawal.currencyCode || withdrawal.currency || currency)}
                       </p>
                     </div>
                   </CardContent>
@@ -337,12 +341,14 @@ export default function DriverEarnings() {
 }
 
 function EarningsPeriodSummary({ 
+  currency,
   earnings, 
   cashEarnings,
   tips, 
   tripCount,
   testPrefix 
 }: { 
+  currency: string;
   earnings: number; 
   cashEarnings: number;
   tips: number; 
@@ -356,7 +362,7 @@ function EarningsPeriodSummary({
           <CardContent className="pt-4 text-center">
             <p className="text-xs text-muted-foreground">Earnings</p>
             <p className="text-lg font-bold mt-1">
-              {"\u20A6"}{earnings.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+              {formatCurrency(earnings, currency)}
             </p>
           </CardContent>
         </Card>
@@ -364,7 +370,7 @@ function EarningsPeriodSummary({
           <CardContent className="pt-4 text-center">
             <p className="text-xs text-muted-foreground">Tips</p>
             <p className="text-lg font-bold mt-1">
-              {"\u20A6"}{tips.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+              {formatCurrency(tips, currency)}
             </p>
           </CardContent>
         </Card>
@@ -382,7 +388,7 @@ function EarningsPeriodSummary({
               <Banknote className="h-4 w-4 text-emerald-600 flex-shrink-0" />
               <div>
                 <p className="text-sm font-medium text-emerald-800 dark:text-emerald-200" data-testid={`text-${testPrefix}-cash-total`}>
-                  Cash earnings {testPrefix === "today" ? "today" : "this period"}: {"\u20A6"}{cashEarnings.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  Cash earnings {testPrefix === "today" ? "today" : "this period"}: {formatCurrency(cashEarnings, currency)}
                 </p>
                 <p className="text-xs text-emerald-700 dark:text-emerald-300">
                   Cash payments are collected directly from riders.

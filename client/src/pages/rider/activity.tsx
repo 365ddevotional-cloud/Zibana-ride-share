@@ -1,3 +1,4 @@
+import { formatCurrency, getCurrencySymbol } from "@shared/currency";
 import { useState } from "react";
 import { useTranslation } from "@/i18n";
 import { RiderLayout } from "@/components/rider/RiderLayout";
@@ -34,11 +35,6 @@ interface Trip {
   rideClass?: string | null;
 }
 
-const formatCurrency = (amount: string | null, currency: string) => {
-  if (!amount) return "\u2014";
-  const symbols: Record<string, string> = { NGN: "\u20A6", USD: "$", ZAR: "R" };
-  return `${symbols[currency] || currency} ${parseFloat(amount).toLocaleString()}`;
-};
 
 const getStatusColor = (status: string) => {
   switch (status) {

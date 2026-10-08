@@ -24,7 +24,7 @@ export default function Services() {
           </div>
 
           <div className="space-y-3">
-            <Card className="shadow-sm hover-elevate cursor-pointer border" onClick={() => setLocation("/rider/schedule")} data-testid="card-schedule-service">
+            <Card role="link" tabIndex={0} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.currentTarget.click(); } }} className="shadow-sm hover-elevate cursor-pointer rounded-2xl border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" onClick={() => setLocation("/rider/schedule")} data-testid="card-schedule-service">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -35,7 +35,7 @@ export default function Services() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-semibold text-sm" data-testid="text-schedule-service-title">{t("services.scheduleRide")}</p>
                         <Badge variant="default" className="bg-green-600 text-white text-[10px]" data-testid="badge-schedule-popular">
-                          Popular
+                          Plan ahead
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5" data-testid="text-schedule-service-description">
@@ -48,7 +48,7 @@ export default function Services() {
               </CardContent>
             </Card>
 
-            <Card className="shadow-sm hover-elevate cursor-pointer border" onClick={() => setLocation("/rider/services/corporate")} data-testid="card-corporate-service">
+            <Card role="link" tabIndex={0} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.currentTarget.click(); } }} className="shadow-sm hover-elevate cursor-pointer rounded-2xl border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" onClick={() => setLocation("/rider/services/corporate")} data-testid="card-corporate-service">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -72,7 +72,7 @@ export default function Services() {
               </CardContent>
             </Card>
 
-            <Card className="shadow-sm hover-elevate cursor-pointer border" onClick={() => setLocation("/rider/services/special")} data-testid="card-special-service">
+            <Card role="link" tabIndex={0} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.currentTarget.click(); } }} className="shadow-sm hover-elevate cursor-pointer rounded-2xl border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" onClick={() => setLocation("/rider/services/special")} data-testid="card-special-service">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">

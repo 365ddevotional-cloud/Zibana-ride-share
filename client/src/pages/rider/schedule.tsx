@@ -36,7 +36,7 @@ export default function ScheduleRide() {
     queryKey: ["/api/rider/wallet-info"],
   });
 
-  const currency = walletInfo?.currencyCode || "NGN";
+  const currency = walletInfo?.currencyCode || "";
   const getCurrencySymbol = (c: string) => {
     const symbols: Record<string, string> = { NGN: "\u20A6", USD: "$", ZAR: "R" };
     return symbols[c] || c;
@@ -67,7 +67,7 @@ export default function ScheduleRide() {
 
   const getMinDate = () => {
     const now = new Date();
-    return now.toISOString().split("T")[0];
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   };
 
   const isInThePast = () => {
@@ -104,9 +104,9 @@ export default function ScheduleRide() {
               <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
             </div>
             <div className="space-y-2">
-              <h1 className="text-2xl font-bold" data-testid="text-schedule-confirmed">Your ride has been scheduled</h1>
+              <h1 className="text-2xl font-bold" data-testid="text-schedule-confirmed">Your ride request has been saved</h1>
               <p className="text-muted-foreground">
-                We'll match you with a driver closer to your pickup time.
+                Your ride is not confirmed yet. A driver must accept the request before you travel.
               </p>
             </div>
             <div className="space-y-2 text-sm text-muted-foreground">
@@ -140,7 +140,7 @@ export default function ScheduleRide() {
             </Button>
             <div>
               <h1 className="text-2xl font-bold" data-testid="text-schedule-title">Schedule a Ride</h1>
-              <p className="text-sm text-muted-foreground">Book your trip in advance</p>
+              <p className="text-sm text-muted-foreground">Save a future request; driver confirmation is required</p>
             </div>
           </div>
 

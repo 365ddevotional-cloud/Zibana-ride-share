@@ -1,3 +1,4 @@
+import { formatCurrency } from "@shared/currency";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { DriverLayout } from "@/components/driver/DriverLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -107,6 +108,9 @@ export default function DriverDashboard() {
     enabled: !!user,
     staleTime: 60000,
   });
+
+  const { data: accountWallet } = useQuery<{ currency: string; balance: string } | null>({ queryKey: ["/api/wallets/me"], enabled: !!user });
+  const currency = accountWallet?.currency || "";
 
   const isReturningDriver = typeof window !== "undefined" && localStorage.getItem("zibana-driver-lastLoginAt") !== null;
   const welcomeShown = typeof window !== "undefined" && localStorage.getItem("zibana-driver-welcome-shown") === "true";
@@ -281,7 +285,7 @@ export default function DriverDashboard() {
       pickup: ride.pickupLocation || "Pickup location",
       dropoff: ride.dropoffLocation || "Dropoff location",
       fare: parseFloat(ride.fareAmount || "0").toLocaleString(),
-      currency: ride.currencyCode || "₦",
+      currency: ride.currencyCode,
       riderName: "Rider",
       riderRating: "5.0",
       distance: (ride as any).estimatedDistance || "",
@@ -336,7 +340,7 @@ export default function DriverDashboard() {
     if (!trip.createdAt) return false;
     const tripDate = new Date(trip.createdAt);
     const today = new Date();
-    return tripDate.toDateString() === today.toDateString() && trip.status === "completed";
+    return tripDate.toDateString() === today.toDateString() && trip.status === "completed" && trip.currencyCode === currency;
   }) || [];
 
   const todayEarnings = todayTrips.reduce((sum, trip) => {
@@ -839,7 +843,7 @@ export default function DriverDashboard() {
                 Earnings Today
               </p>
               <p className="text-2xl font-bold mt-1">
-                {"\u20A6"}{todayEarnings.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                {formatCurrency(todayEarnings, currency)}
               </p>
             </CardContent>
           </Card>
@@ -851,7 +855,7 @@ export default function DriverDashboard() {
                 Tips Earned
               </p>
               <p className="text-2xl font-bold mt-1">
-                {"\u20A6"}{todayTips.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                {formatCurrency(todayTips, currency)}
               </p>
             </CardContent>
           </Card>

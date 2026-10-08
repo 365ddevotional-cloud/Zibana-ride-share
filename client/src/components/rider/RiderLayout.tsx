@@ -43,12 +43,12 @@ export function RiderLayout({ children }: RiderLayoutProps) {
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <header className="sticky top-0 z-50 bg-primary text-primary-foreground px-4 py-3 shadow-sm">
-        <div className="flex items-center justify-between max-w-lg mx-auto">
+      <header className="sticky top-0 z-50 border-b bg-background/95 px-4 py-3 backdrop-blur">
+        <div className="flex items-center justify-between max-w-5xl mx-auto">
           <Link href="/rider/home">
             <div className="flex items-center gap-1.5 cursor-pointer" data-testid="logo-zibana">
-              <span className="text-xl font-bold tracking-tight">ZIBANA</span>
-              <span className="text-xs font-medium opacity-80">Rider</span>
+              <span className="text-xl font-extrabold tracking-tight text-primary">ZIBANA</span>
+              <span className="rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-widest text-primary">Rider</span>
             </div>
           </Link>
           <div className="flex items-center gap-1">
@@ -56,7 +56,8 @@ export function RiderLayout({ children }: RiderLayoutProps) {
               variant="ghost"
               size="icon"
               onClick={toggleTheme}
-              className="text-primary-foreground"
+              className="text-foreground"
+              aria-label={resolvedTheme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
               data-testid="button-theme-toggle"
             >
               {resolvedTheme === "dark" ? (
@@ -69,14 +70,14 @@ export function RiderLayout({ children }: RiderLayoutProps) {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto pb-20">
-        <div className="max-w-lg mx-auto">
+      <main className="flex-1 pb-24">
+        <div className="max-w-5xl mx-auto">
           {children}
         </div>
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-card border-t z-50 shadow-[0_-2px_10px_rgba(0,0,0,0.06)]">
-        <div className="max-w-lg mx-auto flex items-center justify-around py-2.5">
+      <nav aria-label="Rider navigation" className="fixed bottom-0 left-0 right-0 bg-card border-t z-50 shadow-[0_-2px_10px_rgba(0,0,0,0.06)]">
+        <div className="max-w-5xl mx-auto flex items-center justify-around pt-2 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
           {navItems.map((item) => {
             const isActive = location === item.path || 
               (item.path === "/rider/home" && location === "/rider") ||
@@ -91,9 +92,10 @@ export function RiderLayout({ children }: RiderLayoutProps) {
                   className={cn(
                     "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-colors min-w-[60px] relative",
                     isActive 
-                      ? "text-primary" 
+                      ? "bg-primary/10 text-primary" 
                       : "text-muted-foreground hover:text-foreground"
                   )}
+                  aria-current={isActive ? "page" : undefined}
                   data-testid={`nav-${item.label.toLowerCase()}`}
                 >
                   <div className="relative">

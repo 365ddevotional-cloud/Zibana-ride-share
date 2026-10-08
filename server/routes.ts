@@ -15,7 +15,7 @@ import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema,
 import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, evaluateAllDrivers, evaluateBehaviorAndWarnings, calculateDriverMatchingScore, getDriverIncentiveProgress, assignFirstRidePromo, assignReturnRiderPromo, applyPromoToTrip, voidPromosOnCancellation } from "./incentives";
 import { notificationService } from "./notification-service";
 import { registerAiCommandRoutes } from "./ai-command";
-import { getCurrencyFromCountry, getCountryConfig, FINANCIAL_ENGINE_LOCKED } from "@shared/currency";
+import { getCurrencyFromCountry, getCountryConfig, FINANCIAL_ENGINE_LOCKED, SUPPORTED_COUNTRIES, walletCurrencyFields, formatCurrency } from "@shared/currency";
 import { getPayoutProviderForCountry, generatePayoutReference, validatePaystackWebhook, validateFlutterwaveWebhook, type TransferStatus } from "./payout-provider";
 import { generateTaxPDF, generateTaxCSV, generateBulkTaxCSV, type TaxDocumentData, type CountryTaxRules } from "./tax-document-generator";
 import { validateRideRequest, assertFinancialEngineLocked } from "./financial-guards";
@@ -67,8 +67,9 @@ function generateSupportResponse(input: string, role: string, _isPrivileged: boo
 }
 
 // Helper function to get user's currency based on their country
-async function getUserCurrency(userId: string): Promise<string> {
-  const userRole = await storage.getUserRole(userId);
+async function getUserCurrency(userId: string, role?: string): Promise<string> {
+  const roles = await storage.getAllUserRoles(userId);
+  const userRole = (role ? roles.find(r => r.role === role) : undefined) || roles[0];
   const countryCode = userRole?.countryCode || "NG";
   return getCurrencyFromCountry(countryCode);
 }
@@ -276,7 +277,11 @@ export async function registerRoutes(
   app.post("/api/user/role", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { role, countryCode = "NG" } = req.body;
+      const { role } = req.body;
+      const countryCode = typeof req.body.countryCode === "string" ? req.body.countryCode.trim().toUpperCase() : "";
+      if (!SUPPORTED_COUNTRIES.some(c => c.code === countryCode)) {
+        return res.status(400).json({ message: "Choose a supported account country: Nigeria, United States, or South Africa." });
+      }
 
       // RIDER APP: Only allow rider role from this endpoint
       if (role !== "rider") {
@@ -1307,41 +1312,11 @@ export async function registerRoutes(
   });
 
   // === RIDER FUND USER ENDPOINTS ===
-  app.post("/api/rider/fund-user/lookup", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
-    try {
-      const { identifier } = req.body;
-      console.log(`[FUND USER] Lookup: ${identifier}`);
-      const masked = identifier.includes("@") 
-        ? identifier.substring(0, 3) + "***@***" 
-        : "***" + identifier.slice(-4);
-      return res.json({ 
-        found: true, 
-        userId: "user_" + Date.now(),
-        displayName: identifier.includes("@") ? identifier.split("@")[0] : "ZIBANA User",
-        maskedIdentifier: masked
-      });
-    } catch (error) {
-      console.error("Error looking up user:", error);
-      return res.status(500).json({ message: "Failed to look up user" });
-    }
-  });
-
-  app.post("/api/rider/fund-user/transfer", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
-    try {
-      const { recipientId, amount } = req.body;
-      const userId = req.user.claims.sub;
-      console.log(`[FUND USER] Transfer ${amount} from ${userId} to ${recipientId}`);
-      return res.json({ 
-        success: true, 
-        transactionId: "TXN-" + Date.now(),
-        amount,
-        recipientId
-      });
-    } catch (error) {
-      console.error("Error transferring funds:", error);
-      return res.status(500).json({ message: "Failed to transfer funds" });
-    }
-  });
+  for (const path of ["/api/rider/fund-user/lookup", "/api/rider/fund-user/transfer"]) {
+    app.post(path, isAuthenticated, requireRole(["rider"]), (_req, res) => {
+      return res.status(503).json({ code: "TRANSFERS_UNAVAILABLE", message: "Wallet transfers are not available yet. No funds were moved." });
+    });
+  }
 
   // === DIRECTOR FUND DRIVER ENDPOINTS ===
   app.get("/api/director/cell-drivers", isAuthenticated, requireRole(["director"]), async (req: any, res) => {
@@ -2531,15 +2506,15 @@ export async function registerRoutes(
           console.error("Error applying platform fees:", feeError);
         }
 
-        // Format fare in NGN
-        const fareInNaira = (parseFloat(String(trip.fareAmount)) / 100).toFixed(2);
-        const commissionInNaira = (parseFloat(String(trip.commissionAmount || 0)) / 100).toFixed(2);
+        // Format with the currency recorded on this trip.
+        const fareInNaira = formatCurrency(parseFloat(String(trip.fareAmount)) / 100, trip.currencyCode);
+        const commissionInNaira = formatCurrency(parseFloat(String(trip.commissionAmount || 0)) / 100, trip.currencyCode);
         
         await storage.createNotification({
           userId: trip.riderId,
           role: "rider",
           title: "Trip Completed",
-          message: `Your trip has been completed. Fare: ₦${fareInNaira}`,
+          message: `Your trip has been completed. Fare: ${fareInNaira}`,
           type: "success",
         });
 
@@ -2547,7 +2522,7 @@ export async function registerRoutes(
           await storage.createRiderInboxMessage({
             userId: trip.riderId,
             title: "Trip Completed",
-            body: `Your trip from ${trip.pickupLocation} to ${trip.dropoffLocation} has been completed. Fare: ₦${fareInNaira}. Thank you for riding with ZIBANA!`,
+            body: `Your trip from ${trip.pickupLocation} to ${trip.dropoffLocation} has been completed. Fare: ${fareInNaira}. Thank you for riding with ZIBANA!`,
             type: "trip_update",
           });
         } catch (e) {
@@ -2556,7 +2531,7 @@ export async function registerRoutes(
         
         await storage.notifyAdminsAndDirectors(
           "Trip Completed",
-          `Trip completed. Fare: ₦${fareInNaira}, Commission: ₦${commissionInNaira}`,
+          `Trip completed. Fare: ${fareInNaira}, Commission: ${commissionInNaira}`,
           "success"
         );
 
@@ -3097,17 +3072,17 @@ export async function registerRoutes(
       
       // Auto-create wallet if doesn't exist
       if (!wallet) {
-        const currency = await getUserCurrency(userId);
+        const currency = await getUserCurrency(userId, "rider");
         wallet = await storage.createRiderWallet({ userId, currency });
       }
       
       // Check if user is a tester to include tester wallet info
       const isTester = await storage.isUserTester(userId);
       
-      // Return wallet with currency forced to NGN and tester info
+      // Preserve the currency of the stored wallet.
       return res.json({
         ...wallet,
-        currency: "NGN", // Force NGN currency
+        ...walletCurrencyFields(wallet),
         isTester,
         testerWalletBalance: wallet.testerWalletBalance || "0",
       });
@@ -3122,7 +3097,7 @@ export async function registerRoutes(
       const userId = req.user.claims.sub;
       let wallet = await storage.getRiderWallet(userId);
       if (!wallet) {
-        const currency = await getUserCurrency(userId);
+        const currency = await getUserCurrency(userId, "rider");
         wallet = await storage.createRiderWallet({ userId, currency });
       }
       const isTester = await storage.isUserTester(userId);
@@ -3136,7 +3111,7 @@ export async function registerRoutes(
       return res.json({
         mainBalance: wallet.balance || "0",
         testBalance: wallet.testerWalletBalance || "0",
-        currencyCode: "NGN",
+        ...walletCurrencyFields(wallet),
         isTester,
         defaultPaymentMethod,
       });
@@ -3154,8 +3129,9 @@ export async function registerRoutes(
       
       // Check if payments are in simulated mode
       const { isRealPaymentsEnabled } = await import("./payment-provider");
-      const isNigeriaPaymentsEnabled = await isRealPaymentsEnabled("NG");
-      const isSimulatedMode = !isNigeriaPaymentsEnabled;
+      const currency = await getUserCurrency(userId, "rider");
+      const isNigeriaPaymentsEnabled = currency === "NGN" && await isRealPaymentsEnabled("NG");
+      const isSimulatedMode = process.env.NODE_ENV !== "production" && await storage.isUserTester(userId) && !isNigeriaPaymentsEnabled;
       
       // Build available payment methods
       const availableMethods: { id: string; name: string; description: string; enabled: boolean }[] = [
@@ -3217,7 +3193,7 @@ export async function registerRoutes(
       // Validate TEST_WALLET is only available in simulated mode
       if (paymentMethod === "TEST_WALLET") {
         const { isRealPaymentsEnabled } = await import("./payment-provider");
-        const isSimulatedMode = !(await isRealPaymentsEnabled("NG"));
+        const isSimulatedMode = process.env.NODE_ENV !== "production" && await storage.isUserTester(userId) && !(await isRealPaymentsEnabled("NG"));
         if (!isSimulatedMode) {
           return res.status(400).json({ 
             message: "Test Wallet is only available in testing mode",
@@ -3229,7 +3205,7 @@ export async function registerRoutes(
       // Validate CARD is only available for Nigeria with Paystack enabled
       if (paymentMethod === "CARD") {
         const { isRealPaymentsEnabled } = await import("./payment-provider");
-        const isCardAvailable = await isRealPaymentsEnabled("NG");
+        const isCardAvailable = await getUserCurrency(userId, "rider") === "NGN" && await isRealPaymentsEnabled("NG");
         if (!isCardAvailable) {
           return res.status(400).json({ 
             message: "Card payments are not yet available in your region",
@@ -3394,7 +3370,7 @@ export async function registerRoutes(
 
       // Check if real payments are enabled for Nigeria
       const { isRealPaymentsEnabled, processPayment } = await import("./payment-provider");
-      const isCardAvailable = await isRealPaymentsEnabled("NG");
+      const isCardAvailable = await getUserCurrency(userId, "rider") === "NGN" && await isRealPaymentsEnabled("NG");
       
       if (!isCardAvailable) {
         return res.status(400).json({ 
@@ -3797,8 +3773,7 @@ export async function registerRoutes(
 
       const userRole = await storage.getUserRole(userId);
       const countryCode = userRole?.countryCode || "NG";
-      const countryCurrencies: Record<string, string> = { NG: "NGN", US: "USD", ZA: "ZAR", GH: "GHS", CA: "CAD", KE: "KES" };
-      const tripCurrency = countryCurrencies[countryCode] || "NGN";
+      const tripCurrency = getCurrencyFromCountry(countryCode);
 
       const trip = await storage.createTrip({
         riderId: userId,
@@ -8757,6 +8732,9 @@ export async function registerRoutes(
   app.post("/api/wallet/test-credit", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      if (process.env.NODE_ENV === "production" || !(await storage.isUserTester(userId))) {
+        return res.status(403).json({ message: "Test credits are unavailable for this account." });
+      }
       const userEmail = req.user.claims.email;
       const { amount } = req.body;
       

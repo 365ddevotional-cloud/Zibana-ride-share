@@ -1,3 +1,4 @@
+import { formatCurrency } from "@shared/currency";
 import { DriverLayout } from "@/components/driver/DriverLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +36,7 @@ export default function DriverWalletPage() {
     enabled: !!user,
   });
 
+  const currency = walletData?.currency || "";
   const balance = walletData ? parseFloat(walletData.balance || "0") : 0;
   const lockedBalance = walletData ? parseFloat(walletData.lockedBalance || "0") : 0;
   const availableBalance = balance - lockedBalance;
@@ -82,13 +84,13 @@ export default function DriverWalletPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold" data-testid="text-available-balance">
-              {"\u20A6"}{availableBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              {formatCurrency(availableBalance, currency)}
             </p>
             {lockedBalance > 0 && (
               <div className="flex items-center gap-1 mt-2 opacity-80">
                 <Clock className="h-3 w-3" />
                 <span className="text-xs" data-testid="text-pending-balance">
-                  {"\u20A6"}{lockedBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })} pending
+                  {formatCurrency(lockedBalance, currency)} pending
                 </span>
               </div>
             )}
@@ -120,7 +122,7 @@ export default function DriverWalletPage() {
             <CardContent className="pt-4 text-center">
               <p className="text-xs text-muted-foreground">Total Balance</p>
               <p className="text-lg font-bold mt-1">
-                {"\u20A6"}{balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                {formatCurrency(balance, currency)}
               </p>
             </CardContent>
           </Card>
@@ -128,7 +130,7 @@ export default function DriverWalletPage() {
             <CardContent className="pt-4 text-center">
               <p className="text-xs text-muted-foreground">Locked/Pending</p>
               <p className="text-lg font-bold mt-1">
-                {"\u20A6"}{lockedBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                {formatCurrency(lockedBalance, currency)}
               </p>
             </CardContent>
           </Card>
@@ -179,7 +181,7 @@ export default function DriverWalletPage() {
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-sm text-muted-foreground">Platform service settlement for period</span>
                     <span className="font-medium text-sm" data-testid="text-settlement-owed">
-                      {"\u20A6"}{settlementSummary.totalOwed.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      {formatCurrency(settlementSummary.totalOwed, currency)}
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground">
@@ -230,7 +232,7 @@ export default function DriverWalletPage() {
                       </div>
                       <div className="text-right flex-shrink-0">
                         <p className={`font-bold text-sm ${isCredit ? "text-emerald-600" : "text-red-500"}`}>
-                          {isCredit ? "+" : "-"}{"\u20A6"}{Math.abs(amount).toLocaleString()}
+                          {isCredit ? "+" : "-"}{formatCurrency(Math.abs(amount), currency)}
                         </p>
                         {tx.source === "incentive" && (
                           <Badge variant="secondary" className="text-[10px] mt-1">

@@ -11,7 +11,8 @@
     "db:push": "drizzle-kit push",
     "test:auth": "node --import tsx --test tests/auth-security.test.ts",
     "test:security": "node --import tsx --test tests/auth-security.test.ts tests/tracking-security.test.ts tests/crypto-security.test.ts",
-    "test:migration": "node --import tsx --test tests/migration-regressions.test.ts tests/optional-ai.test.ts"
+    "test:migration": "node --import tsx --test tests/migration-regressions.test.ts tests/optional-ai.test.ts",
+    "test:currency": "node --import tsx --test tests/currency.test.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.1.0",

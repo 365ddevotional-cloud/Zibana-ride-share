@@ -1,3 +1,4 @@
+import { formatCurrency, getCurrencySymbol } from "@shared/currency";
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { RiderLayout } from "@/components/rider/RiderLayout";
@@ -138,11 +139,6 @@ export default function RiderWallet() {
     }
   };
 
-  const formatCurrency = (amount: string | null, currency: string) => {
-    if (!amount) return "—";
-    const symbols: Record<string, string> = { NGN: "₦", USD: "$", ZAR: "R" };
-    return `${symbols[currency] || currency} ${parseFloat(amount).toLocaleString()}`;
-  };
 
   const getRefundStatusIcon = (status: string) => {
     switch (status) {
@@ -169,7 +165,7 @@ export default function RiderWallet() {
                   <span className="text-sm opacity-90">Available Balance</span>
                 </div>
                 <p className="text-3xl font-bold" data-testid="text-wallet-balance">
-                  {wallet ? formatCurrency(wallet.mainBalance, wallet.currencyCode) : "₦ 0.00"}
+                  {wallet ? formatCurrency(wallet.mainBalance, wallet.currencyCode) : "—"}
                 </p>
               </CardContent>
             </Card>
@@ -305,7 +301,7 @@ export default function RiderWallet() {
                     </Label>
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-muted-foreground">
-                        {wallet?.currencyCode === "NGN" ? "₦" : wallet?.currencyCode || "₦"}
+                        {wallet?.currencyCode || "—"}
                       </span>
                       <Input
                         id="topup-threshold"
@@ -324,7 +320,7 @@ export default function RiderWallet() {
                     </Label>
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-muted-foreground">
-                        {wallet?.currencyCode === "NGN" ? "₦" : wallet?.currencyCode || "₦"}
+                        {wallet?.currencyCode || "—"}
                       </span>
                       <Input
                         id="topup-amount"
@@ -540,7 +536,7 @@ export default function RiderWallet() {
                 </Label>
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-muted-foreground">
-                    {wallet?.currencyCode === "NGN" ? "₦" : wallet?.currencyCode || "₦"}
+                    {wallet?.currencyCode || "—"}
                   </span>
                   <Input
                     id="bank-transfer-amount"

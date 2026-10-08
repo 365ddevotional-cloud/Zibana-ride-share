@@ -1,3 +1,4 @@
+import { formatCurrency, getCurrencySymbol } from "@shared/currency";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -55,10 +56,6 @@ export default function TripReceipt({ tripId: propTripId }: TripReceiptProps = {
     enabled: !!tripId,
   });
 
-  const formatCurrency = (amount: number, currency: string = "NGN") => {
-    if (currency === "NGN") return `\u20A6${amount.toFixed(2)}`;
-    return `${currency} ${amount.toFixed(2)}`;
-  };
 
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr);

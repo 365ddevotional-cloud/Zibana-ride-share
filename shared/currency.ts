@@ -1,42 +1,36 @@
-// Country to Currency mapping
-export const COUNTRY_CURRENCY_MAP: Record<string, string> = {
-  NG: "NGN",
-  US: "USD",
-  ZA: "ZAR",
-};
+import { COUNTRY_PROFILES } from "./country-profiles";
 
-// Currency symbols
+// Display mappings cover the country profiles; launch availability is separate.
+export const COUNTRY_CURRENCY_MAP: Record<string, string> = Object.fromEntries(
+  Object.values(COUNTRY_PROFILES).map(p => [p.countryCode, p.currency]),
+);
 export const CURRENCY_SYMBOLS: Record<string, string> = {
-  NGN: "₦",
-  USD: "$",
-  ZAR: "R",
+  NGN: "₦", USD: "US$", ZAR: "R", GHS: "GH₵", KES: "KSh", TZS: "TSh",
+  XOF: "CFA", XAF: "FCFA", EGP: "E£", MAD: "DH", SAR: "SAR", GBP: "£", CAD: "CA$",
 };
-
-// Get currency code from country code
 export function getCurrencyFromCountry(countryCode: string): string {
-  return COUNTRY_CURRENCY_MAP[countryCode] || "NGN";
+  const currency = COUNTRY_CURRENCY_MAP[countryCode.trim().toUpperCase()];
+  if (!currency) throw new Error("Unsupported country currency");
+  return currency;
 }
-
-// Get currency symbol
 export function getCurrencySymbol(currencyCode: string): string {
-  return CURRENCY_SYMBOLS[currencyCode] || currencyCode;
+  const code = currencyCode.trim().toUpperCase();
+  return CURRENCY_SYMBOLS[code] || code;
 }
 
-// Format amount with currency
-export function formatCurrency(amount: number | string, currencyCode: string): string {
-  const numAmount = typeof amount === "string" ? parseFloat(amount) : amount;
-  const symbol = getCurrencySymbol(currencyCode);
-  
+// Amounts are major currency units. Do not convert or relabel stored balances.
+export function formatCurrency(amount: number | string | null | undefined, currencyCode: string): string {
+  if (amount === null || amount === undefined || amount === "") return "—";
+  const value = Number(amount);
+  const code = currencyCode.trim().toUpperCase();
+  if (!Number.isFinite(value) || !/^[A-Z]{3}$/.test(code)) return "—";
   try {
-    const formatted = new Intl.NumberFormat("en-US", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(numAmount);
-    
-    return `${symbol}${formatted}`;
-  } catch {
-    return `${symbol}${numAmount.toFixed(2)}`;
-  }
+    return new Intl.NumberFormat("en-US", { style: "currency", currency: code, currencyDisplay: "code" }).format(value);
+  } catch { return "—"; }
+}
+
+export function walletCurrencyFields(wallet: { currency: string }) {
+  return { currency: wallet.currency, currencyCode: wallet.currency };
 }
 
 // Supported countries list
@@ -92,7 +86,9 @@ export const COUNTRY_FINANCIAL_CONFIG: Record<string, CountryFinancialConfig> = 
 
 // Get country config with defaults
 export function getCountryConfig(countryCode: string): CountryFinancialConfig {
-  return COUNTRY_FINANCIAL_CONFIG[countryCode] || COUNTRY_FINANCIAL_CONFIG.NG;
+  const config = COUNTRY_FINANCIAL_CONFIG[countryCode.trim().toUpperCase()];
+  if (!config) throw new Error("Financial services are not configured for this country");
+  return config;
 }
 
 // ===========================================

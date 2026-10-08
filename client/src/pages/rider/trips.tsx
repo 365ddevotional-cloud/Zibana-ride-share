@@ -1,3 +1,4 @@
+import { formatCurrency, getCurrencySymbol } from "@shared/currency";
 import { useState, useEffect } from "react";
 import { RiderLayout } from "@/components/rider/RiderLayout";
 import { RiderRouteGuard } from "@/components/rider/RiderRouteGuard";
@@ -80,11 +81,6 @@ export default function RiderTrips() {
     }
   };
 
-  const formatCurrency = (amount: string | null, currency: string) => {
-    if (!amount) return "\u2014";
-    const symbols: Record<string, string> = { NGN: "\u20A6", USD: "$", ZAR: "R" };
-    return `${symbols[currency] || currency} ${parseFloat(amount).toLocaleString()}`;
-  };
 
   return (
     <RiderRouteGuard>
