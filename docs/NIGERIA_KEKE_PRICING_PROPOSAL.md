@@ -1,6 +1,8 @@
-# ZIBANA Nigeria: Keke and car pricing proposal
+# ZIBANA Nigeria: approved Keke and car tariff
 
-Research date: 9 October 2026. Draft only, not connected to booking or charging.
+Research date: 9 October 2026. Owner approved on 9 October 2026 in the instruction to open Keke bookings and make pricing final. Tariff version: NG-2026-10-09-v1.
+
+The tariff is now owner-approved. Commercial activation is still blocked by missing permitted-route scope, verified routing, complete booking settlement and payment credentials. Owner approval does not establish regulatory permission, provider readiness or profitability.
 
 ## Market evidence
 
@@ -14,7 +16,7 @@ March 2026 Enugu reports describe selected public transport routes at ₦500–�
 
 Collect same-route Bolt/Uber/inDrive quotes morning, afternoon and evening in the launch city, and interview Keke operators before activation. Record distance, time, fuel receipts, daily lease payments, local levies, maintenance, insurance and actual utilization.
 
-## Starting proposal (NGN)
+## Approved tariff (NGN)
 
 | Component | Private Keke | Standard car |
 |---|---:|---:|
@@ -50,6 +52,14 @@ Contribution is not net profit. Monthly break-even rides = actual monthly fixed 
 
 ## Launch conditions
 
-Keke drivers can declare their vehicle category; changed vehicles return to review and go offline. Car and tricycle eligibility are separate. Keke booking remains closed in every environment. Obtain current state/LGA permits and permitted-road confirmation, inspect capacity and insurance, implement exclusion routing for prohibited roads, verify onboarding and payment settlement, then approve city-specific fares. Lagos restrictions mean a nationwide Keke launch is inappropriate; an old announcement is background evidence only: https://fmino.gov.ng/lagos-bans-commercial-motorcycles-tricycles-on-major-highways/
+Keke drivers can declare their vehicle category; changed vehicles return to review and go offline. Car and tricycle eligibility are separate. Keke booking remains closed in every environment. Obtain current state/LGA permits and permitted-road confirmation, inspect capacity and insurance, implement exclusion routing for prohibited roads, verify onboarding and payment settlement, then activate the approved tariff only in cleared operating areas. Lagos restrictions mean a nationwide Keke launch is inappropriate; an old announcement is background evidence only: https://fmino.gov.ng/lagos-bans-commercial-motorcycles-tricycles-on-major-highways/
 
 Review fuel weekly; re-evaluate when verified local fuel changes more than 5%. Do not subsidize promotions from driver earnings. Require positive contribution after actual costs; monitor driver net per online hour, deadhead distance, completed trips, cancellations and refunds. Test shared-seat pooling separately before introducing it.
+
+## Current activation blockers checked on 9 October 2026
+
+- Launch city and permitted-road scope are not specified in this session.
+- Railway has no PAYSTACK_SECRET_KEY configured. Live provider checkout and settlement have not been verified.
+- Production booking currently blocks both ride-request paths; opening them requires server-issued route quotes, eligible-driver matching, atomic reservation/acceptance and final settlement.
+- Paid-service permission was given in principle, but no monthly spending ceiling or individual purchase amount was supplied. No purchase, subscription or live charge has been made.
+- Paystack's published local collection fee is 1.5% plus NGN 100, with NGN 100 waived below NGN 2,500 and fees capped at NGN 2,000. Transfer fees and any applicable levies are separate. The 2% modelling assumption above is not an actual provider fee; replace the full cost model before charging riders. Source: https://support.paystack.com/en/articles/2130306

@@ -18,7 +18,7 @@ Source: user-supplied DartPDF Testers Community feedback. Its successful DartPDF
 - Test a signed Android build on physical devices, including back navigation, font scaling, permissions denied, offline/reconnect and reinstall. Browser testing does not replace device testing.
 - Check the complete bundled Android build matches the web version; this repository update alone does not publish an AAB to Google Play.
 - Verify submitted Play Console Data safety, app access instructions, privacy policy, target audience, and listing match actual behavior. Do not include credentials in the repository.
-- Keep live booking, Keke and payment launch gates closed. The separate payment readiness and Keke pricing proposal documents remain authoritative for those launch blockers.
+- Keep live booking, Keke and payment launch gates closed. The separate payment readiness and approved Keke tariff documents remain authoritative for those launch blockers.
 - Measure the built app on a low-end Android phone and slow network. Existing large bundle warnings remain a performance follow-up; no claim of universal device compatibility is made.
 
 ## Store description draft for this prelaunch build
@@ -47,7 +47,7 @@ HELP AND FEEDBACK
 - Review safety guidance, privacy information and terms.
 
 LAUNCH AVAILABILITY
-Ride booking depends on service readiness and local approval. Keke bookings remain closed pending permitted routes and verified payment settlement. Published proposal figures are not live fares. Payment and cash-out availability depend on verified provider setup. In an emergency, contact local emergency services directly.
+Ride booking depends on service readiness and local approval. Keke bookings remain closed pending permitted routes and verified payment settlement. Owner-approved tariffs are published, but live charging has not started. Payment and cash-out availability depend on verified provider setup. In an emergency, contact local emergency services directly.
 
 ## Feature-focused screenshot plan
 

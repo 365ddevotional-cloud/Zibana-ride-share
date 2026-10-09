@@ -10,7 +10,7 @@ const steps = {
   rider: [
     { title: "Welcome to ZIBANA", text: "Set up your rider account, explore safety tools and learn the trip flow. Live bookings are currently closed while launch and payment checks are completed.", tip: "This tour never requests a ride or takes a payment." },
     { title: "Plan your pickup", text: "When booking opens, enter your pickup and destination on Home. Check the pickup pin and vehicle category before continuing.", tip: "Allow location only when you need it. If GPS is unavailable, enter your pickup manually." },
-    { title: "Review before you pay", text: "Review the final fare and available payment methods before confirming. Only a verified payment should appear as available wallet funds.", tip: "Keke prices are still proposals. Keke bookings need permitted routes and verified settlement before launch." },
+    { title: "Review before you pay", text: "Review the final fare and available payment methods before confirming. Only a verified payment should appear as available wallet funds.", tip: "Keke fares have been approved by the owner. Keke bookings need permitted routes and verified settlement before launch." },
     { title: "Stay informed and get help", text: "Use Trips for your trip history and Help & Safety for account or trip questions. Check your driver's details before entering a vehicle once service is available.", tip: "For immediate danger, contact local emergency services. An app support ticket is not an emergency call." },
   ],
   driver: [
