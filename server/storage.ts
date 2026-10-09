@@ -6695,58 +6695,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async triggerAutoTopUp(userId: string): Promise<void> {
-    console.log(`[AUTO_TOPUP] Triggering auto top-up for user ${userId}`);
     const wallet = await this.getRiderWallet(userId);
-    if (!wallet || !wallet.autoTopUpEnabled || !wallet.autoTopUpPaymentMethodId) {
-      console.log(`[AUTO_TOPUP] Skipped - wallet not configured for user ${userId}`);
-      return;
-    }
-
-    const amount = parseFloat(String(wallet.autoTopUpAmount || "1000"));
-
-    try {
-      const { processPayment } = await import("./payment-provider");
-      const result = await processPayment("NG", {
-        amount,
-        currency: wallet.currency || "NGN",
-        userId,
-        description: "ZIBANA Auto Top-Up",
-      });
-
-      if (result.success) {
-        await this.adjustRiderWalletBalance(userId, amount, "AUTO_TOPUP", "system");
-        await this.recordAutoTopUpAttempt(userId, true);
-        console.log(`[AUTO_TOPUP] Successfully topped up ${amount} for user ${userId}`);
-      } else {
-        await this.recordAutoTopUpAttempt(userId, false);
-        console.log(`[AUTO_TOPUP] Payment failed for user ${userId}: ${result.error || "Unknown error"}`);
-
-        const failureCount = (wallet.autoTopUpFailureCount || 0) + 1;
-        let notifMessage = `Your auto top-up of ${wallet.currency} ${amount.toFixed(2)} could not be processed. Please check your payment method.`;
-        if (failureCount >= 3) {
-          notifMessage = `Auto top-up has been disabled after multiple failed attempts. Please update your payment method and re-enable auto top-up.`;
-        }
-
-        await db.insert(notifications).values({
-          userId,
-          role: "rider",
-          title: "Auto Top-Up Failed",
-          type: "warning",
-          message: notifMessage,
-        });
-      }
-    } catch (error) {
-      await this.recordAutoTopUpAttempt(userId, false);
-      console.error(`[AUTO_TOPUP] Error processing auto top-up for user ${userId}:`, error);
-
-      await db.insert(notifications).values({
-        userId,
-        role: "rider",
-        title: "Auto Top-Up Failed",
-        type: "warning",
-        message: "Your auto top-up could not be processed. Please check your payment method.",
-      });
-    }
+    if (!wallet || !wallet.autoTopUpEnabled || !wallet.autoTopUpPaymentMethodId) return;
+    // Do not initiate or credit a payment without saved-card charging and verified settlement.
+    await this.recordAutoTopUpAttempt(userId, false);
+    console.warn("[AUTO_TOPUP] Unavailable: verified saved-card settlement is not implemented");
   }
 
   // Rider Payment Methods

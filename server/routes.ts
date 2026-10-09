@@ -3248,6 +3248,12 @@ export async function registerRoutes(
 
   // Add a new payment method (card via Paystack authorization)
   app.post("/api/rider/payment-methods", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    if (process.env.NODE_ENV === "production") {
+      return res.status(503).json({
+        code: "SAVED_PAYMENTS_UNAVAILABLE",
+        message: "Saved payment methods are awaiting verified authorization and settlement. No card has been added or charged.",
+      });
+    }
     try {
       const userId = req.user.claims.sub;
       const { 
@@ -3360,6 +3366,12 @@ export async function registerRoutes(
 
   // Initialize card addition via Paystack (returns authorization URL)
   app.post("/api/rider/payment-methods/add-card/initialize", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    if (process.env.NODE_ENV === "production") {
+      return res.status(503).json({
+        code: "SAVED_PAYMENTS_UNAVAILABLE",
+        message: "Saved payment methods are awaiting verified authorization and settlement. No card has been added or charged.",
+      });
+    }
     try {
       const userId = req.user.claims.sub;
       const userEmail = req.user.claims.email;
@@ -3408,6 +3420,12 @@ export async function registerRoutes(
 
   // Verify card addition callback from Paystack
   app.post("/api/rider/payment-methods/add-card/verify", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    if (process.env.NODE_ENV === "production") {
+      return res.status(503).json({
+        code: "SAVED_PAYMENTS_UNAVAILABLE",
+        message: "Saved payment methods are awaiting verified authorization and settlement. No card has been added or charged.",
+      });
+    }
     try {
       const userId = req.user.claims.sub;
       const { reference } = req.body;
@@ -3624,6 +3642,12 @@ export async function registerRoutes(
   });
 
   app.post("/api/rider/request-ride", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    if (process.env.NODE_ENV === "production") {
+      return res.status(503).json({
+        code: "BOOKING_UNAVAILABLE",
+        message: "Booking requires verified route pricing and payment settlement. No ride has been requested or charged.",
+      });
+    }
     try {
       // ASSERT FINANCIAL ENGINE IS LOCKED
       assertFinancialEngineLocked();
@@ -6769,7 +6793,11 @@ export async function registerRoutes(
   app.post("/api/webhooks/paystack", async (req, res) => {
     try {
       const signature = req.headers["x-paystack-signature"] as string;
-      const body = JSON.stringify(req.body);
+      // Authenticate the exact bytes Paystack signed, before processing the parsed event.
+      const body = req.rawBody;
+      if (!Buffer.isBuffer(body)) {
+        return res.status(400).json({ message: "Raw webhook body required" });
+      }
       
       // Validate webhook signature
       if (!validatePaystackWebhook(body, signature)) {
@@ -12440,6 +12468,12 @@ export async function registerRoutes(
 
   // Create a new ride request (Rider action)
   app.post("/api/rides", isAuthenticated, async (req: any, res) => {
+    if (process.env.NODE_ENV === "production") {
+      return res.status(503).json({
+        code: "BOOKING_UNAVAILABLE",
+        message: "Booking requires verified route pricing and payment settlement. No ride has been requested or charged.",
+      });
+    }
     try {
       const userId = req.user?.claims?.sub;
       
@@ -15374,42 +15408,10 @@ export async function registerRoutes(
   
   // Initialize wallet funding (Paystack for NG, simulated for others)
   app.post("/api/wallet/fund", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user?.claims?.sub;
-      const userEmail = req.user?.claims?.email;
-      const { amount, countryCode = "NG" } = req.body;
-      
-      if (!amount || amount < 100) {
-        return res.status(400).json({ message: "Minimum funding amount is 100 NGN" });
-      }
-      
-      const { processPayment } = await import("./payment-provider");
-      
-      const result = await processPayment(countryCode, {
-        amount,
-        currency: "NGN",
-        userId,
-        email: userEmail || undefined,
-        description: "ZIBANA Wallet Funding",
-        callbackUrl: `${req.protocol}://${req.get("host")}/api/wallet/verify`,
-      });
-      
-      if (!result.success) {
-        return res.status(400).json({ message: result.error || "Payment initialization failed" });
-      }
-      
-      console.log(`[Wallet] Funding initiated: ${amount} for ${userId}`);
-      
-      return res.json({
-        success: true,
-        transactionRef: result.transactionRef,
-        authorizationUrl: result.authorizationUrl,
-        message: result.message,
-      });
-    } catch (error) {
-      console.error("Error initiating wallet funding:", error);
-      return res.status(500).json({ message: "Failed to initialize payment" });
-    }
+    return res.status(503).json({
+      code: "WALLET_FUNDING_UNAVAILABLE",
+      message: "Wallet funding is awaiting verified payment settlement. No payment has been started.",
+    });
   });
   
   // Verify wallet funding callback
@@ -15427,7 +15429,7 @@ export async function registerRoutes(
       
       if (result.success) {
         console.log(`[Wallet] Payment verified: ${transactionRef}`);
-        return res.redirect(`/?payment=success&ref=${transactionRef}`);
+        return res.redirect(`/rider/wallet?payment=pending_credit&ref=${encodeURIComponent(transactionRef)}`);
       } else {
         console.log(`[Wallet] Payment failed: ${transactionRef}`);
         return res.redirect(`/?payment=failed&ref=${transactionRef}`);

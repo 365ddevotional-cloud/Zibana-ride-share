@@ -457,12 +457,11 @@ export function generatePayoutReference(): string {
 }
 
 // Webhook signature validation
-export function validatePaystackWebhook(payload: string, signature: string): boolean {
+export function validatePaystackWebhook(payload: string | Buffer, signature: string): boolean {
   const secretKey = process.env.PAYSTACK_SECRET_KEY || "";
-  if (!secretKey) return false;
-  
-  const hash = crypto.createHmac("sha512", secretKey).update(payload).digest("hex");
-  return hash === signature;
+  if (!secretKey || typeof signature !== "string" || !/^[0-9a-f]{128}$/i.test(signature)) return false;
+  const hash = crypto.createHmac("sha512", secretKey).update(payload).digest();
+  return crypto.timingSafeEqual(hash, Buffer.from(signature, "hex"));
 }
 
 export function validateFlutterwaveWebhook(secretHash: string): boolean {

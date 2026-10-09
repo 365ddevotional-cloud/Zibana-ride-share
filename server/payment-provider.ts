@@ -6,11 +6,12 @@
  * COUNTRY-SPECIFIC PAYMENT MODE
  * ==============================
  * - Nigeria (NG): REAL PAYMENTS via Paystack
- * - All other countries: WALLET-SIMULATED mode
+ * - Unsupported countries: unavailable in production; explicit simulation in development only
  * - Driver payouts: MANUAL only (no auto payouts)
  */
 
 import { storage } from "./storage";
+import { randomUUID } from "node:crypto";
 
 // Country-specific payment mode (not global)
 // Nigeria uses real payments, others are simulated
@@ -18,6 +19,10 @@ export type PaymentProvider = "paystack" | "flutterwave" | "manual" | "placehold
 
 export interface PaymentResult {
   success: boolean;
+  status?: "initialized" | "verified" | "simulated";
+  amount?: number;
+  currency?: string;
+  userId?: string;
   transactionRef?: string;
   authorizationUrl?: string;
   accessCode?: string;
@@ -26,7 +31,7 @@ export interface PaymentResult {
 }
 
 export interface PaymentRequest {
-  amount: number; // In smallest currency unit (kobo for NGN)
+  amount: number; // Major currency units (NGN); converted to kobo once at the provider boundary
   currency: string;
   userId: string;
   email?: string;
@@ -71,6 +76,15 @@ class PaystackAdapter implements PaymentProviderAdapter {
       };
     }
     
+    const amountMinor = Math.round(request.amount * 100);
+    if (request.currency !== "NGN" || !Number.isFinite(request.amount) || request.amount <= 0 ||
+        !Number.isSafeInteger(amountMinor) || amountMinor > 9999999999 ||
+        Math.abs(request.amount * 100 - amountMinor) > 0.000001 || !request.email || !request.userId) {
+      return { success: false, error: "A valid NGN amount, account and email are required" };
+    }
+    if (process.env.NODE_ENV === "production" && !secretKey.startsWith("sk_live_")) {
+      return { success: false, error: "Live payments are not configured" };
+    }
     try {
       const response = await fetch("https://api.paystack.co/transaction/initialize", {
         method: "POST",
@@ -80,9 +94,9 @@ class PaystackAdapter implements PaymentProviderAdapter {
         },
         body: JSON.stringify({
           email: request.email,
-          amount: Math.round(request.amount * 100), // Convert to kobo
+          amount: amountMinor, // Convert NGN to kobo exactly once
           currency: request.currency || "NGN",
-          reference: `ZIBANA_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+          reference: `ZIBANA_${randomUUID()}`,
           callback_url: request.callbackUrl,
           metadata: {
             userId: request.userId,
@@ -93,10 +107,11 @@ class PaystackAdapter implements PaymentProviderAdapter {
       
       const data = await response.json();
       
-      if (data.status === true && data.data) {
+      if (response.ok && data.status === true && data.data?.reference && data.data?.authorization_url) {
         console.log(`[Paystack] Payment initialized: ${data.data.reference}`);
         return {
           success: true,
+          status: "initialized",
           transactionRef: data.data.reference,
           authorizationUrl: data.data.authorization_url,
           accessCode: data.data.access_code,
@@ -125,8 +140,14 @@ class PaystackAdapter implements PaymentProviderAdapter {
       return { success: false, error: "Payment provider not configured" };
     }
     
+    if (!/^[A-Za-z0-9_-]{1,150}$/.test(transactionRef)) {
+      return { success: false, error: "Invalid payment reference" };
+    }
+    if (process.env.NODE_ENV === "production" && !secretKey.startsWith("sk_live_")) {
+      return { success: false, error: "Live payments are not configured" };
+    }
     try {
-      const response = await fetch(`https://api.paystack.co/transaction/verify/${transactionRef}`, {
+      const response = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(transactionRef)}`, {
         method: "GET",
         headers: {
           "Authorization": `Bearer ${secretKey}`,
@@ -135,10 +156,18 @@ class PaystackAdapter implements PaymentProviderAdapter {
       
       const data = await response.json();
       
-      if (data.status === true && data.data && data.data.status === "success") {
+      if (response.ok && data.status === true && data.data?.status === "success" &&
+          data.data.reference === transactionRef && data.data.currency === "NGN" &&
+          Number.isSafeInteger(data.data.amount) && data.data.amount > 0 &&
+          typeof data.data.metadata?.userId === "string" && data.data.metadata.userId.length > 0 &&
+          (process.env.NODE_ENV !== "production" || data.data.domain === "live")) {
         console.log(`[Paystack] Payment verified: ${transactionRef}`);
         return {
           success: true,
+          status: "verified",
+          amount: data.data.amount / 100,
+          currency: data.data.currency,
+          userId: data.data.metadata.userId,
           transactionRef,
           message: `Payment verified: ${data.data.amount / 100} ${data.data.currency}`,
         };
@@ -257,7 +286,11 @@ const adapters: Record<PaymentProvider, PaymentProviderAdapter> = {
 };
 
 export function getPaymentProvider(providerName: PaymentProvider): PaymentProviderAdapter {
-  return adapters[providerName] || adapters.placeholder;
+  // An unknown or simulated provider must never become a production payment success.
+  if (process.env.NODE_ENV === "production" && providerName !== "paystack") {
+    return adapters.flutterwave; // Disabled adapter returns an explicit failure.
+  }
+  return adapters[providerName] || adapters.flutterwave;
 }
 
 // Get payment mode for a country from database
@@ -270,7 +303,9 @@ export async function getProviderForCountry(countryCode: string): Promise<{
     const countries = await storage.getAllCountriesWithPaymentStatus();
     const country = countries.find(c => c.isoCode === countryCode);
     
-    if (country && country.paymentsEnabled && country.paymentProvider) {
+    if (country && country.paymentsEnabled && country.paymentProvider === "paystack" && countryCode === "NG" &&
+        !!process.env.PAYSTACK_SECRET_KEY &&
+        (process.env.NODE_ENV !== "production" || process.env.PAYSTACK_SECRET_KEY.startsWith("sk_live_"))) {
       console.log(`[Payment] Country ${countryCode}: REAL PAYMENTS via ${country.paymentProvider}`);
       return {
         provider: country.paymentProvider as PaymentProvider,
@@ -278,8 +313,8 @@ export async function getProviderForCountry(countryCode: string): Promise<{
       };
     }
     
-    // Default: simulated mode for countries without payments enabled
-    console.log(`[Payment] Country ${countryCode}: SIMULATED MODE`);
+    // Unconfigured providers are unavailable; simulation is explicitly gated below
+    console.log(`[Payment] Country ${countryCode}: provider unavailable`);
     return {
       provider: "placeholder",
       paymentsEnabled: false,
@@ -297,7 +332,10 @@ export async function processPayment(
   const { provider, paymentsEnabled } = await getProviderForCountry(countryCode);
   
   if (!paymentsEnabled) {
-    // Use simulated mode
+    if (process.env.NODE_ENV === "production" || process.env.SIMULATION_MODE_ENABLED !== "true") {
+      return { success: false, error: "Payments are unavailable in this country" };
+    }
+    // Explicit non-production simulation only
     const adapter = adapters.placeholder;
     console.log(`[Payment] Simulated payment for ${request.userId} in ${countryCode}`);
     return adapter.initializePayment(request);
@@ -315,7 +353,7 @@ export async function processPayment(
   // Failsafe: If real payment fails, log error but don't auto-revert
   if (!result.success) {
     console.error(`[Payment] FAILED for ${countryCode}: ${result.error}`);
-    console.log(`[Payment] Consider reverting ${countryCode} to simulated mode if issues persist`);
+    // Never fall back from failed real payments to a simulated success.
   }
   
   return result;
@@ -328,6 +366,9 @@ export async function verifyPayment(
   const { provider, paymentsEnabled } = await getProviderForCountry(countryCode);
   
   if (!paymentsEnabled) {
+    if (process.env.NODE_ENV === "production" || process.env.SIMULATION_MODE_ENABLED !== "true") {
+      return { success: false, error: "Payments are unavailable in this country" };
+    }
     return adapters.placeholder.verifyPayment(transactionRef);
   }
   
@@ -339,15 +380,8 @@ export async function processWithdrawal(
   countryCode: string,
   request: WithdrawalRequest
 ): Promise<PaymentResult> {
-  // Driver payouts are ALWAYS manual - no auto transfers
-  console.log(`[Payout] MANUAL processing required for ${request.userId}`);
-  console.log(`[Payout] Amount: ${request.amount} ${request.currency}`);
-  
-  return {
-    success: true,
-    transactionRef: `MANUAL_${Date.now()}`,
-    message: "Payout logged for manual admin processing. No auto transfers enabled.",
-  };
+  // This adapter cannot persist or settle a withdrawal. Use the recorded admin workflow.
+  return { success: false, error: "Use the verified withdrawal request workflow" };
 }
 
 // Check if a country has real payments enabled
@@ -366,11 +400,14 @@ export async function getPaymentStatusSummary(): Promise<{
   const launchMode = await storage.getSystemConfig("LAUNCH_MODE");
   
   return {
-    countries: countries.map(c => ({
-      code: c.isoCode,
-      name: c.name,
-      mode: c.paymentsEnabled ? "REAL PAYMENTS" : "SIMULATED",
-      provider: c.paymentsEnabled ? c.paymentProvider : null,
+    countries: await Promise.all(countries.map(async c => {
+      const ready = await isRealPaymentsEnabled(c.isoCode);
+      return {
+        code: c.isoCode,
+        name: c.name,
+        mode: ready ? "REAL PAYMENTS" : "UNAVAILABLE",
+        provider: ready ? c.paymentProvider : null,
+      };
     })),
     launchMode: launchMode || "soft_launch",
     driverPayouts: "MANUAL",
