@@ -23,6 +23,8 @@ export interface PaymentResult {
   amount?: number;
   currency?: string;
   userId?: string;
+  email?: string;
+  purpose?: string;
   transactionRef?: string;
   authorizationUrl?: string;
   accessCode?: string;
@@ -37,6 +39,8 @@ export interface PaymentRequest {
   email?: string;
   description?: string;
   callbackUrl?: string;
+  transactionRef?: string;
+  purpose?: "wallet_funding" | "card_authorization";
 }
 
 export interface WithdrawalRequest {
@@ -85,6 +89,8 @@ class PaystackAdapter implements PaymentProviderAdapter {
     if (process.env.NODE_ENV === "production" && !secretKey.startsWith("sk_live_")) {
       return { success: false, error: "Live payments are not configured" };
     }
+    const reference = request.transactionRef || `ZIBANA_${randomUUID()}`;
+    if (!/^[A-Za-z0-9_-]{1,150}$/.test(reference)) return { success: false, error: "Invalid payment reference" };
     try {
       const response = await fetch("https://api.paystack.co/transaction/initialize", {
         method: "POST",
@@ -96,18 +102,19 @@ class PaystackAdapter implements PaymentProviderAdapter {
           email: request.email,
           amount: amountMinor, // Convert NGN to kobo exactly once
           currency: request.currency || "NGN",
-          reference: `ZIBANA_${randomUUID()}`,
+          reference,
           callback_url: request.callbackUrl,
           metadata: {
             userId: request.userId,
             description: request.description || "Wallet Funding",
+            purpose: request.purpose,
           },
         }),
       });
       
       const data = await response.json();
       
-      if (response.ok && data.status === true && data.data?.reference && data.data?.authorization_url) {
+      if (response.ok && data.status === true && data.data?.reference === reference && data.data?.authorization_url) {
         console.log(`[Paystack] Payment initialized: ${data.data.reference}`);
         return {
           success: true,
@@ -168,6 +175,8 @@ class PaystackAdapter implements PaymentProviderAdapter {
           amount: data.data.amount / 100,
           currency: data.data.currency,
           userId: data.data.metadata.userId,
+          email: data.data.customer?.email,
+          purpose: data.data.metadata.purpose,
           transactionRef,
           message: `Payment verified: ${data.data.amount / 100} ${data.data.currency}`,
         };

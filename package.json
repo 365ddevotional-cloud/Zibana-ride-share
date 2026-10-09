@@ -13,7 +13,8 @@
     "test:security": "node --import tsx --test tests/auth-security.test.ts tests/tracking-security.test.ts tests/crypto-security.test.ts",
     "test:migration": "node --import tsx --test tests/migration-regressions.test.ts tests/optional-ai.test.ts",
     "test:currency": "node --import tsx --test tests/currency.test.ts",
-    "test:payments": "node --test tests/payment-readiness.test.mjs"
+    "test:payments": "node --test tests/payment-readiness.test.mjs",
+    "test:settlement": "node --import tsx --test tests/wallet-settlement.test.ts tests/wallet-funding-routes.test.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.1.0",
@@ -102,6 +103,7 @@
     "zod-validation-error": "^3.5.4"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
     "@tailwindcss/typography": "^0.5.15",
     "@tailwindcss/vite": "^4.1.18",
     "@types/connect-pg-simple": "^7.0.3",

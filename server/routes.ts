@@ -9,7 +9,9 @@ import { createHash } from "crypto";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./integrations/auth";
 import { storage } from "./storage";
 import { activeTrip, canTrack, getLiveLink } from "./tracking-policy";
-import { db } from "./db";
+import { db, pool } from "./db";
+import { createWalletFundingLedger, fundingAmountMinor } from "./wallet-funding-ledger";
+const walletFundingLedger = createWalletFundingLedger(pool);
 import { eq, and, count, sql, gte, lt, lte, isNotNull, inArray, desc, or, ilike } from "drizzle-orm";
 import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, driverInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages, walletFundingTransactions, walletFundingSettings, driverWallets, directorFundingTransactions, directorFundingSettings, directorFundingAcceptance, directorFundingSuspensions, directorProfiles, directorDriverAssignments, directorActionLogs, driverCoachingLogs, directorCells, directorCommissionSettings, directorPayoutSummaries, referralCodes, directorFraudSignals, directorDisputes, directorDisputeMessages, directorWindDowns, welcomeAnalytics, directorPerformanceScores, directorPerformanceWeights, directorIncentives, directorRestrictions, directorPerformanceLogs, directorSuccessions, directorTerminationTimeline, directorStaff, riderTrustScores, riderTrustWeights, riderLoyaltyIncentives, riderTrustLogs, fundingRelationships, fundingAbuseFlags, thirdPartyFundingConfig, fundingAuditLogs, sponsoredBalances, directorCoachingLogs, directorTrainingModules, directorTermsAcceptance, directorTrustScores, platformSettings, qaChecklistItems, qaSimulationLogs, tripMessages, insertTripMessageSchema, qaSessionLogs, qaActivityLogs, founderStrategicReminders } from "@shared/schema";
 import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, evaluateAllDrivers, evaluateBehaviorAndWarnings, calculateDriverMatchingScore, getDriverIncentiveProgress, assignFirstRidePromo, assignReturnRiderPromo, applyPromoToTrip, voidPromosOnCancellation } from "./incentives";
@@ -6808,6 +6810,20 @@ export async function registerRoutes(
       const event = req.body;
       console.log(`[WEBHOOK] Paystack event received: ${event.event}`);
       
+      if (event.event === "charge.success") {
+        const reference = event.data?.reference;
+        if (typeof reference !== "string" || !/^[A-Za-z0-9_-]{1,150}$/.test(reference)) {
+          return res.status(400).json({ message: "Invalid funding reference" });
+        }
+        const intent = await walletFundingLedger.getIntent(reference);
+        if (intent) {
+          const { verifyPayment } = await import("./payment-provider");
+          const verified = await verifyPayment("NG", reference);
+          if (!verified.success) return res.status(503).json({ message: "Payment confirmation pending; retry delivery" });
+          await walletFundingLedger.settle(reference, verified);
+        }
+      }
+
       // Handle transfer events
       if (event.event === "transfer.success" || event.event === "transfer.failed" || event.event === "transfer.reversed") {
         const transferData = event.data;
@@ -15406,40 +15422,94 @@ export async function registerRoutes(
   // WALLET FUNDING (Paystack for Nigeria)
   // ==========================================
   
-  // Initialize wallet funding (Paystack for NG, simulated for others)
-  app.post("/api/wallet/fund", isAuthenticated, async (req: any, res) => {
-    return res.status(503).json({
-      code: "WALLET_FUNDING_UNAVAILABLE",
-      message: "Wallet funding is awaiting verified payment settlement. No payment has been started.",
-    });
-  });
-  
-  // Verify wallet funding callback
-  app.get("/api/wallet/verify", async (req, res) => {
+  // Funding is enabled explicitly only after provider sandbox verification.
+  app.get("/api/wallet/funding-status", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
     try {
-      const { reference, trxref } = req.query;
-      const transactionRef = (reference || trxref) as string;
-      
-      if (!transactionRef) {
-        return res.redirect("/?payment=failed&reason=no_reference");
-      }
-      
-      const { verifyPayment } = await import("./payment-provider");
-      const result = await verifyPayment("NG", transactionRef);
-      
-      if (result.success) {
-        console.log(`[Wallet] Payment verified: ${transactionRef}`);
-        return res.redirect(`/rider/wallet?payment=pending_credit&ref=${encodeURIComponent(transactionRef)}`);
-      } else {
-        console.log(`[Wallet] Payment failed: ${transactionRef}`);
-        return res.redirect(`/?payment=failed&ref=${transactionRef}`);
-      }
+      const userId = req.user.claims.sub;
+      const role = (await storage.getAllUserRoles(userId)).find(r => r.role === "rider");
+      const wallet = await storage.getRiderWallet(userId);
+      const { isRealPaymentsEnabled } = await import("./payment-provider");
+      const enabled = process.env.WALLET_FUNDING_ENABLED === "true" && role?.countryCode === "NG" &&
+        wallet?.currency === "NGN" && !wallet.isFrozen && await isRealPaymentsEnabled("NG");
+      return res.json({ enabled: !!enabled, currency: wallet?.currency || null,
+        minimum: 100, message: enabled ? "Secure Paystack checkout" : "Wallet funding is not available for this account yet." });
     } catch (error) {
-      console.error("Error verifying payment:", error);
-      return res.redirect("/?payment=error");
+      return res.status(503).json({ enabled: false, message: "Wallet funding is temporarily unavailable." });
     }
   });
-  
+
+  app.post("/api/wallet/fund", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    if (process.env.WALLET_FUNDING_ENABLED !== "true") {
+      return res.status(503).json({ code: "WALLET_FUNDING_UNAVAILABLE",
+        message: "Wallet funding is not enabled yet. No payment has been started." });
+    }
+    const userId = req.user.claims.sub;
+    const email = req.user.claims.email;
+    let reference: string | undefined;
+    try {
+      fundingAmountMinor(req.body.amount);
+      const role = (await storage.getAllUserRoles(userId)).find(r => r.role === "rider");
+      const wallet = await storage.getRiderWallet(userId);
+      const { isRealPaymentsEnabled, processPayment } = await import("./payment-provider");
+      if (role?.countryCode !== "NG" || wallet?.currency !== "NGN" || wallet.isFrozen ||
+          !email || !await isRealPaymentsEnabled("NG")) {
+        return res.status(503).json({ code: "WALLET_FUNDING_UNAVAILABLE", message: "An eligible NGN wallet and payment provider are required." });
+      }
+      const baseUrl = new URL(process.env.APP_BASE_URL || "");
+      if (process.env.NODE_ENV === "production" && baseUrl.protocol !== "https:") throw new Error("Secure application URL is required");
+      const intent = await walletFundingLedger.createIntent(userId, wallet.id, email, req.body.amount);
+      reference = intent.reference;
+      const result = await processPayment("NG", { userId, email, amount: req.body.amount, currency: "NGN",
+        transactionRef: reference, purpose: "wallet_funding", description: "ZIBANA Wallet Funding",
+        callbackUrl: new URL("/api/wallet/verify", baseUrl).toString() });
+      await walletFundingLedger.markInitialized(reference!, result.success);
+      if (!result.success || !result.authorizationUrl) {
+        return res.status(502).json({ message: "Checkout could not be opened. Your wallet has not been credited." });
+      }
+      const checkout = new URL(result.authorizationUrl);
+      if (checkout.protocol !== "https:" || checkout.hostname !== "checkout.paystack.com") throw new Error("Invalid checkout address");
+      return res.json({ success: true, transactionRef: reference, authorizationUrl: checkout.toString() });
+    } catch (error) {
+      if (reference) console.error("[Wallet Funding] Checkout failed; intent retained for reconciliation");
+      else console.error("[Wallet Funding] Unable to prepare checkout");
+      return res.status(400).json({ message: reference ? "Checkout is unavailable. No wallet credit has been issued." : "Unable to start funding. Check your NGN amount and wallet eligibility." });
+    }
+  });
+
+  app.get("/api/wallet/funding/:reference", isAuthenticated, requireRole(["rider"]), async (req: any, res) => {
+    try {
+      const reference = routeParam(req, "reference");
+      if (!/^[A-Za-z0-9_-]{1,150}$/.test(reference)) return res.status(400).json({ message: "Invalid reference" });
+      const intent = await walletFundingLedger.getIntent(reference);
+      if (!intent || intent.user_id !== req.user.claims.sub) return res.status(404).json({ message: "Payment not found" });
+      return res.json({ reference, status: intent.status === "settled" ? "settled" : "pending",
+        amount: Number(intent.amount_minor) / 100, currency: intent.currency });
+    } catch (error) {
+      return res.status(503).json({ message: "Payment status is temporarily unavailable" });
+    }
+  });
+
+  // Public provider callback can only settle the account recorded in the server-side intent.
+  app.get("/api/wallet/verify", async (req, res) => {
+    const value = req.query.reference || req.query.trxref;
+    if (typeof value !== "string" || !/^[A-Za-z0-9_-]{1,150}$/.test(value)) {
+      return res.redirect("/rider/wallet?payment=failed");
+    }
+    const reference = value;
+    try {
+      const intent = await walletFundingLedger.getIntent(reference);
+      if (!intent) return res.redirect("/rider/wallet?payment=failed");
+      const { verifyPayment } = await import("./payment-provider");
+      const result = await verifyPayment("NG", reference);
+      if (!result.success) return res.redirect(`/rider/wallet?payment=pending&ref=${encodeURIComponent(reference)}`);
+      await walletFundingLedger.settle(reference, result);
+      return res.redirect(`/rider/wallet?payment=success&ref=${encodeURIComponent(reference)}`);
+    } catch (error) {
+      console.error("[Wallet Funding] Settlement pending; no partial credit committed");
+      return res.redirect(`/rider/wallet?payment=pending&ref=${encodeURIComponent(reference)}`);
+    }
+  });
+
   // Get payment status summary for admin
   app.get("/api/admin/payment-status", isAuthenticated, requireRole(["super_admin", "admin"]), async (req, res) => {
     try {

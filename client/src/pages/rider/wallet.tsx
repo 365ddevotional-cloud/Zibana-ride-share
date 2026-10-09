@@ -61,6 +61,40 @@ interface BankTransfer {
 export default function RiderWallet() {
   const { toast } = useToast();
   const [showCardModal, setShowCardModal] = useState(false);
+  const [fundingAmount, setFundingAmount] = useState("");
+  const [statusPollingStarted] = useState(Date.now());
+  const callbackReference = new URLSearchParams(window.location.search).get("ref");
+  const { data: fundingStatus } = useQuery<{ enabled: boolean; currency: string | null; minimum: number; message: string }>({
+    queryKey: ["/api/wallet/funding-status"],
+  });
+  const { data: fundingReceipt } = useQuery<{ status: "pending" | "settled"; amount: number; currency: string }>({
+    queryKey: ["/api/wallet/funding", callbackReference],
+    enabled: !!callbackReference && /^[A-Za-z0-9_-]{1,150}$/.test(callbackReference),
+    retry: false,
+    refetchInterval: query => query.state.data?.status === "pending" && Date.now() - statusPollingStarted < 120000 ? 3000 : false,
+  });
+  useEffect(() => {
+    if (fundingReceipt?.status === "settled") queryClient.invalidateQueries({ queryKey: ["/api/rider/wallet-info"] });
+  }, [fundingReceipt?.status]);
+  const fundingMutation = useMutation({
+    mutationFn: async () => {
+      const amount = Number(fundingAmount);
+      if (!fundingAmount.trim() || !Number.isFinite(amount) || amount < 100 || Math.abs(amount * 100 - Math.round(amount * 100)) > 0.000001) {
+        throw new Error("Enter at least NGN 100 with up to two decimal places.");
+      }
+      const response = await apiRequest("POST", "/api/wallet/fund", { amount });
+      return response.json() as Promise<{ authorizationUrl: string }>;
+    },
+    onSuccess: data => {
+      const checkout = new URL(data.authorizationUrl);
+      if (checkout.protocol !== "https:" || checkout.hostname !== "checkout.paystack.com") {
+        toast({ title: "Unable to open secure checkout", variant: "destructive" });
+        return;
+      }
+      window.location.assign(checkout.toString());
+    },
+    onError: (error: Error) => toast({ title: "Checkout could not start", description: error.message.replace(/^\d+:\s*/, ""), variant: "destructive" }),
+  });
   const [showBankTransferDialog, setShowBankTransferDialog] = useState(false);
   const [bankTransferAmount, setBankTransferAmount] = useState("");
   const [bankTransferInfo, setBankTransferInfo] = useState<BankTransferInfo | null>(null);
@@ -171,14 +205,39 @@ export default function RiderWallet() {
             </Card>
           )}
 
+          {fundingReceipt && (
+            <div role="status" className="rounded-xl border p-4 text-sm">
+              {fundingReceipt.status === "settled"
+                ? `${formatCurrency(fundingReceipt.amount, fundingReceipt.currency)} has been added to your wallet.`
+                : "Your payment is awaiting confirmation. Your wallet will update after confirmation; please avoid paying again while this is pending."}
+            </div>
+          )}
+          <Card>
+            <CardHeader><CardTitle className="text-lg">Add money to your wallet</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              {fundingStatus?.enabled ? (
+                <>
+                  <Label htmlFor="wallet-funding-amount">Amount (NGN)</Label>
+                  <Input id="wallet-funding-amount" type="number" inputMode="decimal" min="100" max="99999999.99" step="0.01"
+                    value={fundingAmount} onChange={event => setFundingAmount(event.target.value)} placeholder="Minimum NGN 100" />
+                  <Button className="w-full" disabled={fundingMutation.isPending || !fundingAmount.trim()} onClick={() => fundingMutation.mutate()}>
+                    {fundingMutation.isPending ? "Opening checkout…" : "Continue to secure checkout"}
+                  </Button>
+                  <p className="text-xs text-muted-foreground">Your wallet is credited only after your payment is confirmed.</p>
+                </>
+              ) : <p className="text-sm text-muted-foreground">{fundingStatus?.message || "Checking funding availability…"}</p>}
+            </CardContent>
+          </Card>
+
           <Button
             variant="outline"
             className="w-full"
+            disabled
             onClick={() => setShowFundWallet(true)}
             data-testid="button-fund-another-wallet"
           >
             <Send className="h-4 w-4 mr-2" />
-            Fund Another Wallet
+            Wallet transfers — coming soon
           </Button>
 
           <Card>
@@ -191,15 +250,17 @@ export default function RiderWallet() {
             <CardContent className="space-y-3">
               <button
                 className="w-full p-4 rounded-lg border border-dashed flex items-center justify-center gap-2 text-muted-foreground cursor-pointer hover-elevate"
+                disabled
                 onClick={() => setShowCardModal(true)}
                 data-testid="button-add-payment-method"
                 style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
               >
                 <Plus className="h-5 w-5" />
-                <span>Add Payment Method</span>
+                <span>Saved cards — coming soon</span>
               </button>
               <button
                 className="w-full p-4 rounded-lg border border-dashed flex items-center justify-center gap-2 text-muted-foreground cursor-pointer hover-elevate"
+                disabled
                 onClick={() => {
                   setBankTransferInfo(null);
                   setBankTransferAmount("");
@@ -209,10 +270,10 @@ export default function RiderWallet() {
                 style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
               >
                 <Building2 className="h-5 w-5" />
-                <span>Bank Transfer</span>
+                <span>Bank transfer instructions — coming soon</span>
               </button>
               <p className="text-xs text-muted-foreground text-center">
-                Payment methods are managed in test mode
+                Available funding methods are shown above. Saved cards and automatic top-up are not available yet.
               </p>
             </CardContent>
           </Card>
@@ -282,7 +343,7 @@ export default function RiderWallet() {
                         amount: parseFloat(topUpAmount) || 1000,
                       });
                     }}
-                    disabled={autoTopUpMutation.isPending}
+                    disabled
                     data-testid="switch-auto-topup"
                   />
                 )}
@@ -290,7 +351,7 @@ export default function RiderWallet() {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Automatically add funds to your wallet when your balance drops below a set amount.
+                Automatic top-up is being prepared. It will remain unavailable until saved-card payments are verified.
               </p>
 
               {autoTopUp?.enabled && (

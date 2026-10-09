@@ -1,7 +1,8 @@
 import { test, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { stripTypeScriptTypes } from 'node:module';
+import { transformSync } from 'esbuild';
+const stripTypeScriptTypes = source => transformSync(source, { loader: 'ts', target: 'es2022', format: 'esm' }).code;
 import { createHmac } from 'node:crypto';
 
 const originalEnv = { ...process.env };
@@ -18,6 +19,7 @@ beforeEach(() => {
   process.env.NODE_ENV = 'production';
   process.env.PAYSTACK_SECRET_KEY = 'sk_live_fixture';
   process.env.SIMULATION_MODE_ENABLED = 'false';
+  process.env.WALLET_FUNDING_ENABLED = 'false';
   countries = [{ isoCode: 'NG', paymentsEnabled: true, paymentProvider: 'paystack' }];
   globalThis.fetch = async () => { throw new Error('Unexpected provider request'); };
 });
@@ -96,9 +98,10 @@ const routes = await readFile(new URL('../server/routes.ts', import.meta.url), '
 function routeBlock(path, nextMarker) { const a = routes.indexOf(`  app.post("${path}"`); return routes.slice(a, routes.indexOf(nextMarker, a)); }
 test('actual wallet funding handler cannot start a charge before settlement is ready', async () => {
   let handler;
-  const app = { post: (_path, _auth, fn) => { handler = fn; } };
-  const code = stripTypeScriptTypes(routeBlock('/api/wallet/fund', '  // Verify wallet funding callback'));
-  new Function('app', 'isAuthenticated', code)(app, () => {});
+  const app = { post: (...args) => { handler = args.at(-1); } };
+  const a = routes.indexOf('  app.post("/api/wallet/fund"'), b = routes.indexOf('\n  });', a) + '\n  });'.length;
+  const code = stripTypeScriptTypes(routes.slice(a,b));
+  new Function('app', 'isAuthenticated', 'requireRole', code)(app, () => {}, () => () => {});
   let status, body;
   await handler({ body: { amount: 100 }, user: { claims: { sub: 'rider-one' } } }, { status(n) { status = n; return this; }, json(data) { body = data; } });
   assert.equal(status, 503);
