@@ -17,7 +17,7 @@ export function openNativeNavigation(address: string, lat?: number, lng?: number
   
   let url: string;
   
-  if (lat && lng) {
+  if (lat !== undefined && lng !== undefined && Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180) {
     if (isIOS) {
       url = `maps://maps.apple.com/?daddr=${lat},${lng}&dirflg=d`;
     } else if (isAndroid) {
@@ -127,7 +127,7 @@ export function getNavigationDeepLink(
   lng: number,
   label?: string
 ): NavigationDeepLink {
-  const encodedLabel = label ? encodeURIComponent(label) : "";
+  if (!Number.isFinite(lat) || Math.abs(lat) > 90 || !Number.isFinite(lng) || Math.abs(lng) > 180) throw new Error("Invalid navigation coordinates");
   
   switch (provider) {
     case "google_maps":
@@ -166,20 +166,9 @@ export function openNavigationWithProvider(
 ): void {
   const deepLink = getNavigationDeepLink(provider, lat, lng, label);
   
-  const isIOS = isIOSDevice();
-  const isAndroid = isAndroidDevice();
-  
-  if (isAndroid || isIOS) {
-    const link = document.createElement("a");
-    link.href = deepLink.url;
-    link.click();
-    
-    setTimeout(() => {
-      window.open(deepLink.fallbackUrl, "_blank");
-    }, 1000);
-  } else {
-    window.open(deepLink.fallbackUrl, "_blank");
-  }
+  // HTTPS links work on desktop and can hand off to an installed app on mobile.
+  // Do not launch a second destination on a timer after a successful handoff.
+  window.open(deepLink.fallbackUrl, "_blank", "noopener,noreferrer");
 }
 
 export function getTestNavigationUrl(provider: NavigationProvider): string {

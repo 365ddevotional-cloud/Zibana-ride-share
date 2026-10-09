@@ -32,3 +32,10 @@ No live customer payment, new paid service or domain transfer was performed duri
 `npm run test:settlement`: 15 checks execute the ledger on PostgreSQL via PGlite and exercise registered routes: account/amount/currency validation, duplicate delivery, rollback and retry, unknown references and private receipts. The local test pool serializes connections; these tests are not a multi-connection production stress test.
 
 Existing security, migration and currency suites: 20 tests passed (52 total). TypeScript check and production build passed. These checks do not establish live payment-provider or full commercial booking readiness.
+
+
+## 9 October 2026: commercial activation review
+
+The selected candidate provider is Fincra for Zibana Mobility Services. Existing Paystack code is not a Fincra integration. Production currently has neither Fincra nor Mapbox credentials. No live charges can be enabled from the fare estimator alone. Required next inputs: approved Fincra merchant account and securely configured sandbox credentials, Mapbox account/token and cost limit, and confirmed launch city/permitted Keke routes. Outstanding engineering includes request usage/cost accounting, server-issued quotes, Fincra collection/webhook verification, refunds and ride settlement.
+
+Map repairs in this release: clear rider location/path when the assigned trip changes or ends; filter other-driver socket updates and invalid coordinates; expire the Live badge even when all updates stop; cancel stale history results on trip changes; avoid asynchronous Leaflet initialization after unmount; report tile loading errors; remove the invented-distance ETA; validate driver navigation coordinates and remove the unconditional second navigation launch. Existing rider tiles use OpenStreetMap, not Mapbox: they must not be billed as Mapbox requests. Physical-device GPS, installed navigation app handoff, and authenticated two-device trip tests remain unverified.

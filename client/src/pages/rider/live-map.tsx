@@ -1,9 +1,9 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MapPin, Navigation, Share2, ArrowLeft, Car, Clock, User } from "lucide-react";
+import { MapPin, Navigation, Share2, ArrowLeft, Car, User } from "lucide-react";
 import { API_BASE } from "@/lib/apiBase";
 import { joinTrip, joinDriver, leaveTrip, leaveDriver, onDriverLocation, type LocationUpdate } from "@/lib/socket";
 import { useToast } from "@/hooks/use-toast";
@@ -15,7 +15,9 @@ export default function RiderLiveMap() {
   const [tripId, setTripId] = useState<string | null>(null);
   const [driverLoc, setDriverLoc] = useState<{ lat: number; lng: number; speed?: number | null; updatedAt?: string } | null>(null);
   const [pathPoints, setPathPoints] = useState<[number, number][]>([]);
-  const [isStale, setIsStale] = useState(false);
+  const [isStale, setIsStale] = useState(true);
+  const [mapReady, setMapReady] = useState(false);
+  const [mapError, setMapError] = useState(false);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
@@ -29,62 +31,65 @@ export default function RiderLiveMap() {
   });
 
   useEffect(() => {
-    if (currentTrip?.driverId) {
-      setDriverId(currentTrip.driverId);
-      setTripId(currentTrip.id);
-    }
-  }, [currentTrip]);
+    setDriverId(currentTrip?.driverId ?? null);
+    setTripId(currentTrip?.driverId ? currentTrip.id : null);
+    setDriverLoc(null);
+    setPathPoints([]);
+    setIsStale(true);
+    markerRef.current?.remove(); markerRef.current = null;
+    polylineRef.current?.remove(); polylineRef.current = null;
+  }, [currentTrip?.id, currentTrip?.driverId]);
 
-  const initMap = useCallback(async () => {
-    if (mapRef.current || !mapContainerRef.current) return;
-    const L = await import("leaflet");
-    leafletRef.current = L;
-
-    const defaultIcon = L.icon({
-      iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-      iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-      shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-      iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41],
-    });
-    L.Marker.prototype.options.icon = defaultIcon;
-
-    const map = L.map(mapContainerRef.current).setView([9.06, 7.49], 14);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: '&copy; OpenStreetMap', maxZoom: 19,
-    }).addTo(map);
-
-    mapRef.current = map;
+  useEffect(() => {
+    let cancelled = false;
+    let ownedMap: any;
+    import("leaflet").then(L => {
+      if (cancelled || !mapContainerRef.current) return;
+      leafletRef.current = L;
+      const map = L.map(mapContainerRef.current).setView([9.06, 7.49], 14);
+      ownedMap = map;
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>', maxZoom: 19,
+      }).on("tileerror", () => { if (!cancelled) setMapError(true); }).addTo(map);
+      mapRef.current = map;
+      setMapReady(true);
+    }).catch(() => { if (!cancelled) setMapError(true); });
+    return () => { cancelled = true; ownedMap?.remove(); mapRef.current = null; };
   }, []);
 
   useEffect(() => {
-    initMap();
-    return () => {
-      if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
-    };
-  }, [initMap]);
+    const updateAge = () => setIsStale(!driverLoc?.updatedAt || !Number.isFinite(Date.parse(driverLoc.updatedAt)) || Date.now() - Date.parse(driverLoc.updatedAt) > 10000);
+    updateAge();
+    const timer = setInterval(updateAge, 1000);
+    return () => clearInterval(timer);
+  }, [driverLoc?.updatedAt]);
 
   useEffect(() => {
+    const controller = new AbortController();
     if (tripId) {
-      fetch(`${API_BASE}/api/trips/${tripId}/locations?limit=500`, { credentials: "include" })
+      fetch(`${API_BASE}/api/trips/${tripId}/locations?limit=500`, { credentials: "include", signal: controller.signal })
         .then(r => r.ok ? r.json() : [])
         .then((pts: any[]) => {
-          if (pts.length) {
-            setPathPoints(pts.map((p: any) => [parseFloat(p.lat), parseFloat(p.lng)] as [number, number]));
+          if (!controller.signal.aborted && Array.isArray(pts) && pts.length) {
+            setPathPoints(pts.map((p: any) => [Number(p.lat), Number(p.lng)] as [number, number]).filter(([lat, lng]) => Number.isFinite(lat) && Math.abs(lat) <= 90 && Number.isFinite(lng) && Math.abs(lng) <= 180));
           }
         })
         .catch(() => {});
     }
+    return () => controller.abort();
   }, [tripId]);
 
   useEffect(() => {
     if (!driverId) return;
+    let cancelled = false;
     joinDriver(driverId);
     if (tripId) joinTrip(tripId);
 
     const unsub = onDriverLocation((data: LocationUpdate) => {
+      if (cancelled || data.driverId !== driverId || !Number.isFinite(data.lat) || Math.abs(data.lat) > 90 || !Number.isFinite(data.lng) || Math.abs(data.lng) > 180) return;
       const loc = { lat: data.lat, lng: data.lng, speed: data.speed, updatedAt: data.updatedAt };
       setDriverLoc(loc);
-      setIsStale(false);
+
       setPathPoints(prev => {
         const next = [...prev, [data.lat, data.lng] as [number, number]];
         return next.length > 500 ? next.slice(-500) : next;
@@ -98,9 +103,9 @@ export default function RiderLiveMap() {
           const res = await fetch(`${API_BASE}/api/driver/location/latest?driverId=${driverId}`, { credentials: "include" });
           if (res.ok) {
             const d = await res.json();
+            if (cancelled || d.lat == null || d.lng == null || !Number.isFinite(Number(d.lat)) || Math.abs(Number(d.lat)) > 90 || !Number.isFinite(Number(d.lng)) || Math.abs(Number(d.lng)) > 180) return;
             setDriverLoc({ lat: parseFloat(d.lat), lng: parseFloat(d.lng), speed: d.speed ? parseFloat(d.speed) : null, updatedAt: d.updatedAt });
-            const age = Date.now() - new Date(d.updatedAt).getTime();
-            setIsStale(age > 10000);
+
           }
         } catch {}
       }, 3000);
@@ -108,6 +113,7 @@ export default function RiderLiveMap() {
     startPolling();
 
     return () => {
+      cancelled = true;
       unsub();
       leaveDriver(driverId);
       if (tripId) leaveTrip(tripId);
@@ -122,20 +128,9 @@ export default function RiderLiveMap() {
     const { lat, lng } = driverLoc;
 
     if (markerRef.current) {
-      const cur = markerRef.current.getLatLng();
-      const steps = 10;
-      const dLat = (lat - cur.lat) / steps;
-      const dLng = (lng - cur.lng) / steps;
-      let step = 0;
-      const animate = () => {
-        if (step >= steps) return;
-        step++;
-        markerRef.current.setLatLng([cur.lat + dLat * step, cur.lng + dLng * step]);
-        requestAnimationFrame(animate);
-      };
-      animate();
+      markerRef.current.setLatLng([lat, lng]);
     } else {
-      markerRef.current = L.marker([lat, lng]).addTo(map);
+      markerRef.current = L.marker([lat, lng], { icon: L.divIcon({ className: "", html: '<span style="display:block;width:20px;height:20px;background:#2563eb;border:3px solid white;border-radius:50%;box-shadow:0 1px 6px #555"></span>', iconSize: [20, 20], iconAnchor: [10, 10] }) }).addTo(map);
       map.setView([lat, lng], 15);
     }
 
@@ -146,7 +141,7 @@ export default function RiderLiveMap() {
     }
 
     map.panTo([lat, lng], { animate: true, duration: 0.5 });
-  }, [driverLoc, pathPoints]);
+  }, [driverLoc, pathPoints, mapReady]);
 
   const handleShareLocation = async () => {
     if (!tripId || !driverId) return;
@@ -196,6 +191,7 @@ export default function RiderLiveMap() {
       </div>
 
       <div className="relative flex-1">
+        {mapError && <p role="alert" className="absolute top-2 left-2 right-2 z-[1000] rounded bg-background p-3 text-sm">Map tiles could not load. Check your connection and reload. Location updates may still be available.</p>}
         <div ref={mapContainerRef} className="absolute inset-0" data-testid="rider-map-container" />
 
         {!driverId && (
@@ -235,15 +231,7 @@ export default function RiderLiveMap() {
                       )}
                     </div>
                   </div>
-                  {driverLoc.speed != null && Number(driverLoc.speed) > 0.5 && (
-                    <div className="text-right flex-shrink-0">
-                      <div className="flex items-center gap-1 text-primary font-semibold" data-testid="text-eta">
-                        <Clock className="h-4 w-4" />
-                        <span>{Math.max(1, Math.round((currentTrip.estimatedDistance || 2) / (Number(driverLoc.speed) * 3.6 || 30) * 60))} min</span>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground">ETA</p>
-                    </div>
-                  )}
+
                 </div>
               )}
               <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t">
