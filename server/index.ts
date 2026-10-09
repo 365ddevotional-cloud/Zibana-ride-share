@@ -57,6 +57,9 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  const { pool } = await import("./db");
+  const { ensureKekeSchema } = await import("./keke-schema");
+  await ensureKekeSchema(pool);
   await registerRoutes(httpServer, app);
   setupSocketIO(httpServer, app.locals.zibanaSession);
 

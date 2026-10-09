@@ -212,7 +212,7 @@ export const trustAuditActionEnum = pgEnum("trust_audit_action", [
 ]);
 
 // Phase 22 - Ride Classification
-export const rideClassEnum = pgEnum("ride_class", ["go", "plus", "comfort", "elite", "pet_ride", "safe_teen"]);
+export const rideClassEnum = pgEnum("ride_class", ["go", "plus", "comfort", "elite", "pet_ride", "safe_teen", "keke"]);
 
 // Phase 22 - Enhanced Ride Lifecycle enums
 export const rideStatusEnum = pgEnum("ride_status", [
@@ -427,6 +427,7 @@ export const driverProfiles = pgTable("driver_profiles", {
   userId: varchar("user_id").notNull().unique(),
   fullName: varchar("full_name").notNull(),
   phone: varchar("phone").notNull(),
+  vehicleCategory: varchar("vehicle_category", { length: 20 }).notNull().default("car"),
   vehicleMake: varchar("vehicle_make").notNull(),
   vehicleModel: varchar("vehicle_model").notNull(),
   vehicleYear: integer("vehicle_year"),
@@ -1940,7 +1941,7 @@ export const insertDriverProfileSchema = createInsertSchema(driverProfiles).omit
   updatedAt: true,
   status: true,
   isOnline: true,
-});
+}).extend({ vehicleCategory: z.enum(["car", "keke"]).optional() });
 
 // Identity profile schemas
 export const insertIdentityProfileSchema = createInsertSchema(identityProfiles).omit({
@@ -2126,6 +2127,7 @@ export const updateDriverProfileSchema = createInsertSchema(driverProfiles).omit
   status: true,
   isOnline: true,
 }).partial().extend({
+  vehicleCategory: z.enum(["car", "keke"]).optional(),
   vehicleYear: z.preprocess(
     value => value === "" ? null : typeof value === "string" ? Number(value) : value,
     z.number().int().min(1900).max(new Date().getFullYear() + 1).nullable().optional()

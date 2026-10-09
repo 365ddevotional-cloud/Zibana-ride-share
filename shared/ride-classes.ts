@@ -1,4 +1,4 @@
-export type RideClassId = "go" | "plus" | "comfort" | "elite" | "pet_ride" | "safe_teen";
+export type RideClassId = "go" | "plus" | "comfort" | "elite" | "pet_ride" | "safe_teen" | "keke";
 
 export interface RideClassPricing {
   baseFare: number;
@@ -33,6 +33,17 @@ export interface RideClassDefinition {
 }
 
 export const RIDE_CLASSES: Record<RideClassId, RideClassDefinition> = {
+  keke: {
+    id: "keke", name: "ZIBANA Keke", displayName: "Keke",
+    description: "Private tricycle rides · Nigeria · launch pending local approval",
+    fareMultiplier: 1,
+    pricing: { baseFare: 200, perKmRate: 130, perMinuteRate: 15, minimumFare: 700, surcharge: 0 },
+    icon: "keke", color: "#d97706", bgLight: "rgba(217,119,6,0.10)", bgDark: "rgba(217,119,6,0.20)",
+    minDriverRating: 0, minVehicleYear: null, requiresPetApproval: false,
+    requiresBackgroundCheck: false, requiresEliteApproval: false, allowedVehicleTypes: ["keke"],
+    maxPassengers: 3, features: ["Private tricycle", "Up to 3 approved passenger seats", "Permitted local routes only"],
+    sortOrder: 0, isActive: true, priorityLevel: 1,
+  },
   go: {
     id: "go",
     name: "ZIBANA Go",
@@ -236,12 +247,16 @@ export function isValidRideClass(id: string): id is RideClassId {
 
 export function getDriverEligibleClasses(params: {
   driverRating: number;
+  vehicleCategory?: "car" | "keke" | string;
+  countryCode?: string;
   vehicleYear: number | null;
   hasPetApproval: boolean;
   hasBackgroundCheck: boolean;
   hasEliteApproval: boolean;
 }): RideClassDefinition[] {
   return RIDE_CLASS_LIST.filter(rc => {
+    if (rc.id === "keke" && (params.vehicleCategory !== "keke" || params.countryCode !== "NG")) return false;
+    if (rc.id !== "keke" && params.vehicleCategory === "keke") return false;
     if (params.driverRating < rc.minDriverRating) return false;
     if (rc.minVehicleYear && (!params.vehicleYear || params.vehicleYear < rc.minVehicleYear)) return false;
     if (rc.requiresPetApproval && !params.hasPetApproval) return false;
@@ -254,8 +269,10 @@ export function getDriverEligibleClasses(params: {
 export function calculateClassFare(
   rideClassId: RideClassId,
   distanceKm: number,
-  durationMin: number
+  durationMin: number,
+  countryCode?: string
 ): { fare: number; breakdown: { baseFare: number; distanceFare: number; timeFare: number; surcharge: number; minimumApplied: boolean } } {
+  if (rideClassId === "keke" && countryCode !== "NG") throw new Error("Keke pricing is NGN-only");
   const pricing = getRideClassPricing(rideClassId);
   const baseFare = pricing.baseFare;
   const distanceFare = distanceKm * pricing.perKmRate;
@@ -280,9 +297,10 @@ export function calculateClassFare(
 export function calculateClassFareRange(
   rideClassId: RideClassId,
   distanceKm: number,
-  durationMin: number
+  durationMin: number,
+  countryCode?: string
 ): { min: number; max: number; estimate: number; breakdown: { baseFare: number; distanceFare: number; timeFare: number; surcharge: number } } {
-  const { fare, breakdown } = calculateClassFare(rideClassId, distanceKm, durationMin);
+  const { fare, breakdown } = calculateClassFare(rideClassId, distanceKm, durationMin, countryCode);
   const pricing = getRideClassPricing(rideClassId);
   const trafficBuffer = durationMin * 0.3 * 0.35;
   const maxFare = fare + trafficBuffer;

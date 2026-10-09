@@ -109,7 +109,7 @@ export function RideClassSelector({ selectedClass, onClassChange }: RideClassSel
                 {!isAvailable ? (
                   <p className="text-xs text-destructive flex items-center gap-1" data-testid={`text-unavailable-${rc.id}`}>
                     <AlertCircle className="h-3 w-3" />
-                    Ride class unavailable
+                    {rc.id === "keke" ? "Keke launch pending local approval" : "Ride class unavailable"}
                   </p>
                 ) : (
                   <div className="flex items-center gap-2">
@@ -128,7 +128,7 @@ export function RideClassSelector({ selectedClass, onClassChange }: RideClassSel
 
               <div className="hidden sm:block text-right shrink-0">
                 {!isAvailable ? (
-                  <span className="text-xs text-muted-foreground">Unavailable</span>
+                  <span className="text-xs text-muted-foreground">{rc.id === "keke" ? "Launch pending" : "Unavailable"}</span>
                 ) : (
                   <span className="text-xs text-muted-foreground" data-testid={`text-ride-class-quote-${rc.id}`}>
                     Fare not yet quoted

@@ -26,6 +26,7 @@ function getStatusBadge(status: string) {
 }
 
 interface VehicleProfile {
+  vehicleCategory: "car" | "keke";
   vehicleMake: string;
   vehicleModel: string;
   vehicleColor: string;
@@ -40,6 +41,7 @@ export default function DriverVehicle() {
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({
+    vehicleCategory: "car" as "car" | "keke",
     vehicleMake: "",
     vehicleModel: "",
     vehicleColor: "",
@@ -55,6 +57,7 @@ export default function DriverVehicle() {
   useEffect(() => {
     if (profile) {
       setEditData({
+        vehicleCategory: profile.vehicleCategory || "car",
         vehicleMake: profile.vehicleMake || "",
         vehicleModel: profile.vehicleModel || "",
         vehicleColor: (profile as any).vehicleColor || "",
@@ -83,6 +86,7 @@ export default function DriverVehicle() {
   });
 
   const vehicleFields = [
+    { key: "vehicleCategory", label: "Vehicle category", value: profile?.vehicleCategory === "keke" ? "Keke (tricycle)" : "Car" },
     { key: "vehicleMake", label: "Make", value: profile?.vehicleMake },
     { key: "vehicleModel", label: "Model", value: profile?.vehicleModel },
     { key: "vehicleColor", label: "Color", value: (profile as any)?.vehicleColor },
@@ -149,6 +153,13 @@ export default function DriverVehicle() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
+                  <Label htmlFor="vehicle-category">Vehicle category</Label>
+                  <select id="vehicle-category" className="mt-1.5 flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={editData.vehicleCategory} onChange={e => setEditData(p => ({ ...p, vehicleCategory: e.target.value as "car" | "keke" }))}>
+                    <option value="car">Car</option><option value="keke">Keke (tricycle · Nigeria)</option>
+                  </select>
+                  {editData.vehicleCategory === "keke" && <p className="mt-2 text-sm text-muted-foreground">Private tricycle rides. Bookings remain closed until local routes, permits and approved passenger capacity are verified.</p>}
+                </div>
+                <div>
                   <Label>Make</Label>
                   <Input
                     value={editData.vehicleMake}
@@ -209,7 +220,8 @@ export default function DriverVehicle() {
                       setIsEditing(false);
                       if (profile) {
                         setEditData({
-                          vehicleMake: profile.vehicleMake || "",
+                          vehicleCategory: profile.vehicleCategory || "car",
+        vehicleMake: profile.vehicleMake || "",
                           vehicleModel: profile.vehicleModel || "",
                           vehicleColor: (profile as any).vehicleColor || "",
                           vehicleYear: (profile as any).vehicleYear || "",

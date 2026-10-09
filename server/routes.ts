@@ -1528,6 +1528,9 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Profile already exists" });
       }
 
+      if (parsed.data.vehicleCategory === "keke" && !(await storage.getAllUserRoles(userId)).some(r => r.role === "driver" && r.countryCode === "NG")) {
+        return res.status(400).json({ message: "Keke registration is currently for Nigeria only" });
+      }
       const profile = await storage.createDriverProfile(parsed.data);
       return res.json(profile);
     } catch (error) {
@@ -1545,7 +1548,14 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Invalid profile data", errors: parsed.error.flatten() });
       }
 
-      const profile = await storage.updateDriverProfile(userId, parsed.data);
+      const existing = await storage.getDriverProfile(userId);
+      if (!existing) return res.status(404).json({ message: "Profile not found" });
+      const roles = await storage.getAllUserRoles(userId);
+      if (parsed.data.vehicleCategory === "keke" && !roles.some(r => r.role === "driver" && r.countryCode === "NG")) {
+        return res.status(400).json({ message: "Keke registration is currently for Nigeria only" });
+      }
+      const vehicleChanged = ["vehicleCategory", "vehicleMake", "vehicleModel", "vehicleYear", "licensePlate"].some(key => key in parsed.data && (parsed.data as any)[key] !== (existing as any)[key]);
+      const [profile] = await db.update(driverProfiles).set({ ...parsed.data, ...(vehicleChanged ? { status: "pending" as const, isOnline: false } : {}) }).where(eq(driverProfiles.userId, userId)).returning();
       if (!profile) {
         return res.status(404).json({ message: "Profile not found" });
       }
@@ -1569,6 +1579,8 @@ export async function registerRoutes(
       const vehicleYear = (profile as any).vehicleYear ? parseInt(String((profile as any).vehicleYear)) : null;
       const eligibleClasses = getDriverEligibleClasses({
         driverRating,
+        vehicleCategory: profile.vehicleCategory,
+        countryCode: (await storage.getAllUserRoles(userId)).find(r => r.role === "driver")?.countryCode,
         vehicleYear,
         hasPetApproval: !!(profile as any).petApproved,
         hasBackgroundCheck: !!(profile as any).backgroundCheckVerified,
@@ -1606,6 +1618,8 @@ export async function registerRoutes(
       const vehicleYear = (profile as any).vehicleYear ? parseInt(String((profile as any).vehicleYear)) : null;
       const eligibleClasses = getDriverEligibleClasses({
         driverRating,
+        vehicleCategory: profile.vehicleCategory,
+        countryCode: (await storage.getAllUserRoles(userId)).find(r => r.role === "driver")?.countryCode,
         vehicleYear,
         hasPetApproval: !!(profile as any).petApproved,
         hasBackgroundCheck: !!(profile as any).backgroundCheckVerified,
@@ -3572,7 +3586,9 @@ export async function registerRoutes(
   app.get("/api/ride-classes", isAuthenticated, async (req: any, res) => {
     try {
       const { RIDE_CLASS_LIST } = await import("@shared/ride-classes");
-      return res.json(RIDE_CLASS_LIST);
+      const roles = await storage.getAllUserRoles(req.user.claims.sub);
+      const countryCode = roles.find(r => r.role === "rider")?.countryCode;
+      return res.json(RIDE_CLASS_LIST.filter(rc => rc.id !== "keke" || countryCode === "NG"));
     } catch (error) {
       console.error("Error getting ride classes:", error);
       return res.status(500).json({ message: "Failed to get ride classes" });
@@ -3585,9 +3601,10 @@ export async function registerRoutes(
       
       // No verified nearby-driver query is configured for this endpoint.
       // Unknown availability must never be reported as a random driver count.
-      const availability = RIDE_CLASS_LIST.map(rc => ({
+      const countryCode = (await storage.getAllUserRoles(req.user.claims.sub)).find(r => r.role === "rider")?.countryCode;
+      const availability = RIDE_CLASS_LIST.filter(rc => rc.id !== "keke" || countryCode === "NG").map(rc => ({
         rideClassId: rc.id,
-        available: rc.isActive ? null : false,
+        available: rc.id === "keke" ? false : rc.isActive ? null : false,
         driverCount: null,
         estimatedWaitMinutes: null,
       }));
@@ -12484,6 +12501,7 @@ export async function registerRoutes(
 
   // Create a new ride request (Rider action)
   app.post("/api/rides", isAuthenticated, async (req: any, res) => {
+    if (req.body?.rideClass === "keke") return res.status(503).json({ code: "KEKE_LAUNCH_PENDING", message: "Keke bookings are pending local route approval and verified settlement." });
     if (process.env.NODE_ENV === "production") {
       return res.status(503).json({
         code: "BOOKING_UNAVAILABLE",
@@ -12850,12 +12868,14 @@ export async function registerRoutes(
       }
 
       // Ride class eligibility check
-      if (ride.rideClass && ride.rideClass !== "go") {
+      if (ride.rideClass) {
         const { getDriverEligibleClasses } = await import("@shared/ride-classes");
         const driverRating = driverProfile?.averageRating ? parseFloat(String(driverProfile.averageRating)) : 0;
         const vehicleYear = driverProfile?.vehicleYear ? parseInt(String(driverProfile.vehicleYear)) : null;
         const eligibleClasses = getDriverEligibleClasses({
           driverRating,
+          vehicleCategory: driverProfile?.vehicleCategory,
+          countryCode: (await storage.getAllUserRoles(userId)).find(r => r.role === "driver")?.countryCode,
           vehicleYear,
           hasPetApproval: !!(driverProfile as any)?.petApproved,
           hasBackgroundCheck: !!(driverProfile as any)?.backgroundCheckVerified,

@@ -54,6 +54,8 @@ function renderIcon(
   const style = { color };
 
   switch (rideClass) {
+    case "keke":
+      return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={s.primary} style={style}><path d="M4 16V6h10l4 8h3v3H4M5 6v7h11M10 6v7M17 12h3"/><circle cx="7" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></svg>;
     case "go":
       return <Car className={s.primary} style={style} />;
 
@@ -111,6 +113,7 @@ function renderIcon(
 
 function getDefaultColor(rideClass: string): string {
   const map: Record<string, string> = {
+    keke: "#d97706",
     go: "#7c3aed",
     plus: "#4338ca",
     comfort: "#0d9488",
@@ -135,6 +138,7 @@ function getDefaultBg(rideClass: string): string {
 
 export function getRideClassLabel(rideClass: string): string {
   const map: Record<string, string> = {
+    keke: "ZIBANA Keke",
     go: "ZIBANA Go",
     plus: "ZIBANA Plus",
     comfort: "ZIBANA Comfort",
