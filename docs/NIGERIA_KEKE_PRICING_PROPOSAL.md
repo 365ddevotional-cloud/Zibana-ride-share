@@ -1,6 +1,6 @@
 # ZIBANA Nigeria: approved Keke and car tariff
 
-Research date: 9 October 2026. Owner approved on 9 October 2026 in the instruction to open Keke bookings and make pricing final. Tariff version: NG-2026-10-09-v2.
+Research date: 9 October 2026. Owner approved on 9 October 2026 in the instruction to open Keke bookings and make pricing final. Tariff version: NG-2026-10-09-v3.
 
 The tariff is now owner-approved. Commercial activation is still blocked by missing permitted-route scope, verified routing, complete booking settlement and payment credentials. Owner approval does not establish regulatory permission, provider readiness or profitability.
 
@@ -69,10 +69,10 @@ Review fuel weekly; re-evaluate when verified local fuel changes more than 5%. D
 
 Owner instruction: recover every $1 of Mapbox cost with $0.60 profit. Implemented as a 60% cost markup (37.5% gross margin on the recovery revenue), not a 60% revenue margin.
 
-`mapboxRecoveryFee = ceilToKobo(allocatedMapboxCostNgn × 1.60)`
+`mapboxRecoveryFee = ceilToKobo(allocatedPaidMapboxCostNgn × 1.60 + allocatedFreeRequests × 0.001 × recordedUsdToNgn)`
 
-The fare estimator adds the recovery fee to the rider total and platform revenue, leaves the transport fare and driver earnings unchanged, and subtracts the underlying Mapbox expense when calculating platform contribution. Free-tier cost defaults to zero. The $0.60 is gross profit before payment fees, taxes and other overhead; it is not a guaranteed net profit. Minor-unit rounding can increase the effective markup for very small costs.
+The fare estimator adds the recovery fee to the rider total and platform revenue, leaves the transport fare and driver earnings unchanged, and subtracts the underlying Mapbox expense when calculating platform contribution. Free-tier provider cost remains zero, but free requests carry a ZIBANA service fee of US$1 per 1,000 requests, approved by the owner on 9 October 2026. A positive recorded USD/NGN rate is required when free requests are allocated. No usage defaults to zero fee. The $0.60 is gross profit before payment fees, taxes and other overhead; it is not a guaranteed net profit. Minor-unit rounding can increase the effective markup for very small costs.
 
-Activation requirements: implement a server-owned usage/cost ledger, allocate paid usage (including unbooked quotes and reroutes) consistently across future quotes, record the USD/NGN rate and allocation basis in each quote, show the recovery amount before confirmation, and reconcile provider invoices. Do not infer spend merely from ride count; Mapbox products and free allowances are separate. No retrospective charge to accepted quotes. Never read provider costs or FX rates from rider request bodies. Exclude Mapbox from fixedTripCosts to avoid double counting.
+Activation requirements: implement a server-owned usage/cost ledger, allocate paid usage (including unbooked quotes and reroutes) consistently across future quotes, record the USD/NGN rate and allocation basis in each quote, show the recovery amount before confirmation, and reconcile provider invoices. Do not infer spend merely from ride count; Mapbox products and free allowances are separate. Classify each request as free or paid exactly once; apply the free service fee only to free requests. Aggregate the fee before rounding to kobo. The free service fee is ZIBANA revenue, not a Mapbox expense, and is gross profit before processing fees and other overhead. No retrospective charge to accepted quotes. Never read provider costs or FX rates from rider request bodies. Exclude Mapbox from fixedTripCosts to avoid double counting.
 
 This policy is implemented in the offline fare estimator only. Production quotes, collections and Mapbox integration remain inactive pending the documented booking/payment work. No paid provider was enabled by this change.

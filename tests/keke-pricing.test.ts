@@ -36,7 +36,7 @@ test('higher costs lift the fare floor; impossible payment economics and invalid
 });
 
 
-test('Mapbox recovers cost plus 60 percent without reducing driver pay or charging free usage', () => {
+test('Mapbox recovers cost plus 60 percent without reducing driver pay; no usage adds no fee', () => {
   const baseline = estimateNigeriaFare('keke', 5, 20);
   const paid = estimateNigeriaFare('keke', 5, 20, { mapboxCostNgn: 100 });
   assert.equal(baseline.mapboxRecoveryFee, 0);
@@ -49,4 +49,23 @@ test('Mapbox recovers cost plus 60 percent without reducing driver pay or chargi
   const fraction = estimateNigeriaFare('car', 5, 20, { mapboxCostNgn: .003 });
   assert.equal(fraction.mapboxRecoveryFee, .01);
   for (const cost of [-1, NaN, Infinity]) assert.throws(() => estimateNigeriaFare('car', 5, 20, { mapboxCostNgn: cost }));
+});
+
+
+test('free mapping earns $1 per 1,000 requests using recorded FX; mixed usage adds paid markup once', () => {
+  const baseline = estimateNigeriaFare('keke', 5, 20);
+  // Synthetic test rate, not a current exchange-rate claim.
+  const free = estimateNigeriaFare('keke', 5, 20, { mapboxFreeRequests: 1000, mappingUsdToNgn: 1500 });
+  assert.equal(free.mapboxCostNgn, 0);
+  assert.equal(free.mapboxRecoveryFee, 1500);
+  assert.equal(free.mapboxGrossProfit, 1500);
+  assert.equal(free.driverGross, baseline.driverGross);
+  const mixed = estimateNigeriaFare('keke', 5, 20, { mapboxFreeRequests: 4, mappingUsdToNgn: 1500, mapboxCostNgn: 100 });
+  assert.equal(mixed.mapboxRecoveryFee, 166);
+  assert.equal(mixed.mapboxGrossProfit, 66);
+  assert.ok(Math.abs(mixed.platformContribution - baseline.platformContribution - (66 - 166 * .02)) < .0001);
+  assert.equal(estimateNigeriaFare('car', 5, 20, { mapboxFreeRequests: 1, mappingUsdToNgn: 1500 }).mapboxRecoveryFee, 1.5);
+  assert.throws(() => estimateNigeriaFare('car', 5, 20, { mapboxFreeRequests: 1 }));
+  for (const count of [-1, .5, Infinity, NaN]) assert.throws(() => estimateNigeriaFare('car', 5, 20, { mapboxFreeRequests: count, mappingUsdToNgn: 1500 }));
+  for (const fx of [0, -1, Infinity, NaN]) assert.throws(() => estimateNigeriaFare('car', 5, 20, { mapboxFreeRequests: 1, mappingUsdToNgn: fx }));
 });
