@@ -4,12 +4,15 @@ import { readFile } from 'node:fs/promises';
 import { transformSync } from 'esbuild';
 const stripTypeScriptTypes = source => transformSync(source, { loader: 'ts', target: 'es2022', format: 'esm' }).code;
 import { createHmac } from 'node:crypto';
+const fincraSource = await readFile(new URL('../server/fincra-provider.ts', import.meta.url), 'utf8');
+const fincraModuleUrl = 'data:text/javascript;base64,' + Buffer.from(stripTypeScriptTypes(fincraSource)).toString('base64');
 
 const originalEnv = { ...process.env };
 const originalFetch = globalThis.fetch;
 let countries;
 globalThis.__paymentStorage = { getAllCountriesWithPaymentStatus: async () => countries };
 const paymentSource = (await readFile(new URL('../server/payment-provider.ts', import.meta.url), 'utf8'))
+  .replace('./fincra-provider', fincraModuleUrl)
   .replace('import { storage } from "./storage";', 'const storage = globalThis.__paymentStorage;');
 const payments = await import('data:text/javascript;base64,' + Buffer.from(stripTypeScriptTypes(paymentSource)).toString('base64'));
 const payouts = await import('data:text/javascript;base64,' + Buffer.from(stripTypeScriptTypes(await readFile(new URL('../server/payout-provider.ts', import.meta.url), 'utf8'))).toString('base64'));

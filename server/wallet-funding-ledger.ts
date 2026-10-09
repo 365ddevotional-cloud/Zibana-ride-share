@@ -47,11 +47,12 @@ export function createWalletFundingLedger(pool: LedgerPool) {
   }
   return {
     getIntent,
-    async createIntent(userId: string, walletId: string, email: string, amount: unknown) {
+    async createIntent(userId: string, walletId: string, email: string, amount: unknown, provider: "paystack" | "fincra" = "paystack") {
       const amountMinor = fundingAmountMinor(amount);
       if (!email || !userId || !walletId) throw new Error("Account and wallet are required");
       await ensureSchema();
-      const reference = `ZIBANA_${randomUUID()}`;
+      if (provider !== "paystack" && provider !== "fincra") throw new Error("Unsupported funding provider");
+      const reference = `${provider === "fincra" ? "ZIBANA_FCR_" : "ZIBANA_"}${randomUUID()}`;
       // Capture the account, amount and currency before contacting the payment provider.
       const result = await pool.query(`
         INSERT INTO wallet_payment_intents (reference, user_id, wallet_id, email, amount_minor, currency)
@@ -95,7 +96,7 @@ export function createWalletFundingLedger(pool: LedgerPool) {
         await client.query(`INSERT INTO rider_transaction_history
           (id, rider_id, type, amount, source, reference_id, description)
           VALUES ($1, $2, 'credit', $3, 'adjustment', $4, $5)`,
-          [randomUUID(), intent.user_id, amount, reference, "Paystack wallet funding (NGN)"]);
+          [randomUUID(), intent.user_id, amount, reference, reference.startsWith("ZIBANA_FCR_") ? "Fincra wallet funding (NGN)" : "Paystack wallet funding (NGN)"]);
         await client.query(`UPDATE wallet_payment_intents SET status = 'settled', settled_at = now()
           WHERE reference = $1`, [reference]);
         await client.query("COMMIT");

@@ -118,3 +118,32 @@ test("unconfirmed and unknown payments cannot be settled by the callback", async
   await handler("get", "/api/wallet/verify", f.context)({ query: { reference: "unknown" } }, unknown);
   assert.match(unknown.location, /payment=failed/);
 });
+
+test('Fincra checkout uses the recorded profile name and a provider-bound funding intent', async () => {
+  const previous = process.env.NG_PAYMENT_PROVIDER;
+  process.env.NG_PAYMENT_PROVIDER = 'fincra'; process.env.FINCRA_MODE = 'live';
+  try {
+    const f = fixture(), res = response();
+    (f.context.storage as any).getUser = async () => ({ firstName: 'Test', lastName: 'Rider' });
+    (f.context as any).fincraCheckoutHost = () => 'checkout.fincra.com';
+    f.context.paymentApi.processPayment = async (_country, request) => {
+      assert.equal(request.customerName, 'Test Rider');
+      return { success: true, authorizationUrl: 'https://checkout.fincra.com/pay/fixture' };
+    };
+    await handler('post', '/api/wallet/fund', f.context)({ user, body: { amount: 100.25 } }, res);
+    assert.equal(res.statusCode, 200);
+    assert.deepEqual(f.recorded(), ['rider-one','wallet-one','rider@example.com',100.25,'fincra']);
+  } finally { if (previous === undefined) delete process.env.NG_PAYMENT_PROVIDER; else process.env.NG_PAYMENT_PROVIDER=previous; }
+});
+
+test('Fincra webhook authenticates before provider verification and settles only a known intent', async () => {
+  const f=fixture(), res=response();
+  let signatureValid=false;
+  (f.context as any).validateFincraWebhook=()=>signatureValid;
+  const run=handler('post','/api/webhooks/fincra',f.context);
+  const req={rawBody:Buffer.from('{}'),headers:{signature:'fixture'},body:{event:'charge.successful',data:{merchantReference:'ZIBANA_FCR_fixture'}}};
+  await run(req,res); assert.equal(res.statusCode,401); assert.equal(f.settled(),undefined);
+  signatureValid=true;
+  const accepted=response(); await run(req,accepted);
+  assert.equal(accepted.statusCode,200); assert.equal(f.settled()[0],'ZIBANA_FCR_fixture');
+});

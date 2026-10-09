@@ -5,17 +5,18 @@
  * ==============================
  * COUNTRY-SPECIFIC PAYMENT MODE
  * ==============================
- * - Nigeria (NG): REAL PAYMENTS via Paystack
+ * - Nigeria (NG): explicitly configured Paystack or Fincra, verified before activation
  * - Unsupported countries: unavailable in production; explicit simulation in development only
  * - Driver payouts: MANUAL only (no auto payouts)
  */
 
+import { FincraAdapter, fincraReady } from "./fincra-provider";
 import { storage } from "./storage";
 import { randomUUID } from "node:crypto";
 
 // Country-specific payment mode (not global)
 // Nigeria uses real payments, others are simulated
-export type PaymentProvider = "paystack" | "flutterwave" | "manual" | "placeholder";
+export type PaymentProvider = "fincra" | "paystack" | "flutterwave" | "manual" | "placeholder";
 
 export interface PaymentResult {
   success: boolean;
@@ -37,6 +38,7 @@ export interface PaymentRequest {
   currency: string;
   userId: string;
   email?: string;
+  customerName?: string;
   description?: string;
   callbackUrl?: string;
   transactionRef?: string;
@@ -288,6 +290,7 @@ class PlaceholderAdapter implements PaymentProviderAdapter {
 }
 
 const adapters: Record<PaymentProvider, PaymentProviderAdapter> = {
+  fincra: new FincraAdapter(),
   paystack: new PaystackAdapter(),
   flutterwave: new FlutterwaveAdapter(),
   manual: new ManualAdapter(),
@@ -296,7 +299,7 @@ const adapters: Record<PaymentProvider, PaymentProviderAdapter> = {
 
 export function getPaymentProvider(providerName: PaymentProvider): PaymentProviderAdapter {
   // An unknown or simulated provider must never become a production payment success.
-  if (process.env.NODE_ENV === "production" && providerName !== "paystack") {
+  if (process.env.NODE_ENV === "production" && providerName !== "paystack" && providerName !== "fincra") {
     return adapters.flutterwave; // Disabled adapter returns an explicit failure.
   }
   return adapters[providerName] || adapters.flutterwave;
@@ -312,6 +315,9 @@ export async function getProviderForCountry(countryCode: string): Promise<{
     const countries = await storage.getAllCountriesWithPaymentStatus();
     const country = countries.find(c => c.isoCode === countryCode);
     
+    if (countryCode === "NG" && process.env.NG_PAYMENT_PROVIDER === "fincra") {
+      return { provider: "fincra", paymentsEnabled: !!country?.paymentsEnabled && fincraReady() };
+    }
     if (country && country.paymentsEnabled && country.paymentProvider === "paystack" && countryCode === "NG" &&
         !!process.env.PAYSTACK_SECRET_KEY &&
         (process.env.NODE_ENV !== "production" || process.env.PAYSTACK_SECRET_KEY.startsWith("sk_live_"))) {
@@ -372,6 +378,12 @@ export async function verifyPayment(
   countryCode: string,
   transactionRef: string
 ): Promise<PaymentResult> {
+  if (countryCode === "NG" && transactionRef.startsWith("ZIBANA_FCR_")) {
+    return adapters.fincra.verifyPayment(transactionRef);
+  }
+  if (countryCode === "NG" && process.env.NG_PAYMENT_PROVIDER === "fincra") {
+    return adapters.paystack.verifyPayment(transactionRef);
+  }
   const { provider, paymentsEnabled } = await getProviderForCountry(countryCode);
   
   if (!paymentsEnabled) {
@@ -410,12 +422,13 @@ export async function getPaymentStatusSummary(): Promise<{
   
   return {
     countries: await Promise.all(countries.map(async c => {
-      const ready = await isRealPaymentsEnabled(c.isoCode);
+      const configured = await getProviderForCountry(c.isoCode);
+      const ready = configured.paymentsEnabled;
       return {
         code: c.isoCode,
         name: c.name,
         mode: ready ? "REAL PAYMENTS" : "UNAVAILABLE",
-        provider: ready ? c.paymentProvider : null,
+        provider: ready ? configured.provider : null,
       };
     })),
     launchMode: launchMode || "soft_launch",

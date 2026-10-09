@@ -1,3 +1,6 @@
+import { validateFincraWebhook, fincraCheckoutHost } from "./fincra-provider";
+import { createMappingUsageLedger } from "./mapping-usage-ledger";
+import { previewDirections } from "./mapbox-directions";
 import { z } from "zod";
 import { userRoles } from "@shared/schema";
 import { determineRiderTrustTier, determineDirectorPerformanceTier } from "./score-tiers";
@@ -12,6 +15,7 @@ import { activeTrip, canTrack, getLiveLink } from "./tracking-policy";
 import { db, pool } from "./db";
 import { createWalletFundingLedger, fundingAmountMinor } from "./wallet-funding-ledger";
 const walletFundingLedger = createWalletFundingLedger(pool);
+const mappingUsageLedger = createMappingUsageLedger(pool);
 import { eq, and, count, sql, gte, lt, lte, isNotNull, inArray, desc, or, ilike } from "drizzle-orm";
 import { insertDriverProfileSchema, insertTripSchema, updateDriverProfileSchema, insertIncentiveProgramSchema, insertCountrySchema, insertTaxRuleSchema, insertExchangeRateSchema, insertComplianceProfileSchema, trips, countryPricingRules, stateLaunchConfigs, killSwitchStates, userTrustProfiles, driverProfiles, walletTransactions, cashTripDisputes, riderProfiles, tripCoordinatorProfiles, rides, wallets, riderWallets, users, bankTransfers, riderInboxMessages, driverInboxMessages, insertRiderInboxMessageSchema, notificationPreferences, cancellationFeeConfig, marketingMessages, walletFundingTransactions, walletFundingSettings, driverWallets, directorFundingTransactions, directorFundingSettings, directorFundingAcceptance, directorFundingSuspensions, directorProfiles, directorDriverAssignments, directorActionLogs, driverCoachingLogs, directorCells, directorCommissionSettings, directorPayoutSummaries, referralCodes, directorFraudSignals, directorDisputes, directorDisputeMessages, directorWindDowns, welcomeAnalytics, directorPerformanceScores, directorPerformanceWeights, directorIncentives, directorRestrictions, directorPerformanceLogs, directorSuccessions, directorTerminationTimeline, directorStaff, riderTrustScores, riderTrustWeights, riderLoyaltyIncentives, riderTrustLogs, fundingRelationships, fundingAbuseFlags, thirdPartyFundingConfig, fundingAuditLogs, sponsoredBalances, directorCoachingLogs, directorTrainingModules, directorTermsAcceptance, directorTrustScores, platformSettings, qaChecklistItems, qaSimulationLogs, tripMessages, insertTripMessageSchema, qaSessionLogs, qaActivityLogs, founderStrategicReminders } from "@shared/schema";
 import { evaluateDriverForIncentives, approveAndPayIncentive, revokeIncentive, evaluateAllDrivers, evaluateBehaviorAndWarnings, calculateDriverMatchingScore, getDriverIncentiveProgress, assignFirstRidePromo, assignReturnRiderPromo, applyPromoToTrip, voidPromosOnCancellation } from "./incentives";
@@ -6806,6 +6810,31 @@ export async function registerRoutes(
       console.error("Error marking withdrawal as paid:", error);
       return res.status(500).json({ message: "Failed to mark withdrawal as paid" });
     }
+  });
+
+  app.get("/api/admin/mapping/usage", isAuthenticated, requireRole(["super_admin", "admin"]), async (_req, res) => {
+    try { return res.json({ periods: await mappingUsageLedger.summary(), costStatus: "estimated_pending_invoice_reconciliation" }); }
+    catch { return res.status(503).json({ message: "Mapping usage unavailable" }); }
+  });
+  app.post("/api/admin/mapping/route-preview", isAuthenticated, requireRole(["super_admin", "admin"]), async (req: any, res) => {
+    try { return res.json(await previewDirections(mappingUsageLedger, req.user.claims.sub, req.body.requestKey, req.body.coordinates)); }
+    catch { return res.status(503).json({ message: "Route preview unavailable. Check provider configuration and usage limits." }); }
+  });
+
+  app.post("/api/webhooks/fincra", async (req, res) => {
+    if (!validateFincraWebhook(req.rawBody, req.headers.signature)) return res.status(401).json({ message: "Invalid signature" });
+    if (req.body?.event !== "charge.successful") return res.status(200).json({ received: true });
+    const reference = req.body?.data?.merchantReference;
+    if (typeof reference !== "string" || !/^ZIBANA_FCR_[A-Za-z0-9_-]{1,130}$/.test(reference)) return res.status(400).json({ message: "Invalid reference" });
+    try {
+      const intent = await walletFundingLedger.getIntent(reference);
+      if (!intent) return res.status(200).json({ received: true });
+      const { verifyPayment } = await import("./payment-provider");
+      const verified = await verifyPayment("NG", reference);
+      if (!verified.success) return res.status(503).json({ message: "Confirmation pending" });
+      await walletFundingLedger.settle(reference, verified);
+      return res.status(200).json({ received: true });
+    } catch { return res.status(503).json({ message: "Settlement pending" }); }
   });
 
   // Paystack Webhook for transfer status updates
@@ -15452,7 +15481,7 @@ export async function registerRoutes(
       const enabled = process.env.WALLET_FUNDING_ENABLED === "true" && role?.countryCode === "NG" &&
         wallet?.currency === "NGN" && !wallet.isFrozen && await isRealPaymentsEnabled("NG");
       return res.json({ enabled: !!enabled, currency: wallet?.currency || null,
-        minimum: 100, message: enabled ? "Secure Paystack checkout" : "Wallet funding is not available for this account yet." });
+        minimum: 100, message: enabled ? "Secure payment-provider checkout" : "Wallet funding is not available for this account yet." });
     } catch (error) {
       return res.status(503).json({ enabled: false, message: "Wallet funding is temporarily unavailable." });
     }
@@ -15477,17 +15506,28 @@ export async function registerRoutes(
       }
       const baseUrl = new URL(process.env.APP_BASE_URL || "");
       if (process.env.NODE_ENV === "production" && baseUrl.protocol !== "https:") throw new Error("Secure application URL is required");
-      const intent = await walletFundingLedger.createIntent(userId, wallet.id, email, req.body.amount);
+      const fundingProvider = process.env.NG_PAYMENT_PROVIDER === "fincra" ? "fincra" : "paystack";
+      let customerName: string | undefined;
+      if (fundingProvider === "fincra") {
+        const account = await storage.getUser(userId);
+        customerName = [account?.firstName, account?.lastName].filter(Boolean).join(" ").trim();
+        if (!customerName) return res.status(400).json({ message: "Complete your account name before funding." });
+      }
+      const intent = fundingProvider === "fincra"
+        ? await walletFundingLedger.createIntent(userId, wallet.id, email, req.body.amount, "fincra")
+        : await walletFundingLedger.createIntent(userId, wallet.id, email, req.body.amount);
       reference = intent.reference;
       const result = await processPayment("NG", { userId, email, amount: req.body.amount, currency: "NGN",
-        transactionRef: reference, purpose: "wallet_funding", description: "ZIBANA Wallet Funding",
+        customerName, transactionRef: reference, purpose: "wallet_funding", description: "ZIBANA Wallet Funding",
         callbackUrl: new URL("/api/wallet/verify", baseUrl).toString() });
       await walletFundingLedger.markInitialized(reference!, result.success);
       if (!result.success || !result.authorizationUrl) {
         return res.status(502).json({ message: "Checkout could not be opened. Your wallet has not been credited." });
       }
       const checkout = new URL(result.authorizationUrl);
-      if (checkout.protocol !== "https:" || checkout.hostname !== "checkout.paystack.com") throw new Error("Invalid checkout address");
+      const checkoutHost = fundingProvider === "fincra"
+        ? fincraCheckoutHost() : "checkout.paystack.com";
+      if (checkout.protocol !== "https:" || checkout.hostname !== checkoutHost || checkout.username || checkout.password || checkout.port) throw new Error("Invalid checkout address");
       return res.json({ success: true, transactionRef: reference, authorizationUrl: checkout.toString() });
     } catch (error) {
       if (reference) console.error("[Wallet Funding] Checkout failed; intent retained for reconciliation");

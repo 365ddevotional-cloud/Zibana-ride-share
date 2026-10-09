@@ -87,7 +87,7 @@ export default function RiderWallet() {
     },
     onSuccess: data => {
       const checkout = new URL(data.authorizationUrl);
-      if (checkout.protocol !== "https:" || checkout.hostname !== "checkout.paystack.com") {
+      if (checkout.protocol !== "https:" || (checkout.hostname !== "checkout.paystack.com" && !/^[a-z0-9-]+\.fincra\.com$/.test(checkout.hostname)) || checkout.username || checkout.password || checkout.port) {
         toast({ title: "Unable to open secure checkout", variant: "destructive" });
         return;
       }

@@ -147,3 +147,16 @@ test("unknown reference cannot create a credit", async () => {
     assert.equal(await f.balance(), "10.00");
   } finally { await f.db.close(); }
 });
+
+test('Fincra intent retains its provider identity and duplicate settlement credits only once', async () => {
+  const f=await fixture();
+  try {
+    const intent=await f.ledger.createIntent('rider-one','wallet-one','rider@example.com',100.25,'fincra');
+    assert.match(intent.reference,/^ZIBANA_FCR_/);
+    const evidence={...f.payment,transactionRef:intent.reference};
+    await f.ledger.settle(intent.reference,evidence); await f.ledger.settle(intent.reference,evidence);
+    assert.equal(await f.balance(),'110.25'); assert.equal(await f.receiptCount(),1);
+    const receipts=await f.db.query<any>('SELECT description FROM rider_transaction_history');
+    assert.equal(receipts.rows[0].description,'Fincra wallet funding (NGN)');
+  } finally { await f.db.close(); }
+});
