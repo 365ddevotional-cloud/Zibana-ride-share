@@ -20,7 +20,7 @@ const themeOptions: ThemeOption[] = [
   {
     value: "dark",
     label: "Dark",
-    description: "Eye-safe dark mode for night driving",
+    description: "Darker colors for low-light settings",
     icon: Moon,
   },
   {
@@ -39,7 +39,7 @@ export function AppearanceSettings() {
       <CardHeader>
         <CardTitle>Appearance</CardTitle>
         <CardDescription>
-          Choose how the app looks. Dark mode is recommended for night driving to reduce eye strain.
+          Choose how the app looks. System follows your device automatically.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -51,6 +51,7 @@ export function AppearanceSettings() {
             return (
               <button
                 key={option.value}
+                aria-pressed={isSelected}
                 onClick={() => setTheme(option.value)}
                 className={cn(
                   "flex items-center gap-4 p-4 rounded-lg border transition-all duration-200",

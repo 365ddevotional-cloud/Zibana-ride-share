@@ -1,3 +1,6 @@
+import { QuickStartTour } from "@/components/quick-start-tour";
+import { SupportSection } from "@/components/support-section";
+import { Link } from "wouter";
 import { DriverLayout } from "@/components/driver/DriverLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -523,7 +526,8 @@ export default function DriverHelpPage() {
             </CardContent>
           </Card>
         </div>
-        {supportOpen && (
+        <div id="driver-feedback" className="mx-auto max-w-3xl px-4 pb-24">{user && <SupportSection />}</div>
+      {supportOpen && (
           <div className="fixed bottom-20 right-4 w-[360px] max-w-[calc(100vw-2rem)] h-[500px] max-h-[calc(100vh-6rem)] z-50 shadow-lg rounded-lg overflow-hidden" data-testid="panel-zibana-support-driver">
             <ZibanaSupport onClose={() => setSupportOpen(false)} />
           </div>
@@ -532,7 +536,9 @@ export default function DriverHelpPage() {
           className="fixed bottom-4 right-4 z-50 rounded-full shadow-lg h-12 w-12"
           size="icon"
           onClick={() => setSupportOpen(!supportOpen)}
-          data-testid="button-zibana-support-toggle-driver"
+          aria-label={supportOpen ? "Close support" : "Open support"}
+        aria-expanded={supportOpen}
+        data-testid="button-zibana-support-toggle-driver"
         >
           <Headphones className="h-5 w-5" />
         </Button>
@@ -573,7 +579,9 @@ export default function DriverHelpPage() {
               <Card
                 key={article.id}
                 className="hover-elevate cursor-pointer"
-                onClick={() => handleArticleClick(article)}
+                role="button" tabIndex={0}
+              onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleArticleClick(article); } }}
+              onClick={() => handleArticleClick(article)}
                 data-testid={`card-article-${article.id}`}
               >
                 <CardContent className="p-4 flex items-center gap-3">
@@ -591,7 +599,8 @@ export default function DriverHelpPage() {
             ))}
           </div>
         </div>
-        {supportOpen && (
+        <div id="driver-feedback" className="mx-auto max-w-3xl px-4 pb-24">{user && <SupportSection />}</div>
+      {supportOpen && (
           <div className="fixed bottom-20 right-4 w-[360px] max-w-[calc(100vw-2rem)] h-[500px] max-h-[calc(100vh-6rem)] z-50 shadow-lg rounded-lg overflow-hidden" data-testid="panel-zibana-support-driver">
             <ZibanaSupport onClose={() => setSupportOpen(false)} />
           </div>
@@ -600,7 +609,9 @@ export default function DriverHelpPage() {
           className="fixed bottom-4 right-4 z-50 rounded-full shadow-lg h-12 w-12"
           size="icon"
           onClick={() => setSupportOpen(!supportOpen)}
-          data-testid="button-zibana-support-toggle-driver"
+          aria-label={supportOpen ? "Close support" : "Open support"}
+        aria-expanded={supportOpen}
+        data-testid="button-zibana-support-toggle-driver"
         >
           <Headphones className="h-5 w-5" />
         </Button>
@@ -617,9 +628,11 @@ export default function DriverHelpPage() {
           <p className="text-muted-foreground text-sm">Find answers to your questions</p>
         </div>
 
+        <div className="flex flex-wrap gap-3"><QuickStartTour audience="driver" /><Button asChild variant="outline"><Link href="/guide">Launch status & quick answers</Link></Button></div>
         <div className="relative" data-testid="search-container">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
+            aria-label="Search driver help articles"
             placeholder="Search for help..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -687,9 +700,9 @@ export default function DriverHelpPage() {
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                    <span className="text-sm">Trip recording</span>
+                    <span className="text-sm">Trip recording availability</span>
                   </div>
-                  <Badge variant="secondary">Active</Badge>
+                  <Badge variant="secondary">Check trip settings</Badge>
                 </div>
 
                 <Button
@@ -705,6 +718,7 @@ export default function DriverHelpPage() {
                 <Button
                   variant="outline"
                   className="w-full"
+                  onClick={() => document.getElementById("driver-feedback")?.scrollIntoView({ block: "start" })}
                   data-testid="button-report-incident"
                 >
                   <FileWarning className="h-4 w-4 mr-2" />
@@ -748,7 +762,9 @@ export default function DriverHelpPage() {
                     <Card
                       key={category.id}
                       className="hover-elevate cursor-pointer"
-                      onClick={() => handleCategoryClick(category)}
+                      role="button" tabIndex={0}
+                    onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleCategoryClick(category); } }}
+                    onClick={() => handleCategoryClick(category)}
                       data-testid={`card-category-${category.id}`}
                     >
                       <CardContent className="p-4 text-center">
@@ -770,6 +786,7 @@ export default function DriverHelpPage() {
           </>
         )}
       </div>
+      <div id="driver-feedback" className="mx-auto max-w-3xl px-4 pb-24">{user && <SupportSection />}</div>
       {supportOpen && (
         <div className="fixed bottom-20 right-4 w-[360px] max-w-[calc(100vw-2rem)] h-[500px] max-h-[calc(100vh-6rem)] z-50 shadow-lg rounded-lg overflow-hidden" data-testid="panel-zibana-support-driver">
           <ZibanaSupport onClose={() => setSupportOpen(false)} />
@@ -779,6 +796,8 @@ export default function DriverHelpPage() {
         className="fixed bottom-4 right-4 z-50 rounded-full shadow-lg h-12 w-12"
         size="icon"
         onClick={() => setSupportOpen(!supportOpen)}
+        aria-label={supportOpen ? "Close support" : "Open support"}
+        aria-expanded={supportOpen}
         data-testid="button-zibana-support-toggle-driver"
       >
         <Headphones className="h-5 w-5" />

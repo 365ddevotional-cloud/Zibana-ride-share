@@ -1,3 +1,4 @@
+import { QuickStartTour } from "@/components/quick-start-tour";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Car, Shield, Wallet, Clock } from "lucide-react";
@@ -20,7 +21,7 @@ export default function DriverWelcome() {
             {t("onboarding.driverSubtext")}
           </p>
           <div className="inline-flex items-center gap-2 rounded-full bg-white/15 border border-white/20 px-4 py-1.5 text-sm font-semibold" data-testid="badge-quick-signup">
-            Quick Driver Signup — Only License and NIN Required
+            Driver registration · Vehicle and document review required
           </div>
         </div>
 
@@ -48,6 +49,7 @@ export default function DriverWelcome() {
         </div>
 
         <div className="space-y-4">
+          <div className="rounded-lg bg-background p-4 text-foreground flex flex-wrap items-center justify-center gap-3"><QuickStartTour autoStart audience="driver" /><Link href="/guide" className="text-sm underline">Help & launch status</Link></div>
           <a href="/api/login" className="block">
             <Button 
               size="lg" 

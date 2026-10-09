@@ -1,3 +1,5 @@
+import { Link } from "wouter";
+import { QuickStartTour } from "@/components/quick-start-tour";
 import { useState, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -63,7 +65,7 @@ const ARTICLES: HelpArticle[] = [
   {
     id: "gs-3", categoryId: "getting-started", title: "Is ZIBANA available in my city?",
     summary: "Check where ZIBANA operates",
-    content: "ZIBANA is currently expanding across several countries in Africa and other emerging markets. We operate in major cities across Nigeria and are actively launching in new regions. Check the app for availability in your area — if ZIBANA is available, you'll be able to see nearby drivers and request rides.",
+    content: "Live bookings are currently closed while launch approvals and verified settlement are completed. Registration does not mean service is available in your city. See Help & launch status for current milestones.",
     keywords: ["city", "available", "location", "area", "country", "where", "operate", "nigeria"],
   },
   {
@@ -500,6 +502,8 @@ export default function HelpCenterPage({
             <Card
               key={article.id}
               className="hover-elevate cursor-pointer"
+              role="button" tabIndex={0}
+              onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleArticleClick(article); } }}
               onClick={() => handleArticleClick(article)}
               data-testid={`card-article-${article.id}`}
             >
@@ -533,9 +537,11 @@ export default function HelpCenterPage({
         </p>
       </div>
 
+      <div className="flex flex-wrap gap-3"><QuickStartTour /><Button asChild variant="outline"><Link href="/guide">Launch status & quick answers</Link></Button><Button asChild variant="outline"><Link href="/rider/support">Report a bug or suggest a feature</Link></Button></div>
       <div className="relative" data-testid="search-container">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
+          aria-label="Search help articles"
           placeholder="Search for help..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
@@ -562,6 +568,8 @@ export default function HelpCenterPage({
               <Card
                 key={article.id}
                 className="hover-elevate cursor-pointer"
+                role="button" tabIndex={0}
+                onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedCategory(null); handleArticleClick(article); } }}
                 onClick={() => {
                   setSelectedCategory(null);
                   handleArticleClick(article);
@@ -603,6 +611,8 @@ export default function HelpCenterPage({
                   <Card
                     key={category.id}
                     className="hover-elevate cursor-pointer"
+                    role="button" tabIndex={0}
+                    onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleCategoryClick(category); } }}
                     onClick={() => handleCategoryClick(category)}
                     data-testid={`card-category-${category.id}`}
                   >
@@ -673,6 +683,8 @@ export default function HelpCenterPage({
         className="fixed bottom-4 right-4 z-50 rounded-full shadow-lg h-12 w-12"
         size="icon"
         onClick={() => setSupportOpen(!supportOpen)}
+        aria-label={supportOpen ? "Close support" : "Open support"}
+        aria-expanded={supportOpen}
         data-testid="button-zibana-support-toggle"
       >
         <Headphones className="h-5 w-5" />

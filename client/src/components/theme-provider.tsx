@@ -1,8 +1,8 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, getQueryFn } from "@/lib/queryClient";
 
-type Theme = "dark" | "light" | "system";
+import { isThemePreference, readTheme, savePreference, type ThemePreference as Theme } from "@/lib/preferences";
 
 type ThemeProviderProps = {
   children: React.ReactNode;
@@ -46,32 +46,41 @@ export function ThemeProvider({
 }: ThemeProviderProps) {
   const queryClient = useQueryClient();
   const [theme, setThemeState] = useState<Theme>(
-    () => (localStorage.getItem(storageKey) as Theme) || defaultTheme
+    () => readTheme(storageKey, defaultTheme)
   );
   const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(() => resolveTheme(theme));
 
+  const locallyChosenFor = useRef(new Set<string>());
+  const { data: user } = useQuery<{ id: string } | null>({
+    queryKey: ["/api/auth/user"], queryFn: getQueryFn({ on401: "returnNull" }), retry: false,
+  });
   const { data: serverTheme, isLoading } = useQuery<{ themePreference: Theme }>({
-    queryKey: ["/api/user/theme-preference"],
+    queryKey: ["/api/user/theme-preference", user?.id],
+    queryFn: async () => (await apiRequest("GET", "/api/user/theme-preference")).json(),
+    enabled: !!user,
     retry: false,
     staleTime: 1000 * 60 * 5,
   });
 
   const mutation = useMutation({
+    scope: { id: "theme-preference" },
     mutationFn: async (newTheme: Theme) => {
       const response = await apiRequest("POST", "/api/user/theme-preference", { themePreference: newTheme });
       return response.json();
     },
+    // A failed sync must not discard the locally saved preference.
+    retry: false,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user/theme-preference"] });
     },
   });
 
   useEffect(() => {
-    if (serverTheme?.themePreference && serverTheme.themePreference !== theme) {
+    if (user && !locallyChosenFor.current.has(user.id) && isThemePreference(serverTheme?.themePreference)) {
       setThemeState(serverTheme.themePreference);
-      localStorage.setItem(storageKey, serverTheme.themePreference);
+      savePreference(storageKey, serverTheme.themePreference);
     }
-  }, [serverTheme, storageKey]);
+  }, [serverTheme, storageKey, user?.id]);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -81,6 +90,7 @@ export function ThemeProvider({
     root.classList.add("transitioning");
     root.classList.remove("light", "dark");
     root.classList.add(resolved);
+    root.style.colorScheme = resolved;
     setResolvedTheme(resolved);
     
     // Remove transitioning class after animation completes
@@ -100,6 +110,7 @@ export function ThemeProvider({
       const resolved = getSystemTheme();
       root.classList.remove("light", "dark");
       root.classList.add(resolved);
+      root.style.colorScheme = resolved;
       setResolvedTheme(resolved);
     };
 
@@ -108,9 +119,13 @@ export function ThemeProvider({
   }, [theme]);
 
   const setTheme = (newTheme: Theme) => {
-    localStorage.setItem(storageKey, newTheme);
+    if (!isThemePreference(newTheme)) return;
+    savePreference(storageKey, newTheme);
     setThemeState(newTheme);
-    mutation.mutate(newTheme);
+    if (user) {
+      locallyChosenFor.current.add(user.id);
+      mutation.mutate(newTheme);
+    }
   };
 
   const value = {

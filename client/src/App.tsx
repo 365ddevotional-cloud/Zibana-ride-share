@@ -107,6 +107,7 @@ const RiderSettingsPage = lazy(() => import("@/pages/rider/settings"));
 const RiderLanguagePage = lazy(() => import("@/pages/rider/language"));
 const RiderTermsPrivacyPage = lazy(() => import("@/pages/rider/terms-privacy"));
 const RiderWelcomeBackPage = lazy(() => import("@/pages/rider/welcome-back"));
+const GettingStartedPage = lazy(() => import("@/pages/public/getting-started"));
 const HelpCenterPage = lazy(() => import("@/pages/help-center"));
 const TrustedContactsPage = lazy(() => import("@/pages/rider/trusted-contacts"));
 const SafetyHubPage = lazy(() => import("@/pages/rider/safety-hub"));
@@ -1223,6 +1224,8 @@ function MainRouter() {
     }
   }
   
+  if (location === "/guide") return <LazyComponent><GettingStartedPage /></LazyComponent>;
+
   if (location === "/simulation") {
     return (
       <LazyComponent>
@@ -1258,7 +1261,7 @@ function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <ThemeProvider defaultTheme="light" storageKey="zibana-ui-theme">
+        <ThemeProvider defaultTheme="system" storageKey="zibana-ui-theme">
           <LanguageProvider>
             <TooltipProvider>
               <AppModeProvider>

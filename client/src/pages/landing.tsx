@@ -1,3 +1,4 @@
+import { QuickStartTour } from "@/components/quick-start-tour";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -120,12 +121,12 @@ export default function LandingPage() {
               
               <p className="mx-auto mb-4 max-w-xl text-lg text-muted-foreground md:text-xl">
                 {appName} connects you with trusted drivers for safe, reliable transportation. 
-                Request a ride in seconds and travel with confidence.
+                Explore your account and safety features while we prepare for launch.
               </p>
 
               <div className="mb-8 inline-flex items-center gap-2 rounded-full bg-primary/10 border border-primary/20 px-5 py-2 text-sm font-semibold text-primary" data-testid="badge-drive-cashout">
                 <DollarSign className="h-4 w-4" />
-                Drive Today. Cash Out Today.
+                Registration open · Bookings not yet open
               </div>
               
               <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
@@ -137,7 +138,11 @@ export default function LandingPage() {
                 </Button>
               </div>
               
-              <div className="mt-8 flex items-center justify-center gap-6 text-sm text-muted-foreground">
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+                <QuickStartTour autoStart />
+                <Button variant="ghost" asChild><Link href="/guide">Help & launch status</Link></Button>
+              </div>
+              <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground">
                 <div className="flex items-center gap-2">
                   <CheckCircle className="h-4 w-4 text-green-500" />
                   <span>Free to sign up</span>
@@ -192,7 +197,7 @@ export default function LandingPage() {
                     </div>
                     <h3 className="mb-2 text-lg font-semibold">Quick Pickup</h3>
                     <p className="text-muted-foreground text-sm">
-                      Drivers receive your request instantly and arrive within minutes.
+                      Pickup requests will depend on launch approval and available drivers.
                     </p>
                   </CardContent>
                 </Card>
@@ -277,7 +282,7 @@ export default function LandingPage() {
                     </div>
                     <h3 className="mb-2 font-semibold">Safety First</h3>
                     <p className="text-muted-foreground text-sm">
-                      SOS and support always available
+                      Safety guidance and support options
                     </p>
                   </CardContent>
                 </Card>
@@ -289,10 +294,10 @@ export default function LandingPage() {
         <section className="py-20 bg-primary text-primary-foreground">
           <div className="container mx-auto px-4 text-center">
             <h2 className="font-serif text-3xl font-bold mb-4 md:text-4xl">
-              Ready to ride?
+              Get ready for ZIBANA
             </h2>
             <p className="mb-8 text-primary-foreground/80 max-w-xl mx-auto">
-              Join {appName} today and experience reliable transportation at your fingertips.
+              Create your {appName} account and explore the guide. Ride booking remains closed pending launch checks.
             </p>
             <Button 
               size="lg" 
@@ -308,6 +313,7 @@ export default function LandingPage() {
       </main>
 
       <footer className="border-t py-8">
+        <div className="text-center mb-4"><Link href="/guide" className="underline text-sm">Help, quick tour & launch status</Link></div>
         <div className="container mx-auto px-4">
           <div className="flex flex-col gap-6">
             <div className="flex flex-col items-center justify-between gap-4 md:flex-row">

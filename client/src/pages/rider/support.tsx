@@ -1,3 +1,5 @@
+import { SupportSection } from "@/components/support-section";
+import { Link } from "wouter";
 import { useState } from "react";
 import { RiderLayout } from "@/components/rider/RiderLayout";
 import { RiderRouteGuard } from "@/components/rider/RiderRouteGuard";
@@ -7,10 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient, apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
-import { useSupportContext } from "@/hooks/use-support-context";
 import { 
   HelpCircle, Shield, Phone, MessageSquare, Plus, 
   ChevronRight, ChevronDown, ChevronUp, FileText, AlertTriangle, AlertOctagon, Banknote
@@ -18,64 +16,15 @@ import {
 import { formatDistanceToNow } from "date-fns";
 import { ZibraFloatingButton } from "@/components/rider/ZibraFloatingButton";
 
-interface SupportTicket {
-  id: string;
-  subject: string;
-  status: string;
-  priority: string;
-  createdAt: string;
-}
-
 export default function RiderSupport() {
-  const { toast } = useToast();
-  const { getSupportContext } = useSupportContext();
-  const [showNewTicket, setShowNewTicket] = useState(false);
-  const [subject, setSubject] = useState("");
-  const [description, setDescription] = useState("");
   const [showSafetyInfo, setShowSafetyInfo] = useState(false);
-
-  const { data: tickets, isLoading } = useQuery<SupportTicket[]>({
-    queryKey: ["/api/support/tickets/my"],
-  });
-
-  const createTicket = useMutation({
-    mutationFn: async (data: { subject: string; description: string }) => {
-      const supportContext = getSupportContext();
-      return apiRequest("POST", "/api/support/tickets/create", { ...data, supportContext });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/support/tickets/my"] });
-      toast({ title: "Ticket created", description: "We'll get back to you soon" });
-      setShowNewTicket(false);
-      setSubject("");
-      setDescription("");
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to create ticket", variant: "destructive" });
-    },
-  });
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "open": return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
-      case "in_progress": return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
-      case "resolved": return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
-      case "closed": return "bg-muted text-muted-foreground";
-      default: return "bg-muted text-muted-foreground";
-    }
-  };
-
-  const handleSubmit = () => {
-    if (subject.trim() && description.trim()) {
-      createTicket.mutate({ subject, description });
-    }
-  };
 
   return (
     <RiderRouteGuard>
       <RiderLayout>
         <div className="p-4 space-y-6">
           <h1 className="text-2xl font-bold" data-testid="text-support-title">Help & Safety</h1>
+          <Link href="/guide" className="inline-block text-sm text-primary underline">Quick tour, launch status & answers</Link>
 
           <Card className="border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30">
             <CardContent className="p-4">
@@ -115,7 +64,7 @@ export default function RiderSupport() {
             </Card>
             <Card 
               className="hover-elevate cursor-pointer"
-              onClick={() => setShowNewTicket(true)}
+              onClick={() => document.getElementById("rider-feedback")?.scrollIntoView({ block: "start" })}
             >
               <CardContent className="p-4 text-center">
                 <div className="h-12 w-12 rounded-full bg-amber-100 dark:bg-amber-900 flex items-center justify-center mx-auto mb-2">
@@ -156,94 +105,7 @@ export default function RiderSupport() {
             </Card>
           )}
 
-          <Card>
-            <CardHeader className="pb-3 flex flex-row items-center justify-between gap-2">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <MessageSquare className="h-5 w-5" />
-                Support Tickets
-              </CardTitle>
-              <Button 
-                size="sm" 
-                onClick={() => setShowNewTicket(!showNewTicket)}
-                data-testid="button-new-ticket"
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                New
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {showNewTicket && (
-                <div className="space-y-3 mb-4 p-4 border rounded-lg bg-muted/50">
-                  <Input
-                    placeholder="Subject"
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
-                    data-testid="input-ticket-subject"
-                  />
-                  <Textarea
-                    placeholder="Describe your issue..."
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    rows={3}
-                    data-testid="input-ticket-description"
-                  />
-                  <div className="flex gap-2">
-                    <Button 
-                      onClick={handleSubmit}
-                      disabled={!subject.trim() || !description.trim() || createTicket.isPending}
-                      data-testid="button-submit-ticket"
-                    >
-                      {createTicket.isPending ? "Submitting..." : "Submit"}
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => setShowNewTicket(false)}
-                      data-testid="button-cancel-ticket"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {isLoading ? (
-                <div className="space-y-3">
-                  <Skeleton className="h-16 w-full" />
-                  <Skeleton className="h-16 w-full" />
-                </div>
-              ) : !tickets || tickets.length === 0 ? (
-                <div className="text-center py-6 text-muted-foreground">
-                  <HelpCircle className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p>No support tickets</p>
-                  <p className="text-sm mt-1">Create a ticket if you need help</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {tickets.map((ticket) => (
-                    <div 
-                      key={ticket.id} 
-                      className="flex items-center justify-between p-3 rounded-lg border hover-elevate cursor-pointer"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <Badge variant="outline" className={getStatusColor(ticket.status)}>
-                            {ticket.status.replace("_", " ")}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">
-                            {formatDistanceToNow(new Date(ticket.createdAt), { addSuffix: true })}
-                          </span>
-                        </div>
-                        <p className="font-medium truncate" data-testid={`text-ticket-${ticket.id}`}>
-                          {ticket.subject}
-                        </p>
-                      </div>
-                      <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <div id="rider-feedback"><SupportSection /></div>
 
           <RiderPaymentFAQ />
 

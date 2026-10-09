@@ -68,7 +68,7 @@ export function SupportSection({ userTrips = [] }: SupportSectionProps) {
   });
   const [newMessage, setNewMessage] = useState("");
 
-  const { data: myTickets = [], isLoading } = useQuery<SupportTicket[]>({
+  const { data: myTickets = [], isLoading, isError, refetch } = useQuery<SupportTicket[]>({
     queryKey: ["/api/support/tickets/my"],
     queryFn: async () => {
       const res = await fetch(`${API_BASE}/api/support/tickets/my`, { credentials: "include" });
@@ -77,7 +77,7 @@ export function SupportSection({ userTrips = [] }: SupportSectionProps) {
     },
   });
 
-  const { data: ticketDetails } = useQuery<{ ticket: SupportTicket; messages: SupportMessage[] }>({
+  const { data: ticketDetails, isLoading: detailsLoading, isError: detailsError, refetch: reloadDetails } = useQuery<{ ticket: SupportTicket; messages: SupportMessage[] }>({
     queryKey: ["/api/support/tickets", selectedTicket?.id],
     queryFn: async () => {
       const res = await fetch(`${API_BASE}/api/support/tickets/${selectedTicket!.id}`, { credentials: "include" });
@@ -88,10 +88,13 @@ export function SupportSection({ userTrips = [] }: SupportSectionProps) {
   });
 
   const createMutation = useMutation({
+    retry: false,
     mutationFn: async (data: typeof newTicket) => {
       const res = await apiRequest("POST", "/api/support/tickets/create", {
         ...data,
-        tripId: data.tripId || null,
+        subject: data.subject.trim(),
+        description: data.description.trim(),
+        tripId: data.tripId === "none" ? null : data.tripId || null,
       });
       return res.json();
     },
@@ -99,7 +102,7 @@ export function SupportSection({ userTrips = [] }: SupportSectionProps) {
       queryClient.invalidateQueries({ queryKey: ["/api/support/tickets/my"] });
       setShowCreateDialog(false);
       setNewTicket({ subject: "", description: "", tripId: "", priority: "medium" });
-      toast({ title: "Ticket created", description: "Our support team will respond shortly" });
+      toast({ title: "Ticket created", description: "Your ticket is saved. Check here for replies." });
     },
     onError: (error: any) => {
       toast({ 
@@ -111,6 +114,7 @@ export function SupportSection({ userTrips = [] }: SupportSectionProps) {
   });
 
   const respondMutation = useMutation({
+    retry: false,
     mutationFn: async (data: { ticketId: string; message: string }) => {
       const res = await apiRequest("POST", "/api/support/tickets/respond", {
         ...data,
@@ -156,12 +160,12 @@ export function SupportSection({ userTrips = [] }: SupportSectionProps) {
   return (
     <Card>
       <CardHeader>
-        <div className="flex justify-between items-center">
+        <div className="flex flex-wrap gap-3 justify-between items-center">
           <div className="flex items-center gap-2">
             <Headphones className="h-5 w-5 text-primary" />
             <div>
-              <CardTitle>Support</CardTitle>
-              <CardDescription>Get help with your account or trips</CardDescription>
+              <CardTitle>Support & feedback</CardTitle>
+              <CardDescription>Report a bug, suggest a feature, or get account and trip help</CardDescription>
             </div>
           </div>
           <Button onClick={() => setShowCreateDialog(true)} data-testid="button-create-ticket">
@@ -173,6 +177,8 @@ export function SupportSection({ userTrips = [] }: SupportSectionProps) {
       <CardContent>
         {isLoading ? (
           <div className="py-8 text-center text-muted-foreground">Loading...</div>
+        ) : isError ? (
+          <div role="alert" className="space-y-3 py-6 text-center"><p>We could not load your tickets. Check your connection and try again.</p><Button variant="outline" onClick={() => refetch()}>Retry</Button></div>
         ) : myTickets.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-center">
             <Headphones className="h-12 w-12 text-muted-foreground mb-4" />
@@ -191,6 +197,8 @@ export function SupportSection({ userTrips = [] }: SupportSectionProps) {
                     <div
                       key={ticket.id}
                       className="flex justify-between items-center p-3 bg-muted rounded-lg cursor-pointer hover-elevate"
+                      role="button" tabIndex={0}
+                      onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openTicketDetails(ticket); } }}
                       onClick={() => openTicketDetails(ticket)}
                       data-testid={`ticket-${ticket.id}`}
                     >
@@ -222,6 +230,8 @@ export function SupportSection({ userTrips = [] }: SupportSectionProps) {
                     <div
                       key={ticket.id}
                       className="flex justify-between items-center p-3 bg-muted/50 rounded-lg cursor-pointer hover-elevate"
+                      role="button" tabIndex={0}
+                      onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openTicketDetails(ticket); } }}
                       onClick={() => openTicketDetails(ticket)}
                       data-testid={`ticket-closed-${ticket.id}`}
                     >
@@ -244,17 +254,18 @@ export function SupportSection({ userTrips = [] }: SupportSectionProps) {
       </CardContent>
 
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent>
+        <DialogContent className="max-h-[85dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create Support Ticket</DialogTitle>
             <DialogDescription>
-              Describe your issue and our team will help you.
+              Tell us what happened or suggest an improvement. Include the screen, steps and expected result. Never include passwords, OTPs or full payment details.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <label className="text-sm font-medium">Subject</label>
+              <label htmlFor="feedback-subject" className="text-sm font-medium">Subject</label>
               <Input
+                id="feedback-subject"
                 value={newTicket.subject}
                 onChange={(e) => setNewTicket({ ...newTicket, subject: e.target.value })}
                 placeholder="Brief summary of your issue"
@@ -263,8 +274,9 @@ export function SupportSection({ userTrips = [] }: SupportSectionProps) {
               />
             </div>
             <div>
-              <label className="text-sm font-medium">Description</label>
+              <label htmlFor="feedback-description" className="text-sm font-medium">Description</label>
               <Textarea
+                id="feedback-description"
                 value={newTicket.description}
                 onChange={(e) => setNewTicket({ ...newTicket, description: e.target.value })}
                 placeholder="Provide details about your issue..."
@@ -317,8 +329,8 @@ export function SupportSection({ userTrips = [] }: SupportSectionProps) {
               onClick={() => createMutation.mutate(newTicket)}
               disabled={
                 createMutation.isPending ||
-                newTicket.subject.length < 5 ||
-                newTicket.description.length < 10
+                newTicket.subject.trim().length < 5 ||
+                newTicket.description.trim().length < 10
               }
               data-testid="button-submit-ticket"
             >
@@ -346,6 +358,8 @@ export function SupportSection({ userTrips = [] }: SupportSectionProps) {
             </div>
 
             <div className="space-y-3 max-h-[250px] overflow-y-auto">
+              {detailsLoading && <p role="status">Loading replies...</p>}
+              {detailsError && <div role="alert"><p>Replies could not be loaded.</p><Button variant="outline" onClick={() => reloadDetails()}>Retry replies</Button></div>}
               {ticketDetails?.messages.filter(m => !m.internal).map((msg) => (
                 <div
                   key={msg.id}
@@ -389,6 +403,7 @@ export function SupportSection({ userTrips = [] }: SupportSectionProps) {
                     }
                   }}
                   disabled={!newMessage.trim() || respondMutation.isPending}
+                  aria-label="Send reply"
                   data-testid="button-send-reply"
                 >
                   <Send className="h-4 w-4" />
