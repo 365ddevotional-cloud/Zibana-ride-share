@@ -1,6 +1,6 @@
 # ZIBANA Nigeria: approved Keke and car tariff
 
-Research date: 9 October 2026. Owner approved on 9 October 2026 in the instruction to open Keke bookings and make pricing final. Tariff version: NG-2026-10-09-v1.
+Research date: 9 October 2026. Owner approved on 9 October 2026 in the instruction to open Keke bookings and make pricing final. Tariff version: NG-2026-10-09-v2.
 
 The tariff is now owner-approved. Commercial activation is still blocked by missing permitted-route scope, verified routing, complete booking settlement and payment credentials. Owner approval does not establish regulatory permission, provider readiness or profitability.
 
@@ -63,3 +63,16 @@ Review fuel weekly; re-evaluate when verified local fuel changes more than 5%. D
 - Production booking currently blocks both ride-request paths; opening them requires server-issued route quotes, eligible-driver matching, atomic reservation/acceptance and final settlement.
 - Paid-service permission was given in principle, but no monthly spending ceiling or individual purchase amount was supplied. No purchase, subscription or live charge has been made.
 - Paystack's published local collection fee is 1.5% plus NGN 100, with NGN 100 waived below NGN 2,500 and fees capped at NGN 2,000. Transfer fees and any applicable levies are separate. The 2% modelling assumption above is not an actual provider fee; replace the full cost model before charging riders. Source: https://support.paystack.com/en/articles/2130306
+
+
+## Approved Mapbox cost recovery — 9 October 2026
+
+Owner instruction: recover every $1 of Mapbox cost with $0.60 profit. Implemented as a 60% cost markup (37.5% gross margin on the recovery revenue), not a 60% revenue margin.
+
+`mapboxRecoveryFee = ceilToKobo(allocatedMapboxCostNgn × 1.60)`
+
+The fare estimator adds the recovery fee to the rider total and platform revenue, leaves the transport fare and driver earnings unchanged, and subtracts the underlying Mapbox expense when calculating platform contribution. Free-tier cost defaults to zero. The $0.60 is gross profit before payment fees, taxes and other overhead; it is not a guaranteed net profit. Minor-unit rounding can increase the effective markup for very small costs.
+
+Activation requirements: implement a server-owned usage/cost ledger, allocate paid usage (including unbooked quotes and reroutes) consistently across future quotes, record the USD/NGN rate and allocation basis in each quote, show the recovery amount before confirmation, and reconcile provider invoices. Do not infer spend merely from ride count; Mapbox products and free allowances are separate. No retrospective charge to accepted quotes. Never read provider costs or FX rates from rider request bodies. Exclude Mapbox from fixedTripCosts to avoid double counting.
+
+This policy is implemented in the offline fare estimator only. Production quotes, collections and Mapbox integration remain inactive pending the documented booking/payment work. No paid provider was enabled by this change.

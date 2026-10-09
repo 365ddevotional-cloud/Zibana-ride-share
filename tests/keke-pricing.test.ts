@@ -34,3 +34,19 @@ test('higher costs lift the fare floor; impossible payment economics and invalid
   assert.throws(() => estimateNigeriaFare('keke', 2, 10, { paymentRate: .1 }));
   for (const km of [-1, NaN, Infinity]) assert.throws(() => estimateNigeriaFare('car', km, 10));
 });
+
+
+test('Mapbox recovers cost plus 60 percent without reducing driver pay or charging free usage', () => {
+  const baseline = estimateNigeriaFare('keke', 5, 20);
+  const paid = estimateNigeriaFare('keke', 5, 20, { mapboxCostNgn: 100 });
+  assert.equal(baseline.mapboxRecoveryFee, 0);
+  assert.equal(paid.mapboxRecoveryFee, 160);
+  assert.equal(paid.mapboxGrossProfit, 60);
+  assert.equal(paid.driverGross, baseline.driverGross);
+  assert.equal(paid.transportFare, baseline.transportFare);
+  assert.equal(paid.riderTotal - baseline.riderTotal, 160);
+  assert.ok(Math.abs(paid.platformContribution - baseline.platformContribution - (60 - 160 * .02)) < .0001);
+  const fraction = estimateNigeriaFare('car', 5, 20, { mapboxCostNgn: .003 });
+  assert.equal(fraction.mapboxRecoveryFee, .01);
+  for (const cost of [-1, NaN, Infinity]) assert.throws(() => estimateNigeriaFare('car', 5, 20, { mapboxCostNgn: cost }));
+});
